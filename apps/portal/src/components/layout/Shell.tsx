@@ -38,7 +38,7 @@ const NAV: NavItem[] = [
   { id: 'activity', label: 'Activity log', icon: 'activity' },
   { section: 'Operations' },
   { id: 'vms', label: 'VM records', icon: 'server' },
-  { id: 'tasks', label: 'Provisioning', icon: 'tasks', badge: 2 },
+  { id: 'tasks', label: 'Customer Requests', icon: 'tasks', badge: 2 },
   { id: 'network', label: 'Network & IPs', icon: 'network' },
   { section: 'Engineering' },
   { id: 'console', label: 'Web console', icon: 'cpu' },

@@ -65,6 +65,7 @@ const Icon: React.FC<IconProps> = ({ name, size = 16, stroke = 1.6, className = 
     case 'terminal': return <svg {...props}><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M13 15h4"/></svg>
     case 'sun': return <svg {...props}><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/></svg>
     case 'moon': return <svg {...props}><path d="M20 14a8 8 0 0 1-10-10 8 8 0 1 0 10 10z"/></svg>
+    case 'star': return <svg {...props}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
     default: return null
   }
 }

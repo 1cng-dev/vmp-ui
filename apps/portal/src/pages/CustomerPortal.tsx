@@ -26,6 +26,7 @@ import { CustomerTicketsView } from '../components/customer-portal/CustomerTicke
 import { CustomerTicketDetail } from '../components/customer-portal/CustomerTicketDetail'
 import { CustomerRequestDetail } from '../components/customer-portal/CustomerRequestDetail'
 import { CustomerInvoiceDetail } from '../components/customer-portal/CustomerInvoiceDetail'
+import { AddonServicesView } from '../components/customer-portal/AddonServicesView'
 
 interface CustomerPortalProps {
   role?: string
@@ -69,6 +70,7 @@ const CustomerPortal: React.FC<CustomerPortalProps> = ({ role = 'Customer', setR
     { id: 'request', label: 'Request VM', icon: 'plus', lockedByKyc: true },
     { id: 'vms', label: 'My VMs', icon: 'server', badge: myVMs.length || null, lockedByKyc: true },
     { id: 'requests', label: 'My requests', icon: 'tasks', badge: myRequests.length || null, lockedByKyc: true },
+    { id: 'addons', label: 'Add-on Services', icon: 'box', lockedByKyc: true },
     { id: 'invoices', label: 'Invoices', icon: 'invoice', badge: pendingInv.length || null, lockedByKyc: true },
     { id: 'tickets', label: 'Support tickets', icon: 'mail', badge: openTickets.length || null },
   ]
@@ -216,6 +218,7 @@ const CustomerPortal: React.FC<CustomerPortalProps> = ({ role = 'Customer', setR
                     {view === 'requests' && <CustomerRequestsView myRequests={myRequests} setDetailRequest={setDetailRequest}/>}
                     {view === 'invoices' && <CustomerInvoicesView myInvs={myInvs} setDetailInvoice={setDetailInvoice}/>}
                     {view === 'tickets' && <CustomerTicketsView me={me} myTickets={myTickets} setOpenTicket={setOpenTicket}/>}
+                    {view === 'addons' && <AddonServicesView me={me} myVMs={myVMs}/>}
                     {view === 'account' && <CustomerAccountView me={me}/>}
                   </>
                 )

@@ -280,18 +280,21 @@ Customer notes: ${f.additionalNotes || '—'}`,
           {/* Specification */}
               <div className="card">
                 <div className="card-head">
-                  <h3 className="card-title">Technical Specifications</h3>
+                  <h3 className="card-title">Specifications</h3>
                   <div className="flex gap-1" style={{ background: 'var(--surface-3)', borderRadius: 8, padding: 3 }}>
                     {[['standard', 'Standard'], ['premium', 'Premium']].map(([id, label]) => (
                       <button key={id} onClick={() => set('sizing', id)}
                         style={{
                           padding: '5px 14px', borderRadius: 6, border: 'none', cursor: 'pointer',
                           fontFamily: 'inherit', fontSize: 12, fontWeight: 600,
-                          background: f.sizing === id ? 'var(--surface)' : 'transparent',
-                          color: f.sizing === id ? 'var(--ink)' : 'var(--ink-3)',
+                          background: f.sizing === id ? (id === 'premium' ? 'linear-gradient(135deg, #8b5cf6, #a855f7)' : 'var(--surface)') : 'transparent',
+                          color: f.sizing === id ? (id === 'premium' ? '#fff' : 'var(--ink)') : 'var(--ink-3)',
                           boxShadow: f.sizing === id ? 'var(--shadow-sm)' : 'none',
                           transition: 'all 0.15s',
-                        }}>{label}</button>
+                        }}>
+                        {label}
+                        {id === 'premium' && <Icon name="star" size={10} style={{ marginLeft: 4 }}/>}
+                      </button>
                     ))}
                   </div>
                 </div>

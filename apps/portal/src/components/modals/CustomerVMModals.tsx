@@ -151,6 +151,9 @@ const CustUpgradeModal: React.FC<CustUpgradeModalProps> = ({ vm, onClose }) => {
   const { toast } = useUIStore()
   const me = customers.find((c: any) => c.id === vm.customer)
   const [spec, setSpec] = useState({ vcpu: vm.vcpu, ram: vm.ram, storage: vm.storage, bandwidth: vm.bandwidth })
+  const [backupEnabled, setBackupEnabled] = useState(false)
+  const [backupTime, setBackupTime] = useState('02:00')
+  const [backupType, setBackupType] = useState('daily')
 
   const oldCost = vm.priceMonth
   const calcCost = (s: typeof spec) => Math.round(s.vcpu * 20000 + s.ram * 6000 + s.storage * 200 + (s.bandwidth === '1 Gbps' ? 30000 : s.bandwidth === '500 Mbps' ? 10000 : 0))
@@ -171,6 +174,7 @@ const CustUpgradeModal: React.FC<CustUpgradeModalProps> = ({ vm, onClose }) => {
       notes: `Customer-initiated spec upgrade via portal.
 Current: ${vm.vcpu} vCPU · ${vm.ram} GB RAM · ${vm.storage} GB · ${vm.bandwidth}
 Requested: ${spec.vcpu} vCPU · ${spec.ram} GB RAM · ${spec.storage} GB · ${spec.bandwidth}
+Backup: ${backupEnabled ? `${backupType === 'daily' ? 'Daily' : 'Weekly'} at ${backupTime}` : 'No'}
 Cost diff: ${diff >= 0 ? '+' : ''}MMK ${formatMMK(Math.abs(diff))}/mo`,
     })
     toast('Upgrade request sent to Sales', 'ok')
@@ -221,6 +225,65 @@ Cost diff: ${diff >= 0 ? '+' : ''}MMK ${formatMMK(Math.abs(diff))}/mo`,
             <Section label="RAM" icon="database" current={vm.ram} options={ramSteps} value={spec.ram} onChange={v => setSpec({...spec, ram: v as number})} unit=" GB"/>
             <Section label="Storage" icon="box" current={vm.storage} options={storageSteps} value={spec.storage} onChange={v => setSpec({...spec, storage: v as number})} unit=" GB"/>
             <Section label="Network traffic" icon="network" current={vm.bandwidth} options={bwOpts} value={spec.bandwidth} onChange={v => setSpec({...spec, bandwidth: v as string})} unit=""/>
+
+            {/* Backup service */}
+            <div className="card" style={{ borderColor: 'var(--line)' }}>
+              <div className="card-head">
+                <h3 className="card-title">Backup service</h3>
+                <span className={`toggle ${backupEnabled ? 'on' : ''}`} onClick={() => setBackupEnabled(!backupEnabled)}/>
+              </div>
+              {backupEnabled && (
+                <div className="card-body">
+                  <div className="text-xs text-mute fw-6 mb-3" style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>Backup Options <span style={{ color: 'var(--bad)' }}>*</span></div>
+                  <div className="flex col gap-3">
+                    <div>
+                      <div className="text-xs text-mute">(Backup Time - within 12:00 AM - 6:00 AM)</div>
+                    </div>
+                    <div>
+                      <div className="flex col gap-2">
+                        <label className="flex center gap-2" style={{ cursor: 'pointer', padding: 12, background: backupType === 'daily' ? 'var(--accent-soft)' : 'var(--surface)', border: backupType === 'daily' ? '1.5px solid var(--accent)' : '1px solid var(--line)', borderRadius: 8 }}>
+                          <input
+                            type="radio"
+                            name="backupType"
+                            value="daily"
+                            checked={backupType === 'daily'}
+                            onChange={() => setBackupType('daily')}
+                            style={{ cursor: 'pointer' }}
+                          />
+                          <div className="flex-1">
+                            <div className="fw-6 text-sm">Daily backup</div>
+                            <div className="text-xs text-mute">Every day at specified time</div>
+                          </div>
+                        </label>
+                        <label className="flex center gap-2" style={{ cursor: 'pointer', padding: 12, background: backupType === 'weekly' ? 'var(--accent-soft)' : 'var(--surface)', border: backupType === 'weekly' ? '1.5px solid var(--accent)' : '1px solid var(--line)', borderRadius: 8 }}>
+                          <input
+                            type="radio"
+                            name="backupType"
+                            value="weekly"
+                            checked={backupType === 'weekly'}
+                            onChange={() => setBackupType('weekly')}
+                            style={{ cursor: 'pointer' }}
+                          />
+                          <div className="flex-1">
+                            <div className="fw-6 text-sm">Weekly backup</div>
+                            <div className="text-xs text-mute">Once per week at specified time</div>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs text-mute fw-6" style={{ display: 'block', marginBottom: 6 }}>Backup time</label>
+                      <input
+                        type="time"
+                        value={backupTime}
+                        onChange={(e) => setBackupTime(e.target.value)}
+                        style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid var(--line)', background: 'var(--surface-2)' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <div style={{ background: 'var(--surface-2)', borderRadius: 8, padding: 14, marginTop: 16 }}>
