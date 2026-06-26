@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import useTaskStore from '../../store/taskStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
-import { IaaSCard, SpecPill, SpecStepper, ReviewBlock, SummaryLine } from './VMHelperComponents'
+import { IaaSCard } from './VMHelperComponents'
 
 interface CustomerRequestVMViewProps {
   me: any
@@ -12,30 +12,31 @@ interface CustomerRequestVMViewProps {
 export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me, setView }) => {
   const { addTask } = useTaskStore()
   const { toast } = useUIStore()
-  const [step, setStep] = useState(1)
+  const [showSummary, setShowSummary] = useState(false)
   const [f, setF] = useState({
     purpose: '',
     hostname: '',
     os: 'ubuntu',
     osVersion: '22.04 LTS',
-    sizing: 'preset',
-    preset: 'business',
+    customOsName: '',
+    customOsVersion: '',
+    sizing: 'standard',
     vcpu: 4,
     ram: 16,
+    storage: 200,
     volumes: [{ size: 200 }],
+    capacity: '',
+    storagePartitions: '',
+    publicIpRequired: true,
     bandwidth: '1 Gbps',
     backupEnabled: false,
-    backupFrequency: 'Daily',
-    backupRetention: 7,
+    backupTime: '02:00',
+    backupType: 'daily',
     monitoring: false,
     zone: 'yangon-dc1',
     nics: [{ id: 1, label: 'NIC 1', type: 'Public', vlan: 'auto' }],
     firewallPorts: ['22', '80', '443'],
     portForwarding: [] as any[],
-    vmProtection: 'none',
-    ddosProtection: 'none',
-    sslCertificate: 'none',
-    loadBalancer: 'none',
     additionalNotes: '',
   })
   const set = (k: string, v: any) => setF(x => ({ ...x, [k]: v }))
@@ -80,23 +81,15 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
     { port: '8080', label: 'HTTP-Alt', desc: 'Alternate HTTP' },
   ]
 
-  const spec = f.sizing === 'preset'
-    ? (presets.find(p => p.id === f.preset) || presets[2])
-    : { vcpu: f.vcpu, ram: f.ram, storage: f.volumes[0]?.size || 200 }
+  const spec = { vcpu: f.vcpu, ram: f.ram, storage: f.storage }
 
-  const cpuSteps = [1, 2, 4, 8, 16, 32]
-  const ramSteps = [1, 2, 4, 8, 16, 32, 64, 128]
   const storageSteps = [25, 50, 100, 200, 500, 1000, 2000]
 
-  const selectedOS = osCatalog.find(o => o.id === f.os) || osCatalog[0]
+  const selectedOS = f.os === 'custom' ? { name: f.customOsName || 'Other OS', accent: 'var(--accent)', versions: [f.customOsVersion || 'Custom version'] } : osCatalog.find(o => o.id === f.os) || osCatalog[0]
   const selectedZone = zones.find(z => z.id === f.zone) || zones[0]
   const hostValid = /^[a-z0-9][a-z0-9-]{1,30}$/i.test(f.hostname)
 
-  const canContinue = () => {
-    if (step === 1) return !!f.purpose
-    if (step === 2) return hostValid
-    return true
-  }
+  const canSubmit = () => !!f.purpose && hostValid
 
   const setVolumeCount = (count: number) => {
     const cur = f.volumes
@@ -139,6 +132,10 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
   const updateNic = (id: number, key: string, val: any) => set('nics', f.nics.map((n: any) => n.id === id ? { ...n, [key]: val } : n))
 
   const submit = () => {
+    setShowSummary(true)
+  }
+
+  const confirmSubmit = () => {
     const volumeDesc = f.volumes.map((v: any, i: number) => `Disk ${i+1}: ${v.size} GB SSD`).join(', ')
     addTask({
       title: `VM request — ${f.hostname} (${spec.vcpu}c / ${spec.ram}GB / ${f.volumes.map((v: any) => v.size).join('+')}GB)`,
@@ -148,108 +145,49 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
       notes: `Customer-initiated VM request via portal.
 Hostname: ${f.hostname}
 Purpose: ${f.purpose || '—'}
-Spec: ${spec.vcpu} vCPU · ${spec.ram} GB RAM · ${volumeDesc}${f.sizing === 'preset' ? ` (${presets.find(p => p.id === f.preset)?.label} preset)` : ' (custom)'}
+Spec: ${spec.vcpu} vCPU · ${spec.ram} GB RAM · ${f.storage} GB SSD${f.sizing === 'standard' ? ' (standard)' : ' (premium)'}
 Bandwidth: ${f.bandwidth}
-Backup: ${f.backupEnabled ? `${f.backupFrequency}, ${f.backupRetention}-day retention` : 'No'}
+Backup: ${f.backupEnabled ? `${f.backupType === 'daily' ? 'Daily' : 'Weekly'} at ${f.backupTime}` : 'No'}
 Monitoring: ${f.monitoring ? 'Enabled' : 'No'}
-OS: ${selectedOS?.name} ${f.osVersion}
+OS: ${selectedOS?.name} ${f.os === 'custom' ? f.customOsVersion : f.osVersion}
 Zone: ${selectedZone?.name}
 NICs: ${f.nics.map((n: any) => `${n.label} (${n.type}, VLAN: ${n.vlan})`).join('; ')}
 Firewall ports: ${f.firewallPorts.join(', ') || 'none'}
 Port forwarding: ${f.portForwarding.length ? f.portForwarding.map((r: any) => `${r.srcPort}→${r.dstPort}/${r.protocol}`).join(', ') : 'none'}
-VM Protection: ${f.vmProtection}
-DDoS Protection: ${f.ddosProtection}
-SSL Certificate: ${f.sslCertificate}
-Load Balancer: ${f.loadBalancer}
 Customer notes: ${f.additionalNotes || '—'}`,
     })
     toast(`Deployment request sent — ${(me as any).salesperson || 'Sales'} will confirm shortly`, 'ok')
+    setShowSummary(false)
     setView('requests')
   }
 
-  const stepLabels = ['Purpose', 'Hostname & OS', 'Specification', 'Zone & Network', 'Firewall', 'Add-ons', 'Review']
-  const totalSteps = stepLabels.length
 
   return (
-    <div className="content" style={{ maxWidth: 1180, margin: '0 auto', paddingBottom: 100 }}>
+    <div className="content" style={{ width: '100%', margin: '0 auto', paddingBottom: 100 }}>
       <div className="page-head">
         <div>
           <h1 className="page-title">Deploy a new VM</h1>
           <p className="page-subtitle">Configure your instance — choose the specs you need</p>
         </div>
-        <div className="page-actions">
-          <span className="text-xs text-mute">Step {step} of {totalSteps}</span>
-        </div>
       </div>
 
-      {/* Stepper */}
-      <div className="card mb-4">
-        <div className="card-body" style={{ padding: '18px 22px' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 0 }}>
-            {stepLabels.map((label, i) => {
-              const n = i + 1
-              const done = n < step
-              const active = n === step
-              return (
-                <React.Fragment key={label}>
-                  <button
-                    onClick={() => n < step && setStep(n)}
-                    style={{
-                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
-                      background: 'transparent', border: 'none',
-                      cursor: n < step ? 'pointer' : 'default',
-                      padding: '4px 4px', flexShrink: 0, minWidth: 68,
-                    }}
-                  >
-                    <div style={{
-                      width: 32, height: 32, borderRadius: '50%',
-                      background: done ? 'var(--accent)' : active ? 'var(--accent-soft)' : 'var(--surface-3)',
-                      color: done ? 'var(--accent-fg)' : active ? 'var(--accent-strong)' : 'var(--ink-3)',
-                      display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 13,
-                      border: active ? '2px solid var(--accent)' : 'none',
-                      transition: 'background 0.2s, transform 0.15s',
-                      transform: active ? 'scale(1.08)' : 'scale(1)',
-                    }}>{done ? <Icon name="check" size={14}/> : n}</div>
-                    <span className="text-xs fw-6" style={{
-                      color: active ? 'var(--ink)' : done ? 'var(--ink-2)' : 'var(--ink-3)',
-                      whiteSpace: 'nowrap', letterSpacing: '0.005em',
-                    }}>{label}</span>
-                  </button>
-                  {i < stepLabels.length - 1 && (
-                    <div style={{
-                      flex: 1, height: 2, minWidth: 8,
-                      background: n < step ? 'var(--accent)' : 'var(--surface-3)',
-                      marginTop: 16, transition: 'background 0.3s',
-                    }}/>
-                  )}
-                </React.Fragment>
-              )
-            })}
-          </div>
-        </div>
-      </div>
 
-      {/* Step body */}
-      <div className="grid-asym" style={{ gap: 24, alignItems: 'flex-start' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Form body */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-          {/* Step 1: Purpose */}
-          {step === 1 && (
-            <div className="card">
-              <div className="card-head"><h3 className="card-title">What's this VM for?</h3></div>
-              <div className="card-body">
-                <div className="field">
-                  <label>Purpose / project name</label>
-                  <input value={f.purpose} onChange={e => set('purpose', e.target.value)} placeholder="e.g. Production web app, ERP database, dev environment"/>
-                  <div className="hint">Helps your account manager allocate the right resources.</div>
-                </div>
+          {/* Purpose */}
+          <div className="card">
+            <div className="card-head"><h3 className="card-title">What's this VM for?</h3></div>
+            <div className="card-body">
+              <div className="field">
+                <label>Purpose / project name</label>
+                <input value={f.purpose} onChange={e => set('purpose', e.target.value)} placeholder="e.g. Production web app, ERP database, dev environment"/>
+                <div className="hint">Helps your account manager allocate the right resources.</div>
               </div>
             </div>
-          )}
+          </div>
 
-          {/* Step 2: Hostname & OS */}
-          {step === 2 && (
-            <>
+          {/* Hostname & OS */}
               <div className="card">
                 <div className="card-head"><h3 className="card-title">Hostname</h3></div>
                 <div className="card-body">
@@ -299,20 +237,52 @@ Customer notes: ${f.additionalNotes || '—'}`,
                         </select>
                       </IaaSCard>
                     ))}
+                    <IaaSCard selected={f.os === 'custom'} onClick={() => set('os', 'custom')} padding={14 as any}>
+                      <div className="flex center gap-2 mb-2">
+                        <div style={{ width: 38, height: 38, borderRadius: 8, background: 'var(--surface-3)', color: 'var(--ink-3)', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 16, flexShrink: 0 }}>
+                          <Icon name="plus" size={16}/>
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div className="fw-7 text-sm">Other OS</div>
+                          <div className="text-xs text-mute">Specify your own</div>
+                        </div>
+                        {f.os === 'custom' && <Icon name="check" size={14} style={{ color: 'var(--accent-strong)' }}/>}
+                      </div>
+                    </IaaSCard>
                   </div>
+
+                  {f.os === 'custom' && (
+                    <div style={{ marginTop: 16, padding: 16, background: 'var(--surface-2)', borderRadius: 10, border: '1px solid var(--line)' }}>
+                      <div className="text-xs text-mute fw-6 mb-3" style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>Other OS details</div>
+                      <div className="grid-2" style={{ gap: 12 }}>
+                        <div className="field">
+                          <label>OS name</label>
+                          <input
+                            value={f.customOsName}
+                            onChange={e => set('customOsName', e.target.value)}
+                            placeholder="e.g. CentOS, Arch Linux"
+                          />
+                        </div>
+                        <div className="field">
+                          <label>Version</label>
+                          <input
+                            value={f.customOsVersion}
+                            onChange={e => set('customOsVersion', e.target.value)}
+                            placeholder="e.g. 9, 2023.10.01"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-            </>
-          )}
 
-          {/* Step 3: Specification */}
-          {step === 3 && (
-            <>
+          {/* Specification */}
               <div className="card">
                 <div className="card-head">
-                  <h3 className="card-title">Compute</h3>
+                  <h3 className="card-title">Technical Specifications</h3>
                   <div className="flex gap-1" style={{ background: 'var(--surface-3)', borderRadius: 8, padding: 3 }}>
-                    {[['preset', 'Presets'], ['custom', 'Custom']].map(([id, label]) => (
+                    {[['standard', 'Standard'], ['premium', 'Premium']].map(([id, label]) => (
                       <button key={id} onClick={() => set('sizing', id)}
                         style={{
                           padding: '5px 14px', borderRadius: 6, border: 'none', cursor: 'pointer',
@@ -326,32 +296,64 @@ Customer notes: ${f.additionalNotes || '—'}`,
                   </div>
                 </div>
                 <div className="card-body">
-                  {f.sizing === 'preset' ? (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-                      {presets.map(p => (
-                        <IaaSCard key={p.id} selected={f.preset === p.id} onClick={() => set('preset', p.id)} padding={16 as any}>
-                          <div className="flex center between mb-2">
-                            <div className="flex center gap-2">
-                              <span className="fw-7" style={{ fontSize: 15 }}>{p.label}</span>
-                              {p.popular && <span className="pill accent" style={{ fontSize: 10 }}><span className="dot"/>Popular</span>}
-                            </div>
-                            {f.preset === p.id && <Icon name="check" size={15} style={{ color: 'var(--accent-strong)' }}/>}
-                          </div>
-                          <div className="text-xs text-mute mb-3">{p.desc}</div>
-                          <div className="flex between" style={{ gap: 8 }}>
-                            <SpecPill icon="cpu" value={p.vcpu} unit="vCPU"/>
-                            <SpecPill icon="database" value={p.ram} unit="GB RAM"/>
-                            <SpecPill icon="box" value={p.storage} unit="GB SSD"/>
-                          </div>
-                        </IaaSCard>
-                      ))}
+                  <div className="grid-2" style={{ gap: 12 }}>
+                    <div className="field">
+                      <label>vCPU cores <span style={{ color: 'var(--bad)' }}>*</span></label>
+                      <input
+                        type="number"
+                        value={f.vcpu}
+                        onChange={e => set('vcpu', parseInt(e.target.value) || 0)}
+                        placeholder="e.g. 4"
+                        min="1"
+                      />
                     </div>
-                  ) : (
-                    <div className="flex col gap-4">
-                      <SpecStepper label="vCPU cores" icon="cpu" steps={cpuSteps} value={f.vcpu} unit="" onChange={v => set('vcpu', v)}/>
-                      <SpecStepper label="Memory" icon="database" steps={ramSteps} value={f.ram} unit=" GB" onChange={v => set('ram', v)}/>
+                    <div className="field">
+                      <label>Memory (GB) <span style={{ color: 'var(--bad)' }}>*</span></label>
+                      <input
+                        type="number"
+                        value={f.ram}
+                        onChange={e => set('ram', parseInt(e.target.value) || 0)}
+                        placeholder="e.g. 16"
+                        min="1"
+                      />
                     </div>
-                  )}
+                    <div className="field">
+                      <label>Storage (GB) <span style={{ color: 'var(--bad)' }}>*</span></label>
+                      <input
+                        type="number"
+                        value={f.storage}
+                        onChange={e => set('storage', parseInt(e.target.value) || 0)}
+                        placeholder="e.g. 200"
+                        min="1"
+                      />
+                    </div>
+                    <div className="field">
+                      <label>Capacity</label>
+                      <input
+                        value={f.capacity}
+                        onChange={e => set('capacity', e.target.value)}
+                        placeholder="e.g. High performance"
+                      />
+                    </div>
+                    <div className="field" style={{ gridColumn: 'span 2' }}>
+                      <label>Storage partitions</label>
+                      <input
+                        value={f.storagePartitions}
+                        onChange={e => set('storagePartitions', e.target.value)}
+                        placeholder="e.g. /boot 1GB, / 50GB, /var 149GB"
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: 16, padding: 14, background: 'var(--surface-2)', borderRadius: 8, border: '1px solid var(--line)' }}>
+                    <div className="flex center between">
+                      <div>
+                        <div className="fw-6 text-sm">Public IP Address (IPv4) <span style={{ color: 'var(--bad)' }}>*</span></div>
+                        <div className="text-xs text-mute mt-1">Assign a public IPv4 address to this VM</div>
+                      </div>
+                      <span className={`toggle ${f.publicIpRequired ? 'on' : ''}`} onClick={() => set('publicIpRequired', !f.publicIpRequired)}/>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -418,21 +420,41 @@ Customer notes: ${f.additionalNotes || '—'}`,
                 </div>
                 {f.backupEnabled && (
                   <div className="card-body">
+                    <div className="text-xs text-mute fw-6 mb-3" style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>Backup Options <span style={{ color: 'var(--bad)' }}>*</span></div>
                     <div className="flex col gap-3">
                       <div>
-                        <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>Frequency</div>
-                        <div className="flex gap-2">
-                          {['Daily', 'Weekly', 'Monthly'].map(freq => (
-                            <button key={freq} className={`filter-chip ${f.backupFrequency === freq ? 'active' : ''}`} onClick={() => set('backupFrequency', freq)}>{freq}</button>
-                          ))}
-                        </div>
+                        <div className="text-xs text-mute">(Backup Time - within 12:00 AM - 6:00 AM)</div>
                       </div>
                       <div>
-                        <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>Retention</div>
-                        <div className="flex gap-2">
-                          {[7, 14, 30, 90].map(days => (
-                            <button key={days} className={`filter-chip ${f.backupRetention === days ? 'active' : ''}`} onClick={() => set('backupRetention', days as any)}>{days} days</button>
-                          ))}
+                        <div className="flex col gap-2">
+                          <label className="flex center gap-2" style={{ cursor: 'pointer', padding: 12, background: f.backupType === 'daily' ? 'var(--accent-soft)' : 'var(--surface)', border: f.backupType === 'daily' ? '1.5px solid var(--accent)' : '1px solid var(--line)', borderRadius: 8 }}>
+                            <input
+                              type="radio"
+                              name="backupType"
+                              value="daily"
+                              checked={f.backupType === 'daily'}
+                              onChange={() => set('backupType', 'daily')}
+                              style={{ cursor: 'pointer' }}
+                            />
+                            <div>
+                              <div className="fw-6 text-sm">Daily Backup</div>
+                              <div className="text-xs text-mute">Daily Backups with 7 days Retention</div>
+                            </div>
+                          </label>
+                          <label className="flex center gap-2" style={{ cursor: 'pointer', padding: 12, background: f.backupType === 'weekly' ? 'var(--accent-soft)' : 'var(--surface)', border: f.backupType === 'weekly' ? '1.5px solid var(--accent)' : '1px solid var(--line)', borderRadius: 8 }}>
+                            <input
+                              type="radio"
+                              name="backupType"
+                              value="weekly"
+                              checked={f.backupType === 'weekly'}
+                              onChange={() => set('backupType', 'weekly')}
+                              style={{ cursor: 'pointer' }}
+                            />
+                            <div>
+                              <div className="fw-6 text-sm">Weekly Backup</div>
+                              <div className="text-xs text-mute">Weekly Backup with 4 weeks Retention</div>
+                            </div>
+                          </label>
                         </div>
                       </div>
                     </div>
@@ -450,12 +472,8 @@ Customer notes: ${f.additionalNotes || '—'}`,
                   <span className={`toggle ${f.monitoring ? 'on' : ''}`} onClick={() => set('monitoring', !f.monitoring)}/>
                 </div>
               </div>
-            </>
-          )}
 
-          {/* Step 4: Zone & Network */}
-          {step === 4 && (
-            <>
+          {/* Zone & Network */}
               <div className="card">
                 <div className="card-head"><h3 className="card-title">Choose a zone</h3></div>
                 <div className="card-body">
@@ -528,20 +546,7 @@ Customer notes: ${f.additionalNotes || '—'}`,
                 </div>
               </div>
 
-              <div className="card">
-                <div className="card-body">
-                  <div className="field">
-                    <label>Anything else for our team? (optional)</label>
-                    <textarea rows={3} value={f.additionalNotes} onChange={e => set('additionalNotes', e.target.value)} placeholder="Migration timeline, integrations, preferred contact…"/>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Step 5: Firewall */}
-          {step === 5 && (
-            <>
+          {/* Firewall */}
               <div className="card">
                 <div className="card-head">
                   <h3 className="card-title">Firewall rules — inbound ports</h3>
@@ -641,198 +646,175 @@ Customer notes: ${f.additionalNotes || '—'}`,
                   )}
                 </div>
               </div>
-            </>
-          )}
 
-          {/* Step 6: Add-on Services */}
-          {step === 6 && (
-            <>
               <div className="card">
-                <div className="card-head"><h3 className="card-title">VM protection</h3></div>
                 <div className="card-body">
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-                    {[
-                      { id: 'none', label: 'None', desc: 'No automated protection', icon: 'x' },
-                      { id: 'daily', label: 'Daily snapshot', desc: 'Automated daily snapshots, 7-day retention', icon: 'refresh' },
-                      { id: 'advanced', label: 'Advanced backup', desc: 'Daily + weekly + cross-zone replication', icon: 'shield' },
-                    ].map(opt => (
-                      <IaaSCard key={opt.id} selected={f.vmProtection === opt.id} onClick={() => set('vmProtection', opt.id)} padding={14 as any}>
-                        <div style={{ width: 30, height: 30, borderRadius: 8, background: f.vmProtection === opt.id ? 'var(--accent-soft)' : 'var(--surface-3)', color: f.vmProtection === opt.id ? 'var(--accent-strong)' : 'var(--ink-3)', display: 'grid', placeItems: 'center', marginBottom: 8 }}>
-                          <Icon name={opt.icon} size={13}/>
-                        </div>
-                        <div className="fw-7 text-sm">{opt.label}</div>
-                        <div className="text-xs text-mute mt-1">{opt.desc}</div>
-                        {f.vmProtection === opt.id && <Icon name="check" size={13} style={{ color: 'var(--accent-strong)', marginTop: 6 }}/>}
-                      </IaaSCard>
-                    ))}
+                  <div className="field">
+                    <label>Anything else for our team? (optional)</label>
+                    <textarea rows={3} value={f.additionalNotes} onChange={e => set('additionalNotes', e.target.value)} placeholder="Migration timeline, integrations, preferred contact…"/>
                   </div>
                 </div>
               </div>
 
-              <div className="card">
-                <div className="card-head"><h3 className="card-title">DDoS protection</h3></div>
-                <div className="card-body">
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-                    {[
-                      { id: 'none', label: 'None', desc: 'No DDoS mitigation', color: 'var(--ink-3)' },
-                      { id: 'standard', label: 'Standard', desc: 'L3/L4 volumetric mitigation up to 10 Gbps', color: 'oklch(0.55 0.16 75)' },
-                      { id: 'advanced', label: 'Advanced', desc: 'L7 application protection + 24/7 SOC monitoring', color: 'var(--bad)' },
-                    ].map(opt => (
-                      <IaaSCard key={opt.id} selected={f.ddosProtection === opt.id} onClick={() => set('ddosProtection', opt.id)} padding={14 as any}>
-                        <div className="flex center between mb-2">
-                          <div className="fw-7 text-sm" style={{ color: f.ddosProtection === opt.id ? opt.color : 'var(--ink)' }}>{opt.label}</div>
-                          {f.ddosProtection === opt.id && <Icon name="check" size={13} style={{ color: opt.color }}/>}
-                        </div>
-                        <div className="text-xs text-mute">{opt.desc}</div>
-                      </IaaSCard>
-                    ))}
-                  </div>
-                </div>
+
+          {/* Submit button */}
+          <div className="flex center" style={{ gap: 10, paddingTop: 8 }}>
+            <div style={{ flex: 1 }}/>
+            <button className="btn accent" onClick={submit} disabled={!canSubmit()} style={{ padding: '10px 18px', fontSize: 13 }}><Icon name="check" size={13}/>Submit deployment request</button>
+          </div>
+      </div>
+
+      {/* Summary Modal */}
+      {showSummary && (
+        <div className="modal-overlay" onClick={() => setShowSummary(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 700 }}>
+            <div className="modal-head">
+              <h3 style={{ margin: 0 }}>Confirm VM Deployment</h3>
+              <button className="icon-btn" onClick={() => setShowSummary(false)}><Icon name="x" size={14}/></button>
+            </div>
+            <div className="modal-body">
+              <div style={{ marginBottom: 16 }}>
+                <div className="text-xs text-mute fw-6 mb-1" style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>Hostname</div>
+                <div className="fw-7" style={{ fontSize: 18, marginBottom: 8 }}>{f.hostname}</div>
+                <div className="text-xs text-mute fw-6 mb-1" style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>Purpose / Project Name</div>
+                <div className="text-sm">{f.purpose || 'No purpose specified'}</div>
               </div>
 
-              <div className="card">
-                <div className="card-head"><h3 className="card-title">SSL / TLS certificate</h3></div>
-                <div className="card-body">
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-                    {[
-                      { id: 'none', label: 'None', desc: 'Manage your own certificates' },
-                      { id: 'standard', label: 'Standard DV', desc: 'Domain-validated certificate, single domain' },
-                      { id: 'wildcard', label: 'Wildcard', desc: 'Covers *.yourdomain.com and all subdomains' },
-                    ].map(opt => (
-                      <IaaSCard key={opt.id} selected={f.sslCertificate === opt.id} onClick={() => set('sslCertificate', opt.id)} padding={14 as any}>
-                        <div className="flex center between mb-2">
-                          <div className="fw-7 text-sm">{opt.label}</div>
-                          {f.sslCertificate === opt.id && <Icon name="check" size={13} style={{ color: 'var(--accent-strong)' }}/>}
-                        </div>
-                        <div className="text-xs text-mute">{opt.desc}</div>
-                      </IaaSCard>
-                    ))}
+              <div className="grid-2" style={{ gap: 16 }}>
+                <div style={{ background: 'var(--surface)', borderRadius: 8, padding: 14, border: '1px solid var(--line)' }}>
+                  <div className="flex center gap-2 mb-3">
+                    <Icon name="cpu" size={14} className="text-mute"/>
+                    <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>Specifications</div>
+                  </div>
+                  <div className="flex col gap-2">
+                    <div className="flex center between">
+                      <span className="text-sm text-mute">vCPU</span>
+                      <span className="fw-6 text-sm">{spec.vcpu} cores</span>
+                    </div>
+                    <div className="flex center between">
+                      <span className="text-sm text-mute">Memory</span>
+                      <span className="fw-6 text-sm">{spec.ram} GB</span>
+                    </div>
+                    <div className="flex center between">
+                      <span className="text-sm text-mute">Storage</span>
+                      <span className="fw-6 text-sm">{f.storage} GB SSD</span>
+                    </div>
+                    <div className="flex center between">
+                      <span className="text-sm text-mute">Tier</span>
+                      <span className="fw-6 text-sm" style={{ color: f.sizing === 'standard' ? 'var(--ok)' : 'var(--accent-strong)' }}>{f.sizing === 'standard' ? 'Standard' : 'Premium'}</span>
+                    </div>
+                    {f.capacity && (
+                      <div className="flex center between">
+                        <span className="text-sm text-mute">Capacity</span>
+                        <span className="fw-6 text-sm">{f.capacity}</span>
+                      </div>
+                    )}
+                    {f.storagePartitions && (
+                      <div className="flex center between">
+                        <span className="text-sm text-mute">Storage partitions</span>
+                        <span className="fw-6 text-sm">{f.storagePartitions}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
 
-              <div className="card">
-                <div className="card-head"><h3 className="card-title">Load balancer</h3></div>
-                <div className="card-body">
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-                    {[
-                      { id: 'none', label: 'None', desc: 'Direct traffic to this VM only' },
-                      { id: 'shared', label: 'Shared LB', desc: 'Multi-tenant balancer, HTTP/HTTPS routing' },
-                      { id: 'dedicated', label: 'Dedicated LB', desc: 'Dedicated instance, custom rules + health checks' },
-                    ].map(opt => (
-                      <IaaSCard key={opt.id} selected={f.loadBalancer === opt.id} onClick={() => set('loadBalancer', opt.id)} padding={14 as any}>
-                        <div className="flex center between mb-2">
-                          <div className="fw-7 text-sm">{opt.label}</div>
-                          {f.loadBalancer === opt.id && <Icon name="check" size={13} style={{ color: 'var(--accent-strong)' }}/>}
-                        </div>
-                        <div className="text-xs text-mute">{opt.desc}</div>
-                      </IaaSCard>
-                    ))}
+                <div style={{ background: 'var(--surface)', borderRadius: 8, padding: 14, border: '1px solid var(--line)' }}>
+                  <div className="flex center gap-2 mb-3">
+                    <Icon name="globe" size={14} className="text-mute"/>
+                    <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>Network</div>
+                  </div>
+                  <div className="flex col gap-2">
+                    <div className="flex center between">
+                      <span className="text-sm text-mute">Public IP</span>
+                      <span className={`fw-6 text-sm ${f.publicIpRequired ? 'text-ok' : 'text-mute'}`}>{f.publicIpRequired ? 'Yes' : 'No'}</span>
+                    </div>
+                    <div className="flex center between">
+                      <span className="text-sm text-mute">Bandwidth</span>
+                      <span className="fw-6 text-sm">{f.bandwidth}</span>
+                    </div>
+                    <div className="flex center between">
+                      <span className="text-sm text-mute">Zone</span>
+                      <span className="fw-6 text-sm">{selectedZone?.name}</span>
+                    </div>
+                    <div className="flex center between">
+                      <span className="text-sm text-mute">NICs</span>
+                      <span className="fw-6 text-sm">{f.nics.map((n: any) => `${n.label} (${n.type})`).join(', ')}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </>
-          )}
 
-          {/* Step 7: Review */}
-          {step === 7 && (
-            <div className="card">
-              <div className="card-head"><h3 className="card-title">Review your configuration</h3></div>
-              <div className="card-body">
-                <div className="text-xs text-mute fw-6 mb-3" style={{ letterSpacing: '0.05em', textTransform: 'uppercase' }}>Instance</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 20 }}>
-                  <ReviewBlock icon="server" label="Hostname" value={<span className="mono">{f.hostname}.vpsmm.local</span>}/>
-                  <ReviewBlock icon="box" label="Purpose" value={f.purpose || '—'}/>
-                  <ReviewBlock icon="database" label="Operating system" value={`${selectedOS?.name} ${f.osVersion}`}/>
-                  <ReviewBlock icon="globe" label="Zone" value={selectedZone?.name}/>
-                </div>
-
-                <div className="text-xs text-mute fw-6 mb-3" style={{ letterSpacing: '0.05em', textTransform: 'uppercase' }}>Compute & Storage</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 20 }}>
-                  <ReviewBlock icon="cpu" label="vCPU" value={`${spec.vcpu} cores`}/>
-                  <ReviewBlock icon="database" label="Memory" value={`${spec.ram} GB RAM`}/>
-                  <ReviewBlock icon="box" label="Storage" value={`${f.volumes.map((v: any) => v.size).join('+')} GB SSD`}/>
-                  <ReviewBlock icon="zap" label="Bandwidth" value={f.bandwidth}/>
-                </div>
-
-                <div className="text-xs text-mute fw-6 mb-3" style={{ letterSpacing: '0.05em', textTransform: 'uppercase' }}>Firewall</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 20 }}>
-                  <ReviewBlock icon="shield" label="Open ports" value={f.firewallPorts.length > 0 ? f.firewallPorts.join(', ') : 'None'}/>
-                  <ReviewBlock icon="network" label="Port forwarding" value={f.portForwarding.length > 0 ? `${f.portForwarding.length} rule${f.portForwarding.length > 1 ? 's' : ''}` : 'None'}/>
-                </div>
-
-                <div className="text-xs text-mute fw-6 mb-3" style={{ letterSpacing: '0.05em', textTransform: 'uppercase' }}>Add-on services</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 8 }}>
-                  <ReviewBlock icon="shield" label="VM protection" value={f.vmProtection === 'none' ? 'None' : f.vmProtection === 'daily' ? 'Daily snapshot' : 'Advanced backup'}/>
-                  <ReviewBlock icon="alert" label="DDoS protection" value={f.ddosProtection === 'none' ? 'None' : f.ddosProtection.charAt(0).toUpperCase() + f.ddosProtection.slice(1)}/>
-                  <ReviewBlock icon="lock" label="SSL certificate" value={f.sslCertificate === 'none' ? 'None' : f.sslCertificate === 'standard' ? 'Standard DV' : 'Wildcard'}/>
-                  <ReviewBlock icon="network" label="Load balancer" value={f.loadBalancer === 'none' ? 'None' : f.loadBalancer === 'shared' ? 'Shared LB' : 'Dedicated LB'}/>
-                </div>
-
-                {f.additionalNotes && (
-                  <div style={{ marginTop: 16, padding: 14, background: 'var(--surface-2)', borderRadius: 8 }}>
-                    <div className="text-xs text-mute fw-6 mb-1" style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>Notes for our team</div>
-                    <div className="text-sm">{f.additionalNotes}</div>
+                <div style={{ background: 'var(--surface)', borderRadius: 8, padding: 14, border: '1px solid var(--line)' }}>
+                  <div className="flex center gap-2 mb-3">
+                    <Icon name="shield" size={14} className="text-mute"/>
+                    <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>Services</div>
                   </div>
-                )}
-                <div className="card" style={{ background: 'var(--info-soft)', borderColor: 'transparent', marginTop: 16 }}>
-                  <div className="card-body" style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                    <Icon name="alert" size={14} style={{ marginTop: 2, color: 'var(--info)' }}/>
-                    <div style={{ fontSize: 12.5, color: 'var(--info)' }}>
-                      Submitting sends this to <strong>{(me as any).salesperson || 'Sales'}</strong> as a Pending request. Your account manager will confirm the configuration and follow up with next steps.
+                  <div className="flex col gap-2">
+                    <div className="flex center between">
+                      <span className="text-sm text-mute">Backup</span>
+                      <span className="fw-6 text-sm">{f.backupEnabled ? `${f.backupType === 'daily' ? 'Daily' : 'Weekly'}` : 'No'}</span>
+                    </div>
+                    <div className="flex center between">
+                      <span className="text-sm text-mute">Monitoring</span>
+                      <span className={`fw-6 text-sm ${f.monitoring ? 'text-ok' : 'text-mute'}`}>{f.monitoring ? 'Yes' : 'No'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ background: 'var(--surface)', borderRadius: 8, padding: 14, border: '1px solid var(--line)' }}>
+                  <div className="flex center gap-2 mb-3">
+                    <Icon name="box" size={14} className="text-mute"/>
+                    <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>OS</div>
+                  </div>
+                  <div className="flex col gap-2">
+                    <div className="flex center between">
+                      <span className="text-sm text-mute">OS</span>
+                      <span className="fw-6 text-sm">{selectedOS?.name}</span>
+                    </div>
+                    <div className="flex center between">
+                      <span className="text-sm text-mute">Version</span>
+                      <span className="fw-6 text-sm">{f.os === 'custom' ? f.customOsVersion : f.osVersion}</span>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
 
-          {/* Step navigation */}
-          <div className="flex center" style={{ gap: 10, paddingTop: 8 }}>
-            {step > 1 && <button className="btn" onClick={() => setStep(step - 1)}><Icon name="chevron-left" size={11}/>Back</button>}
-            <div style={{ flex: 1 }}/>
-            {step < totalSteps && <button className="btn primary" disabled={!canContinue()} onClick={() => setStep(step + 1)}>Continue<Icon name="chevron-right" size={11}/></button>}
-            {step === totalSteps && <button className="btn accent" onClick={submit} style={{ padding: '10px 18px', fontSize: 13 }}><Icon name="check" size={13}/>Submit deployment request</button>}
-          </div>
-        </div>
+              <div style={{ background: 'var(--surface)', borderRadius: 8, padding: 14, border: '1px solid var(--line)', marginTop: 16 }}>
+                <div className="flex center gap-2 mb-3">
+                  <Icon name="lock" size={14} className="text-mute"/>
+                  <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>Security</div>
+                </div>
+                <div className="grid-2" style={{ gap: 12 }}>
+                  <div>
+                    <div className="text-xs text-mute mb-1">Firewall ports</div>
+                    <div className="fw-6 text-sm">{f.firewallPorts.join(', ') || 'none'}</div>
+                  </div>
+                  {f.portForwarding.length > 0 && (
+                    <div>
+                      <div className="text-xs text-mute mb-1">Port forwarding</div>
+                      <div className="fw-6 text-sm">{f.portForwarding.map((r: any) => `${r.srcPort}→${r.dstPort}/${r.protocol}`).join(', ')}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
 
-        {/* Sticky configuration summary */}
-        <div style={{ position: 'sticky', top: 16 }}>
-          <div className="card">
-            <div className="card-head" style={{ paddingTop: 14, paddingBottom: 12 }}>
-              <h3 className="card-title">Your configuration</h3>
-              <span className="pill accent" style={{ fontSize: 10 }}><span className="dot"/>{f.sizing === 'preset' ? (presets.find(p => p.id === f.preset)?.label || 'Preset') : 'Custom'}</span>
-            </div>
-            <div className="card-body" style={{ padding: '14px 18px' }}>
-              <SummaryLine icon="server" label="Hostname" value={f.hostname || <span className="text-mute">not set</span>} mono/>
-              <SummaryLine icon="database" label="OS" value={selectedOS ? `${selectedOS.name} ${f.osVersion}` : '—'}/>
-              <div className="divider" style={{ margin: '10px 0' }}/>
-              <SummaryLine icon="cpu" label="vCPU" value={`${spec.vcpu} cores`}/>
-              <SummaryLine icon="database" label="RAM" value={`${spec.ram} GB`}/>
-              <SummaryLine icon="box" label={`Storage (${f.volumes.length} disk${f.volumes.length > 1 ? 's' : ''})`} value={`${f.volumes.reduce((a: number, v: any) => a + v.size, 0)} GB SSD`}/>
-              <SummaryLine icon="network" label="Bandwidth" value={f.bandwidth}/>
-              <SummaryLine icon="refresh" label="Backup" value={f.backupEnabled ? f.backupFrequency : 'No'}/>
-              <SummaryLine icon="alert" label="Monitoring" value={f.monitoring ? 'Enabled' : 'No'}/>
-              <div className="divider" style={{ margin: '10px 0' }}/>
-              <SummaryLine icon="globe" label="Zone" value={selectedZone?.name || '—'}/>
-              <SummaryLine icon="network" label="NICs" value={`${f.nics.length} interface${f.nics.length > 1 ? 's' : ''}`}/>
-              <SummaryLine icon="shield" label="Firewall" value={`${f.firewallPorts.length} port${f.firewallPorts.length !== 1 ? 's' : ''} open`}/>
-              {(f.vmProtection !== 'none' || f.ddosProtection !== 'none' || f.sslCertificate !== 'none' || f.loadBalancer !== 'none') && (
-                <>
-                  <div className="divider" style={{ margin: '10px 0' }}/>
-                  {f.vmProtection !== 'none' && <SummaryLine icon="shield" label="VM protection" value={f.vmProtection === 'daily' ? 'Daily snapshot' : 'Advanced'}/>}
-                  {f.ddosProtection !== 'none' && <SummaryLine icon="alert" label="DDoS" value={f.ddosProtection.charAt(0).toUpperCase() + f.ddosProtection.slice(1)}/>}
-                  {f.sslCertificate !== 'none' && <SummaryLine icon="lock" label="SSL" value={f.sslCertificate === 'standard' ? 'Standard DV' : 'Wildcard'}/>}
-                  {f.loadBalancer !== 'none' && <SummaryLine icon="network" label="Load balancer" value={f.loadBalancer === 'shared' ? 'Shared' : 'Dedicated'}/>}
-                </>
+              {f.additionalNotes && (
+                <div style={{ background: 'var(--surface)', borderRadius: 8, padding: 14, border: '1px solid var(--line)', marginTop: 16 }}>
+                  <div className="flex center gap-2 mb-2">
+                    <Icon name="message" size={14} className="text-mute"/>
+                    <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>Additional Notes</div>
+                  </div>
+                  <div className="text-sm" style={{ lineHeight: 1.5 }}>{f.additionalNotes}</div>
+                </div>
               )}
+
+              <div className="flex gap-2 mt-4" style={{ justifyContent: 'flex-end' }}>
+                <button className="btn" onClick={() => setShowSummary(false)} style={{ padding: '10px 20px', fontSize: 13 }}>Cancel</button>
+                <button className="btn accent" onClick={confirmSubmit} style={{ padding: '10px 20px', fontSize: 13 }}><Icon name="check" size={12}/>Confirm & Submit</button>
+              </div>
             </div>
           </div>
-          <div className="text-xs text-mute mt-3" style={{ textAlign: 'center' }}>
-            Need help? Contact <strong>{(me as any).salesperson || 'Sales'}</strong>
-          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
