@@ -25,7 +25,6 @@ export const CustomerRequestDetail: React.FC<CustomerRequestDetailProps> = ({ re
 
   const timeline = [
     { ts: t.created, who: c?.name || 'You', event: 'Request submitted', kind: 'customer' },
-    t.assignee !== '—' ? { ts: t.created, who: 'System', event: `Assigned to ${t.assignee}`, kind: 'task' } : null,
     t.status === 'In Progress' ? { ts: t.created, who: t.assignee, event: 'Moved to In Progress', kind: 'task' } : null,
     t.status === 'Done' ? { ts: t.created, who: t.assignee, event: 'Completed', kind: 'task' } : null,
     t.status === 'Blocked' ? { ts: t.created, who: t.assignee, event: 'Blocked — additional info needed', kind: 'alert' } : null,
