@@ -228,7 +228,7 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal }) => {
               {f.label}<span className="ct">{f.count}</span>
             </button>
           ))}
-          <button className={`filter-chip ${showDateFilter ? 'active' : ''}`} onClick={() => setShowDateFilter(!showDateFilter)}>Custom range</button>
+          <button className={`filter-chip ${showDateFilter ? 'active' : ''}`} onClick={() => setShowDateFilter(!showDateFilter)}>Date</button>
           <div style={{ flex: 1 }} />
           <div className="search" style={{ width: 220 }}>
             <Icon name="search" size={13} className="search-icon" />

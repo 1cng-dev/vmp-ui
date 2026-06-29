@@ -73,7 +73,7 @@ export const ReportsView: React.FC = () => {
 
           <div className="filter-bar" style={{ marginBottom: 16 }}>
             <button className={`filter-chip ${dateFilter === 'all' ? 'active' : ''}`} onClick={() => setDateFilter('all')}>All</button>
-            <button className={`filter-chip ${dateFilter === 'custom' ? 'active' : ''}`} onClick={() => setDateFilter('custom')}>Custom range</button>
+            <button className={`filter-chip ${dateFilter === 'custom' ? 'active' : ''}`} onClick={() => setDateFilter('custom')}>Date</button>
 
             {dateFilter === 'custom' && (
               <>
