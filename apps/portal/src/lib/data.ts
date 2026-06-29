@@ -9,14 +9,14 @@ const daysFromNow = (n: number) => {
 }
 
 export const CUSTOMERS = [
-  { id: 'C-1042', name: 'Aung Min Htet', company: 'Mandalay Logistics Co., Ltd', email: 'aung.mh@mlc.com.mm', phone: '+95 9 7716 4421', kyc: 'Approved', since: '2024-03-14', totalSpend: 4820000, salesperson: 'Su Su', status: 'Active', notes: 'Long-term client. Prefers Ubuntu 22.04. Pays via KBZ.' },
-  { id: 'C-1043', name: 'Thiri Ko', company: 'Yangon Fintech Group', email: 'thiri@yfg.io', phone: '+95 9 9981 0023', kyc: 'Approved', since: '2024-07-02', totalSpend: 12400000, salesperson: 'Ko Naing', status: 'Active', notes: 'Heavy user. 6 production VMs. Renewal contact: Thiri directly.' },
+  { id: 'C-1042', name: 'Aung Min Htet', company: 'Mandalay Logistics Co., Ltd', email: 'aung.mh@mlc.com.mm', phone: '+95 9 7716 4421', kyc: 'Approved', since: '2024-03-14', totalSpend: 18720000, salesperson: 'Su Su', status: 'Active', notes: 'Long-term client. Prefers Ubuntu 22.04. Pays via KBZ.' },
+  { id: 'C-1043', name: 'Thiri Ko', company: 'Yangon Fintech Group', email: 'thiri@yfg.io', phone: '+95 9 9981 0023', kyc: 'Approved', since: '2024-07-02', totalSpend: 23160000, salesperson: 'Ko Naing', status: 'Active', notes: 'Heavy user. 6 production VMs. Renewal contact: Thiri directly.' },
   { id: 'C-1044', name: 'Phyo Wai', company: 'Bagan Hotels & Resorts', email: 'pwai@baganhotels.com', phone: '+95 9 4422 1187', kyc: 'Pending', since: '2026-05-22', totalSpend: 0, salesperson: 'Su Su', status: 'Active', notes: 'New signup. KYC document blurry — requested re-upload.' },
-  { id: 'C-1045', name: 'Khin Mar Soe', company: 'Sittwe Marine Trading', email: 'kms@sittwemarine.co', phone: '+95 9 7700 8841', kyc: 'Approved', since: '2025-01-09', totalSpend: 2100000, salesperson: 'Ko Naing', status: 'Active', notes: '' },
-  { id: 'C-1046', name: 'Zaw Lin Tun', company: 'NayPyiTaw Dev Studio', email: 'zaw@npdstudio.dev', phone: '+95 9 4400 5566', kyc: 'Approved', since: '2025-04-18', totalSpend: 1850000, salesperson: 'Su Su', status: 'Active', notes: 'Dev/staging environments only.' },
-  { id: 'C-1047', name: 'Hnin Yu Wai', company: 'Pyay Agritech', email: 'hnin@pyayagri.mm', phone: '+95 9 7766 0091', kyc: 'Approved', since: '2025-09-30', totalSpend: 980000, salesperson: 'Ko Naing', status: 'Active', notes: '' },
+  { id: 'C-1045', name: 'Khin Mar Soe', company: 'Sittwe Marine Trading', email: 'kms@sittwemarine.co', phone: '+95 9 7700 8841', kyc: 'Approved', since: '2025-01-09', totalSpend: 5280000, salesperson: 'Ko Naing', status: 'Active', notes: '' },
+  { id: 'C-1046', name: 'Zaw Lin Tun', company: 'NayPyiTaw Dev Studio', email: 'zaw@npdstudio.dev', phone: '+95 9 4400 5566', kyc: 'Approved', since: '2025-04-18', totalSpend: 6480000, salesperson: 'Su Su', status: 'Active', notes: 'Dev/staging environments only.' },
+  { id: 'C-1047', name: 'Hnin Yu Wai', company: 'Pyay Agritech', email: 'hnin@pyayagri.mm', phone: '+95 9 7766 0091', kyc: 'Approved', since: '2025-09-30', totalSpend: 3840000, salesperson: 'Ko Naing', status: 'Active', notes: '' },
   { id: 'C-1048', name: 'Min Thant', company: 'Taunggyi Cloud Co.', email: 'minthant@tgycloud.mm', phone: '+95 9 9988 3322', kyc: 'Rejected', since: '2026-05-15', totalSpend: 0, salesperson: 'Su Su', status: 'Inactive', notes: 'ID document mismatch with company registration.' },
-  { id: 'C-1049', name: 'Ei Phyu', company: 'Mawlamyine Media', email: 'ei.phyu@mmedia.mm', phone: '+95 9 4411 7720', kyc: 'Approved', since: '2025-11-04', totalSpend: 640000, salesperson: 'Ko Naing', status: 'Active', notes: '' },
+  { id: 'C-1049', name: 'Ei Phyu', company: 'Mawlamyine Media', email: 'ei.phyu@mmedia.mm', phone: '+95 9 4411 7720', kyc: 'Approved', since: '2025-11-04', totalSpend: 3360000, salesperson: 'Ko Naing', status: 'Active', notes: '' },
   { id: 'C-1050', name: 'Soe Moe Aung', company: 'Yangon SaaS Labs', email: 'sma@yslabs.io', phone: '+95 9 7788 2200', kyc: 'Pending', since: '2026-05-25', totalSpend: 0, salesperson: 'Su Su', status: 'Active', notes: 'KYC submitted 2 days ago. Awaiting admin review.' },
 ]
 
@@ -48,13 +48,28 @@ export const TASKS = [
 ]
 
 export const INVOICES = [
-  { id: 'INV-2026-0418', customer: 'C-1043', vms: ['VM-2091', 'VM-2092', 'VM-2093'], amount: 6120000, currency: 'MMK', issued: '2026-05-18', due: '2026-05-28', status: 'Customer Transferred', method: 'KBZ Pay', receipt: 'RCT-2026-0418' },
-  { id: 'INV-2026-0417', customer: 'C-1042', vms: ['VM-2087', 'VM-2088'], amount: 5520000, currency: 'MMK', issued: '2026-05-15', due: '2026-05-25', status: 'Payment Received', method: 'AYA Bank', receipt: 'RCT-2026-0417' },
-  { id: 'INV-2026-0419', customer: 'C-1046', vms: ['VM-2095', 'VM-2096'], amount: 3240000, currency: 'MMK', issued: '2026-05-22', due: '2026-06-01', status: 'Pending', method: '—', receipt: '—' },
-  { id: 'INV-2026-0416', customer: 'C-1045', vms: ['VM-2099'], amount: 2640000, currency: 'MMK', issued: '2026-05-10', due: '2026-05-20', status: 'Payment Received', method: 'KBZ Pay', receipt: 'RCT-2026-0416' },
-  { id: 'INV-2026-0415', customer: 'C-1042', vms: ['VM-2089'], amount: 1080000, currency: 'MMK', issued: '2026-05-08', due: '2026-05-18', status: 'Overdue', method: '—', receipt: '—' },
-  { id: 'INV-2026-0414', customer: 'C-1047', vms: ['VM-2101'], amount: 1920000, currency: 'MMK', issued: '2026-05-05', due: '2026-05-15', status: 'Payment Received', method: 'CB Bank', receipt: 'RCT-2026-0414' },
-  { id: 'INV-2026-0413', customer: 'C-1049', vms: ['VM-2107'], amount: 1680000, currency: 'MMK', issued: '2026-04-28', due: '2026-05-08', status: 'Payment Received', method: 'KBZ Pay', receipt: 'RCT-2026-0413' },
+  // FY 2024-25 invoices (April 2024 - March 2025)
+  { id: 'INV-2024-1001', customer: 'C-1042', vms: ['VM-2087', 'VM-2088'], amount: 5520000, vat: 276000, grossAmount: 5796000, currency: 'MMK', issued: '2024-06-15', due: '2024-06-25', status: 'Payment Received', method: 'AYA Bank', receipt: 'RCT-2024-1001', invoiceDate: '2024-06-15' },
+  { id: 'INV-2024-1002', customer: 'C-1043', vms: ['VM-2091', 'VM-2092', 'VM-2093'], amount: 6120000, vat: 306000, grossAmount: 6426000, currency: 'MMK', issued: '2024-09-10', due: '2024-09-20', status: 'Payment Received', method: 'KBZ Pay', receipt: 'RCT-2024-1002', invoiceDate: '2024-09-10' },
+  { id: 'INV-2024-1003', customer: 'C-1042', vms: ['VM-2089'], amount: 1080000, vat: 54000, grossAmount: 1134000, currency: 'MMK', issued: '2024-12-01', due: '2024-12-11', status: 'Payment Received', method: 'KBZ Pay', receipt: 'RCT-2024-1003', invoiceDate: '2024-12-01' },
+  
+  // FY 2025-26 invoices (April 2025 - March 2026)
+  { id: 'INV-2025-2001', customer: 'C-1042', vms: ['VM-2087', 'VM-2088'], amount: 5520000, vat: 276000, grossAmount: 5796000, currency: 'MMK', issued: '2025-06-15', due: '2025-06-25', status: 'Payment Received', method: 'AYA Bank', receipt: 'RCT-2025-2001', invoiceDate: '2025-06-15' },
+  { id: 'INV-2025-2002', customer: 'C-1043', vms: ['VM-2091', 'VM-2092', 'VM-2093'], amount: 6120000, vat: 306000, grossAmount: 6426000, currency: 'MMK', issued: '2025-09-10', due: '2025-09-20', status: 'Payment Received', method: 'KBZ Pay', receipt: 'RCT-2025-2002', invoiceDate: '2025-09-10' },
+  { id: 'INV-2025-2003', customer: 'C-1045', vms: ['VM-2099'], amount: 2640000, vat: 132000, grossAmount: 2772000, currency: 'MMK', issued: '2025-08-10', due: '2025-08-20', status: 'Payment Received', method: 'KBZ Pay', receipt: 'RCT-2025-2003', invoiceDate: '2025-08-10' },
+  { id: 'INV-2025-2004', customer: 'C-1046', vms: ['VM-2095', 'VM-2096'], amount: 3240000, vat: 162000, grossAmount: 3402000, currency: 'MMK', issued: '2025-11-22', due: '2025-12-02', status: 'Payment Received', method: 'CB Bank', receipt: 'RCT-2025-2004', invoiceDate: '2025-11-22' },
+  { id: 'INV-2025-2005', customer: 'C-1047', vms: ['VM-2101'], amount: 1920000, vat: 96000, grossAmount: 2016000, currency: 'MMK', issued: '2025-12-05', due: '2025-12-15', status: 'Payment Received', method: 'CB Bank', receipt: 'RCT-2025-2005', invoiceDate: '2025-12-05' },
+  { id: 'INV-2025-2006', customer: 'C-1049', vms: ['VM-2107'], amount: 1680000, vat: 84000, grossAmount: 1764000, currency: 'MMK', issued: '2026-01-28', due: '2026-02-07', status: 'Payment Received', method: 'KBZ Pay', receipt: 'RCT-2025-2006', invoiceDate: '2026-01-28' },
+  
+  // FY 2026-27 invoices (April 2026 - March 2027)
+  { id: 'INV-2026-0418', customer: 'C-1043', vms: ['VM-2091', 'VM-2092', 'VM-2093'], amount: 6120000, vat: 306000, grossAmount: 6426000, currency: 'MMK', issued: '2026-05-18', due: '2026-05-28', status: 'Customer Transferred', method: 'KBZ Pay', receipt: 'RCT-2026-0418', invoiceDate: '2026-05-18' },
+  { id: 'INV-2026-0417', customer: 'C-1042', vms: ['VM-2087', 'VM-2088'], amount: 5520000, vat: 276000, grossAmount: 5796000, currency: 'MMK', issued: '2026-05-15', due: '2026-05-25', status: 'Payment Received', method: 'AYA Bank', receipt: 'RCT-2026-0417', invoiceDate: '2026-05-15' },
+  { id: 'INV-2026-0419', customer: 'C-1046', vms: ['VM-2095', 'VM-2096'], amount: 3240000, vat: 162000, grossAmount: 3402000, currency: 'MMK', issued: '2026-05-22', due: '2026-06-01', status: 'Pending', method: '—', receipt: '—', invoiceDate: '2026-05-22' },
+  { id: 'INV-2026-0416', customer: 'C-1045', vms: ['VM-2099'], amount: 2640000, vat: 132000, grossAmount: 2772000, currency: 'MMK', issued: '2026-05-10', due: '2026-05-20', status: 'Payment Received', method: 'KBZ Pay', receipt: 'RCT-2026-0416', invoiceDate: '2026-05-10' },
+  { id: 'INV-2026-0415', customer: 'C-1042', vms: ['VM-2089'], amount: 1080000, vat: 54000, grossAmount: 1134000, currency: 'MMK', issued: '2026-05-08', due: '2026-05-18', status: 'Overdue', method: '—', receipt: '—', invoiceDate: '2026-05-08' },
+  { id: 'INV-2026-0414', customer: 'C-1047', vms: ['VM-2101'], amount: 1920000, vat: 96000, grossAmount: 2016000, currency: 'MMK', issued: '2026-05-05', due: '2026-05-15', status: 'Payment Received', method: 'CB Bank', receipt: 'RCT-2026-0414', invoiceDate: '2026-05-05' },
+  { id: 'INV-2026-0413', customer: 'C-1049', vms: ['VM-2107'], amount: 1680000, vat: 84000, grossAmount: 1764000, currency: 'MMK', issued: '2026-04-28', due: '2026-05-08', status: 'Payment Received', method: 'KBZ Pay', receipt: 'RCT-2026-0413', invoiceDate: '2026-04-28' },
+  { id: 'INV-2026-0412', customer: 'C-1043', vms: ['VM-2085', 'VM-2086'], amount: 4800000, vat: 240000, grossAmount: 5040000, currency: 'MMK', issued: '2026-04-20', due: '2026-04-30', status: 'Payment Received', method: 'KBZ Pay', receipt: 'RCT-2026-0412', invoiceDate: '2026-04-20' },
 ]
 
 export const ACTIVITY = [

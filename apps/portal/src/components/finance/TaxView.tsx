@@ -27,8 +27,7 @@ export const TaxView: React.FC = () => {
           <p className="page-subtitle">Commercial tax tracking · Q2 2026</p>
         </div>
         <div className="page-actions">
-          <button className="btn" onClick={() => toast('Tax report (PDF) downloaded', 'info')}><Icon name="download" size={13}/>PDF report</button>
-          <button className="btn" onClick={() => toast('IRD format file generated', 'info')}><Icon name="download" size={13}/>IRD format</button>
+          <button className="btn" onClick={() => toast('Tax report (Excel) downloaded', 'info')}><Icon name="download" size={13} />Excel report</button>
         </div>
       </div>
 
@@ -36,7 +35,7 @@ export const TaxView: React.FC = () => {
         <div className="metric"><div className="label">Q2 revenue</div><div className="value tnum" style={{ fontSize: 20 }}>MMK {formatMMK(totalRev * 3)}</div></div>
         <div className="metric"><div className="label">VAT collected ({vatRate}%)</div><div className="value tnum" style={{ fontSize: 20 }}>MMK {formatMMK(vatCollected * 3)}</div></div>
         <div className="metric"><div className="label">Filing due</div><div className="value tnum" style={{ fontSize: 20 }}>15 Jul</div><div className="trend">Q2 IRD submission</div></div>
-        <div className="metric"><div className="label">Status</div><div className="value" style={{ fontSize: 16 }}><span className="pill ok"><span className="dot"/>On track</span></div></div>
+        <div className="metric"><div className="label">Status</div><div className="value" style={{ fontSize: 16 }}><span className="pill ok"><span className="dot" />On track</span></div></div>
       </div>
 
       <div className="card mb-4">
@@ -51,7 +50,7 @@ export const TaxView: React.FC = () => {
                   <td className="right tnum">MMK {formatMMK(rev as number)}</td>
                   <td className="right tnum">MMK {formatMMK(tax as number)}</td>
                   <td className="right tnum">MMK {formatMMK((rev as number) - (tax as number))}</td>
-                  <td><span className="pill ok"><span className="dot"/>Filed</span></td>
+                  <td><span className="pill ok"><span className="dot" />Filed</span></td>
                 </tr>
               ))}
               <tr style={{ background: 'var(--surface-2)' }}>
@@ -79,7 +78,7 @@ export const TaxView: React.FC = () => {
           ].map(([l, done], i) => (
             <div key={i} className="flex center gap-2" style={{ padding: '6px 0' }}>
               <span style={{ width: 18, height: 18, borderRadius: 4, background: done ? 'var(--ok)' : 'var(--surface-3)', display: 'grid', placeItems: 'center', color: 'white' }}>
-                {done && <Icon name="check" size={11}/>}
+                {done && <Icon name="check" size={11} />}
               </span>
               <span className="text-sm" style={{ textDecoration: done ? 'line-through' : 'none', color: done ? 'var(--ink-3)' : 'var(--ink)' }}>{l}</span>
             </div>

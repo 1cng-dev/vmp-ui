@@ -66,12 +66,15 @@ export interface Invoice {
   customer: string
   vms: string[]
   amount: number
+  vat: number
+  grossAmount: number
   currency: string
   issued: string
   due: string
   status: string
   method: string
   receipt: string
+  invoiceDate?: string
 }
 
 export interface Activity {

@@ -64,7 +64,7 @@ const NewVMModal: React.FC<NewVMModalProps> = ({ onClose }) => {
     powerState: 'Running',
     proxmoxFlag: 'P',
     interconnect: [],
-    start: new Date().toISOString().slice(0,10),
+    start: new Date().toISOString().slice(0, 10),
     expiry: '',
   })
   const set = (k: string, v: any) => setF(x => ({ ...x, [k]: v }))
@@ -101,10 +101,10 @@ const NewVMModal: React.FC<NewVMModalProps> = ({ onClose }) => {
       ...f,
       status: 'Active',
       priceMonth: f.priceMonth || computedPrice,
-      expiry: expiry.toISOString().slice(0,10),
+      expiry: expiry.toISOString().slice(0, 10),
       firewallPolicy: f.firewallPolicy || `fw-${f.name || 'vm'}`,
       vlan: f.vlan || `VLAN-${200 + Math.floor(Math.random() * 50)}`,
-      publicIp: f.publicAccess ? (f.publicIp || `203.81.64.${100 + Math.floor(Math.random()*100)}`) : '—',
+      publicIp: f.publicAccess ? (f.publicIp || `203.81.64.${100 + Math.floor(Math.random() * 100)}`) : '—',
       tags: f.label ? [f.label.toLowerCase()] : [],
       notes: f.notes || (f.purpose ? `Purpose: ${f.purpose}` : ''),
     })
@@ -121,9 +121,9 @@ const NewVMModal: React.FC<NewVMModalProps> = ({ onClose }) => {
         <div className="modal-head">
           <div>
             <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Provision new VM</h3>
-            <div className="text-xs text-mute mt-1">Step {step} of {totalSteps} — {stepLabels[step-1]}</div>
+            <div className="text-xs text-mute mt-1">Step {step} of {totalSteps} — {stepLabels[step - 1]}</div>
           </div>
-          <button className="icon-btn" onClick={onClose}><Icon name="x" size={14}/></button>
+          <button className="icon-btn" onClick={onClose}><Icon name="x" size={14} /></button>
         </div>
 
         <div className="modal-body">
@@ -133,11 +133,11 @@ const NewVMModal: React.FC<NewVMModalProps> = ({ onClose }) => {
               <React.Fragment key={l}>
                 <div className="flex center gap-2" style={{ opacity: i + 1 <= step ? 1 : 0.5 }}>
                   <div style={{ width: 22, height: 22, borderRadius: '50%', flexShrink: 0, background: i + 1 < step ? 'var(--ok)' : i + 1 === step ? 'var(--accent)' : 'var(--surface-3)', color: i + 1 <= step ? '#fff' : 'var(--ink-3)', display: 'grid', placeItems: 'center', fontSize: 10.5, fontWeight: 700 }}>
-                    {i + 1 < step ? <Icon name="check" size={11}/> : i + 1}
+                    {i + 1 < step ? <Icon name="check" size={11} /> : i + 1}
                   </div>
                   <span className="text-xs fw-6" style={{ whiteSpace: 'nowrap', color: i + 1 === step ? 'var(--ink)' : 'var(--ink-3)' }}>{l}</span>
                 </div>
-                {i < stepLabels.length - 1 && <div style={{ flex: 1, height: 2, background: i + 1 < step ? 'var(--ok)' : 'var(--surface-3)' }}/>}
+                {i < stepLabels.length - 1 && <div style={{ flex: 1, height: 2, background: i + 1 < step ? 'var(--ok)' : 'var(--surface-3)' }} />}
               </React.Fragment>
             ))}
           </div>
@@ -155,22 +155,22 @@ const NewVMModal: React.FC<NewVMModalProps> = ({ onClose }) => {
               </div>
               {cust && (
                 <div style={{ padding: 12, background: 'var(--surface-2)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <Avatar name={cust.name} size={32}/>
+                  <Avatar name={cust.name} size={32} />
                   <div style={{ flex: 1 }}>
                     <div className="fw-6 text-sm">{cust.company}</div>
                     <div className="text-xs text-mute">{cust.id} · {cust.email} · {cust.phone}</div>
                   </div>
-                  <StatusPill status={cust.kyc}/>
+                  <StatusPill status={cust.kyc} />
                 </div>
               )}
               <div className="grid-2" style={{ gap: 12 }}>
                 <div className="field">
                   <label>VM name (hostname)</label>
-                  <input value={f.name} onChange={e => set('name', e.target.value.replace(/\s/g, '-').toLowerCase())} placeholder="mlc-app-prod-02" style={{ fontFamily: 'var(--mono)' }}/>
+                  <input value={f.name} onChange={e => set('name', e.target.value.replace(/\s/g, '-').toLowerCase())} placeholder="mlc-app-prod-02" style={{ fontFamily: 'var(--mono)' }} />
                 </div>
                 <div className="field">
                   <label>Label / tag</label>
-                  <input value={f.label} onChange={e => set('label', e.target.value)} placeholder="e.g. erp, web, db"/>
+                  <input value={f.label} onChange={e => set('label', e.target.value)} placeholder="e.g. erp, web, db" />
                 </div>
               </div>
               <div className="field">
@@ -183,7 +183,7 @@ const NewVMModal: React.FC<NewVMModalProps> = ({ onClose }) => {
               </div>
               <div className="field">
                 <label>Purpose / workload</label>
-                <input value={f.purpose} onChange={e => set('purpose', e.target.value)} placeholder="e.g. ERP production database, internal web app"/>
+                <input value={f.purpose} onChange={e => set('purpose', e.target.value)} placeholder="e.g. ERP production database, internal web app" />
               </div>
               <div className="grid-2" style={{ gap: 12 }}>
                 <div className="field">
@@ -204,16 +204,16 @@ const NewVMModal: React.FC<NewVMModalProps> = ({ onClose }) => {
               <div className="grid-2" style={{ gap: 12 }}>
                 <div className="field">
                   <label>Start date</label>
-                  <input type="date" value={f.start} onChange={e => set('start', e.target.value)}/>
+                  <input type="date" value={f.start} onChange={e => set('start', e.target.value)} />
                 </div>
                 <div className="field">
                   <label>Technical contact (email)</label>
-                  <input value={f.adminContact} onChange={e => set('adminContact', e.target.value)} placeholder={cust?.email || 'admin@customer.com'}/>
+                  <input value={f.adminContact} onChange={e => set('adminContact', e.target.value)} placeholder={cust?.email || 'admin@customer.com'} />
                 </div>
               </div>
               <div className="flex center between" style={{ padding: '4px 2px' }}>
                 <div><div className="fw-6 text-sm">Auto-renew</div><div className="text-xs text-mute">Renew automatically before expiry</div></div>
-                <span className={`toggle ${f.autoRenew ? 'on' : ''}`} onClick={() => set('autoRenew', !f.autoRenew)}/>
+                <span className={`toggle ${f.autoRenew ? 'on' : ''}`} onClick={() => set('autoRenew', !f.autoRenew)} />
               </div>
             </div>
           )}
@@ -236,7 +236,7 @@ const NewVMModal: React.FC<NewVMModalProps> = ({ onClose }) => {
                     >
                       <div className="flex center gap-2 mb-1">
                         <span style={{ width: 30, height: 30, borderRadius: 7, background: `${o.accent}1a`, color: o.accent, display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 12, flexShrink: 0 }}>{o.logo}</span>
-                        {sel && <Icon name="check" size={13} style={{ color: 'var(--accent-strong)', marginLeft: 'auto' }}/>}
+                        {sel && <Icon name="check" size={13} style={{ color: 'var(--accent-strong)', marginLeft: 'auto' }} />}
                       </div>
                       <div className="fw-7" style={{ fontSize: 12 }}>{o.name}</div>
                       <div className="text-xs text-mute">{o.kind} · {o.versions.length} ver.</div>
@@ -258,10 +258,10 @@ const NewVMModal: React.FC<NewVMModalProps> = ({ onClose }) => {
               </div>
               <div className="field">
                 <label>SSH public key (optional)</label>
-                <textarea rows={2} value={f.sshKey} onChange={e => set('sshKey', e.target.value)} placeholder="ssh-ed25519 AAAA… (leave blank to auto-generate root password)" style={{ fontFamily: 'var(--mono)', fontSize: 11 }}/>
+                <textarea rows={2} value={f.sshKey} onChange={e => set('sshKey', e.target.value)} placeholder="ssh-ed25519 AAAA… (leave blank to auto-generate root password)" style={{ fontFamily: 'var(--mono)', fontSize: 11 }} />
               </div>
               <div style={{ padding: 12, background: 'var(--info-soft)', borderRadius: 8, fontSize: 12, display: 'flex', gap: 8, color: 'var(--info)' }}>
-                <Icon name="alert" size={14} style={{ flexShrink: 0, marginTop: 1 }}/>
+                <Icon name="alert" size={14} style={{ flexShrink: 0, marginTop: 1 }} />
                 <div>Selected image: <strong>{f.os}</strong>. The same OS catalog is offered to customers in the self-service Request VM flow.</div>
               </div>
             </div>
@@ -278,7 +278,7 @@ const NewVMModal: React.FC<NewVMModalProps> = ({ onClose }) => {
               ].map((row: any) => (
                 <div key={row.k}>
                   <div className="flex center between mb-2">
-                    <span className="fw-6 text-sm flex center gap-2"><Icon name={row.icon} size={13}/>{row.label}</span>
+                    <span className="fw-6 text-sm flex center gap-2"><Icon name={row.icon} size={13} />{row.label}</span>
                     <span className="tnum fw-7" style={{ fontSize: 15, color: 'var(--accent-strong)' }}>{row.val}{row.unit}</span>
                   </div>
                   <div className="flex gap-1 wrap">
@@ -300,7 +300,7 @@ const NewVMModal: React.FC<NewVMModalProps> = ({ onClose }) => {
                     <div className="tnum fw-7" style={{ fontSize: 15 }}>MMK {formatMMK(computedPrice)}/mo</div>
                   </div>
                 </div>
-                <div className="field mt-3"><label>Monthly price (MMK) — override</label><input type="number" value={f.priceMonth} onChange={e => set('priceMonth', +e.target.value)} placeholder={String(computedPrice)}/></div>
+                <div className="field mt-3"><label>Monthly price (MMK) — override</label><input type="number" value={f.priceMonth} onChange={e => set('priceMonth', +e.target.value)} placeholder={String(computedPrice)} /></div>
               </div>
             </div>
           )}
@@ -313,25 +313,25 @@ const NewVMModal: React.FC<NewVMModalProps> = ({ onClose }) => {
                   <div className="fw-6 text-sm">Public access</div>
                   <div className="text-xs text-mute">Assign a public IPv4 and enable inbound routing</div>
                 </div>
-                <span className={`toggle ${f.publicAccess ? 'on' : ''}`} onClick={() => set('publicAccess', !f.publicAccess)}/>
+                <span className={`toggle ${f.publicAccess ? 'on' : ''}`} onClick={() => set('publicAccess', !f.publicAccess)} />
               </div>
               {f.publicAccess && (
                 <>
                   <div className="grid-2" style={{ gap: 12 }}>
-                    <div className="field"><label>Public IPv4</label><input value={f.publicIp} onChange={e => set('publicIp', e.target.value)} placeholder="auto-assign" style={{ fontFamily: 'var(--mono)' }}/></div>
-                    <div className="field"><label>VLAN</label><input value={f.vlan} onChange={e => set('vlan', e.target.value)} placeholder="auto-assign" style={{ fontFamily: 'var(--mono)' }}/></div>
+                    <div className="field"><label>Public IPv4</label><input value={f.publicIp} onChange={e => set('publicIp', e.target.value)} placeholder="auto-assign" style={{ fontFamily: 'var(--mono)' }} /></div>
+                    <div className="field"><label>VLAN</label><input value={f.vlan} onChange={e => set('vlan', e.target.value)} placeholder="auto-assign" style={{ fontFamily: 'var(--mono)' }} /></div>
                   </div>
-                  <div className="field"><label>Port forwarding</label><input value={f.portForward} onChange={e => set('portForward', e.target.value)} placeholder="443→443, 22→2222" style={{ fontFamily: 'var(--mono)' }}/></div>
+                  <div className="field"><label>Port forwarding</label><input value={f.portForward} onChange={e => set('portForward', e.target.value)} placeholder="443→443, 22→2222" style={{ fontFamily: 'var(--mono)' }} /></div>
                 </>
               )}
               <div className="grid-2" style={{ gap: 12 }}>
                 <div className="field"><label>Datacenter</label><select value={f.datacenter} onChange={e => set('datacenter', e.target.value)}><option>Yangon DC1</option><option>Yangon DC2</option><option>Mandalay DC1</option></select></div>
                 <div className="field"><label>Proxmox node</label><select value={f.node} onChange={e => set('node', e.target.value)}><option>pve-node-01</option><option>pve-node-02</option><option>pve-node-03</option><option>pve-node-04</option><option>pve-node-05</option></select></div>
               </div>
-              <div className="field"><label>Firewall policy name</label><input value={f.firewallPolicy} onChange={e => set('firewallPolicy', e.target.value)} placeholder={`fw-${f.name || 'vm'}`} style={{ fontFamily: 'var(--mono)' }}/></div>
+              <div className="field"><label>Firewall policy name</label><input value={f.firewallPolicy} onChange={e => set('firewallPolicy', e.target.value)} placeholder={`fw-${f.name || 'vm'}`} style={{ fontFamily: 'var(--mono)' }} /></div>
               <div className="flex center between" style={{ padding: '4px 2px' }}>
                 <div><div className="fw-6 text-sm">Hardened security baseline</div><div className="text-xs text-mute">Fail2ban, disabled root SSH, auto-patching</div></div>
-                <span className={`toggle ${f.security ? 'on' : ''}`} onClick={() => set('security', !f.security)}/>
+                <span className={`toggle ${f.security ? 'on' : ''}`} onClick={() => set('security', !f.security)} />
               </div>
             </div>
           )}
@@ -340,7 +340,7 @@ const NewVMModal: React.FC<NewVMModalProps> = ({ onClose }) => {
           {step === 5 && (
             <div className="flex col gap-3">
               <div className="grid-2" style={{ gap: 12 }}>
-                <div className="card"><div className="card-head" style={{ padding: '10px 14px' }}><h3 className="card-title" style={{ fontSize: 12 }}><Icon name="building" size={12}/> Customer & account</h3></div>
+                <div className="card"><div className="card-head" style={{ padding: '10px 14px' }}><h3 className="card-title" style={{ fontSize: 12 }}><Icon name="building" size={12} /> Customer & account</h3></div>
                   <div className="card-body" style={{ padding: '10px 14px' }}>
                     <dl className="dl" style={{ gridTemplateColumns: '92px 1fr', gap: '7px 12px' }}>
                       <dt>Customer</dt><dd>{cust?.company}</dd>
@@ -351,7 +351,7 @@ const NewVMModal: React.FC<NewVMModalProps> = ({ onClose }) => {
                     </dl>
                   </div>
                 </div>
-                <div className="card"><div className="card-head" style={{ padding: '10px 14px' }}><h3 className="card-title" style={{ fontSize: 12 }}><Icon name="server" size={12}/> Instance</h3></div>
+                <div className="card"><div className="card-head" style={{ padding: '10px 14px' }}><h3 className="card-title" style={{ fontSize: 12 }}><Icon name="server" size={12} /> Instance</h3></div>
                   <div className="card-body" style={{ padding: '10px 14px' }}>
                     <dl className="dl" style={{ gridTemplateColumns: '78px 1fr', gap: '7px 12px' }}>
                       <dt>Hostname</dt><dd className="mono">{f.name || '—'}</dd>
@@ -364,7 +364,7 @@ const NewVMModal: React.FC<NewVMModalProps> = ({ onClose }) => {
                 </div>
               </div>
               <div className="grid-2" style={{ gap: 12 }}>
-                <div className="card"><div className="card-head" style={{ padding: '10px 14px' }}><h3 className="card-title" style={{ fontSize: 12 }}><Icon name="cpu" size={12}/> Specification</h3></div>
+                <div className="card"><div className="card-head" style={{ padding: '10px 14px' }}><h3 className="card-title" style={{ fontSize: 12 }}><Icon name="cpu" size={12} /> Specification</h3></div>
                   <div className="card-body" style={{ padding: '10px 14px' }}>
                     <dl className="dl" style={{ gridTemplateColumns: '78px 1fr', gap: '7px 12px' }}>
                       <dt>vCPU</dt><dd className="tnum">{f.vcpu} cores</dd>
@@ -375,7 +375,7 @@ const NewVMModal: React.FC<NewVMModalProps> = ({ onClose }) => {
                     </dl>
                   </div>
                 </div>
-                <div className="card"><div className="card-head" style={{ padding: '10px 14px' }}><h3 className="card-title" style={{ fontSize: 12 }}><Icon name="network" size={12}/> Network</h3></div>
+                <div className="card"><div className="card-head" style={{ padding: '10px 14px' }}><h3 className="card-title" style={{ fontSize: 12 }}><Icon name="network" size={12} /> Network</h3></div>
                   <div className="card-body" style={{ padding: '10px 14px' }}>
                     <dl className="dl" style={{ gridTemplateColumns: '78px 1fr', gap: '7px 12px' }}>
                       <dt>Access</dt><dd>{f.publicAccess ? 'Public IPv4' : 'Private only'}</dd>
@@ -401,12 +401,12 @@ const NewVMModal: React.FC<NewVMModalProps> = ({ onClose }) => {
         </div>
 
         <div className="modal-foot">
-          {step > 1 && <button className="btn" onClick={() => setStep(step - 1)}><Icon name="chevron-left" size={11}/>Back</button>}
-          <div style={{ flex: 1 }}/>
+          {step > 1 && <button className="btn" onClick={() => setStep(step - 1)}><Icon name="chevron-left" size={11} />Back</button>}
+          <div style={{ flex: 1 }} />
           <button className="btn ghost" onClick={onClose}>Cancel</button>
           {step < totalSteps
-            ? <button className="btn primary" onClick={() => setStep(step + 1)} disabled={step === 1 && !f.name}>Continue<Icon name="chevron-right" size={11}/></button>
-            : <button className="btn accent" onClick={submit}><Icon name="check" size={12}/>Provision VM</button>}
+            ? <button className="btn primary" onClick={() => setStep(step + 1)} disabled={step === 1 && !f.name}>Continue<Icon name="chevron-right" size={11} /></button>
+            : <button className="btn accent" onClick={submit}><Icon name="check" size={12} />Provision VM</button>}
         </div>
       </div>
     </div>
@@ -431,7 +431,7 @@ const RenewModal: React.FC<RenewModalProps> = ({ vm, onClose }) => {
 
   const submit = () => {
     renew(vm.id, months)
-    addInvoice({ customer: vm.customer, vms: [vm.id], amount: price, due: new Date(Date.now() + 10*86400000).toISOString().slice(0,10) })
+    addInvoice({ customer: vm.customer, vms: [vm.id], amount: price, due: new Date(Date.now() + 10 * 86400000).toISOString().slice(0, 10) })
     toast(`Renewed ${vm.name} for ${months} months`, 'ok')
     onClose()
   }
@@ -444,7 +444,7 @@ const RenewModal: React.FC<RenewModalProps> = ({ vm, onClose }) => {
             <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Renew {vm.name}</h3>
             <div className="text-xs text-mute mt-1">Customer: {c?.company}</div>
           </div>
-          <button className="icon-btn" onClick={onClose}><Icon name="x" size={14}/></button>
+          <button className="icon-btn" onClick={onClose}><Icon name="x" size={14} /></button>
         </div>
         <div className="modal-body">
           <div className="flex col gap-3">
@@ -452,7 +452,7 @@ const RenewModal: React.FC<RenewModalProps> = ({ vm, onClose }) => {
               <div className="flex gap-2">
                 {monthOpts.map(m => (
                   <button key={m} className={`filter-chip ${months === m ? 'active' : ''}`} onClick={() => setMonths(m)}>
-                    {m < 12 ? `${m} months` : m === 12 ? '1 year' : `${m/12} years`}
+                    {m < 12 ? `${m} months` : m === 12 ? '1 year' : `${m / 12} years`}
                   </button>
                 ))}
               </div>
@@ -462,7 +462,7 @@ const RenewModal: React.FC<RenewModalProps> = ({ vm, onClose }) => {
                 <dl className="dl">
                   <dt>Current expiry</dt><dd className="tnum">{vm.expiry}</dd>
                   <dt>New expiry</dt><dd className="tnum fw-6" style={{ color: 'var(--ok)' }}>
-                    {(() => { const d = new Date(vm.expiry === '—' ? Date.now() : vm.expiry); d.setMonth(d.getMonth() + months); return d.toISOString().slice(0,10); })()}
+                    {(() => { const d = new Date(vm.expiry === '—' ? Date.now() : vm.expiry); d.setMonth(d.getMonth() + months); return d.toISOString().slice(0, 10); })()}
                   </dd>
                   <dt>Monthly rate</dt><dd className="tnum">MMK {formatMMK(vm.priceMonth)}</dd>
                   <dt>Renewal total</dt><dd className="tnum fw-7" style={{ fontSize: 14 }}>MMK {formatMMK(price)}</dd>
@@ -470,14 +470,14 @@ const RenewModal: React.FC<RenewModalProps> = ({ vm, onClose }) => {
               </div>
             </div>
             <div style={{ padding: 12, background: 'var(--info-soft)', borderRadius: 6, fontSize: 12, display: 'flex', gap: 8 }}>
-              <Icon name="invoice" size={14}/>
+              <Icon name="invoice" size={14} />
               <div>An invoice will be created automatically and emailed to the customer.</div>
             </div>
           </div>
         </div>
         <div className="modal-foot">
           <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <button className="btn accent" onClick={submit}><Icon name="check" size={12}/>Renew & invoice</button>
+          <button className="btn accent" onClick={submit}><Icon name="check" size={12} />Renew & invoice</button>
         </div>
       </div>
     </div>
@@ -514,20 +514,20 @@ const SpecModal: React.FC<SpecModalProps> = ({ vm, onClose }) => {
           <div>
             <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Spec change — {vm.name}</h3>
           </div>
-          <button className="icon-btn" onClick={onClose}><Icon name="x" size={14}/></button>
+          <button className="icon-btn" onClick={onClose}><Icon name="x" size={14} /></button>
         </div>
         <div className="modal-body">
           <div className="flex col gap-3">
             <div className="grid-3" style={{ gap: 12 }}>
-              <div className="field"><label>vCPU</label><input type="number" value={f.vcpu} onChange={e => set('vcpu', +e.target.value)}/></div>
-              <div className="field"><label>RAM (GB)</label><input type="number" value={f.ram} onChange={e => set('ram', +e.target.value)}/></div>
-              <div className="field"><label>Storage (GB)</label><input type="number" value={f.storage} onChange={e => set('storage', +e.target.value)}/></div>
+              <div className="field"><label>vCPU</label><input type="number" value={f.vcpu} onChange={e => set('vcpu', +e.target.value)} /></div>
+              <div className="field"><label>RAM (GB)</label><input type="number" value={f.ram} onChange={e => set('ram', +e.target.value)} /></div>
+              <div className="field"><label>Storage (GB)</label><input type="number" value={f.storage} onChange={e => set('storage', +e.target.value)} /></div>
             </div>
             <div className="card" style={{ background: 'var(--surface-2)' }}>
               <div className="card-body">
                 <div className="flex center between">
                   <div><div className="text-xs text-mute">Old monthly</div><div className="tnum fw-6">MMK {formatMMK(oldPrice)}</div></div>
-                  <Icon name="chevron-right" size={14}/>
+                  <Icon name="chevron-right" size={14} />
                   <div><div className="text-xs text-mute">New monthly</div><div className="tnum fw-6">MMK {formatMMK(newPrice)}</div></div>
                   <div className="text-sm fw-7 tnum" style={{ color: diff >= 0 ? 'var(--bad)' : 'var(--ok)' }}>
                     {diff >= 0 ? '+' : ''}MMK {formatMMK(Math.abs(diff))}/mo
@@ -582,11 +582,11 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({ onClose, presetStatus }) =>
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 620 }}>
         <div className="modal-head">
           <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Create provisioning task</h3>
-          <button className="icon-btn" onClick={onClose}><Icon name="x" size={14}/></button>
+          <button className="icon-btn" onClick={onClose}><Icon name="x" size={14} /></button>
         </div>
         <div className="modal-body">
           <div className="flex col gap-3">
-            <div className="field"><label>Title</label><input value={f.title} onChange={e => set('title', e.target.value)} placeholder="What needs to be done?"/></div>
+            <div className="field"><label>Title</label><input value={f.title} onChange={e => set('title', e.target.value)} placeholder="What needs to be done?" /></div>
             <div className="grid-2" style={{ gap: 12 }}>
               <div className="field"><label>Customer</label>
                 <select value={f.customer} onChange={e => set('customer', e.target.value)}>
@@ -614,12 +614,12 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({ onClose, presetStatus }) =>
               </div>
               <div className="field"><label>Team</label><select value={f.team} onChange={e => set('team', e.target.value)}><option>Sales</option><option>Provisioning</option><option>Network</option><option>Finance</option></select></div>
             </div>
-            <div className="field"><label>Notes</label><textarea rows={2} value={f.notes} onChange={e => set('notes', e.target.value)} placeholder="Context, links, customer comments…"/></div>
+            <div className="field"><label>Notes</label><textarea rows={2} value={f.notes} onChange={e => set('notes', e.target.value)} placeholder="Context, links, customer comments…" /></div>
           </div>
         </div>
         <div className="modal-foot">
           <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <button className="btn accent" disabled={!f.title || !f.customer} onClick={submit}><Icon name="plus" size={12}/>Create task</button>
+          <button className="btn accent" disabled={!f.title || !f.customer} onClick={submit}><Icon name="plus" size={12} />Create task</button>
         </div>
       </div>
     </div>
@@ -648,12 +648,12 @@ const TerminateModal: React.FC<TerminateModalProps> = ({ vm, onClose }) => {
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
         <div className="modal-head">
           <h3 style={{ margin: 0, fontSize: 16, color: 'var(--bad)' }}>Terminate {vm.name}</h3>
-          <button className="icon-btn" onClick={onClose}><Icon name="x" size={14}/></button>
+          <button className="icon-btn" onClick={onClose}><Icon name="x" size={14} /></button>
         </div>
         <div className="modal-body">
           <div style={{ padding: 14, background: 'var(--bad-soft)', borderRadius: 8, marginBottom: 16 }}>
             <div className="flex gap-2">
-              <Icon name="alert" size={18} style={{ color: 'var(--bad)' }}/>
+              <Icon name="alert" size={18} style={{ color: 'var(--bad)' }} />
               <div>
                 <div className="fw-7 text-sm" style={{ color: 'var(--bad)' }}>This action cannot be undone</div>
                 <div className="text-xs text-mute mt-1">All data will be permanently deleted. This VM will be removed from your account.</div>
@@ -662,13 +662,13 @@ const TerminateModal: React.FC<TerminateModalProps> = ({ vm, onClose }) => {
           </div>
           <div className="field">
             <label>Type the VM name to confirm</label>
-            <input value={confirmed ? vm.name : ''} onChange={e => setConfirmed(e.target.value === vm.name)} placeholder={vm.name}/>
+            <input value={confirmed ? vm.name : ''} onChange={e => setConfirmed(e.target.value === vm.name)} placeholder={vm.name} />
           </div>
         </div>
         <div className="modal-foot">
           <button className="btn ghost" onClick={onClose}>Cancel</button>
           <button className="btn danger" disabled={!confirmed} onClick={submit}>
-            <Icon name="trash" size={12}/>Terminate VM
+            <Icon name="trash" size={12} />Terminate VM
           </button>
         </div>
       </div>
@@ -684,12 +684,12 @@ interface NewCustomerModalProps {
 const NewCustomerModal: React.FC<NewCustomerModalProps> = ({ onClose }) => {
   const { addCustomer } = useCustomerStore()
   const { team } = useTeamStore()
-  const [f, setF] = useState({ 
-    name: '', 
-    company: '', 
-    email: '', 
-    phone: '', 
-    salesperson: team.find((t: any) => t.role === 'Sales')?.name || 'Su Su' 
+  const [f, setF] = useState({
+    name: '',
+    company: '',
+    email: '',
+    phone: '',
+    salesperson: team.find((t: any) => t.role === 'Sales')?.name || 'Su Su'
   })
   const set = (k: string, v: any) => setF(x => ({ ...x, [k]: v }))
 
@@ -703,17 +703,17 @@ const NewCustomerModal: React.FC<NewCustomerModalProps> = ({ onClose }) => {
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
         <div className="modal-head">
           <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Add new customer</h3>
-          <button className="icon-btn" onClick={onClose}><Icon name="x" size={14}/></button>
+          <button className="icon-btn" onClick={onClose}><Icon name="x" size={14} /></button>
         </div>
         <div className="modal-body">
           <div className="flex col gap-3">
             <div className="grid-2" style={{ gap: 12 }}>
-              <div className="field"><label>Contact name</label><input value={f.name} onChange={e => set('name', e.target.value)} placeholder="Aung Min Htet"/></div>
-              <div className="field"><label>Company</label><input value={f.company} onChange={e => set('company', e.target.value)} placeholder="Mandalay Logistics Co., Ltd"/></div>
+              <div className="field"><label>Contact name</label><input value={f.name} onChange={e => set('name', e.target.value)} placeholder="Aung Min Htet" /></div>
+              <div className="field"><label>Company</label><input value={f.company} onChange={e => set('company', e.target.value)} placeholder="Mandalay Logistics Co., Ltd" /></div>
             </div>
             <div className="grid-2" style={{ gap: 12 }}>
-              <div className="field"><label>Email</label><input type="email" value={f.email} onChange={e => set('email', e.target.value)} placeholder="contact@company.com"/></div>
-              <div className="field"><label>Phone</label><input value={f.phone} onChange={e => set('phone', e.target.value)} placeholder="+95 9 ..."/></div>
+              <div className="field"><label>Email</label><input type="email" value={f.email} onChange={e => set('email', e.target.value)} placeholder="contact@company.com" /></div>
+              <div className="field"><label>Phone</label><input value={f.phone} onChange={e => set('phone', e.target.value)} placeholder="+95 9 ..." /></div>
             </div>
             <div className="field">
               <label>Assigned salesperson</label>
@@ -722,7 +722,7 @@ const NewCustomerModal: React.FC<NewCustomerModalProps> = ({ onClose }) => {
               </select>
             </div>
             <div style={{ padding: 12, background: 'var(--warn-soft)', borderRadius: 6, fontSize: 12, color: 'oklch(0.4 0.13 75)', display: 'flex', gap: 8 }}>
-              <Icon name="alert" size={14}/>
+              <Icon name="alert" size={14} />
               <div>Customer will be created with KYC status <strong>Pending</strong>. They'll receive an email link to upload identity documents.</div>
             </div>
           </div>
@@ -730,7 +730,7 @@ const NewCustomerModal: React.FC<NewCustomerModalProps> = ({ onClose }) => {
         <div className="modal-foot">
           <button className="btn ghost" onClick={onClose}>Cancel</button>
           <button className="btn accent" disabled={!f.name || !f.email} onClick={submit}>
-            <Icon name="plus" size={12}/>Add customer
+            <Icon name="plus" size={12} />Add customer
           </button>
         </div>
       </div>
@@ -763,7 +763,7 @@ const EmailModal: React.FC<EmailModalProps> = ({ onClose, to, template }) => {
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 680 }}>
         <div className="modal-head">
           <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Compose email</h3>
-          <button className="icon-btn" onClick={onClose}><Icon name="x" size={14}/></button>
+          <button className="icon-btn" onClick={onClose}><Icon name="x" size={14} /></button>
         </div>
         <div className="modal-body">
           <div className="flex col gap-3">
@@ -777,15 +777,15 @@ const EmailModal: React.FC<EmailModalProps> = ({ onClose, to, template }) => {
                 ))}
               </div>
             </div>
-            <div className="field"><label>To</label><input value={f.to} onChange={e => set('to', e.target.value)} placeholder="customer@email.com"/></div>
-            <div className="field"><label>Subject</label><input value={f.subject} onChange={e => set('subject', e.target.value)}/></div>
-            <div className="field"><label>Body</label><textarea rows={6} value={f.body} onChange={e => set('body', e.target.value)}/></div>
+            <div className="field"><label>To</label><input value={f.to} onChange={e => set('to', e.target.value)} placeholder="customer@email.com" /></div>
+            <div className="field"><label>Subject</label><input value={f.subject} onChange={e => set('subject', e.target.value)} /></div>
+            <div className="field"><label>Body</label><textarea rows={6} value={f.body} onChange={e => set('body', e.target.value)} /></div>
           </div>
         </div>
         <div className="modal-foot">
           <button className="btn ghost" onClick={onClose}>Discard</button>
           <button className="btn" onClick={() => { toast('Saved as draft', 'info'); onClose() }}>Save draft</button>
-          <button className="btn accent" onClick={() => { toast(`Email sent to ${f.to || 'customer'}`, 'ok'); onClose() }}><Icon name="mail" size={12}/>Send</button>
+          <button className="btn accent" onClick={() => { toast(`Email sent to ${f.to || 'customer'}`, 'ok'); onClose() }}><Icon name="mail" size={12} />Send</button>
         </div>
       </div>
     </div>
@@ -840,7 +840,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ taskId, onClose }) =>
             <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{t.id} · {t.title}</h3>
             <div className="text-xs text-mute mt-1">{c?.company} · {t.type} · {t.priority}</div>
           </div>
-          <button className="icon-btn" onClick={onClose}><Icon name="x" size={14}/></button>
+          <button className="icon-btn" onClick={onClose}><Icon name="x" size={14} /></button>
         </div>
         <div className="modal-body">
           <div className="flex col gap-4">
@@ -848,14 +848,14 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ taskId, onClose }) =>
               <div className="card">
                 <div className="card-head">
                   <h3 className="card-title">Provisioning workflow</h3>
-                  <span className="pill accent"><span className="dot"/>Step {Math.min(wfStage + 1, WF.length)} of {WF.length}</span>
+                  <span className="pill accent"><span className="dot" />Step {Math.min(wfStage + 1, WF.length)} of {WF.length}</span>
                 </div>
                 <div className="card-body">
                   <div className="flex col gap-2">
                     {WF.map((w, i) => (
                       <div key={w.label} className="flex center gap-3" style={{ opacity: i <= wfStage ? 1 : 0.4 }}>
                         <div style={{ width: 28, height: 28, borderRadius: '50%', background: i < wfStage ? 'var(--ok)' : i === wfStage ? 'var(--accent)' : 'var(--surface-3)', color: i <= wfStage ? '#fff' : 'var(--ink-3)', display: 'grid', placeItems: 'center', fontSize: 11 }}>
-                          {i < wfStage ? <Icon name="check" size={11}/> : <Icon name={w.icon} size={11}/>}
+                          {i < wfStage ? <Icon name="check" size={11} /> : <Icon name={w.icon} size={11} />}
                         </div>
                         <div style={{ flex: 1 }}>
                           <div className="fw-6 text-sm">{w.label}</div>
@@ -893,7 +893,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ taskId, onClose }) =>
             <div className="card">
               <div className="card-head"><h3 className="card-title">Internal notes</h3></div>
               <div className="card-body">
-                <textarea rows={3} value={f.internalNotes} onChange={e => set('internalNotes', e.target.value)} placeholder="Internal notes..."/>
+                <textarea rows={3} value={f.internalNotes} onChange={e => set('internalNotes', e.target.value)} placeholder="Internal notes..." />
               </div>
             </div>
           </div>
@@ -921,15 +921,35 @@ const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({ onClose, presetCustom
     customer: presetCustomer || customers[0]?.id || '',
     vms: [] as string[],
     months: 6,
+    invoiceDate: new Date().toISOString().slice(0, 10),
+    vatRate: 5,
   })
   const set = (k: string, v: any) => setF(x => ({ ...x, [k]: v }))
   const custVMs = vms.filter((v: any) => v.customer === f.customer && v.status !== 'Expired')
   const amount = custVMs.filter((v: any) => f.vms.includes(v.id)).reduce((a: number, v: any) => a + v.priceMonth * f.months, 0)
-  const dueDate = new Date(Date.now() + 10 * 86400000).toISOString().slice(0, 10)
+  const vat = amount * (f.vatRate / 100)
+  const grossAmount = amount + vat
+
+  // Invoice date = today (cretae invoice date)
+  const invoiceDate = f.invoiceDate
+
+  // Issued Date = from VM start date (customer request date)
+  const selectedVMs = vms.filter((v: any) => f.vms.includes(v.id))
+  const issuedDate = selectedVMs.length > 0
+    ? selectedVMs.reduce((min: string, v: any) => v.start < min ? v.start : min, selectedVMs[0].start)
+    : new Date().toISOString().slice(0, 10)
+
+  // Due Date = Issued Date + 30 days
+  const dueDate = (() => {
+    const d = new Date(issuedDate)
+    d.setDate(d.getDate() + 30)
+    return d.toISOString().slice(0, 10)
+  })()
+
   const toggle = (id: string) => set('vms', f.vms.includes(id) ? f.vms.filter((x: string) => x !== id) : [...f.vms, id])
 
   const submit = () => {
-    addInvoice({ customer: f.customer, vms: f.vms, amount, due: dueDate })
+    addInvoice({ customer: f.customer, vms: f.vms, amount, vat, grossAmount, due: dueDate, issued: issuedDate, invoiceDate: invoiceDate })
     onClose()
   }
 
@@ -938,7 +958,7 @@ const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({ onClose, presetCustom
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 620 }}>
         <div className="modal-head">
           <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Create invoice</h3>
-          <button className="icon-btn" onClick={onClose}><Icon name="x" size={14}/></button>
+          <button className="icon-btn" onClick={onClose}><Icon name="x" size={14} /></button>
         </div>
         <div className="modal-body">
           <div className="flex col gap-3">
@@ -948,11 +968,14 @@ const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({ onClose, presetCustom
               </select>
             </div>
             <div className="field"><label>Billing period</label>
-              <div className="flex gap-2">
-                {[1, 3, 6, 12].map(m => (
-                  <button key={m} type="button" className={`filter-chip ${f.months === m ? 'active' : ''}`} onClick={() => set('months', m)}>{m} {m === 1 ? 'month' : 'months'}</button>
+              <select value={f.months} onChange={e => set('months', parseInt(e.target.value))}>
+                {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+                  <option key={m} value={m}>{m} month{m === 1 ? '' : 's'}</option>
                 ))}
-              </div>
+              </select>
+            </div>
+            <div className="field"><label>VAT Rate (%)</label>
+              <input type="number" value={f.vatRate} onChange={e => set('vatRate', parseFloat(e.target.value) || 0)} style={{ padding: '8px' }} />
             </div>
             <div className="field"><label>Include these VMs</label>
               <div className="card" style={{ borderColor: 'var(--line)' }}>
@@ -960,7 +983,7 @@ const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({ onClose, presetCustom
                   {custVMs.length === 0 && <div className="empty"><div className="sub">No billable VMs for this customer.</div></div>}
                   {custVMs.map((v: any) => (
                     <label key={v.id} style={{ display: 'flex', padding: '10px 14px', borderBottom: '1px solid var(--line)', cursor: 'pointer', alignItems: 'center', gap: 10 }}>
-                      <input type="checkbox" checked={f.vms.includes(v.id)} onChange={() => toggle(v.id)}/>
+                      <input type="checkbox" checked={f.vms.includes(v.id)} onChange={() => toggle(v.id)} />
                       <div style={{ flex: 1 }}>
                         <div className="fw-6 text-sm">{v.name}</div>
                         <div className="text-xs text-mute mono">{v.id} · {v.vcpu}c · {v.ram}GB · {v.storage}GB</div>
@@ -976,15 +999,18 @@ const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({ onClose, presetCustom
                 <div className="flex between"><span className="text-mute">Selected</span><span className="tnum fw-6">{f.vms.length} VM{f.vms.length !== 1 ? 's' : ''}</span></div>
                 <div className="flex between"><span className="text-mute">Period</span><span className="tnum fw-6">{f.months} month{f.months !== 1 ? 's' : ''}</span></div>
                 <div className="flex between"><span className="text-mute">Due date</span><span className="tnum fw-6">{dueDate}</span></div>
-                <div className="divider"/>
-                <div className="flex between"><span className="fw-7">Total</span><span className="tnum fw-7" style={{ fontSize: 16 }}>MMK {formatMMK(amount)}</span></div>
+                <div className="divider" />
+                <div className="flex between"><span className="text-mute">Subtotal</span><span className="tnum fw-6">MMK {formatMMK(amount)}</span></div>
+                <div className="flex between"><span className="text-mute">VAT ({f.vatRate}%)</span><span className="tnum fw-6">MMK {formatMMK(vat)}</span></div>
+                <div className="divider" />
+                <div className="flex between"><span className="fw-7">Gross Total</span><span className="tnum fw-7" style={{ fontSize: 16 }}>MMK {formatMMK(grossAmount)}</span></div>
               </div>
             </div>
           </div>
         </div>
         <div className="modal-foot">
           <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <button className="btn accent" disabled={!f.vms.length} onClick={submit}><Icon name="plus" size={12}/>Create invoice</button>
+          <button className="btn accent" disabled={!f.vms.length} onClick={submit}><Icon name="plus" size={12} />Create invoice</button>
         </div>
       </div>
     </div>
@@ -1013,12 +1039,12 @@ const InviteMemberModal: React.FC<InviteMemberModalProps> = ({ onClose }) => {
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
         <div className="modal-head">
           <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Invite team member</h3>
-          <button className="icon-btn" onClick={onClose}><Icon name="x" size={14}/></button>
+          <button className="icon-btn" onClick={onClose}><Icon name="x" size={14} /></button>
         </div>
         <div className="modal-body">
           <div className="flex col gap-3">
-            <div className="field"><label>Name</label><input value={f.name} onChange={e => set('name', e.target.value)}/></div>
-            <div className="field"><label>Work email</label><input type="email" value={f.email} onChange={e => set('email', e.target.value)} placeholder="@vpsmm.co"/></div>
+            <div className="field"><label>Name</label><input value={f.name} onChange={e => set('name', e.target.value)} /></div>
+            <div className="field"><label>Work email</label><input type="email" value={f.email} onChange={e => set('email', e.target.value)} placeholder="@vpsmm.co" /></div>
             <div className="grid-2" style={{ gap: 12 }}>
               <div className="field"><label>Role</label><select value={f.role} onChange={e => set('role', e.target.value)}><option>Admin</option><option>Sales</option><option>Engineer</option><option>Finance</option></select></div>
               <div className="field"><label>Team</label><select value={f.team} onChange={e => set('team', e.target.value)}><option>Sales</option><option>Provisioning</option><option>Network</option><option>Finance</option><option>Management</option></select></div>
@@ -1027,11 +1053,44 @@ const InviteMemberModal: React.FC<InviteMemberModalProps> = ({ onClose }) => {
         </div>
         <div className="modal-foot">
           <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <button className="btn accent" disabled={!f.name || !f.email} onClick={submit}><Icon name="mail" size={12}/>Send invite</button>
+          <button className="btn accent" disabled={!f.name || !f.email} onClick={submit}><Icon name="mail" size={12} />Send invite</button>
         </div>
       </div>
     </div>
   )
 }
 
-export { NewVMModal, RenewModal, SpecModal, TerminateModal, NewTaskModal, TaskDetailModal, NewCustomerModal, EmailModal, NewInvoiceModal, InviteMemberModal }
+// ── Confirm Modal ───────────────────────────────────────────────────────────
+interface ConfirmModalProps {
+  onClose: () => void
+  title?: string
+  message?: string
+  onConfirm?: () => void
+}
+
+const ConfirmModal: React.FC<ConfirmModalProps> = ({ onClose, title = 'Confirm action', message, onConfirm }) => {
+  const submit = () => {
+    onConfirm?.()
+    onClose()
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+        <div className="modal-head">
+          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{title}</h3>
+          <button className="icon-btn" onClick={onClose}><Icon name="x" size={14} /></button>
+        </div>
+        <div className="modal-body">
+          <div className="text-sm">{message}</div>
+        </div>
+        <div className="modal-foot">
+          <button className="btn ghost" onClick={onClose}>Cancel</button>
+          <button className="btn accent" onClick={submit}>Confirm</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export { NewVMModal, RenewModal, SpecModal, TerminateModal, NewTaskModal, TaskDetailModal, NewCustomerModal, EmailModal, NewInvoiceModal, InviteMemberModal, ConfirmModal }

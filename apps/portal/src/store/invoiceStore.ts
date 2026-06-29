@@ -10,13 +10,14 @@ export interface InvoiceStoreValue {
 }
 
 const useInvoiceStore = (): InvoiceStoreValue => {
-  const [invoices, setInvoices] = useState<Invoice[]>(MOCK.INVOICES.map((i: Invoice) => ({...i, vms: [...i.vms]})))
+  const [invoices, setInvoices] = useState<Invoice[]>(MOCK.INVOICES.map((i: Invoice) => ({ ...i, vms: [...i.vms] })))
 
   const addInvoice = useCallback((i: any) => {
     const id = `INV-2026-${String(420 + Math.floor(Math.random() * 80)).padStart(4, '0')}`
     const newI = {
       id, status: 'Pending', method: '—', receipt: '—', currency: 'MMK',
-      issued: new Date().toISOString().slice(0, 10),
+      issued: i.issued || new Date().toISOString().slice(0, 10),
+      invoiceDate: i.invoiceDate || new Date().toISOString().slice(0, 10),
       ...i,
     }
     setInvoices(s => [newI, ...s])

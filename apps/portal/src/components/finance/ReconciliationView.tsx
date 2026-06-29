@@ -55,7 +55,7 @@ export const ReconciliationView: React.FC = () => {
                       {matches[tx.id]
                         ? <span className="pill ok"><Icon name="check" size={10}/>{matches[tx.id]}</span>
                         : (() => {
-                            const candidate = unmatchedInv.find((i: any) => i.amount === tx.amount)
+                            const candidate = unmatchedInv.find((i: any) => Math.abs(i.amount - tx.amount) < 1)
                             return candidate
                               ? <button className="btn sm accent" onClick={() => match(tx.id, candidate.id)}>Match {candidate.id}</button>
                               : <span className="pill warn"><span className="dot"/>No match</span>

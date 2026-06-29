@@ -4,7 +4,7 @@ import { AuthShell, useAuth } from './components/auth/Auth'
 import Dashboard from './pages/Dashboard'
 import VMList from './pages/VMList'
 import VMDrawer from './components/vm/VMDrawer'
-import { NewVMModal, RenewModal, SpecModal, TerminateModal, NewTaskModal, NewCustomerModal, EmailModal, NewInvoiceModal, InviteMemberModal } from './components/modals/AdminVMModals'
+import { NewVMModal, RenewModal, SpecModal, TerminateModal, NewTaskModal, NewCustomerModal, EmailModal, NewInvoiceModal, InviteMemberModal, ConfirmModal } from './components/modals/AdminVMModals'
 import CustomersView from './pages/Customers'
 import CustomerDrawer from './components/customer/CustomerDrawer'
 import { TeamView, SettingsView } from './pages/Team'
@@ -183,7 +183,7 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
             {view === 'reports' && <ReportsView/>}
             {view === 'aging' && <AgingView/>}
             {view === 'reconciliation' && <ReconciliationView/>}
-            {view === 'recurring' && <RecurringView/>}
+            {view === 'recurring' && <RecurringView openModal={openModal}/>}
             {view === 'tax' && <TaxView/>}
             {view === 'team' && <TeamView openModal={openModal}/>}
             {view === 'settings' && <SettingsView/>}
@@ -205,6 +205,7 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
           {modalKind === 'email' && <EmailModal onClose={closeModal} to={modalProps.to} template={modalProps.template}/>}
           {modalKind === 'newinvoice' && <NewInvoiceModal onClose={closeModal} presetCustomer={modalProps.customer}/>}
           {modalKind === 'invite' && <InviteMemberModal onClose={closeModal}/>}
+          {modalKind === 'confirm' && <ConfirmModal onClose={closeModal} title={modalProps.title} message={modalProps.message} onConfirm={modalProps.onConfirm}/>}
           {shortcutsOpen && <ShortcutsModal onClose={() => setShortcutsOpen(false)}/>}
         </>
       )}

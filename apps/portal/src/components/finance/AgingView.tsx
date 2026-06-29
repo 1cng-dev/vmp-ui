@@ -10,6 +10,7 @@ export const AgingView: React.FC = () => {
   const { customers } = useCustomerStore()
   const { toast } = useUIStore()
   const TODAY = (window as any).MOCK.TODAY
+  const [ageFilter, setAgeFilter] = React.useState<string>('all')
   const buckets: Record<string, any[]> = { current: [], '0-30': [], '31-60': [], '61-90': [], '90+': [] }
   invoices.filter((i: any) => i.status !== 'Payment Received').forEach((i: any) => {
     const days = Math.ceil((TODAY.getTime() - new Date(i.due).getTime()) / 86400000)
@@ -20,7 +21,18 @@ export const AgingView: React.FC = () => {
     else buckets['90+'].push({ ...i, days })
   })
   const total = (b: any[]) => b.reduce((a: number, i: any) => a + i.amount, 0)
-  const all = [...buckets.current, ...buckets['0-30'], ...buckets['31-60'], ...buckets['61-90'], ...buckets['90+']]
+  const all = ageFilter === 'all'
+    ? [...buckets.current, ...buckets['0-30'], ...buckets['31-60'], ...buckets['61-90'], ...buckets['90+']]
+    : buckets[ageFilter] || []
+
+  const filters = [
+    { id: 'all', label: 'All ages', count: all.length },
+    { id: 'current', label: 'Current', count: buckets.current.length },
+    { id: '0-30', label: '0-30 days', count: buckets['0-30'].length },
+    { id: '31-60', label: '31-60 days', count: buckets['31-60'].length },
+    { id: '61-90', label: '61-90 days', count: buckets['61-90'].length },
+    { id: '90+', label: '90+ days', count: buckets['90+'].length },
+  ]
 
   return (
     <div className="content">
@@ -30,8 +42,8 @@ export const AgingView: React.FC = () => {
           <p className="page-subtitle">{all.length} unpaid invoices · MMK {formatMMK(total(all))} outstanding</p>
         </div>
         <div className="page-actions">
-          <button className="btn" onClick={() => toast('Aging report exported', 'info')}><Icon name="download" size={13}/>Export</button>
-          <button className="btn primary" onClick={() => toast(`Sent ${all.length} payment reminders`, 'ok')}><Icon name="mail" size={13}/>Bulk reminder</button>
+          <button className="btn" onClick={() => toast('Aging report exported', 'info')}><Icon name="download" size={13} />Export</button>
+          <button className="btn primary" onClick={() => toast(`Sent ${all.length} payment reminders`, 'ok')}><Icon name="mail" size={13} />Bulk reminder</button>
         </div>
       </div>
 
@@ -41,8 +53,14 @@ export const AgingView: React.FC = () => {
         <div className="metric"><div className="label">31–60 days</div><div className="value tnum" style={{ fontSize: 18, color: 'oklch(0.55 0.16 35)' }}>MMK {formatMMK(total(buckets['31-60']))}</div><div className="trend">{buckets['31-60'].length} invoices</div></div>
         <div className="metric"><div className="label">90+ days</div><div className="value tnum" style={{ fontSize: 18, color: 'var(--bad)' }}>MMK {formatMMK(total(buckets['90+']) + total(buckets['61-90']))}</div><div className="trend">{buckets['90+'].length + buckets['61-90'].length} invoices</div></div>
       </div>
-
       <div className="card">
+        <div className="filter-bar">
+          {filters.map(f => (
+            <button key={f.id} className={`filter-chip ${ageFilter === f.id ? 'active' : ''}`} onClick={() => setAgeFilter(f.id)}>
+              {f.label}<span className="ct">{f.count}</span>
+            </button>
+          ))}
+        </div>
         <div className="card-head"><h3 className="card-title">All unpaid invoices</h3></div>
         <div className="card-body flush">
           <table className="tbl">
@@ -57,9 +75,9 @@ export const AgingView: React.FC = () => {
                     <td className="mono fw-6">{i.id}</td>
                     <td><div className="fw-6 text-sm">{c?.company}</div></td>
                     <td className="tnum text-sm">{i.due}</td>
-                    <td><span className={`pill ${color}`}><span className="dot"/>{bucket}</span></td>
+                    <td><span className={`pill ${color}`}><span className="dot" />{bucket}</span></td>
                     <td className="right tnum fw-6">MMK {formatMMK(i.amount)}</td>
-                    <td><StatusPill status={i.status}/></td>
+                    <td><StatusPill status={i.status} /></td>
                     <td className="right">
                       <button className="btn sm" onClick={() => toast(`Reminder sent to ${c?.company}`, 'info')}>Remind</button>
                       <button className="btn sm" style={{ marginLeft: 4 }} onClick={() => markPaid(i.id)}>Mark paid</button>

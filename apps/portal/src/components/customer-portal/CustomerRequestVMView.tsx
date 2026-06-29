@@ -14,6 +14,7 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
   const { toast } = useUIStore()
   const [showSummary, setShowSummary] = useState(false)
   const [f, setF] = useState({
+    requestType: 'paid',
     purpose: '',
     hostname: '',
     os: 'ubuntu',
@@ -210,6 +211,35 @@ Customer notes: ${f.additionalNotes || '—'}`,
                   </div>
                 </div>
               </div>
+
+              {/* Request Type */}
+          <div className="card">
+            <div className="card-head"><h3 className="card-title">Request Type</h3></div>
+            <div className="card-body">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <IaaSCard selected={f.requestType === 'trial'} onClick={() => set('requestType', 'trial')} padding={14 as any}>
+                  <div className="flex center between mb-2">
+                    <div>
+                      <div className="fw-7 text-sm">14-day Trial Free</div>
+                    </div>
+                    {f.requestType === 'trial' && <Icon name="check" size={14} style={{ color: 'var(--accent-strong)' }}/>}
+                  </div>
+                  <div className="text-xs text-mute">Free trial · auto-terminates after 14 days</div>
+                </IaaSCard>
+
+                <IaaSCard selected={f.requestType === 'paid'} onClick={() => set('requestType', 'paid')} padding={14 as any}>
+                  <div className="flex center between mb-2">
+                    <div>
+                      <div className="fw-7 text-sm">Paid</div>
+                    </div>
+                    {f.requestType === 'paid' && <Icon name="check" size={14} style={{ color: 'var(--accent-strong)' }}/>}
+                  </div>
+                  <div className="text-xs text-mute">Monthly billing · cancel anytime · full features</div>
+                </IaaSCard>
+              </div>
+            </div>
+          </div>
+
               <div className="card">
                 <div className="card-head">
                   <h3 className="card-title">Choose an OS image</h3>
@@ -283,14 +313,16 @@ Customer notes: ${f.additionalNotes || '—'}`,
                   <h3 className="card-title">Specifications</h3>
                   <div className="flex gap-1" style={{ background: 'var(--surface-3)', borderRadius: 8, padding: 3 }}>
                     {[['standard', 'Standard'], ['premium', 'Premium']].map(([id, label]) => (
-                      <button key={id} onClick={() => set('sizing', id)}
+                      <button key={id} onClick={() => f.requestType !== 'trial' && set('sizing', id)}
+                        disabled={f.requestType === 'trial'}
                         style={{
-                          padding: '5px 14px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                          padding: '5px 14px', borderRadius: 6, border: 'none', cursor: f.requestType === 'trial' ? 'not-allowed' : 'pointer',
                           fontFamily: 'inherit', fontSize: 12, fontWeight: 600,
                           background: f.sizing === id ? (id === 'premium' ? 'linear-gradient(135deg, #8b5cf6, #a855f7)' : 'var(--surface)') : 'transparent',
                           color: f.sizing === id ? (id === 'premium' ? '#fff' : 'var(--ink)') : 'var(--ink-3)',
                           boxShadow: f.sizing === id ? 'var(--shadow-sm)' : 'none',
                           transition: 'all 0.15s',
+                          opacity: f.requestType === 'trial' ? 0.5 : 1,
                         }}>
                         {label}
                         {id === 'premium' && <Icon name="star" size={10} style={{ marginLeft: 4 }}/>}
@@ -308,6 +340,8 @@ Customer notes: ${f.additionalNotes || '—'}`,
                         onChange={e => set('vcpu', parseInt(e.target.value) || 0)}
                         placeholder="e.g. 4"
                         min="1"
+                        disabled={f.requestType === 'trial'}
+                        style={{ background: f.requestType === 'trial' ? 'var(--surface-3)' : undefined }}
                       />
                     </div>
                     <div className="field">
@@ -318,6 +352,8 @@ Customer notes: ${f.additionalNotes || '—'}`,
                         onChange={e => set('ram', parseInt(e.target.value) || 0)}
                         placeholder="e.g. 16"
                         min="1"
+                        disabled={f.requestType === 'trial'}
+                        style={{ background: f.requestType === 'trial' ? 'var(--surface-3)' : undefined }}
                       />
                     </div>
                     <div className="field">
@@ -328,6 +364,8 @@ Customer notes: ${f.additionalNotes || '—'}`,
                         onChange={e => set('storage', parseInt(e.target.value) || 0)}
                         placeholder="e.g. 200"
                         min="1"
+                        disabled={f.requestType === 'trial'}
+                        style={{ background: f.requestType === 'trial' ? 'var(--surface-3)' : undefined }}
                       />
                     </div>
                     <div className="field">
@@ -336,6 +374,8 @@ Customer notes: ${f.additionalNotes || '—'}`,
                         value={f.capacity}
                         onChange={e => set('capacity', e.target.value)}
                         placeholder="e.g. High performance"
+                        disabled={f.requestType === 'trial'}
+                        style={{ background: f.requestType === 'trial' ? 'var(--surface-3)' : undefined }}
                       />
                     </div>
                     <div className="field" style={{ gridColumn: 'span 2' }}>
@@ -344,6 +384,8 @@ Customer notes: ${f.additionalNotes || '—'}`,
                         value={f.storagePartitions}
                         onChange={e => set('storagePartitions', e.target.value)}
                         placeholder="e.g. /boot 1GB, / 50GB, /var 149GB"
+                        disabled={f.requestType === 'trial'}
+                        style={{ background: f.requestType === 'trial' ? 'var(--surface-3)' : undefined }}
                       />
                     </div>
                   </div>
@@ -360,6 +402,7 @@ Customer notes: ${f.additionalNotes || '—'}`,
                 </div>
               </div>
 
+              {f.requestType === 'paid' && (
               <div className="card">
                 <div className="card-head">
                   <h3 className="card-title">Storage volumes</h3>
@@ -397,7 +440,9 @@ Customer notes: ${f.additionalNotes || '—'}`,
                   </div>
                 </div>
               </div>
+              )}
 
+              {f.requestType === 'paid' && (
               <div className="card">
                 <div className="card-head"><h3 className="card-title">Network bandwidth</h3></div>
                 <div className="card-body">
@@ -414,8 +459,10 @@ Customer notes: ${f.additionalNotes || '—'}`,
                   </div>
                 </div>
               </div>
+              )}
 
               {/* Backup service */}
+              {f.requestType === 'paid' && (
               <div className="card">
                 <div className="card-head">
                   <h3 className="card-title">Backup service</h3>
@@ -464,8 +511,10 @@ Customer notes: ${f.additionalNotes || '—'}`,
                   </div>
                 )}
               </div>
+              )}
 
               {/* Managed monitoring */}
+              {f.requestType === 'paid' && (
               <div className="card">
                 <div className="card-head">
                   <div>
@@ -475,13 +524,14 @@ Customer notes: ${f.additionalNotes || '—'}`,
                   <span className={`toggle ${f.monitoring ? 'on' : ''}`} onClick={() => set('monitoring', !f.monitoring)}/>
                 </div>
               </div>
+              )}
 
           {/* Zone & Network */}
               <div className="card">
                 <div className="card-head"><h3 className="card-title">Choose a zone</h3></div>
                 <div className="card-body">
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-                    {zones.map(z => (
+                    {(f.requestType === 'trial' ? [zones[0]] : zones).map(z => (
                       <IaaSCard key={z.id} selected={f.zone === z.id} onClick={() => set('zone', z.id)} padding={14 as any}>
                         <div className="flex center between mb-2">
                           <div style={{ fontSize: 24, lineHeight: 1 }}>{z.flag}</div>
@@ -497,6 +547,7 @@ Customer notes: ${f.additionalNotes || '—'}`,
               </div>
 
               {/* Network Interface Controllers */}
+              {f.requestType === 'paid' && (
               <div className="card">
                 <div className="card-head">
                   <h3 className="card-title">Network interfaces (NICs)</h3>
@@ -548,8 +599,10 @@ Customer notes: ${f.additionalNotes || '—'}`,
                   <div className="text-xs text-mute mt-2">Up to 3 NICs per VM. Additional NICs require VLAN setup by the network team.</div>
                 </div>
               </div>
+              )}
 
           {/* Firewall */}
+              {f.requestType === 'paid' && (
               <div className="card">
                 <div className="card-head">
                   <h3 className="card-title">Firewall rules — inbound ports</h3>
@@ -605,8 +658,9 @@ Customer notes: ${f.additionalNotes || '—'}`,
                   )}
                 </div>
               </div>
+              )}
 
-              {/* Port forwarding */}
+              {f.requestType === 'paid' && (
               <div className="card">
                 <div className="card-head">
                   <h3 className="card-title">Port forwarding</h3>
@@ -649,6 +703,7 @@ Customer notes: ${f.additionalNotes || '—'}`,
                   )}
                 </div>
               </div>
+              )}
 
               <div className="card">
                 <div className="card-body">

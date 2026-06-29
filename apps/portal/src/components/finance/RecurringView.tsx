@@ -5,7 +5,11 @@ import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { formatMMK } from '../ui/ui'
 
-export const RecurringView: React.FC = () => {
+interface RecurringViewProps {
+  openModal?: (kind: string, props?: any) => void
+}
+
+export const RecurringView: React.FC<RecurringViewProps> = ({ openModal }) => {
   const { vms } = useVMStore()
   const { customers } = useCustomerStore()
   const { toast } = useUIStore()
@@ -27,9 +31,12 @@ export const RecurringView: React.FC = () => {
           <p className="page-subtitle">{cycles.length} active subscriptions · MMK {formatMMK(cycles.reduce((a: number, v: any) => a + v.priceMonth, 0))} monthly recurring</p>
         </div>
         <div className="page-actions">
-          <button className="btn" onClick={() => toast('Billing schedule exported', 'info')}><Icon name="download" size={13}/>Export schedule</button>
-          <button className="btn primary" onClick={() => toast(`Generated ${cycles.length} invoices for next cycle`, 'ok')}><Icon name="refresh" size={13}/>Generate invoices</button>
-        </div>
+          <button className="btn" onClick={() => toast('Billing schedule exported', 'info')}><Icon name="download" size={13} />Export schedule</button>
+          <button className="btn primary" onClick={() => openModal?.('confirm', {
+            title: 'Generate invoices',
+            message: `Generate ${cycles.length} invoices for next billing cycle?`,
+            onConfirm: () => toast(`Generated ${cycles.length} invoices for next cycle`, 'ok')
+          })}><Icon name="refresh" size={13} />Generate invoices</button>        </div>
       </div>
 
       <div className="grid-4 mb-4">
@@ -52,7 +59,7 @@ export const RecurringView: React.FC = () => {
                   <td className="right tnum">MMK {formatMMK(v.priceMonth)}</td>
                   <td className="tnum text-sm">{v.nextBill}</td>
                   <td className="tnum text-sm">{v.expiry}</td>
-                  <td><span className="toggle on"/></td>
+                  <td><span className="toggle on" /></td>
                   <td className="right"><button className="btn sm" onClick={() => toast(`Invoice generated for ${v.name}`, 'ok')}>Bill now</button></td>
                 </tr>
               ))}
