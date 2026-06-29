@@ -3,11 +3,10 @@ import Icon from '../../lib/icons'
 import { IaaSCard } from './VMHelperComponents'
 
 interface AddonServicesViewProps {
-  me: any
   myVMs: any[]
 }
 
-export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ me, myVMs }) => {
+export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs }) => {
   const [selectedVM, setSelectedVM] = useState<string>('')
   const [cpfsEnabled, setCpfsEnabled] = useState(false)
   const [cpfsPackage, setCpfsPackage] = useState<'standard' | 'premium'>('standard')

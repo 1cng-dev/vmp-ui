@@ -42,14 +42,6 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
   })
   const set = (k: string, v: any) => setF(x => ({ ...x, [k]: v }))
 
-  const presets = [
-    { id: 'starter', label: 'Starter', vcpu: 2, ram: 4, storage: 50, desc: 'Small services, dev work' },
-    { id: 'standard', label: 'Standard', vcpu: 4, ram: 8, storage: 100, desc: 'Web apps, staging' },
-    { id: 'business', label: 'Business', vcpu: 4, ram: 16, storage: 200, desc: 'Production workloads', popular: true },
-    { id: 'performance', label: 'Performance', vcpu: 8, ram: 32, storage: 500, desc: 'Heavy traffic, databases' },
-    { id: 'enterprise', label: 'Enterprise', vcpu: 16, ram: 64, storage: 1000, desc: 'Mission-critical' },
-  ]
-
   const osCatalog = [
     { id: 'ubuntu', name: 'Ubuntu', accent: 'oklch(0.6 0.17 30)', versions: ['24.04 LTS', '22.04 LTS', '20.04 LTS'], logo: 'U' },
     { id: 'debian', name: 'Debian', accent: 'oklch(0.55 0.18 0)', versions: ['12 (Bookworm)', '11 (Bullseye)'], logo: 'D' },
@@ -137,7 +129,6 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
   }
 
   const confirmSubmit = () => {
-    const volumeDesc = f.volumes.map((v: any, i: number) => `Disk ${i+1}: ${v.size} GB SSD`).join(', ')
     addTask({
       title: `VM request — ${f.hostname} (${spec.vcpu}c / ${spec.ram}GB / ${f.volumes.map((v: any) => v.size).join('+')}GB)`,
       customer: me.id, vm: '', type: 'New', priority: 'Normal', status: 'Pending', team: 'Sales',
@@ -145,8 +136,7 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
       assignee: (me as any).salesperson || '—',
       notes: `Customer-initiated VM request via portal.
 Hostname: ${f.hostname}
-Purpose: ${f.purpose || '—'}
-Spec: ${spec.vcpu} vCPU · ${spec.ram} GB RAM · ${f.storage} GB SSD${f.sizing === 'standard' ? ' (standard)' : ' (premium)'}
+Purp: ${spec.vcpu} vCPU · ${spec.ram} GB RAM · ${f.storage} GB SSD${f.sizing === 'standard' ? ' (standard)' : ' (premium)'}
 Bandwidth: ${f.bandwidth}
 Backup: ${f.backupEnabled ? `${f.backupType === 'daily' ? 'Daily' : 'Weekly'} at ${f.backupTime}` : 'No'}
 Monitoring: ${f.monitoring ? 'Enabled' : 'No'}

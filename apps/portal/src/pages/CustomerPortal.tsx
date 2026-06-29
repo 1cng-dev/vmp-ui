@@ -218,7 +218,7 @@ const CustomerPortal: React.FC<CustomerPortalProps> = ({ role = 'Customer', setR
                     {view === 'requests' && <CustomerRequestsView myRequests={myRequests} setDetailRequest={setDetailRequest}/>}
                     {view === 'invoices' && <CustomerInvoicesView myInvs={myInvs} setDetailInvoice={setDetailInvoice}/>}
                     {view === 'tickets' && <CustomerTicketsView me={me} myTickets={myTickets} setOpenTicket={setOpenTicket}/>}
-                    {view === 'addons' && <AddonServicesView me={me} myVMs={myVMs}/>}
+                    {view === 'addons' && <AddonServicesView myVMs={myVMs}/>}
                     {view === 'account' && <CustomerAccountView me={me}/>}
                   </>
                 )

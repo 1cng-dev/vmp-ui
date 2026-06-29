@@ -77,7 +77,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset }: QuotesViewProps) => {
                 </div>
               </div>
               <div className="flex gap-2 mt-1">
-                <button className="btn" onClick={() => { const id = addQuote({ customer: form.customer, items: form.lines.length, total: subTotal * 12, status: 'Draft' }); toast('Quote saved as draft', 'ok'); setBuilding(false); }}>Save draft</button>
+                <button className="btn" onClick={() => { addQuote({ customer: form.customer, items: form.lines.length, total: subTotal * 12, status: 'Draft' }); toast('Quote saved as draft', 'ok'); setBuilding(false); }}>Save draft</button>
                 <button className="btn accent" onClick={() => { const id = addQuote({ customer: form.customer, items: form.lines.length, total: subTotal * 12, status: 'Sent' }); toast(`Quote ${id} sent to customer`, 'ok'); setBuilding(false); }}><Icon name="mail" size={12}/>Send to Finance</button>
                 <div style={{ flex: 1 }}/>
                 <button className="btn ghost" onClick={() => setBuilding(false)}>Cancel</button>
