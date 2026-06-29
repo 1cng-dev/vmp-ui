@@ -42,6 +42,20 @@ export interface VM {
   notes: string
   subscription: string
   priceMonth: number
+  // Add-on services
+  addonServices?: {
+    backupEnabled?: boolean
+    backupFreq?: string
+    backupRetention?: number
+    monitoring?: boolean
+    cpfsEnabled?: boolean
+    cpfsPackage?: 'standard' | 'premium'
+    ccisEnabled?: boolean
+    ccisPlan?: string
+    ddosProtection?: string
+    sslCertificate?: string
+    loadBalancer?: string
+  }
 }
 
 export interface Task {

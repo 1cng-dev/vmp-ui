@@ -24,6 +24,21 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
   const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [changePlanOpen, setChangePlanOpen] = useState(false)
 
+  // Mock add-on services data
+  const addonServices = vm.addonServices || {
+    backupEnabled: true,
+    backupFreq: 'daily',
+    backupRetention: 7,
+    monitoring: true,
+    cpfsEnabled: false,
+    cpfsPackage: 'standard',
+    ccisEnabled: true,
+    ccisPlan: 'standard',
+    ddosProtection: 'basic',
+    sslCertificate: 'none',
+    loadBalancer: 'none',
+  }
+
   const tags = vm.tags || []
   const isRunning = vm.powerState === 'Running'
 
@@ -106,12 +121,15 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
 
       <div className="card">
         <div className="tabs">
-          {['overview', 'specs', 'network', 'credentials', 'snapshots', 'usage', 'tags-notes'].map(t => (
-            <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
-              {t === 'tags-notes' ? 'Tags & notes' : t.charAt(0).toUpperCase() + t.slice(1)}
-              {t === 'snapshots' && <span className="count">{snapshots.length}</span>}
-            </button>
-          ))}
+          {['overview', 'specs', 'network', 'credentials', 'snapshots', 'usage', 'addons', 'tags-notes'].map(t => {
+            const label = t === 'tags-notes' ? 'Tags & notes' : t === 'addons' ? 'Add-on Services' : t.charAt(0).toUpperCase() + t.slice(1)
+            return (
+              <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
+                {label}
+                {t === 'snapshots' && <span className="count">{snapshots.length}</span>}
+              </button>
+            )
+          })}
         </div>
 
         {tab === 'overview' && (
@@ -131,7 +149,6 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
                 ['Started', vm.start],
                 ['Expires', vm.expiry],
                 ['Monthly', `MMK ${formatMMK(vm.priceMonth)}`],
-                ['Auto-renew', 'On'],
               ]}/>
             </div>
           </div>
@@ -311,6 +328,127 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
                   <div className="flex between text-xs mt-2"><span className="text-mute">Used</span><span className="text-mute tnum">{Math.round(disk / vm.storage * 100)}%</span></div>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {tab === 'addons' && (
+          <div className="card-body">
+            <div className="grid-2" style={{ gap: 16 }}>
+              {addonServices.backupEnabled && (
+                <div className="card" style={{ borderColor: 'var(--line)' }}>
+                  <div className="card-head">
+                    <h4 className="card-title" style={{ fontSize: 14 }}>Backup Service</h4>
+                    <span className="pill ok"><span className="dot"/>Enabled</span>
+                  </div>
+                  <div className="card-body">
+                    <dl className="dl">
+                      <dt>Frequency</dt><dd className="fw-6">{addonServices.backupFreq === 'daily' ? 'Daily' : 'Weekly'}</dd>
+                      <dt>Retention</dt><dd className="fw-6">{addonServices.backupRetention} {addonServices.backupFreq === 'daily' ? 'days' : 'weeks'}</dd>
+                      <dt>Last backup</dt><dd className="tnum">{new Date().toISOString().slice(0, 10)}</dd>
+                    </dl>
+                  </div>
+                </div>
+              )}
+
+              {addonServices.monitoring && (
+                <div className="card" style={{ borderColor: 'var(--line)' }}>
+                  <div className="card-head">
+                    <h4 className="card-title" style={{ fontSize: 14 }}>Monitoring & Alerts</h4>
+                    <span className="pill ok"><span className="dot"/>Enabled</span>
+                  </div>
+                  <div className="card-body">
+                    <dl className="dl">
+                      <dt>Metrics monitored</dt><dd>CPU, RAM, Disk, Uptime</dd>
+                      <dt>Alert channels</dt><dd>Email, SMS</dd>
+                      <dt>Status</dt><dd className="text-ok fw-6">All systems normal</dd>
+                    </dl>
+                  </div>
+                </div>
+              )}
+
+              {addonServices.cpfsEnabled && (
+                <div className="card" style={{ borderColor: 'var(--line)' }}>
+                  <div className="card-head">
+                    <h4 className="card-title" style={{ fontSize: 14 }}>CPFS (Cloud Protection Firewall)</h4>
+                    <span className="pill ok"><span className="dot"/>Enabled</span>
+                  </div>
+                  <div className="card-body">
+                    <dl className="dl">
+                      <dt>Package</dt><dd className="fw-6">{addonServices.cpfsPackage === 'premium' ? 'Premium' : 'Standard'}</dd>
+                      <dt>Max sessions</dt><dd>{addonServices.cpfsPackage === 'premium' ? '1500' : '1000'}/sec</dd>
+                      <dt>Reports</dt><dd>Weekly</dd>
+                    </dl>
+                  </div>
+                </div>
+              )}
+
+              {addonServices.ccisEnabled && (
+                <div className="card" style={{ borderColor: 'var(--line)' }}>
+                  <div className="card-head">
+                    <h4 className="card-title" style={{ fontSize: 14 }}>CCIS (Content Inspection)</h4>
+                    <span className="pill ok"><span className="dot"/>Enabled</span>
+                  </div>
+                  <div className="card-body">
+                    <dl className="dl">
+                      <dt>Plan</dt><dd className="fw-6">{addonServices.ccisPlan?.charAt(0).toUpperCase() + addonServices.ccisPlan?.slice(1)}</dd>
+                      <dt>Capacity</dt><dd>
+                        {addonServices.ccisPlan === 'basic' && '100 MB'}
+                        {addonServices.ccisPlan === 'standard' && '500 MB'}
+                        {addonServices.ccisPlan === 'professional' && '1 GB'}
+                        {addonServices.ccisPlan === 'enterprise' && '5 GB'}
+                      </dd>
+                      <dt>Status</dt><dd className="text-ok fw-6">Active</dd>
+                    </dl>
+                  </div>
+                </div>
+              )}
+
+              {addonServices.ddosProtection !== 'none' && (
+                <div className="card" style={{ borderColor: 'var(--line)' }}>
+                  <div className="card-head">
+                    <h4 className="card-title" style={{ fontSize: 14 }}>DDoS Protection</h4>
+                    <span className="pill ok"><span className="dot"/>{addonServices.ddosProtection}</span>
+                  </div>
+                  <div className="card-body">
+                    <dl className="dl">
+                      <dt>Protection level</dt><dd className="fw-6">{addonServices.ddosProtection}</dd>
+                      <dt>Mitigation capacity</dt><dd>Up to 10 Gbps</dd>
+                      <dt>Status</dt><dd className="text-ok fw-6">Active</dd>
+                    </dl>
+                  </div>
+                </div>
+              )}
+
+              {addonServices.sslCertificate !== 'none' && (
+                <div className="card" style={{ borderColor: 'var(--line)' }}>
+                  <div className="card-head">
+                    <h4 className="card-title" style={{ fontSize: 14 }}>SSL Certificate</h4>
+                    <span className="pill ok"><span className="dot"/>{addonServices.sslCertificate}</span>
+                  </div>
+                  <div className="card-body">
+                    <dl className="dl">
+                      <dt>Type</dt><dd className="fw-6">{addonServices.sslCertificate}</dd>
+                      <dt>Issuer</dt><dd>Let's Encrypt</dd>
+                      <dt>Expires</dt><dd className="tnum">{new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10)}</dd>
+                    </dl>
+                  </div>
+                </div>
+              )}
+
+              {!addonServices.backupEnabled && !addonServices.monitoring && !addonServices.cpfsEnabled && !addonServices.ccisEnabled && addonServices.ddosProtection === 'none' && addonServices.sslCertificate === 'none' && (
+                <div className="card" style={{ borderColor: 'var(--line)', gridColumn: 'span 2' }}>
+                  <div className="card-body" style={{ textAlign: 'center', padding: 40 }}>
+                    <Icon name="box" size={32} style={{ color: 'var(--ink-3)', marginBottom: 12 }}/>
+                    <div className="text-mute">No add-on services are enabled for this VM.</div>
+                    <div style={{ marginTop: 8, fontSize: 12, color: 'var(--ink-3)' }}>Contact your account manager to add services.</div>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div style={{ marginTop: 16, padding: 12, background: 'var(--info-soft)', borderRadius: 8, fontSize: 12, display: 'flex', gap: 8, color: 'var(--info)' }}>
+              <Icon name="info" size={14} style={{ flexShrink: 0, marginTop: 1 }}/>
+              <div>Need to add or modify add-on services? Contact your account manager or use the <strong>Add-on Services</strong> section in the customer portal.</div>
             </div>
           </div>
         )}

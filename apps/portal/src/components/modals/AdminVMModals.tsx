@@ -46,7 +46,6 @@ const NewVMModal: React.FC<NewVMModalProps> = ({ onClose }) => {
     adminContact: '',
     type: 'Paid',
     subscription: '1 year',
-    autoRenew: true,
     priceMonth: 180000,
     vcpu: 4, ram: 16, storage: 200, bandwidth: '1 Gbps',
     osFamily: 'ubuntu', os: 'Ubuntu 22.04 LTS',
@@ -211,10 +210,6 @@ const NewVMModal: React.FC<NewVMModalProps> = ({ onClose }) => {
                   <input value={f.adminContact} onChange={e => set('adminContact', e.target.value)} placeholder={cust?.email || 'admin@customer.com'} />
                 </div>
               </div>
-              <div className="flex center between" style={{ padding: '4px 2px' }}>
-                <div><div className="fw-6 text-sm">Auto-renew</div><div className="text-xs text-mute">Renew automatically before expiry</div></div>
-                <span className={`toggle ${f.autoRenew ? 'on' : ''}`} onClick={() => set('autoRenew', !f.autoRenew)} />
-              </div>
             </div>
           )}
 
@@ -347,7 +342,6 @@ const NewVMModal: React.FC<NewVMModalProps> = ({ onClose }) => {
                       <dt>Contact</dt><dd>{cust?.name}</dd>
                       <dt>Tech contact</dt><dd className="text-sm">{f.adminContact || cust?.email}</dd>
                       <dt>Environment</dt><dd><span className="pill subtle">{f.environment}</span></dd>
-                      <dt>Auto-renew</dt><dd>{f.autoRenew ? 'Yes' : 'No'}</dd>
                     </dl>
                   </div>
                 </div>

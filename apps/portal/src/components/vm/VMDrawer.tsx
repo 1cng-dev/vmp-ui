@@ -96,7 +96,6 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal 
                         <dt>Start</dt><dd className="tnum">{v.start}</dd>
                         <dt>Expiry</dt><dd><ExpiryCell date={v.expiry}/></dd>
                         <dt>Monthly</dt><dd className="tnum">MMK {formatMMK(v.priceMonth)}</dd>
-                        <dt>Auto-renew</dt><dd><span className="toggle on"/></dd>
                       </dl>
                     </div>
                   </div>

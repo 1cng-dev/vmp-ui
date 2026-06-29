@@ -1,9 +1,8 @@
 import React from 'react'
 import useTaskStore from '../../store/taskStore'
 import useCustomerStore from '../../store/customerStore'
-import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
-import { Avatar, StatusPill } from '../ui/ui'
+import { StatusPill } from '../ui/ui'
 
 interface CustomerRequestDetailProps {
   request: any
@@ -13,8 +12,7 @@ interface CustomerRequestDetailProps {
 export const CustomerRequestDetail: React.FC<CustomerRequestDetailProps> = ({ request: initial, onClose }) => {
   const { tasks } = useTaskStore()
   const { customers } = useCustomerStore()
-  const { toast } = useUIStore()
-  const t = tasks.find((x: any) => x.id === initial.id) || initial
+    const t = tasks.find((x: any) => x.id === initial.id) || initial
   const c = customers.find((c: any) => c.id === t.customer)
 
   // Parse notes block into key-value pairs
@@ -83,23 +81,6 @@ export const CustomerRequestDetail: React.FC<CustomerRequestDetailProps> = ({ re
               ))}
             </div>
           </div>
-
-          {/* Conversation thread (synced with sales) */}
-          <div className="card">
-            <div className="card-head">
-              <h3 className="card-title">Conversation with {t.assignee !== '—' ? t.assignee : 'Sales'}</h3>
-              <span className="pill subtle"><Icon name="mail" size={10}/>Synced</span>
-            </div>
-            <div className="card-body">
-              <div className="text-sm text-mute" style={{ padding: 14, background: 'var(--surface-2)', borderRadius: 8 }}>
-                Use the <strong>Support tickets</strong> section to start a thread about this request, or contact <strong>{t.assignee !== '—' ? t.assignee : c?.salesperson}</strong> directly.
-              </div>
-              <div className="flex gap-2 mt-3">
-                <button className="btn primary" onClick={() => toast('Open Support tickets to start a conversation', 'info')}><Icon name="mail" size={12}/>Message {t.assignee !== '—' ? t.assignee : 'Sales'}</button>
-                <button className="btn" onClick={() => toast('Email sent', 'info')}><Icon name="mail" size={12}/>Email</button>
-              </div>
-            </div>
-          </div>
         </div>
 
         <div className="flex col" style={{ gap: 16 }}>
@@ -116,30 +97,6 @@ export const CustomerRequestDetail: React.FC<CustomerRequestDetailProps> = ({ re
                   {t.status === 'Done' && 'Your request was completed. Check My VMs.'}
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* Account manager */}
-          <div className="card">
-            <div className="card-head"><h3 className="card-title">Account manager</h3></div>
-            <div className="card-body">
-              {t.assignee !== '—' ? (
-                <>
-                  <div className="flex center gap-3">
-                    <Avatar name={t.assignee} size={42}/>
-                    <div>
-                      <div className="fw-7">{t.assignee}</div>
-                      <div className="text-xs text-mute">{t.team}</div>
-                    </div>
-                  </div>
-                  <div className="flex gap-2 mt-3">
-                    <button className="btn sm w-full" onClick={() => toast('Calling…', 'info')}><Icon name="external" size={11}/>Call</button>
-                    <button className="btn sm w-full" onClick={() => toast('Email composer opened', 'info')}><Icon name="mail" size={11}/>Email</button>
-                  </div>
-                </>
-              ) : (
-                <div className="text-sm text-mute">No account manager assigned yet — Sales will assign one shortly.</div>
-              )}
             </div>
           </div>
         </div>
