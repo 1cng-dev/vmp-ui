@@ -114,6 +114,16 @@ export interface Ticket {
   replies: Array<{ who: string; when: string; body: string }>
 }
 
+export interface Quote {
+  id: string
+  customer: string
+  items: number
+  total: number
+  validity: string
+  status: string
+  lines?: Array<{ vcpu: number; ram: number; storage: number; qty: number; price: number }>
+}
+
 export interface Toast {
   id: number
   msg: string

@@ -76,7 +76,7 @@ const NAV: NavItem[] = [
 
 export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames = {}, onAccountClick, onLogout }) => {
   const roleLabel = roleNames[role] || role
-  const HIDDEN = new Set(['calendar', 'network', 'console', 'nodes', 'topology', 'snapshots', 'maintenance', 'patches', 'firewall', 'health', 'apikeys', 'backups', 'pipeline', 'quotes', 'followups', 'trials'])
+  const HIDDEN = new Set(['calendar', 'network', 'console', 'nodes', 'topology', 'snapshots', 'maintenance', 'patches', 'firewall', 'health', 'apikeys', 'backups', 'pipeline', 'followups', 'trials'])
   const items = (role === 'Customer' ? [
     { id: 'cust-vms', label: 'My VMs', icon: 'server' },
     { id: 'cust-invoices', label: 'Invoices & receipts', icon: 'invoice' },
@@ -84,7 +84,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
   ] : NAV).filter(it => it.section || (it.id && !HIDDEN.has(it.id)))
 
   const allowedFor: Record<string, Set<string> | null> = {
-    'Sales': new Set(['dashboard', 'alerts', 'calendar', 'activity', 'vms', 'tasks', 'customers', 'customer-accounts', 'kyc']),
+    'Sales': new Set(['dashboard', 'alerts', 'calendar', 'activity', 'vms', 'tasks', 'customers', 'customer-accounts', 'kyc', 'quotes']),
     'Engineer': new Set(['dashboard', 'alerts', 'calendar', 'activity', 'vms', 'tasks', 'network', 'console', 'nodes', 'topology', 'snapshots', 'maintenance', 'patches', 'firewall']),
     'Finance': new Set(['dashboard', 'alerts', 'calendar', 'vms', 'tasks', 'finance', 'reports', 'customers', 'customer-accounts', 'aging', 'reconciliation', 'recurring', 'tax']),
     'Admin': null,

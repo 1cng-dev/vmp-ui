@@ -14,7 +14,7 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal }) => {
   const { vms, bulkAction, setVMStatus } = useVMStore()
   const { customers } = useCustomerStore()
   const { toast } = useUIStore()
-  const [filter, setFilter] = useState('all')
+  const [filter, setFilter] = useState<Set<string>>(new Set(['all']))
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [menu, setMenu] = useState<string | null>(null)
@@ -23,21 +23,28 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal }) => {
     { id: 'all', label: 'All', count: vms.length },
     { id: 'Active', label: 'Active', count: vms.filter(v => v.status === 'Active').length },
     { id: 'Pending', label: 'Pending', count: vms.filter(v => v.status === 'Pending').length },
-    { id: 'Suspended', label: 'Suspended', count: vms.filter(v => v.status === 'Suspended').length },
     { id: 'Expired', label: 'Expired', count: vms.filter(v => v.status === 'Expired').length },
     { id: 'Trial', label: 'Trial', count: vms.filter(v => v.type === 'Trial').length },
+    { id: 'Paid', label: 'Paid', count: vms.filter(v => v.type !== 'Trial').length },
     { id: 'expiring', label: 'Expiring ≤ 7d', count: vms.filter(v => v.expiry !== '—' && (new Date(v.expiry).getTime() - new Date('2026-05-27').getTime()) / 86400000 <= 7 && (new Date(v.expiry).getTime() - new Date('2026-05-27').getTime()) / 86400000 >= 0).length },
   ]
 
   const filtered = vms.filter(v => {
-    if (filter === 'all') return true
-    if (filter === 'Trial') return v.type === 'Trial'
-    if (filter === 'expiring') {
-      if (v.expiry === '—') return false
-      const d = (new Date(v.expiry).getTime() - new Date('2026-05-27').getTime()) / 86400000
-      return d >= 0 && d <= 7
+    if (filter.has('all')) return true
+    const matches = []
+    if (filter.has('Active')) matches.push(v.status === 'Active')
+    if (filter.has('Pending')) matches.push(v.status === 'Pending')
+    if (filter.has('Expired')) matches.push(v.status === 'Expired')
+    if (filter.has('Trial')) matches.push(v.type === 'Trial')
+    if (filter.has('Paid')) matches.push(v.type !== 'Trial')
+    if (filter.has('expiring')) {
+      if (v.expiry === '—') matches.push(false)
+      else {
+        const d = (new Date(v.expiry).getTime() - new Date('2026-05-27').getTime()) / 86400000
+        matches.push(d >= 0 && d <= 7)
+      }
     }
-    return v.status === filter
+    return matches.length > 0 && matches.every(m => m === true)
   }).filter(v => {
     if (!search) return true
     const c = customers.find(c => c.id === v.customer)
@@ -75,8 +82,22 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal }) => {
         <div className="filter-bar">
           {filters.map(f => (
             <button key={f.id}
-              className={`filter-chip ${filter === f.id ? 'active' : ''}`}
-              onClick={() => setFilter(f.id)}>
+              className={`filter-chip ${filter.has(f.id) ? 'active' : ''}`}
+              onClick={() => {
+                const next = new Set(filter)
+                if (f.id === 'all') {
+                  setFilter(new Set(['all']))
+                } else {
+                  if (next.has(f.id)) {
+                    next.delete(f.id)
+                    if (next.size === 0) next.add('all')
+                  } else {
+                    next.add(f.id)
+                    next.delete('all')
+                  }
+                  setFilter(next)
+                }
+              }}>
               {f.label}<span className="ct">{f.count}</span>
             </button>
           ))}

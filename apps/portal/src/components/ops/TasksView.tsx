@@ -7,9 +7,11 @@ import { Avatar, StatusPill } from '../ui/ui'
 interface TasksViewProps {
   openModal: (kind: string, props?: any) => void
   openTask: (id: string) => void
+  setView?: (view: string) => void
+  setAutoOpenQuote?: (value: boolean) => void
 }
 
-export const TasksView: React.FC<TasksViewProps> = ({ openModal, openTask }) => {
+export const TasksView: React.FC<TasksViewProps> = ({ openModal, openTask, setView, setAutoOpenQuote }) => {
   const { tasks, deleteTask } = useTaskStore()
   const { customers } = useCustomerStore()
   const [filter, setFilter] = useState('all')
@@ -88,7 +90,7 @@ export const TasksView: React.FC<TasksViewProps> = ({ openModal, openTask }) => 
                           <Icon name="trash" size={11}/>
                         </button>
                         {t.type === 'New' ? (
-                          <button className="btn" style={{ padding: '4px 10px', fontSize: 11 }} onClick={e => { e.stopPropagation(); }}>
+                          <button className="btn" style={{ padding: '4px 10px', fontSize: 11 }} onClick={e => { e.stopPropagation(); setAutoOpenQuote && setAutoOpenQuote(true); setView && setView('quotes'); }}>
                             Quotation
                           </button>
                         ) : (

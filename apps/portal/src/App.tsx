@@ -16,6 +16,7 @@ import { AgingView, ReconciliationView, RecurringView, TaxView } from './pages/F
 import { AccountSettingsView } from './pages/AccountSettings'
 import { SystemHealthView, AuditLogView, AnnouncementsView, ApiKeysView, BackupCenterView } from './pages/AdminExtras'
 import CustomerPortal from './pages/CustomerPortal'
+import QuotesView from './pages/QuotesView'
 import RoleSwitcher from './components/common/RoleSwitcher'
 import Toasts from './components/common/Toasts'
 import AIChatWidget from './components/common/AIChat'
@@ -36,6 +37,7 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
   const { alerts, markAllAlertsRead } = useAlertStore()
   const auth = useAuth()
   const [view, setView] = useState('dashboard')
+  const [autoOpenQuote, setAutoOpenQuote] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const [cmdOpen, setCmdOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
@@ -159,7 +161,7 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
             {view === 'activity' && <ActivityView/>}
             {view === 'vms' && <VMList openVM={openVM} openModal={openModal}/>}
             {drawerVmId && <VMDrawer vmId={drawerVmId} onClose={closeDrawer} openCust={openCust} openModal={openModal}/>}
-            {view === 'tasks' && <TasksView openModal={openModal} openTask={openTask}/>}
+            {view === 'tasks' && <TasksView openModal={openModal} openTask={openTask} setView={setView} setAutoOpenQuote={setAutoOpenQuote}/>}
             {drawerTaskId && <TaskDrawer taskId={drawerTaskId} onClose={closeTaskDrawer}/>}
             {view === 'network' && <NetworkView openVM={openVM} openModal={openModal}/>}
             {view === 'console' && <PlaceholderView title="Web Console" description="Proxmox web console - coming soon"/>}
@@ -174,7 +176,7 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
             {view === 'customer-accounts' && <CustomerAccountManagementView openCust={openCust} openModal={openModal}/>}
             {view === 'kyc' && <KYCReviewView/>}
             {view === 'pipeline' && <PlaceholderView title="Sales Pipeline" description="Sales pipeline view - coming soon"/>}
-            {view === 'quotes' && <PlaceholderView title="Quotes" description="Quote management - coming soon"/>}
+            {view === 'quotes' && <QuotesView autoOpen={autoOpenQuote} onAutoOpenReset={() => setAutoOpenQuote(false)}/>}
             {view === 'followups' && <PlaceholderView title="Follow-ups" description="Sales follow-ups - coming soon"/>}
             {view === 'trials' && <PlaceholderView title="Trial Conversions" description="Trial conversion tracking - coming soon"/>}
             {view === 'finance' && <FinanceView openCust={(_id: string) => {}} openModal={openModal}/>}
