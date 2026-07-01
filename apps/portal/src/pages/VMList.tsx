@@ -26,7 +26,7 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal }) => {
     { id: 'Expired', label: 'Expired', count: vms.filter(v => v.status === 'Expired').length },
     { id: 'Trial', label: 'Trial', count: vms.filter(v => v.type === 'Trial').length },
     { id: 'Paid', label: 'Paid', count: vms.filter(v => v.type !== 'Trial').length },
-    { id: 'expiring', label: 'Expiring ≤ 7d', count: vms.filter(v => v.expiry !== '—' && (new Date(v.expiry).getTime() - new Date('2026-05-27').getTime()) / 86400000 <= 7 && (new Date(v.expiry).getTime() - new Date('2026-05-27').getTime()) / 86400000 >= 0).length },
+    { id: 'expiring', label: 'Expiring ≤ 7d', count: vms.filter(v => v.expiry !== '—' && (new Date(v.expiry).getTime() - new Date().getTime()) / 86400000 <= 7 && (new Date(v.expiry).getTime() - new Date().getTime()) / 86400000 >= 0).length },
   ]
 
   const filtered = vms.filter(v => {
@@ -40,7 +40,7 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal }) => {
     if (filter.has('expiring')) {
       if (v.expiry === '—') matches.push(false)
       else {
-        const d = (new Date(v.expiry).getTime() - new Date('2026-05-27').getTime()) / 86400000
+        const d = (new Date(v.expiry).getTime() - new Date().getTime()) / 86400000
         matches.push(d >= 0 && d <= 7)
       }
     }

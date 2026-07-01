@@ -9,7 +9,7 @@ export const AgingView: React.FC = () => {
   const { invoices, markPaid } = useInvoiceStore()
   const { customers } = useCustomerStore()
   const { toast } = useUIStore()
-  const TODAY = (window as any).MOCK.TODAY
+  const TODAY = new Date()
   const [ageFilter, setAgeFilter] = React.useState<string>('all')
   const buckets: Record<string, any[]> = { current: [], '0-30': [], '31-60': [], '61-90': [], '90+': [] }
   invoices.filter((i: any) => i.status !== 'Payment Received').forEach((i: any) => {
@@ -85,6 +85,7 @@ export const AgingView: React.FC = () => {
                   </tr>
                 )
               })}
+              {all.length === 0 && <tr><td colSpan={7}><div className="empty"><div className="title">No unpaid invoices</div><div className="sub">All invoices have been paid.</div></div></td></tr>}
             </tbody>
           </table>
         </div>

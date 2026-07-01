@@ -1,9 +1,14 @@
 // Signup multi-step flow: Account → Personal/Org info → KYC → Payment method → Success
 
 import React, { useState } from 'react'
-import useCustomerStore from '../../store/customerStore'
+import useAuthStore from '../../store/authStore'
 import Icon from '../../lib/icons'
-import { AuthLayout } from './Auth'
+import { SignupStepAccount } from './steps/SignupStepAccount'
+import { SignupStepIndividual } from './steps/SignupStepIndividual'
+import { SignupStepOrganization } from './steps/SignupStepOrganization'
+import { SignupStepAddress } from './steps/SignupStepAddress'
+import { SignupStepKYC } from './steps/SignupStepKYC'
+import { SignupStepPayment } from './steps/SignupStepPayment'
 
 interface SignupFormState {
   name: string
@@ -13,6 +18,7 @@ interface SignupFormState {
   type: 'Individual' | 'Organization'
   phone: string
   altPhone: string
+  preferredContactMethod: 'Email' | 'Phone call' | 'WhatsApp' | 'Viber'
   address: string
   city: string
   state: string
@@ -26,65 +32,36 @@ interface SignupFormState {
   orgEmployees: string
   orgWebsite: string
   nrcOrId: string
-  nrcFrontUploaded: boolean
-  nrcBackUploaded: boolean
-  orgCertUploaded: boolean
-  orgTaxIdUploaded: boolean
-  dirIdUploaded: boolean
+  nrcFrontFile: File | null
+  nrcBackFile: File | null
+  orgCertFile: File | null
+  orgTaxIdFile: File | null
+  dirIdFile: File | null
   paymentMethod: string
   payerName: string
   payerPhone: string
   agreedToTerms: boolean
 }
 
-interface IaaSCardProps {
-  selected: boolean
-  onClick: () => void
-  padding?: number
-  children: React.ReactNode
-}
-
-const IaaSCard: React.FC<IaaSCardProps> = ({ selected, onClick, padding = 14, children }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    style={{
-      padding: `${padding}px`,
-      textAlign: 'left',
-      background: selected ? 'var(--accent-soft)' : 'var(--surface)',
-      border: '1.5px solid',
-      borderColor: selected ? 'var(--accent)' : 'var(--line)',
-      borderRadius: 10,
-      cursor: 'pointer',
-      fontFamily: 'inherit',
-      color: 'var(--ink)',
-      boxShadow: selected ? '0 0 0 3px var(--accent-soft)' : 'none',
-      transition: 'all 0.15s',
-    }}
-  >
-    {children}
-  </button>
-)
-
-
-// Signup multi-step flow — full-width IaaS style
 const SignupScreen: React.FC<{ onComplete: (email: string) => void; onSwitchToLogin: () => void }> = ({ onComplete, onSwitchToLogin }) => {
-  const { addCustomer } = useCustomerStore()
+  const { signUp } = useAuthStore()
   const [step, setStep] = useState(1)
   const [f, setF] = useState<SignupFormState>({
     name: '', email: '', password: '', confirmPassword: '',
     type: 'Individual',
     phone: '', altPhone: '',
+    preferredContactMethod: 'Email',
     address: '', city: 'Yangon', state: 'Yangon Region', postalCode: '11181', country: 'Myanmar',
     orgName: '', orgRegNo: '', orgType: 'Private Limited', orgIndustry: 'Technology',
     orgRepTitle: '', orgEmployees: '1-10', orgWebsite: '',
-    nrcOrId: '', nrcFrontUploaded: false, nrcBackUploaded: false,
-    orgCertUploaded: false, orgTaxIdUploaded: false, dirIdUploaded: false,
+    nrcOrId: '', nrcFrontFile: null, nrcBackFile: null,
+    orgCertFile: null, orgTaxIdFile: null, dirIdFile: null,
     paymentMethod: 'KBZ Pay', payerName: '', payerPhone: '',
     agreedToTerms: false,
   })
   const [err, setErr] = useState('')
-  const set = (k: keyof SignupFormState, v: any) => { setF(x => ({ ...x, [k]: v })); setErr('') }
+  const [loading, setLoading] = useState(false)
+  const set = (k: string, v: any) => { setF(x => ({ ...x, [k]: v })); setErr('') }
 
   const totalSteps = 5
   const stepLabels = ['Account', f.type === 'Individual' ? 'Personal info' : 'Organization', 'Address', 'KYC', 'Payment']
@@ -107,32 +84,73 @@ const SignupScreen: React.FC<{ onComplete: (email: string) => void; onSwitchToLo
   const validateStep3 = () => f.address.trim() ? null : 'Enter your address'
   const validateStep4 = () => {
     if (!f.nrcOrId.trim()) return f.type === 'Individual' ? 'Enter your NRC / ID number' : 'Enter representative\'s NRC / ID'
-    if (!f.nrcFrontUploaded || !f.nrcBackUploaded) return 'Upload both sides of your ID'
+    if (!f.nrcFrontFile || !f.nrcBackFile) return 'Upload both sides of your ID'
     if (f.type === 'Organization') {
-      if (!f.orgCertUploaded) return 'Upload company registration certificate'
-      if (!f.orgTaxIdUploaded) return 'Upload tax registration document'
+      if (!f.orgCertFile) return 'Upload company registration certificate'
+      if (!f.orgTaxIdFile) return 'Upload tax registration document'
     }
     return null
   }
   const validators: Array<(() => string | null) | null> = [null, validateStep1, validateStep2, validateStep3, validateStep4, () => f.agreedToTerms ? null : 'You must accept the terms to continue']
 
-  const next = () => {
+  const next = async () => {
     const v = validators[step]?.()
     if (v) { setErr(v); return }
     if (step < totalSteps) setStep(step + 1)
-    else submit()
+    else await submit()
   }
 
-  const submit = () => {
-    addCustomer({
-      name: f.name,
-      company: f.type === 'Organization' ? f.orgName : `${f.name} (Individual)`,
+  const submit = async () => {
+    setLoading(true)
+    setErr('')
+    
+    const result = await signUp({
       email: f.email,
+      password: f.password,
+      name: f.name,
+      type: f.type,
       phone: f.phone,
-      kyc: 'Pending',
-      salesperson: 'Su Su',
-      notes: `${f.type} signup via portal. Address: ${f.address}, ${f.city}.${f.type === 'Organization' ? ` Org reg: ${f.orgRegNo}, ${f.orgType}.` : ''}`,
+      customerData: {
+        email: f.email,
+        account_type: f.type,
+        name: f.name,
+        phone: f.phone,
+        alt_phone: f.altPhone,
+        preferred_contact_method: f.preferredContactMethod,
+        address: f.address,
+        city: f.city,
+        state: f.state,
+        postal_code: f.postalCode,
+        country: f.country,
+        org_name: f.type === 'Organization' ? f.orgName : undefined,
+        org_reg_no: f.type === 'Organization' ? f.orgRegNo : undefined,
+        org_type: f.type === 'Organization' ? f.orgType : undefined,
+        org_industry: f.type === 'Organization' ? f.orgIndustry : undefined,
+        org_rep_title: f.type === 'Organization' ? f.orgRepTitle : undefined,
+        org_employees: f.type === 'Organization' ? f.orgEmployees : undefined,
+        org_website: f.type === 'Organization' ? f.orgWebsite : undefined,
+        nrc_or_id: f.nrcOrId,
+        kyc_status: 'Pending',
+        payment_method: f.paymentMethod as 'KBZ Pay' | 'AYA Bank' | 'CB Bank' | 'Yoma Bank',
+        payer_name: f.payerName,
+        payer_phone: f.payerPhone,
+        status: 'Active',
+        agreed_to_terms: f.agreedToTerms,
+        nrcFrontFile: f.nrcFrontFile,
+        nrcBackFile: f.nrcBackFile,
+        orgCertFile: f.orgCertFile,
+        orgTaxIdFile: f.orgTaxIdFile,
+        dirIdFile: f.dirIdFile,
+      }
     })
+    
+    if (!result.success) {
+      setErr(result.error || 'Failed to create account')
+      setLoading(false)
+      return
+    }
+    
+    setLoading(false)
     onComplete(f.email)
   }
 
@@ -252,8 +270,8 @@ const SignupScreen: React.FC<{ onComplete: (email: string) => void; onSwitchToLo
               {step > 1 && <button className="btn" onClick={() => setStep(step - 1)}><Icon name="chevron-left" size={11}/>Back</button>}
               <div style={{ flex: 1 }}/>
               <button className="btn ghost" onClick={onSwitchToLogin}>Cancel</button>
-              <button className="btn primary" onClick={next} style={{ padding: '9px 18px', fontSize: 13 }}>
-                {step < totalSteps ? <>Continue<Icon name="chevron-right" size={11}/></> : <><Icon name="check" size={12}/>Create account</>}
+              <button className="btn primary" onClick={next} disabled={loading} style={{ padding: '9px 18px', fontSize: 13 }}>
+                {loading ? 'Creating account...' : step < totalSteps ? <>Continue<Icon name="chevron-right" size={11}/></> : <><Icon name="check" size={12}/>Create account</>}
               </button>
             </div>
           </div>
@@ -303,275 +321,4 @@ const SignupScreen: React.FC<{ onComplete: (email: string) => void; onSwitchToLo
   )
 }
 
-// ── Step 1 — Account ────────────────────────────────────────────────────
-const SignupStepAccount: React.FC<{ f: SignupFormState; set: (k: keyof SignupFormState, v: any) => void }> = ({ f, set }) => (
-  <div className="flex col gap-3">
-    <div className="field"><label>Full name</label><input value={f.name} onChange={e => set('name', e.target.value)} placeholder="As it appears on your ID" autoFocus/></div>
-    <div className="field"><label>Email</label><input type="email" value={f.email} onChange={e => set('email', e.target.value)} placeholder="you@company.com"/></div>
-    <div className="grid-2" style={{ gap: 10 }}>
-      <div className="field"><label>Password</label><input type="password" value={f.password} onChange={e => set('password', e.target.value)} placeholder="At least 8 characters"/></div>
-      <div className="field"><label>Confirm password</label><input type="password" value={f.confirmPassword} onChange={e => set('confirmPassword', e.target.value)}/></div>
-    </div>
-    <div className="field">
-      <label>Account type</label>
-      <div className="grid-2" style={{ gap: 10 }}>
-        {[
-          { id: 'Individual', title: 'Individual', desc: 'Personal use · single contact · simple KYC', icon: 'users', accent: 'oklch(0.6 0.13 250)' },
-          { id: 'Organization', title: 'Organization', desc: 'Company · multiple contacts · full KYC + docs', icon: 'building', accent: 'oklch(0.55 0.18 285)' },
-        ].map(o => (
-          <IaaSCard key={o.id} selected={f.type === o.id} onClick={() => set('type', o.id)} padding={14}>
-            <div className="flex center gap-3">
-              <div style={{ width: 34, height: 34, borderRadius: 8, background: `${o.accent}1a`, color: o.accent, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                <Icon name={o.icon} size={15}/>
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="fw-7 text-sm">{o.title}</div>
-                <div className="text-xs text-mute mt-1" style={{ lineHeight: 1.4 }}>{o.desc}</div>
-              </div>
-              {f.type === o.id && <Icon name="check" size={14} style={{ color: 'var(--accent-strong)', flexShrink: 0 }}/>}
-            </div>
-          </IaaSCard>
-        ))}
-      </div>
-    </div>
-  </div>
-)
-
-// ── Step 2 (Individual) ─────────────────────────────────────────────────
-const SignupStepIndividual: React.FC<{ f: SignupFormState; set: (k: keyof SignupFormState, v: any) => void }> = ({ f, set }) => (
-  <div className="flex col gap-3">
-    <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Personal information</div>
-    <div className="grid-2" style={{ gap: 10 }}>
-      <div className="field"><label>Phone number</label><input value={f.phone} onChange={e => set('phone', e.target.value)} placeholder="+95 9 ..." style={{ fontFamily: 'var(--mono)' }} autoFocus/></div>
-      <div className="field"><label>Alternate phone (optional)</label><input value={f.altPhone} onChange={e => set('altPhone', e.target.value)} placeholder="+95 9 ..." style={{ fontFamily: 'var(--mono)' }}/></div>
-    </div>
-    <div className="field">
-      <label>Preferred contact method</label>
-      <div className="flex gap-2">
-        {['Email', 'Phone call', 'WhatsApp', 'Viber'].map(m => (
-          <button key={m} type="button" className="filter-chip" onClick={() => {}} style={{ borderColor: 'var(--line)' }}>{m}</button>
-        ))}
-      </div>
-      <div className="hint">We'll use this for renewal and provisioning notifications.</div>
-    </div>
-  </div>
-)
-
-// ── Step 2 (Organization) ───────────────────────────────────────────────
-const SignupStepOrganization: React.FC<{ f: SignupFormState; set: (k: keyof SignupFormState, v: any) => void }> = ({ f, set }) => (
-  <div className="flex col gap-3">
-    <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Organization details</div>
-    <div className="field"><label>Organization name</label><input value={f.orgName} onChange={e => set('orgName', e.target.value)} placeholder="Mandalay Logistics Co., Ltd" autoFocus/></div>
-    <div className="grid-2" style={{ gap: 10 }}>
-      <div className="field"><label>Registration number</label><input value={f.orgRegNo} onChange={e => set('orgRegNo', e.target.value)} placeholder="e.g. 12345678" style={{ fontFamily: 'var(--mono)' }}/></div>
-      <div className="field"><label>Organization type</label>
-        <select value={f.orgType} onChange={e => set('orgType', e.target.value)}>
-          <option>Private Limited</option><option>Public Limited</option><option>Partnership</option><option>Sole Proprietorship</option><option>NGO / Non-profit</option><option>Government</option>
-        </select>
-      </div>
-    </div>
-    <div className="grid-2" style={{ gap: 10 }}>
-      <div className="field"><label>Industry</label>
-        <select value={f.orgIndustry} onChange={e => set('orgIndustry', e.target.value)}>
-          <option>Technology</option><option>Finance</option><option>Retail / E-commerce</option><option>Manufacturing</option><option>Logistics</option><option>Healthcare</option><option>Education</option><option>Hospitality</option><option>Media</option><option>Other</option>
-        </select>
-      </div>
-      <div className="field"><label>Employees</label>
-        <select value={f.orgEmployees} onChange={e => set('orgEmployees', e.target.value)}>
-          <option>1-10</option><option>11-50</option><option>51-200</option><option>201-1000</option><option>1000+</option>
-        </select>
-      </div>
-    </div>
-    <div className="grid-2" style={{ gap: 10 }}>
-      <div className="field"><label>Your title</label><input value={f.orgRepTitle} onChange={e => set('orgRepTitle', e.target.value)} placeholder="e.g. CTO, IT Manager"/></div>
-      <div className="field"><label>Website (optional)</label><input value={f.orgWebsite} onChange={e => set('orgWebsite', e.target.value)} placeholder="example.com"/></div>
-    </div>
-    <div className="grid-2" style={{ gap: 10 }}>
-      <div className="field"><label>Phone</label><input value={f.phone} onChange={e => set('phone', e.target.value)} placeholder="+95 9 ..." style={{ fontFamily: 'var(--mono)' }}/></div>
-      <div className="field"><label>Alternate phone</label><input value={f.altPhone} onChange={e => set('altPhone', e.target.value)} placeholder="+95 9 ..." style={{ fontFamily: 'var(--mono)' }}/></div>
-    </div>
-  </div>
-)
-
-// ── Step 3 (Address) ────────────────────────────────────────────────────
-const SignupStepAddress: React.FC<{ f: SignupFormState; set: (k: keyof SignupFormState, v: any) => void }> = ({ f, set }) => (
-  <div className="flex col gap-3">
-    <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Address</div>
-    <div className="field"><label>Street address</label><input value={f.address} onChange={e => set('address', e.target.value)} placeholder="Building, street, township" autoFocus/></div>
-    <div className="grid-3" style={{ gap: 10 }}>
-      <div className="field"><label>City</label><input value={f.city} onChange={e => set('city', e.target.value)}/></div>
-      <div className="field"><label>State / Region</label>
-        <select value={f.state} onChange={e => set('state', e.target.value)}>
-          <option>Yangon Region</option><option>Mandalay Region</option><option>Naypyidaw</option><option>Sagaing Region</option><option>Bago Region</option><option>Magway Region</option><option>Tanintharyi Region</option><option>Ayeyarwady Region</option><option>Shan State</option><option>Kachin State</option><option>Kayah State</option><option>Kayin State</option><option>Mon State</option><option>Rakhine State</option><option>Chin State</option>
-        </select>
-      </div>
-      <div className="field"><label>Postal code</label><input value={f.postalCode} onChange={e => set('postalCode', e.target.value)} style={{ fontFamily: 'var(--mono)' }}/></div>
-    </div>
-    <div className="field">
-      <label>Country</label>
-      <input value={f.country} onChange={e => set('country', e.target.value)} disabled style={{ background: 'var(--surface-3)' }}/>
-      <div className="hint">VPS Myanmar currently serves customers within Myanmar.</div>
-    </div>
-  </div>
-)
-
-// ── Step 4 (KYC) ────────────────────────────────────────────────────────
-const SignupStepKYC: React.FC<{ f: SignupFormState; set: (k: keyof SignupFormState, v: any) => void }> = ({ f, set }) => {
-  const uploadField = (key: keyof SignupFormState, label: string, hint: string) => (
-    <button type="button" onClick={() => set(key, !f[key])}
-      style={{
-        padding: '14px 16px',
-        border: `1.5px dashed ${f[key] ? 'var(--ok)' : 'var(--line-strong)'}`,
-        background: f[key] ? 'var(--ok-soft)' : 'var(--surface-2)',
-        borderRadius: 8,
-        display: 'flex', alignItems: 'center', gap: 12,
-        cursor: 'pointer', width: '100%',
-        textAlign: 'left',
-        transition: 'border-color 0.15s, background 0.15s',
-      }}
-    >
-      <div style={{ width: 36, height: 36, borderRadius: 8, background: f[key] ? 'var(--ok)' : 'var(--surface-3)', color: f[key] ? 'white' : 'var(--ink-3)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-        <Icon name={f[key] ? 'check' : 'attach'} size={14}/>
-      </div>
-      <div style={{ flex: 1 }}>
-        <div className="fw-6 text-sm" style={{ color: f[key] ? 'var(--ok)' : 'var(--ink)' }}>{f[key] ? 'Uploaded ✓' : label}</div>
-        <div className="text-xs text-mute">{hint}</div>
-      </div>
-      {f[key] && <span className="text-xs text-mute" style={{ cursor: 'pointer' }}>Replace</span>}
-    </button>
-  )
-
-  return (
-    <div className="flex col gap-3">
-      <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Know your customer (KYC)</div>
-      <div style={{ padding: 12, background: 'var(--info-soft)', borderRadius: 6, fontSize: 12, color: 'var(--info)', display: 'flex', gap: 8 }}>
-        <Icon name="lock" size={14} style={{ marginTop: 1, flexShrink: 0 }}/>
-        <div>Documents are encrypted, used solely for verification, and reviewed within 1 business day. We meet Myanmar AML / KYC requirements.</div>
-      </div>
-
-      <div className="field">
-        <label>{f.type === 'Individual' ? 'NRC / National ID number' : 'Representative\'s NRC / ID number'}</label>
-        <input value={f.nrcOrId} onChange={e => set('nrcOrId', e.target.value)} placeholder="e.g. 12/XXXXX(N)123456" style={{ fontFamily: 'var(--mono)' }} autoFocus/>
-      </div>
-
-      <div className="text-xs text-mute fw-6 mt-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Identity documents</div>
-      <div className="grid-2" style={{ gap: 10 }}>
-        {uploadField('nrcFrontUploaded', 'Upload NRC front', 'JPG or PDF · max 5 MB')}
-        {uploadField('nrcBackUploaded', 'Upload NRC back', 'JPG or PDF · max 5 MB')}
-      </div>
-
-      {f.type === 'Organization' && (
-        <>
-          <div className="text-xs text-mute fw-6 mt-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Organization documents</div>
-          <div className="grid-2" style={{ gap: 10 }}>
-            {uploadField('orgCertUploaded', 'Company registration certificate', 'Form 26 / DICA / MyCO printout')}
-            {uploadField('orgTaxIdUploaded', 'Tax registration document', 'IRD letter or TIN certificate')}
-          </div>
-          <div className="grid-2" style={{ gap: 10 }}>
-            {uploadField('dirIdUploaded', 'Director\'s ID (optional)', 'Required for amounts > MMK 5M/mo')}
-            <div/>
-          </div>
-        </>
-      )}
-    </div>
-  )
-}
-
-// ── Step 5 (Payment) ────────────────────────────────────────────────────
-const SignupStepPayment: React.FC<{ f: SignupFormState; set: (k: keyof SignupFormState, v: any) => void }> = ({ f, set }) => (
-  <div className="flex col gap-3">
-    <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Preferred payment method</div>
-    <div className="text-xs text-mute" style={{ marginTop: -4 }}>You won't be charged now — you'll select & pay when you deploy your first VM.</div>
-
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
-      {[
-        { id: 'KBZ Pay', logo: 'K', accent: 'oklch(0.55 0.18 30)', desc: 'Mobile wallet · QR scan' },
-        { id: 'AYA Bank', logo: 'A', accent: 'oklch(0.55 0.16 230)', desc: 'Direct bank transfer' },
-        { id: 'CB Bank', logo: 'C', accent: 'oklch(0.55 0.17 285)', desc: 'Direct bank transfer' },
-        { id: 'Yoma Bank', logo: 'Y', accent: 'oklch(0.55 0.15 155)', desc: 'Direct bank transfer' },
-      ].map(p => (
-        <IaaSCard key={p.id} selected={f.paymentMethod === p.id} onClick={() => set('paymentMethod', p.id)} padding={14}>
-          <div className="flex center gap-2">
-            <div style={{ width: 36, height: 36, borderRadius: 8, background: `${p.accent}1a`, color: p.accent, display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 15 }}>{p.logo}</div>
-            <div style={{ flex: 1 }}>
-              <div className="fw-7 text-sm">{p.id}</div>
-              <div className="text-xs text-mute">{p.desc}</div>
-            </div>
-            {f.paymentMethod === p.id && <Icon name="check" size={14} style={{ color: 'var(--accent-strong)' }}/>}
-          </div>
-        </IaaSCard>
-      ))}
-    </div>
-
-    <div className="grid-2 mt-2" style={{ gap: 10 }}>
-      <div className="field"><label>Payer name (on account)</label><input value={f.payerName} onChange={e => set('payerName', e.target.value)} placeholder={f.name || 'Account holder'}/></div>
-      <div className="field"><label>Payer phone</label><input value={f.payerPhone} onChange={e => set('payerPhone', e.target.value)} placeholder={f.phone || '+95 9 ...'} style={{ fontFamily: 'var(--mono)' }}/></div>
-    </div>
-
-    <div className="divider"/>
-    <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer' }}>
-      <input type="checkbox" checked={f.agreedToTerms} onChange={e => set('agreedToTerms', e.target.checked)} style={{ marginTop: 3 }}/>
-      <div className="text-sm">
-        I agree to the <a style={{ color: 'var(--accent-strong)', fontWeight: 600 }}>Terms of Service</a> and <a style={{ color: 'var(--accent-strong)', fontWeight: 600 }}>Privacy Policy</a>, and confirm the information provided is accurate.
-      </div>
-    </label>
-  </div>
-)
-
-// ── Signup success ──────────────────────────────────────────────────────
-const SignupSuccess: React.FC<{ email: string; onContinue: () => void }> = ({ email, onContinue }) => (
-  <AuthLayout>
-    <div style={{ width: 'min(480px, 100%)', textAlign: 'center' }}>
-      <div style={{
-        width: 80, height: 80, borderRadius: '50%',
-        background: 'var(--ok-soft)', color: 'var(--ok)',
-        margin: '0 auto 24px',
-        display: 'grid', placeItems: 'center',
-        animation: 'pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
-      }}>
-        <Icon name="check" size={36} stroke={2.5}/>
-      </div>
-      <h1 style={{ margin: 0, fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em' }}>Account created!</h1>
-      <p className="text-sm text-mute mt-3" style={{ lineHeight: 1.6 }}>
-        Your credentials are saved. KYC documents are under review. We'll email <strong>{email}</strong> within <strong>1 business day</strong> once verified — then you can deploy your first VM.
-      </p>
-      {email && (
-        <div className="card mt-3" style={{ background: 'var(--info-soft)', borderColor: 'transparent' }}>
-          <div className="card-body" style={{ padding: 14, display: 'flex', gap: 10, alignItems: 'flex-start', textAlign: 'left' }}>
-            <Icon name="key" size={14} style={{ marginTop: 2, color: 'var(--info)' }}/>
-            <div style={{ flex: 1, fontSize: 12.5, color: 'var(--info)' }}>
-              You can sign in immediately with <span className="mono fw-7">{email}</span> and the password you just chose. Your account stays in "Under review" until KYC is verified.
-            </div>
-          </div>
-        </div>
-      )}
-      <div className="card mt-4" style={{ background: 'var(--surface-2)' }}>
-        <div className="card-body" style={{ padding: 18 }}>
-          <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>What's next</div>
-          <div className="flex col gap-3 text-left">
-            {[
-              ['1', 'Sign in to your account', 'Use the email + password you just registered'],
-              ['2', 'KYC verification', 'Our team reviews your documents within 1 business day'],
-              ['3', 'Deploy your first VM', 'Once approved, request a trial or paid VM'],
-            ].map(([n, t, d]) => (
-              <div key={n} className="flex gap-3" style={{ alignItems: 'flex-start' }}>
-                <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--accent-soft)', color: 'var(--accent-strong)', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 11, flexShrink: 0 }}>{n}</div>
-                <div>
-                  <div className="fw-6 text-sm">{t}</div>
-                  <div className="text-xs text-mute mt-1">{d}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-      <button className="btn primary mt-4" onClick={onContinue} style={{ padding: '10px 22px', fontSize: 13 }}>
-        Continue to sign in
-        <Icon name="chevron-right" size={12}/>
-      </button>
-      <style>{`@keyframes pop { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }`}</style>
-    </div>
-  </AuthLayout>
-)
-
-export { SignupScreen, SignupSuccess }
+export { SignupScreen }

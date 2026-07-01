@@ -8,17 +8,8 @@ interface ApiKeysViewProps {
 
 export const ApiKeysView: React.FC<ApiKeysViewProps> = ({ openModal }) => {
   const { toast } = useUIStore()
-  const [keys, setKeys] = useState([
-    { id: 'k-001', name: 'Internal — Provisioning bot', key: 'vpsmm_live_a8x9...c3k4', created: '2026-01-12', lastUsed: '2 min ago', scopes: ['vm:write', 'task:write'] },
-    { id: 'k-002', name: 'Proxmox sync worker', key: 'vpsmm_live_p7q2...m1n8', created: '2026-02-04', lastUsed: '14s ago', scopes: ['vm:read', 'vm:write'] },
-    { id: 'k-003', name: 'Finance — billing export', key: 'vpsmm_live_f4r6...t9w2', created: '2026-03-22', lastUsed: '1d ago', scopes: ['invoice:read'] },
-    { id: 'k-004', name: 'Old portal (deprecated)', key: 'vpsmm_live_o2k1...d8s5', created: '2025-08-15', lastUsed: '3 months ago', scopes: ['*:read'] },
-  ])
-  const [hooks, setHooks] = useState([
-    { id: 'wh-001', url: 'https://hooks.slack.com/services/T0.../B0.../xy', events: ['vm.suspended', 'invoice.overdue'], status: 'Active', last200: '14 min ago' },
-    { id: 'wh-002', url: 'https://msteams.vpsmm.co/webhook/incoming', events: ['kyc.submitted', 'task.created'], status: 'Active', last200: '32 min ago' },
-    { id: 'wh-003', url: 'https://internal.vpsmm.co/audit/sink', events: ['*'], status: 'Failing', last200: '2 days ago' },
-  ])
+  const [keys, setKeys] = useState<any[]>([])
+  const [hooks, setHooks] = useState<any[]>([])
   const [show, setShow] = useState<string | null>(null)
 
   const revoke = (id: string) => {

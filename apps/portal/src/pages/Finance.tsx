@@ -298,6 +298,7 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal }) => {
                   </tr>
                 )
               })}
+              {filtered.length === 0 && <tr><td colSpan={selectedExportColumns.length + 1}><div className="empty"><div className="title">No invoices found</div><div className="sub">Try adjusting filters or create a new invoice.</div></div></td></tr>}
             </tbody>
           </table>
         </div>

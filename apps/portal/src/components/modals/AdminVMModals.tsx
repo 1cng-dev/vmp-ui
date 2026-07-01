@@ -1020,12 +1020,20 @@ const InviteMemberModal: React.FC<InviteMemberModalProps> = ({ onClose }) => {
   const { addMember } = useTeamStore()
   const { toast } = useUIStore()
   const [f, setF] = useState({ name: '', email: '', role: 'Sales', team: 'Sales' })
+  const [loading, setLoading] = useState(false)
   const set = (k: string, v: any) => setF(x => ({ ...x, [k]: v }))
 
-  const submit = () => {
-    addMember(f)
-    toast(`Invite sent to ${f.email}`, 'ok')
-    onClose()
+  const submit = async () => {
+    setLoading(true)
+    try {
+      await addMember(f)
+      toast(`Invite sent to ${f.email}`, 'ok')
+      onClose()
+    } catch (error) {
+      toast('Failed to send invite', 'error')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -1047,7 +1055,7 @@ const InviteMemberModal: React.FC<InviteMemberModalProps> = ({ onClose }) => {
         </div>
         <div className="modal-foot">
           <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <button className="btn accent" disabled={!f.name || !f.email} onClick={submit}><Icon name="mail" size={12} />Send invite</button>
+          <button className="btn accent" disabled={!f.name || !f.email || loading} onClick={submit}><Icon name="mail" size={12} />{loading ? 'Sending...' : 'Send invite'}</button>
         </div>
       </div>
     </div>

@@ -12,17 +12,7 @@ export const AuditLogView: React.FC = () => {
   const [search, setSearch] = useState('')
 
   const auditData = useMemo(() => {
-    const ev = [
-      ...activity,
-      { ts: '2026-05-27 08:12', actor: 'Min Khant', kind: 'auth', text: 'Admin login from 203.81.64.10' },
-      { ts: '2026-05-27 07:55', actor: 'Daw Aye', kind: 'auth', text: 'Login from new device (Chrome/Mac)' },
-      { ts: '2026-05-26 18:42', actor: 'Ko Thein', kind: 'creds', text: 'Revealed credentials for VM-2087 (root)' },
-      { ts: '2026-05-26 11:30', actor: 'Min Khant', kind: 'role', text: 'Changed role of U-03 from Engineer → Sales' },
-      { ts: '2026-05-25 22:14', actor: 'system', kind: 'auth', text: 'Failed login attempt #3 for kothein@vpsmm.co — IP blocked 1h' },
-      { ts: '2026-05-25 14:00', actor: 'Min Khant', kind: 'settings', text: 'Updated SMTP host: smtp-old → smtp.sendgrid.net' },
-      { ts: '2026-05-24 16:18', actor: 'Su Su', kind: 'export', text: 'Exported customers.csv (10 records)' },
-    ]
-    return ev
+    return activity
   }, [activity])
 
   const actors = ['All', ...new Set(auditData.map((a: any) => a.actor))]

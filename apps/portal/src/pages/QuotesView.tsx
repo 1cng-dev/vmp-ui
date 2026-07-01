@@ -103,6 +103,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset }: QuotesViewProps) => {
                   <td className="right"><button className="btn sm" onClick={() => toast(`Downloaded ${q.id}.pdf`, 'info')}><Icon name="download" size={11}/>PDF</button></td>
                 </tr>
               ))}
+              {quotes.length === 0 && <tr><td colSpan={7}><div className="empty"><div className="title">No quotes yet</div><div className="sub">Create your first quote to get started.</div></div></td></tr>}
             </tbody>
           </table>
         </div>

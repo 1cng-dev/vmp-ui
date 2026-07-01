@@ -25,17 +25,21 @@ interface CommandItem {
 
 const CommandPalette: React.FC<CommandPaletteProps> = ({ onClose, setView, openVM, openCust, openModal }) => {
   const { vms } = useVMStore()
-  const { customers } = useCustomerStore()
+  const { customers, loadCustomers } = useCustomerStore()
   const { invoices } = useInvoiceStore()
   const [q, setQ] = useState('')
+
+  useEffect(() => {
+    loadCustomers()
+  }, [loadCustomers])
   const inputRef = useRef<HTMLInputElement>(null)
   
   useEffect(() => { inputRef.current?.focus() }, [])
 
   const items: CommandItem[] = [
-    ...vms.map((v: any) => ({ type: 'VM', label: v.name, sub: `${v.id} · ${customers.find((c: any) => c.id === v.customer)?.company}`, action: () => { openVM(v.id); onClose() }, icon: 'server' })),
-    ...customers.map((c: any) => ({ type: 'Customer', label: c.company, sub: `${c.name} · ${c.id}`, action: () => { openCust(c.id); onClose() }, icon: 'building' })),
-    ...invoices.map((i: any) => ({ type: 'Invoice', label: i.id, sub: `MMK ${formatMMK(i.amount)} · ${customers.find((c: any) => c.id === i.customer)?.company}`, action: () => { setView('finance'); onClose() }, icon: 'invoice' })),
+    ...vms.map((v: any) => ({ type: 'VM', label: v.name, sub: `${v.id} · ${customers.find((c: any) => c.id === v.customer)?.org_name || customers.find((c: any) => c.id === v.customer)?.name}`, action: () => { openVM(v.id); onClose() }, icon: 'server' })),
+    ...customers.map((c: any) => ({ type: 'Customer', label: c.org_name || c.name, sub: `${c.name} · ${c.legacy_id || c.id}`, action: () => { openCust(c.id); onClose() }, icon: 'building' })),
+    ...invoices.map((i: any) => ({ type: 'Invoice', label: i.id, sub: `MMK ${formatMMK(i.amount)} · ${customers.find((c: any) => c.id === i.customer)?.org_name || customers.find((c: any) => c.id === i.customer)?.name}`, action: () => { setView('finance'); onClose() }, icon: 'invoice' })),
     { type: 'Action', label: 'New VM', sub: 'Start provisioning wizard', action: () => { openModal('newvm'); onClose() }, icon: 'plus' },
     { type: 'Action', label: 'New customer', sub: 'Add a new customer account', action: () => { openModal('newcust'); onClose() }, icon: 'plus' },
     { type: 'Action', label: 'New task', sub: 'Create provisioning task', action: () => { openModal('newtask'); onClose() }, icon: 'plus' },
@@ -175,11 +179,15 @@ interface CalendarViewProps {
 
 const CalendarView: React.FC<CalendarViewProps> = ({ openVM }) => {
   const { vms } = useVMStore()
-  const { customers } = useCustomerStore()
-  const today: Date = (window as any).MOCK.TODAY
+  const { customers, loadCustomers } = useCustomerStore()
+  const today: Date = new Date()
   const [monthOffset, setMonthOffset] = useState(0)
   const base = new Date(today)
   base.setDate(1)
+
+  useEffect(() => {
+    loadCustomers()
+  }, [loadCustomers])
   base.setMonth(base.getMonth() + monthOffset)
 
   const monthName = base.toLocaleString('en', { month: 'long', year: 'numeric' })
@@ -279,7 +287,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ openVM }) => {
                   <tr key={v.id} onClick={() => openVM(v.id)}>
                     <td className="tnum text-sm">{v.expiry}</td>
                     <td><div className="fw-6">{v.name}</div><div className="text-xs text-mute mono">{v.id}</div></td>
-                    <td className="text-sm">{c?.company}</td>
+                    <td className="text-sm">{c?.org_name || c?.name}</td>
                     <td className="right tnum fw-6">MMK {formatMMK(v.priceMonth * 12)}</td>
                     <td><StatusPill status={v.status}/></td>
                   </tr>

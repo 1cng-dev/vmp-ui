@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react'
-import { MOCK } from '../lib/data'
 import type { Invoice } from '../types'
 
 export interface InvoiceStoreValue {
@@ -10,10 +9,11 @@ export interface InvoiceStoreValue {
 }
 
 const useInvoiceStore = (): InvoiceStoreValue => {
-  const [invoices, setInvoices] = useState<Invoice[]>(MOCK.INVOICES.map((i: Invoice) => ({ ...i, vms: [...i.vms] })))
+  const [invoices, setInvoices] = useState<Invoice[]>([])
 
   const addInvoice = useCallback((i: any) => {
-    const id = `INV-2026-${String(420 + Math.floor(Math.random() * 80)).padStart(4, '0')}`
+    const year = new Date().getFullYear()
+    const id = `INV-${year}-${String(100 + Math.floor(Math.random() * 900)).padStart(4, '0')}`
     const newI = {
       id, status: 'Pending', method: '—', receipt: '—', currency: 'MMK',
       issued: i.issued || new Date().toISOString().slice(0, 10),

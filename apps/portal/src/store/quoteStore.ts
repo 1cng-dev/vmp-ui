@@ -9,18 +9,15 @@ export interface QuoteStoreValue {
 }
 
 const useQuoteStore = (): QuoteStoreValue => {
-  const [quotes, setQuotes] = useState<Quote[]>([
-    { id: 'Q-2026-018', customer: 'Monywa Trading', items: 3, total: 3600000, validity: '2026-06-10', status: 'Sent' },
-    { id: 'Q-2026-017', customer: 'Loikaw Solar', items: 1, total: 1800000, validity: '2026-06-05', status: 'Accepted' },
-    { id: 'Q-2026-016', customer: 'Dawei Port', items: 5, total: 18500000, validity: '2026-06-08', status: 'Sent' },
-    { id: 'Q-2026-015', customer: 'Pathein Logistics', items: 2, total: 4200000, validity: '2026-06-01', status: 'Draft' },
-  ])
+  const [quotes, setQuotes] = useState<Quote[]>([])
 
   const addQuote = useCallback((q: any) => {
-    const id = `Q-2026-${String(quotes.length + 19).padStart(3, '0')}`
+    const year = new Date().getFullYear()
+    const id = `Q-${year}-${String(quotes.length + 1).padStart(3, '0')}`
+    const validity = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10)
     const newQ = {
       id,
-      validity: '2026-06-15',
+      validity,
       ...q,
     }
     setQuotes(s => [newQ, ...s])

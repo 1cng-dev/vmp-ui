@@ -5,11 +5,7 @@ import { StatusPill } from '../ui/ui'
 
 export const AnnouncementsView: React.FC = () => {
   const { toast } = useUIStore()
-  const [list, setList] = useState([
-    { id: 'A-001', title: 'Scheduled maintenance window — Sun 2 Jun', body: 'pve-node-03 will be down for kernel upgrade between 02:00–04:00 ICT. Affected VMs will be live-migrated.', audience: 'All customers', sent: '2026-05-25', status: 'Sent', open: 92 },
-    { id: 'A-002', title: 'KBZ Pay integration update', body: 'New direct deposit reference codes required. Update your payment workflow.', audience: 'Sales + Finance', sent: '2026-05-20', status: 'Sent', open: 100 },
-    { id: 'A-003', title: 'Q3 pricing review draft', body: 'Per-VM monthly rate adjustment proposal attached. Please review by Friday.', audience: 'Admin only', sent: '—', status: 'Draft', open: 0 },
-  ])
+  const [list, setList] = useState<any[]>([])
   const [composing, setComposing] = useState(false)
   const [form, setForm] = useState({ title: '', body: '', audience: 'All staff' })
 
@@ -74,6 +70,7 @@ export const AnnouncementsView: React.FC = () => {
                   <td className="right tnum">{a.status === 'Sent' ? `${a.open}%` : '—'}</td>
                 </tr>
               ))}
+              {list.length === 0 && <tr><td colSpan={5}><div className="empty"><div className="title">No announcements yet</div><div className="sub">Create an announcement to broadcast messages.</div></div></td></tr>}
             </tbody>
           </table>
         </div>

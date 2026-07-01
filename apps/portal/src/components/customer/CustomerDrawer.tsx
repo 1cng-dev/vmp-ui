@@ -211,10 +211,6 @@ const CustomerDrawer: React.FC<CustomerDrawerProps> = ({ custId, onClose, openVM
               </div>
               <div className="card-body" style={{ padding: '6px 18px' }}>
                 {[
-                  ['2026-05-26 14:08', 'system', 'Email sent', 'KYC re-upload request — document was blurry.'],
-                  ['2026-05-22 10:30', 'Su Su', 'Note', 'Called customer to walk through KYC form.'],
-                  ['2026-05-22 09:45', 'system', 'Email sent', 'Welcome email + KYC form link.'],
-                  ['2026-05-22 09:42', 'system', 'Account created', 'Customer signed up via website.'],
                 ].map((a: any, i: number) => (
                   <div key={i} className="feed-item">
                     <span className="dot customer"/>

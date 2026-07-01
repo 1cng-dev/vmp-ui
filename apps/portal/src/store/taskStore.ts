@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react'
-import { MOCK } from '../lib/data'
 import type { Task } from '../types'
 
 export interface TaskStoreValue {
@@ -13,7 +12,7 @@ export interface TaskStoreValue {
 }
 
 const useTaskStore = (): TaskStoreValue => {
-  const [tasks, setTasks] = useState<Task[]>(MOCK.TASKS.map((t: Task) => ({...t})))
+  const [tasks, setTasks] = useState<Task[]>([])
 
   const addTask = useCallback((t: any) => {
     const id = `TSK-${3300 + Math.floor(Math.random() * 600)}`

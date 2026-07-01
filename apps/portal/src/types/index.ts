@@ -2,16 +2,40 @@
 
 export interface Customer {
   id: string
-  name: string
-  company: string
+  legacy_id?: string
   email: string
-  phone: string
-  kyc: string
-  since: string
-  totalSpend: number
-  salesperson: string
-  status: string
-  notes: string
+  account_type: 'Individual' | 'Organization'
+  name: string
+  phone?: string
+  alt_phone?: string
+  preferred_contact_method?: 'Email' | 'Phone call' | 'WhatsApp' | 'Viber'
+  address?: string
+  city?: string
+  state?: string
+  postal_code?: string
+  country?: string
+  org_name?: string
+  org_reg_no?: string
+  org_type?: string
+  org_industry?: string
+  org_rep_title?: string
+  org_employees?: string
+  org_website?: string
+  nrc_or_id?: string
+  kyc_status: 'Pending' | 'Approved' | 'Rejected' | 'Under Review'
+  nrc_front_url?: string
+  nrc_back_url?: string
+  org_cert_url?: string
+  org_tax_id_url?: string
+  director_id_url?: string
+  payment_method?: 'KBZ Pay' | 'AYA Bank' | 'CB Bank' | 'Yoma Bank'
+  payer_name?: string
+  payer_phone?: string
+  status: 'Active' | 'Inactive' | 'Suspended'
+  agreed_to_terms?: boolean
+  created_at?: string
+  updated_at?: string
+  last_login_at?: string
 }
 
 export interface VM {

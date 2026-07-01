@@ -10,14 +10,7 @@ export const TaxView: React.FC = () => {
   const totalRev = invoices.filter((i: any) => i.status === 'Payment Received').reduce((a: number, i: any) => a + i.amount, 0)
   const vatRate = 5
   const vatCollected = Math.round(totalRev * vatRate / (100 + vatRate))
-  const monthly = [
-    ['Dec 2025', 8420000, 421000],
-    ['Jan 2026', 9180000, 459000],
-    ['Feb 2026', 9520000, 476000],
-    ['Mar 2026', 10240000, 512000],
-    ['Apr 2026', 10960000, 548000],
-    ['May 2026', totalRev, vatCollected],
-  ]
+  const monthly: any[] = []
 
   return (
     <div className="content">
@@ -53,6 +46,7 @@ export const TaxView: React.FC = () => {
                   <td><span className="pill ok"><span className="dot" />Filed</span></td>
                 </tr>
               ))}
+              {invoices.filter((i: any) => i.status === 'Payment Received').length === 0 && <tr><td colSpan={5}><div className="empty"><div className="title">No paid invoices</div><div className="sub">No revenue data available for tax report.</div></div></td></tr>}
               <tr style={{ background: 'var(--surface-2)' }}>
                 <td className="fw-7">Total</td>
                 <td className="right tnum fw-7">MMK {formatMMK(monthly.reduce((a: number, m: any) => a + m[1], 0))}</td>
@@ -68,21 +62,7 @@ export const TaxView: React.FC = () => {
       <div className="card">
         <div className="card-head"><h3 className="card-title">Filing checklist · Q2 2026</h3></div>
         <div className="card-body">
-          {[
-            ['April invoices reconciled', true],
-            ['May invoices reconciled', true],
-            ['June invoices reconciled', false],
-            ['Commercial tax form drafted', false],
-            ['IRD portal submission', false],
-            ['Payment to treasury', false],
-          ].map(([l, done], i) => (
-            <div key={i} className="flex center gap-2" style={{ padding: '6px 0' }}>
-              <span style={{ width: 18, height: 18, borderRadius: 4, background: done ? 'var(--ok)' : 'var(--surface-3)', display: 'grid', placeItems: 'center', color: 'white' }}>
-                {done && <Icon name="check" size={11} />}
-              </span>
-              <span className="text-sm" style={{ textDecoration: done ? 'line-through' : 'none', color: done ? 'var(--ink-3)' : 'var(--ink)' }}>{l}</span>
-            </div>
-          ))}
+          {monthly.length === 0 && <div className="empty"><div className="title">No filing data</div><div className="sub">Add paid invoices to generate tax report data.</div></div>}
         </div>
       </div>
     </div>

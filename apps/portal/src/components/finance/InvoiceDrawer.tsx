@@ -106,10 +106,7 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
             <div className="card-head"><h3 className="card-title">Audit trail</h3></div>
             <div className="card-body" style={{ padding: '6px 18px' }}>
               {[
-                ['2026-05-18 09:00', 'system', 'Invoice generated'],
-                ['2026-05-18 09:01', 'Su Su', 'Invoice sent to customer (email)'],
-                live.status !== 'Pending' && live.status !== 'Overdue' ? ['2026-05-21 14:32', 'Su Su', 'Transaction screenshot uploaded by customer'] : null,
-                live.status === 'Payment Received' ? ['2026-05-22 10:15', 'Daw Aye', 'Payment confirmed · official receipt issued'] : null,
+                ['—', 'system', 'Invoice generated'],
               ].filter((a): a is [string, string, string] => Boolean(a)).map((a, i) => (
                 <div key={i} className="feed-item">
                   <span className="dot finance"/>

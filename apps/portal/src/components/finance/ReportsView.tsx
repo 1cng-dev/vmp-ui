@@ -192,7 +192,7 @@ export const ReportsView: React.FC = () => {
             <table className="tbl">
               <thead><tr><th>VM</th><th>Customer</th><th>Expires</th><th className="right">Renewal</th></tr></thead>
               <tbody>
-                {vms.filter(v => v.expiry !== '—' && typeof v.expiry === 'string' && (new Date(v.expiry).getTime() - new Date('2026-05-27').getTime()) / 86400000 <= 30 && (new Date(v.expiry).getTime() - new Date('2026-05-27').getTime()) / 86400000 >= 0)
+                {vms.filter(v => v.expiry !== '—' && typeof v.expiry === 'string' && (new Date(v.expiry).getTime() - new Date().getTime()) / 86400000 <= 30 && (new Date(v.expiry).getTime() - new Date().getTime()) / 86400000 >= 0)
                   .sort((a, b) => new Date(a.expiry).getTime() - new Date(b.expiry).getTime()).map(v => {
                     const c = customers.find(c => c.id === v.customer)
                     return (

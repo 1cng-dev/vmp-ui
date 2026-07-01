@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { Sidebar, Topbar } from './components/layout/Shell'
 import { AuthShell, useAuth } from './components/auth/Auth'
 import Dashboard from './pages/Dashboard'
@@ -17,13 +18,13 @@ import { AccountSettingsView } from './pages/AccountSettings'
 import { SystemHealthView, AuditLogView, AnnouncementsView, ApiKeysView, BackupCenterView } from './pages/AdminExtras'
 import CustomerPortal from './pages/CustomerPortal'
 import QuotesView from './pages/QuotesView'
-import RoleSwitcher from './components/common/RoleSwitcher'
 import Toasts from './components/common/Toasts'
-import AIChatWidget from './components/common/AIChat'
 import { CommandPalette, ShortcutsModal, CalendarView } from './components/common/Extras'
 import { NotifPanel, PlaceholderView, TweaksUI } from './components/common'
 import { useTweaks, TweakState } from './components/common/useTweaks'
 import useAlertStore from './store/alertStore'
+import Welcome from './pages/Welcome'
+import SetupPassword from './pages/SetupPassword'
 
 const ACCENT_MAP: Record<string, number> = {
   '#4F6FE3': 250,
@@ -139,82 +140,80 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
   return (
     <div className="app">
       {tw.role === 'Customer' ? (
-        <CustomerPortal role={tw.role} setRole={(r) => setTweak('role', r)} roleNames={tw.roleNames || {}}/>
+        <CustomerPortal setRole={(r) => setTweak('role', r)} roleNames={tw.roleNames || {}} />
       ) : (
         <>
-          <Sidebar view={view} setView={(v) => { setView(v); setNotifOpen(false) }} role={tw.role} roleNames={tw.roleNames || {}} onAccountClick={() => setView('account')} onLogout={() => auth?.signout()}/>
+          <Sidebar view={view} setView={(v) => { setView(v); setNotifOpen(false) }} role={tw.role} roleNames={tw.roleNames || {}} onAccountClick={() => setView('account')} onLogout={() => auth?.signout()} />
           <div className="main">
             <Topbar
               crumbs={crumbs[view] || ['Dashboard']}
               theme={tw.theme}
               setTheme={(t) => setTweak('theme' as keyof TweakState, t)}
               onBellClick={() => setNotifOpen(!notifOpen)}
-              onSearchClick={() => {}}
-              onHelpClick={() => {}}
+              onSearchClick={() => { }}
+              onHelpClick={() => { }}
               unread={unread}
             />
-            {notifOpen && <NotifPanel onAllRead={() => { markAllAlertsRead(); setNotifOpen(false) }} onViewAll={() => { setView('alerts'); setNotifOpen(false) }}/>}
+            {notifOpen && <NotifPanel onAllRead={() => { markAllAlertsRead(); setNotifOpen(false) }} onViewAll={() => { setView('alerts'); setNotifOpen(false) }} />}
 
-            {view === 'dashboard' && <Dashboard openVM={openVM} setView={setView} openModal={openModal}/>}
-            {view === 'alerts' && <AlertsView/>}
-            {view === 'calendar' && <CalendarView openVM={openVM}/>}
-            {view === 'activity' && <ActivityView/>}
-            {view === 'vms' && <VMList openVM={openVM} openModal={openModal}/>}
-            {drawerVmId && <VMDrawer vmId={drawerVmId} onClose={closeDrawer} openCust={openCust} openModal={openModal}/>}
-            {view === 'tasks' && <TasksView openModal={openModal} openTask={openTask} setView={setView} setAutoOpenQuote={setAutoOpenQuote}/>}
-            {drawerTaskId && <TaskDrawer taskId={drawerTaskId} onClose={closeTaskDrawer}/>}
-            {view === 'network' && <NetworkView openVM={openVM} openModal={openModal}/>}
-            {view === 'console' && <PlaceholderView title="Web Console" description="Proxmox web console - coming soon"/>}
-            {view === 'nodes' && <PlaceholderView title="Proxmox Nodes" description="Node management view - coming soon"/>}
-            {view === 'topology' && <PlaceholderView title="Network Topology" description="Network topology view - coming soon"/>}
-            {view === 'snapshots' && <PlaceholderView title="Snapshots" description="VM snapshots view - coming soon"/>}
-            {view === 'maintenance' && <PlaceholderView title="Maintenance Windows" description="Maintenance scheduling - coming soon"/>}
-            {view === 'patches' && <PlaceholderView title="Patch Queue" description="OS patch management - coming soon"/>}
-            {view === 'firewall' && <PlaceholderView title="Firewall Rules" description="Firewall configuration - coming soon"/>}
-            {view === 'customers' && <CustomersView openCust={openCust} openModal={openModal}/>}
-            {drawerCustId && <CustomerDrawer custId={drawerCustId} onClose={closeCustDrawer} openVM={openVM} openModal={openModal}/>}
-            {view === 'customer-accounts' && <CustomerAccountManagementView openCust={openCust} openModal={openModal}/>}
-            {view === 'kyc' && <KYCReviewView/>}
-            {view === 'pipeline' && <PlaceholderView title="Sales Pipeline" description="Sales pipeline view - coming soon"/>}
-            {view === 'quotes' && <QuotesView autoOpen={autoOpenQuote} onAutoOpenReset={() => setAutoOpenQuote(false)}/>}
-            {view === 'followups' && <PlaceholderView title="Follow-ups" description="Sales follow-ups - coming soon"/>}
-            {view === 'trials' && <PlaceholderView title="Trial Conversions" description="Trial conversion tracking - coming soon"/>}
-            {view === 'finance' && <FinanceView openCust={(_id: string) => {}} openModal={openModal}/>}
-            {view === 'reports' && <ReportsView/>}
-            {view === 'aging' && <AgingView/>}
-            {view === 'reconciliation' && <ReconciliationView/>}
-            {view === 'recurring' && <RecurringView openModal={openModal}/>}
-            {view === 'tax' && <TaxView/>}
-            {view === 'team' && <TeamView openModal={openModal}/>}
-            {view === 'settings' && <SettingsView/>}
-            {view === 'health' && <SystemHealthView/>}
-            {view === 'audit' && <AuditLogView/>}
-            {view === 'announcements' && <AnnouncementsView/>}
-            {view === 'apikeys' && <ApiKeysView openModal={openModal}/>}
-            {view === 'backups' && <BackupCenterView/>}
-            {view === 'account' && <AccountSettingsView role={tw.role} setView={setView}/>}
+            {view === 'dashboard' && <Dashboard openVM={openVM} setView={setView} openModal={openModal} />}
+            {view === 'alerts' && <AlertsView />}
+            {view === 'calendar' && <CalendarView openVM={openVM} />}
+            {view === 'activity' && <ActivityView />}
+            {view === 'vms' && <VMList openVM={openVM} openModal={openModal} />}
+            {drawerVmId && <VMDrawer vmId={drawerVmId} onClose={closeDrawer} openCust={openCust} openModal={openModal} />}
+            {view === 'tasks' && <TasksView openModal={openModal} openTask={openTask} setView={setView} setAutoOpenQuote={setAutoOpenQuote} />}
+            {drawerTaskId && <TaskDrawer taskId={drawerTaskId} onClose={closeTaskDrawer} />}
+            {view === 'network' && <NetworkView openVM={openVM} openModal={openModal} />}
+            {view === 'console' && <PlaceholderView title="Web Console" description="Proxmox web console - coming soon" />}
+            {view === 'nodes' && <PlaceholderView title="Proxmox Nodes" description="Node management view - coming soon" />}
+            {view === 'topology' && <PlaceholderView title="Network Topology" description="Network topology view - coming soon" />}
+            {view === 'snapshots' && <PlaceholderView title="Snapshots" description="VM snapshots view - coming soon" />}
+            {view === 'maintenance' && <PlaceholderView title="Maintenance Windows" description="Maintenance scheduling - coming soon" />}
+            {view === 'patches' && <PlaceholderView title="Patch Queue" description="OS patch management - coming soon" />}
+            {view === 'firewall' && <PlaceholderView title="Firewall Rules" description="Firewall configuration - coming soon" />}
+            {view === 'customers' && <CustomersView openCust={openCust} openModal={openModal} />}
+            {drawerCustId && <CustomerDrawer custId={drawerCustId} onClose={closeCustDrawer} openVM={openVM} openModal={openModal} />}
+            {view === 'customer-accounts' && <CustomerAccountManagementView openCust={openCust} openModal={openModal} />}
+            {view === 'kyc' && <KYCReviewView />}
+            {view === 'pipeline' && <PlaceholderView title="Sales Pipeline" description="Sales pipeline view - coming soon" />}
+            {view === 'quotes' && <QuotesView autoOpen={autoOpenQuote} onAutoOpenReset={() => setAutoOpenQuote(false)} />}
+            {view === 'followups' && <PlaceholderView title="Follow-ups" description="Sales follow-ups - coming soon" />}
+            {view === 'trials' && <PlaceholderView title="Trial Conversions" description="Trial conversion tracking - coming soon" />}
+            {view === 'finance' && <FinanceView openCust={(_id: string) => { }} openModal={openModal} />}
+            {view === 'reports' && <ReportsView />}
+            {view === 'aging' && <AgingView />}
+            {view === 'reconciliation' && <ReconciliationView />}
+            {view === 'recurring' && <RecurringView openModal={openModal} />}
+            {view === 'tax' && <TaxView />}
+            {view === 'team' && <TeamView openModal={openModal} />}
+            {view === 'settings' && <SettingsView />}
+            {view === 'health' && <SystemHealthView />}
+            {view === 'audit' && <AuditLogView />}
+            {view === 'announcements' && <AnnouncementsView />}
+            {view === 'apikeys' && <ApiKeysView openModal={openModal} />}
+            {view === 'backups' && <BackupCenterView />}
+            {view === 'account' && <AccountSettingsView role={tw.role} setView={setView} />}
           </div>
 
-          {cmdOpen && <CommandPalette onClose={() => setCmdOpen(false)} setView={setView} openVM={openVM} openCust={openCust} openModal={openModal}/>}
-          {modalKind === 'newvm' && <NewVMModal onClose={closeModal}/>}
-          {modalKind === 'renew' && modalProps.vm && <RenewModal vm={modalProps.vm} onClose={closeModal}/>}
-          {modalKind === 'spec' && modalProps.vm && <SpecModal vm={modalProps.vm} onClose={closeModal}/>}
-          {modalKind === 'terminate' && modalProps.vm && <TerminateModal vm={modalProps.vm} onClose={closeModal}/>}
-          {modalKind === 'newtask' && <NewTaskModal onClose={closeModal} presetStatus={modalProps.status}/>}
-          {modalKind === 'newcust' && <NewCustomerModal onClose={closeModal}/>}
-          {modalKind === 'email' && <EmailModal onClose={closeModal} to={modalProps.to} template={modalProps.template}/>}
-          {modalKind === 'newinvoice' && <NewInvoiceModal onClose={closeModal} presetCustomer={modalProps.customer}/>}
-          {modalKind === 'invite' && <InviteMemberModal onClose={closeModal}/>}
-          {modalKind === 'confirm' && <ConfirmModal onClose={closeModal} title={modalProps.title} message={modalProps.message} onConfirm={modalProps.onConfirm}/>}
-          {shortcutsOpen && <ShortcutsModal onClose={() => setShortcutsOpen(false)}/>}
+          {cmdOpen && <CommandPalette onClose={() => setCmdOpen(false)} setView={setView} openVM={openVM} openCust={openCust} openModal={openModal} />}
+          {modalKind === 'newvm' && <NewVMModal onClose={closeModal} />}
+          {modalKind === 'renew' && modalProps.vm && <RenewModal vm={modalProps.vm} onClose={closeModal} />}
+          {modalKind === 'spec' && modalProps.vm && <SpecModal vm={modalProps.vm} onClose={closeModal} />}
+          {modalKind === 'terminate' && modalProps.vm && <TerminateModal vm={modalProps.vm} onClose={closeModal} />}
+          {modalKind === 'newtask' && <NewTaskModal onClose={closeModal} presetStatus={modalProps.status} />}
+          {modalKind === 'newcust' && <NewCustomerModal onClose={closeModal} />}
+          {modalKind === 'email' && <EmailModal onClose={closeModal} to={modalProps.to} template={modalProps.template} />}
+          {modalKind === 'newinvoice' && <NewInvoiceModal onClose={closeModal} presetCustomer={modalProps.customer} />}
+          {modalKind === 'invite' && <InviteMemberModal onClose={closeModal} />}
+          {modalKind === 'confirm' && <ConfirmModal onClose={closeModal} title={modalProps.title} message={modalProps.message} onConfirm={modalProps.onConfirm} />}
+          {shortcutsOpen && <ShortcutsModal onClose={() => setShortcutsOpen(false)} />}
         </>
       )}
 
-      <Toasts/>
-      <RoleSwitcher role={tw.role} setRole={(r) => setTweak('role', r)} roleNames={tw.roleNames || {}}/>
-      <AIChatWidget role={tw.role}/>
+      <Toasts />
 
-      <TweaksUI tw={tw} setTweak={setTweak}/>
+      <TweaksUI tw={tw} setTweak={setTweak} />
     </div>
   )
 }
@@ -234,9 +233,17 @@ const App = () => {
   })
 
   return (
-    <AuthShell setRole={(role) => setTweak('role' as keyof TweakState, role)}>
-      <AppInner tw={tw} setTweak={setTweak} />
-    </AuthShell>
+    <Router>
+      <Routes>
+        <Route path="/welcome" element={<Welcome />} />
+        <Route path="/setup-password" element={<SetupPassword />} />
+        <Route path="/*" element={
+          <AuthShell setRole={(role) => setTweak('role' as keyof TweakState, role)}>
+            <AppInner tw={tw} setTweak={setTweak} />
+          </AuthShell>
+        } />
+      </Routes>
+    </Router>
   )
 }
 

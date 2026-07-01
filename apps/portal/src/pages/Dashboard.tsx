@@ -4,7 +4,6 @@ import useVMStore from '../store/vmStore'
 import useInvoiceStore from '../store/invoiceStore'
 import useActivityStore from '../store/activityStore'
 import useTaskStore from '../store/taskStore'
-import { MOCK } from '../lib/data'
 import Icon from '../lib/icons'
 import { StatusPill, formatMMK, ExpiryCell, Donut } from '../components/ui/ui'
 
@@ -20,7 +19,7 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
   const { invoices } = useInvoiceStore()
   const { activity } = useActivityStore()
   const { tasks } = useTaskStore()
-  const TODAY = MOCK.TODAY
+  const TODAY = new Date()
 
   const activeVMs = vms.filter(v => v.status === 'Active').length
   const expiringSoon = vms.filter(v => {

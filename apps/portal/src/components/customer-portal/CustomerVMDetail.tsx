@@ -24,42 +24,26 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
   const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [changePlanOpen, setChangePlanOpen] = useState(false)
 
-  // Mock add-on services data
   const addonServices = vm.addonServices || {
-    backupEnabled: true,
-    backupFreq: 'daily',
-    backupRetention: 7,
-    monitoring: true,
+    backupEnabled: false,
+    monitoring: false,
     cpfsEnabled: false,
-    cpfsPackage: 'standard',
-    ccisEnabled: true,
-    ccisPlan: 'standard',
-    ddosProtection: 'basic',
+    ccisEnabled: false,
+    ddosProtection: 'none',
     sslCertificate: 'none',
-    loadBalancer: 'none',
   }
 
   const tags = vm.tags || []
   const isRunning = vm.powerState === 'Running'
 
-  const seed = vm.id.split('').reduce((a: number, c: string) => a + c.charCodeAt(0), 0)
-  const seedRand = (i: number) => ((Math.sin(seed + i) + 1) / 2)
-  const cpu = Array.from({ length: 24 }, (_, i) => Math.round(30 + seedRand(i) * 50))
-  const ram = Array.from({ length: 24 }, (_, i) => Math.round(50 + seedRand(i * 2) * 35))
-  const net = Array.from({ length: 24 }, (_, i) => Math.round(40 + seedRand(i * 3) * 140))
+  const cpu: number[] = []
+  const ram: number[] = []
+  const net: number[] = []
   const disk = Math.round(vm.storage * 0.42)
 
-  const creds = [
-    { type: 'root', user: 'root', pass: 'X9k$mP2vL!Q7nR8w' },
-    { type: 'app user', user: `${vm.name.split('-')[0]}-admin`, pass: 'B3$jK9pX@2vN4mZq' },
-  ]
+  const creds = Array.isArray((vm as any).creds) ? (vm as any).creds : []
 
-  const snapshots = [
-    { id: `snap-${vm.id.slice(3)}-d1`, date: new Date(Date.now() - 86400000).toISOString().slice(0, 10), size: (3.8 + seedRand(1) * 0.6).toFixed(1), type: 'Daily' },
-    { id: `snap-${vm.id.slice(3)}-d2`, date: new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10), size: (3.8 + seedRand(2) * 0.6).toFixed(1), type: 'Daily' },
-    { id: `snap-${vm.id.slice(3)}-d3`, date: new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10), size: (3.8 + seedRand(3) * 0.6).toFixed(1), type: 'Daily' },
-    { id: `snap-${vm.id.slice(3)}-w1`, date: new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10), size: (15.2 + seedRand(4) * 2).toFixed(1), type: 'Weekly' },
-  ]
+  const snapshots = Array.isArray((vm as any).snapshots) ? (vm as any).snapshots : []
 
   const addTag = () => {
     if (!tagInput.trim()) return
@@ -206,6 +190,11 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
                     </td>
                   </tr>
                 ))}
+                {creds.length === 0 && (
+                  <tr>
+                    <td colSpan={5}><div className="empty"><div className="sub">No credentials available.</div></div></td>
+                  </tr>
+                )}
                 <tr>
                   <td>SSH key</td>
                   <td className="mono">id_ed25519</td>
@@ -243,6 +232,9 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
                     </td>
                   </tr>
                 ))}
+                {snapshots.length === 0 && (
+                  <tr><td colSpan={5}><div className="empty"><div className="sub">No snapshots found.</div></div></td></tr>
+                )}
               </tbody>
             </table>
           </div>

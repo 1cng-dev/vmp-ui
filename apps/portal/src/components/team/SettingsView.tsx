@@ -94,7 +94,7 @@ To renew, reply to this email or visit the portal.
           <div className="card-body">
             <div className="flex col gap-3">
               <div className="flex center between">
-                <div><div className="fw-6 text-sm">PostgreSQL backup</div><div className="text-xs text-mute">Daily at 02:00 ICT · last: 2026-05-27 02:00:14</div></div>
+                <div><div className="fw-6 text-sm">PostgreSQL backup</div><div className="text-xs text-mute">Daily at 02:00 ICT · last: —</div></div>
                 <span className="pill ok"><span className="dot"/>Healthy</span>
               </div>
               <div className="flex center between">

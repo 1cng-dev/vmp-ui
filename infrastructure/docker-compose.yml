@@ -10,13 +10,10 @@ services:
       - PASSWORD=${PROXMOX_ROOT_PASSWORD:-changeme123}
     ports:
       - "8006:8006"
-    volumes:
-      - ../apps/api/mock-proxmox/vz:/var/lib/vz
-      - ../apps/api/mock-proxmox/cluster:/var/lib/pve-cluster
     networks:
       - internal
     restart: unless-stopped
-    healthcheck:  
+    healthcheck:
       test: ["CMD", "curl", "-fk", "https://localhost:8006/api2/json/version"]
       interval: 30s
       timeout: 10s

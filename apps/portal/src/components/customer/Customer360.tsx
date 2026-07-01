@@ -78,7 +78,6 @@ export const Customer360: React.FC<Customer360Props> = ({ customer, onClose, ope
             <div className="card-head"><h3 className="card-title">Account actions</h3></div>
             <div className="card-body">
               <div className="flex gap-2 wrap">
-                <button className="btn" onClick={() => toast(`Impersonating ${c.name} — switch role to Customer to see their view`, 'info')}><Icon name="eye" size={12}/>Impersonate</button>
                 <button className="btn" onClick={() => toast(`Password reset email sent to ${c.email}`, 'ok')}><Icon name="key" size={12}/>Reset password</button>
                 <button className="btn" onClick={() => toast(`Welcome email re-sent to ${c.email}`, 'info')}><Icon name="mail" size={12}/>Resend welcome</button>
                 {c.kyc === 'Pending' && <>

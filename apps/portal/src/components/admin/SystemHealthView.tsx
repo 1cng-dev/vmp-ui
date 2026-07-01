@@ -104,9 +104,7 @@ export const SystemHealthView: React.FC = () => {
           <table className="tbl">
             <thead><tr><th>Time</th><th>Service</th><th>Type</th><th>Description</th><th>Resolution</th></tr></thead>
             <tbody>
-              <tr><td className="tnum text-sm">2026-05-27 14:32</td><td>Email Queue</td><td><span className="pill warn"><span className="dot"/>Degraded</span></td><td>SendGrid rate limit hit · queue depth 142</td><td className="text-sm text-mute">Investigating</td></tr>
-              <tr><td className="tnum text-sm">2026-05-24 09:14</td><td>Redis</td><td><span className="pill bad"><span className="dot"/>Down</span></td><td>OOM kill triggered by retention sweep</td><td className="text-sm text-mute">Resolved (6h)</td></tr>
-              <tr><td className="tnum text-sm">2026-05-20 22:01</td><td>Proxmox API</td><td><span className="pill warn"><span className="dot"/>Slow</span></td><td>Single node maintenance window</td><td className="text-sm text-mute">Planned</td></tr>
+              <tr><td colSpan={5}><div className="empty"><div className="sub">No recent incidents.</div></div></td></tr>
             </tbody>
           </table>
         </div>

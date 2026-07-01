@@ -253,9 +253,9 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal 
                 <div className="card-body">
                   <dl className="dl">
                     <dt>Schedule</dt><dd>{v.backup}</dd>
-                    <dt>Total snapshots</dt><dd className="tnum">14</dd>
-                    <dt>Storage used</dt><dd className="tnum">42.8 GB</dd>
-                    <dt>Last successful</dt><dd className="tnum">2026-05-27 02:14</dd>
+                    <dt>Total snapshots</dt><dd className="tnum">—</dd>
+                    <dt>Storage used</dt><dd className="tnum">—</dd>
+                    <dt>Last successful</dt><dd className="tnum">—</dd>
                   </dl>
                 </div>
               </div>
@@ -265,14 +265,7 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal 
                   <table className="tbl">
                     <thead><tr><th>Snapshot ID</th><th>Created</th><th className="right">Size</th><th>Type</th><th></th></tr></thead>
                     <tbody>
-                      {[
-                        ['snap-2026-0527-0214', '2026-05-27 02:14', '4.2 GB', 'Daily'],
-                        ['snap-2026-0526-0214', '2026-05-26 02:14', '4.1 GB', 'Daily'],
-                        ['snap-2026-0525-0214', '2026-05-25 02:14', '4.1 GB', 'Daily'],
-                        ['snap-2026-0501-0200', '2026-05-01 02:00', '38.2 GB', 'Monthly'],
-                      ].map((s: any) => (
-                        <tr key={s[0]}><td className="mono text-xs">{s[0]}</td><td className="tnum text-sm">{s[1]}</td><td className="right tnum text-sm">{s[2]}</td><td><span className="pill subtle">{s[3]}</span></td><td className="right"><button className="btn sm">Restore</button></td></tr>
-                      ))}
+                      <tr><td colSpan={5}><div className="empty"><div className="sub">No snapshots found.</div></div></td></tr>
                     </tbody>
                   </table>
                 </div>

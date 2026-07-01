@@ -10,13 +10,7 @@ export const ReconciliationView: React.FC = () => {
   const { customers } = useCustomerStore()
   const { toast } = useUIStore()
   const [matches, setMatches] = useState<Record<string, string>>({})
-  const txns = [
-    { id: 'TX-9821', date: '2026-05-26', amount: 6120000, ref: 'KBZ TR-9821 / INV-0418 / YFG', method: 'KBZ Pay' },
-    { id: 'TX-9819', date: '2026-05-22', amount: 5520000, ref: 'AYA Direct / MLC Co. May renewal', method: 'AYA Bank' },
-    { id: 'TX-9817', date: '2026-05-21', amount: 2640000, ref: 'KBZ TR-9817 / Sittwe Marine', method: 'KBZ Pay' },
-    { id: 'TX-9815', date: '2026-05-18', amount: 1920000, ref: 'CB Bank wire / Pyay Agri', method: 'CB Bank' },
-    { id: 'TX-9812', date: '2026-05-15', amount: 480000, ref: 'KBZ TR-9812 / no reference', method: 'KBZ Pay' },
-  ]
+  const txns: any[] = []
   const unmatchedInv = invoices.filter((i: any) => i.status === 'Pending' || i.status === 'Customer Transferred')
 
   const match = (txId: string, invId: string) => {
@@ -64,8 +58,9 @@ export const ReconciliationView: React.FC = () => {
                     </td>
                   </tr>
                 ))}
-              </tbody>
-            </table>
+              {txns.length === 0 && <tr><td colSpan={6}><div className="empty"><div className="title">No bank transactions</div><div className="sub">Sync bank feed to load transactions.</div></div></td></tr>}
+            </tbody>
+          </table>
           </div>
         </div>
         <div className="card">

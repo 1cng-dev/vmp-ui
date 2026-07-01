@@ -118,6 +118,7 @@ const CustomersView: React.FC<CustomersViewProps> = ({ openCust, openModal }) =>
                 </tr>
               )
             })}
+            {filtered.length === 0 && <tr><td colSpan={9}><div className="empty"><div className="title">No customers found</div><div className="sub">Try adjusting filters or add a new customer.</div></div></td></tr>}
           </tbody>
         </table>
       </div>

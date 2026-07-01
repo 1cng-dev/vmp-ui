@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react'
-import { MOCK } from '../lib/data'
 import type { VM } from '../types'
 
 export interface VMStoreValue {
@@ -19,7 +18,7 @@ export interface VMStoreValue {
 }
 
 const useVMStore = (): VMStoreValue => {
-  const [vms, setVms] = useState<VM[]>(MOCK.VMS.map((v: VM) => ({...v, interconnect: [...v.interconnect], tags: (v as any).tags || []})))
+  const [vms, setVms] = useState<VM[]>([])
 
   const addVM = useCallback((vm: any) => {
     const maxNum = vms.reduce((m, v) => { const n = parseInt((v.id || '').replace(/\D/g, '')); return n > m ? n : m; }, 2199)
@@ -44,7 +43,7 @@ const useVMStore = (): VMStoreValue => {
   const renew = useCallback((id: string, months = 12) => {
     const vm = vms.find(v => v.id === id)
     if (!vm) return
-    const base = vm.expiry && vm.expiry !== '—' ? new Date(vm.expiry) : new Date(MOCK.TODAY)
+    const base = vm.expiry && vm.expiry !== '—' ? new Date(vm.expiry) : new Date()
     base.setMonth(base.getMonth() + months)
     updateVM(id, { expiry: base.toISOString().slice(0, 10), status: 'Active', powerState: 'Running' })
   }, [vms, updateVM])
@@ -54,7 +53,7 @@ const useVMStore = (): VMStoreValue => {
     if (action === 'activate') ids.forEach(id => setVMStatus(id, 'Active', 'Running'))
     if (action === 'terminate') ids.forEach(id => setVMStatus(id, 'Expired', 'Stopped'))
     if (action === 'renew') {
-      const newExpiry = new Date(MOCK.TODAY)
+      const newExpiry = new Date()
       newExpiry.setFullYear(newExpiry.getFullYear() + 1)
       ids.forEach(id => updateVM(id, { expiry: newExpiry.toISOString().slice(0, 10), status: 'Active' }))
     }

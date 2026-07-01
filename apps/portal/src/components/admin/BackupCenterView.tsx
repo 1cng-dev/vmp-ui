@@ -88,9 +88,7 @@ export const BackupCenterView: React.FC = () => {
             <table className="tbl">
               <thead><tr><th>Date</th><th>Snapshot</th><th>VM</th><th>Restored by</th><th>Result</th></tr></thead>
               <tbody>
-                <tr><td className="tnum text-sm">2026-05-24 09:20</td><td className="mono text-xs">snap-2087-3</td><td className="fw-6">mlc-erp-prod-01</td><td className="text-sm">Ko Thein</td><td><span className="pill ok"><span className="dot"/>Success</span></td></tr>
-                <tr><td className="tnum text-sm">2026-04-30 14:08</td><td className="mono text-xs">snap-2091-1</td><td className="fw-6">yfg-app-01</td><td className="text-sm">Ko Thein</td><td><span className="pill ok"><span className="dot"/>Success</span></td></tr>
-                <tr><td className="tnum text-sm">2026-04-18 08:42</td><td className="mono text-xs">snap-2095-2</td><td className="fw-6">npd-staging</td><td className="text-sm">Aye Chan</td><td><span className="pill ok"><span className="dot"/>Success</span></td></tr>
+                <tr><td colSpan={5}><div className="empty"><div className="sub">No restore history found.</div></div></td></tr>
               </tbody>
             </table>
           </div>

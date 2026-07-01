@@ -5,15 +5,21 @@ import Icon from '../lib/icons'
 import { Avatar } from '../components/ui/ui'
 import { SecurityCol } from '../components/team/SecurityCol'
 import { SettingsView } from '../components/team/SettingsView'
+import InviteTeamMemberModal from '../components/modals/InviteTeamMemberModal'
 
 interface TeamViewProps {
   openModal: (kind: string, props?: any) => void
 }
 
 const TeamView: React.FC<TeamViewProps> = ({ openModal }) => {
-  const { team, removeMember, updateMember } = useTeamStore()
+  const { team, loadTeam, removeMember, updateMember } = useTeamStore()
   const { toast } = useUIStore()
   const [menu, setMenu] = useState<string | null>(null)
+  const [inviteModalOpen, setInviteModalOpen] = useState(false)
+
+  useEffect(() => {
+    loadTeam()
+  }, [loadTeam])
 
   useEffect(() => {
     const close = () => setMenu(null)
@@ -35,9 +41,9 @@ const TeamView: React.FC<TeamViewProps> = ({ openModal }) => {
           <h1 className="page-title">Team & roles</h1>
           <p className="page-subtitle">{team.length} active users · {Object.keys(ROLES).length} roles defined</p>
         </div>
-        <div className="page-actions">
-          <button className="btn primary" onClick={() => openModal('invite')}><Icon name="plus" size={13}/>Invite member</button>
-        </div>
+        <button className="btn primary" onClick={() => setInviteModalOpen(true)}>
+          <Icon name="plus" size={13} />Invite member
+        </button>
       </div>
 
       <div className="grid-2 mb-4">
@@ -51,7 +57,7 @@ const TeamView: React.FC<TeamViewProps> = ({ openModal }) => {
                   <tr key={u.id}>
                     <td>
                       <div className="flex center gap-2">
-                        <Avatar name={u.name} size={28}/>
+                        <Avatar name={u.name} size={28} />
                         <div><div className="fw-6">{u.name}</div><div className="text-xs text-mute">{u.email}</div></div>
                       </div>
                     </td>
@@ -63,22 +69,23 @@ const TeamView: React.FC<TeamViewProps> = ({ openModal }) => {
                     <td className="text-sm">{u.team}</td>
                     <td className="text-sm text-mute">{u.last}</td>
                     <td style={{ position: 'relative' }}>
-                      <button className="icon-btn" onClick={(e) => { e.stopPropagation(); setMenu(menu === u.id ? null : u.id); }}><Icon name="more"/></button>
+                      <button className="icon-btn" onClick={(e) => { e.stopPropagation(); setMenu(menu === u.id ? null : u.id); }}><Icon name="more" /></button>
                       {menu === u.id && (
                         <div onClick={e => e.stopPropagation()} style={{
                           position: 'absolute', right: 14, top: 36, zIndex: 20,
                           background: 'var(--surface)', border: '1px solid var(--line)',
                           borderRadius: 8, boxShadow: 'var(--shadow)', minWidth: 160, padding: 4,
                         }}>
-                          <button className="nav-item" onClick={() => { toast('Password reset email sent', 'info'); setMenu(null); }}><Icon name="key" size={13}/>Reset password</button>
-                          <button className="nav-item" onClick={() => { toast('2FA reset', 'info'); setMenu(null); }}><Icon name="shield" size={13}/>Reset 2FA</button>
-                          <div style={{ height: 1, background: 'var(--line)', margin: '4px 0' }}/>
-                          <button className="nav-item" style={{ color: 'var(--bad)' }} onClick={() => { removeMember(u.id); setMenu(null); }}><Icon name="trash" size={13}/>Remove user</button>
+                          <button className="nav-item" onClick={() => { toast('Password reset email sent', 'info'); setMenu(null); }}><Icon name="key" size={13} />Reset password</button>
+                          <button className="nav-item" onClick={() => { toast('2FA reset', 'info'); setMenu(null); }}><Icon name="shield" size={13} />Reset 2FA</button>
+                          <div style={{ height: 1, background: 'var(--line)', margin: '4px 0' }} />
+                          <button className="nav-item" style={{ color: 'var(--bad)' }} onClick={() => { removeMember(u.id); setMenu(null); }}><Icon name="trash" size={13} />Remove user</button>
                         </div>
                       )}
                     </td>
                   </tr>
                 ))}
+                {team.length === 0 && <tr><td colSpan={5}><div className="empty"><div className="title">No team members</div><div className="sub">Invite team members to get started.</div></div></td></tr>}
               </tbody>
             </table>
           </div>
@@ -111,21 +118,26 @@ const TeamView: React.FC<TeamViewProps> = ({ openModal }) => {
               ['Two-factor auth (2FA)', true],
               ['Session auto-logout (30 min)', true],
               ['Brute-force block (5 attempts)', true],
-            ]}/>
+            ]} />
             <SecurityCol title="Admin access" items={[
               ['IP whitelist (admin only)', true],
               ['Password reset via email', true],
               ['Audit access logs (90 days)', true],
-            ]}/>
+            ]} />
             <SecurityCol title="Customer portal" items={[
               ['Separate portal URL', true],
               ['Block portal when KYC pending', true],
               ['Read-only VM view', true],
               ['Self-serve renewal request', true],
-            ]}/>
+            ]} />
           </div>
         </div>
       </div>
+
+      {inviteModalOpen && (
+        <InviteTeamMemberModal onClose={() => setInviteModalOpen(false)} />
+      )}
+
     </div>
   )
 }

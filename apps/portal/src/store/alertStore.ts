@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react'
-import { MOCK } from '../lib/data'
 import type { Alert } from '../types'
 
 export interface AlertStoreValue {
@@ -9,7 +8,7 @@ export interface AlertStoreValue {
 }
 
 const useAlertStore = (): AlertStoreValue => {
-  const [alerts, setAlerts] = useState<Alert[]>(MOCK.ALERTS.map((a: Alert) => ({...a})))
+  const [alerts, setAlerts] = useState<Alert[]>([])
 
   const markAlertRead = useCallback((id: string) => {
     setAlerts(s => s.map(a => a.id === id ? { ...a, read: true } : a))

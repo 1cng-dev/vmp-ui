@@ -42,7 +42,7 @@ export const RecurringView: React.FC<RecurringViewProps> = ({ openModal }) => {
       <div className="grid-3 mb-4">
         <div className="metric"><div className="label">MRR</div><div className="value tnum" style={{ fontSize: 20 }}>MMK {formatMMK(cycles.reduce((a: number, v: any) => a + v.priceMonth, 0))}</div></div>
         <div className="metric"><div className="label">ARR (projected)</div><div className="value tnum" style={{ fontSize: 20 }}>MMK {formatMMK(cycles.reduce((a: number, v: any) => a + v.priceMonth, 0) * 12)}</div></div>
-        <div className="metric"><div className="label">Next 7 days billing</div><div className="value tnum" style={{ fontSize: 20 }}>MMK {formatMMK(cycles.filter((v: any) => { const d = (new Date(v.nextBill).getTime() - (window as any).MOCK.TODAY.getTime()) / 86400000; return d >= 0 && d <= 7; }).reduce((a: number, v: any) => a + v.priceMonth, 0))}</div></div>
+        <div className="metric"><div className="label">Next 7 days billing</div><div className="value tnum" style={{ fontSize: 20 }}>MMK {formatMMK(cycles.filter((v: any) => { const d = (new Date(v.nextBill).getTime() - new Date().getTime()) / 86400000; return d >= 0 && d <= 7; }).reduce((a: number, v: any) => a + v.priceMonth, 0))}</div></div>
       </div>
 
       <div className="card">
@@ -61,6 +61,7 @@ export const RecurringView: React.FC<RecurringViewProps> = ({ openModal }) => {
                   <td className="right"><button className="btn sm" onClick={() => toast(`Invoice generated for ${v.name}`, 'ok')}>Bill now</button></td>
                 </tr>
               ))}
+              {cycles.length === 0 && <tr><td colSpan={6}><div className="empty"><div className="title">No active subscriptions</div><div className="sub">No VMs with active billing cycles.</div></div></td></tr>}
             </tbody>
           </table>
         </div>

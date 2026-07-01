@@ -1,40 +1,87 @@
 import { useState, useCallback } from 'react'
-import { MOCK } from '../lib/data'
+import { supabase } from '../lib/supabase'
 import type { Customer } from '../types'
 
 export interface CustomerStoreValue {
   customers: Customer[]
-  addCustomer: (c: any) => string
-  updateCustomer: (id: string, patch: any) => void
-  setKYC: (id: string, decision: string) => void
+  customersLoading: boolean
+  loadCustomers: () => Promise<void>
+  addCustomer: (c: Omit<Customer, 'id'>) => Promise<string>
+  updateCustomer: (id: string, patch: Partial<Customer>) => Promise<void>
+  setKYC: (id: string, decision: 'Pending' | 'Approved' | 'Rejected' | 'Under Review') => Promise<void>
 }
 
 const useCustomerStore = (): CustomerStoreValue => {
-  const [customers, setCustomers] = useState<Customer[]>(MOCK.CUSTOMERS.map((c: Customer) => ({...c})))
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [customersLoading, setCustomersLoading] = useState(false)
 
-  const addCustomer = useCallback((c: any) => {
-    const maxNum = customers.reduce((m, x) => { const n = parseInt((x.id || '').replace(/\D/g, '')); return n > m ? n : m; }, 1099)
-    const id = `C-${maxNum + 1}`
-    const newC = {
-      id, totalSpend: 0, status: 'Active', kyc: 'Pending', notes: '',
-      since: new Date().toISOString().slice(0, 10),
-      ...c,
+  const loadCustomers = useCallback(async () => {
+    try {
+      setCustomersLoading(true)
+      const { data: userRes } = await supabase.auth.getUser()
+      const role = userRes?.user?.user_metadata?.role
+      const userId = userRes?.user?.id
+
+      let query = supabase
+        .from('customers')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      // For normal customers, fetch only their own row; staff/admin can load all
+      if (role !== 'Staff' && role !== 'Admin' && userId) {
+        query = query.eq('id', userId)
+      }
+
+      const { data, error } = await query
+
+      if (error) {
+        console.error('Failed to load customers:', error)
+      }
+      if (data) {
+        setCustomers(data as Customer[])
+      }
+    } finally {
+      setCustomersLoading(false)
     }
-    setCustomers(s => [newC, ...s])
-    return id
-  }, [customers])
-
-  const updateCustomer = useCallback((id: string, patch: any) => {
-    setCustomers(s => s.map(c => c.id === id ? { ...c, ...patch } : c))
   }, [])
 
-  const setKYC = useCallback((id: string, decision: string) => {
-    updateCustomer(id, { kyc: decision })
+  const addCustomer = useCallback(async (c: Omit<Customer, 'id'>) => {
+    const { data, error } = await supabase
+      .from('customers')
+      .insert(c)
+      .select('id, legacy_id')
+      .single()
+    
+    if (error) throw error
+    if (data) {
+      await loadCustomers()
+      return data.legacy_id || data.id
+    }
+    throw new Error('Failed to create customer')
+  }, [loadCustomers])
+
+  const updateCustomer = useCallback(async (id: string, patch: Partial<Customer>) => {
+    const { error } = await supabase
+      .from('customers')
+      .update(patch)
+      .eq('id', id)
+    
+    if (!error) {
+      await loadCustomers()
+    }
+  }, [loadCustomers])
+
+  const setKYC = useCallback(async (id: string, decision: 'Pending' | 'Approved' | 'Rejected' | 'Under Review') => {
+    await updateCustomer(id, { kyc_status: decision })
   }, [updateCustomer])
 
   return {
     customers,
-    addCustomer, updateCustomer, setKYC,
+    customersLoading,
+    loadCustomers,
+    addCustomer,
+    updateCustomer,
+    setKYC,
   }
 }
 
