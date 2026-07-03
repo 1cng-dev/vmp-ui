@@ -26,6 +26,7 @@ import { CustomerTicketDetail } from '../components/customer-portal/CustomerTick
 import { CustomerRequestDetail } from '../components/customer-portal/CustomerRequestDetail'
 import { CustomerInvoiceDetail } from '../components/customer-portal/CustomerInvoiceDetail'
 import { AddonServicesView } from '../components/customer-portal/AddonServicesView'
+import Toasts from '../components/common/Toasts'
 
 interface CustomerPortalProps {
   setRole?: (role: string) => void
@@ -40,7 +41,16 @@ const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRole, role
   const { tasks, addTask } = useTaskStore()
   const { toast } = useUIStore()
   const auth = useAuth()
-  const [view, setView] = useState('dashboard')
+  const [view, setView] = useState(() => {
+    const saved = localStorage.getItem('customerPortalView')
+    return saved || 'dashboard'
+  })
+
+
+  useEffect(() => {
+    localStorage.setItem('customerPortalView', view)
+  }, [view])
+  
   const [detailVm, setDetailVm] = useState<any>(null)
   const [openTicket, setOpenTicket] = useState<any>(null)
   const [detailRequest, setDetailRequest] = useState<any>(null)
@@ -264,6 +274,7 @@ const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRole, role
       </div>
 
       {renewVm && <CustRenewModal vm={renewVm} onClose={() => setRenewVm(null)} onSubmit={submitRenewalRequest} />}
+      <Toasts />
     </div >
   )
 }
