@@ -27,6 +27,7 @@ import Welcome from './pages/Welcome'
 import SetupPassword from './pages/SetupPassword'
 import { TeamProvider, useTeamStore } from './store/TeamContext'
 import useCustomerStore, { CustomerProvider } from './store/customerStore'
+import { ResetPasswordScreen } from './components/auth/ResetPasswordScreen'
 
 const ACCENT_MAP: Record<string, number> = {
   '#4F6FE3': 250,
@@ -293,6 +294,7 @@ const App = () => {
         <Routes>
         <Route path="/welcome" element={<Welcome />} />
         <Route path="/setup-password" element={<SetupPassword />} />
+        <Route path="/auth/reset-password" element={<ResetPasswordScreen />} />
         <Route path="/admin" element={
           <TeamAuthShell setRole={(role) => setTweak('role' as keyof TweakState, role)}>
             <AppInner tw={tw} setTweak={setTweak} />
