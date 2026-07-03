@@ -52,9 +52,8 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
   ]
 
   const zones = [
-    { id: 'yangon-dc1', name: 'Yangon Zone A', flag: '🇲🇲', sub: 'Primary · low latency', latency: '2ms' },
-    { id: 'yangon-dc2', name: 'Yangon Zone B', flag: '🇲🇲', sub: 'Secondary · DR pair', latency: '4ms' },
-    { id: 'mandalay-dc1', name: 'Mandalay Zone A', flag: '🇲🇲', sub: 'North coverage', latency: '12ms' },
+    { id: 'yangon-dc1', name: 'Yangon Zone A', flag: '🇲🇲', flagImage: 'https://flagcdn.com/w40/mm.png', sub: 'Primary · low latency', latency: '2ms', disabled: false },
+    { id: 'yangon-dc2', name: 'Yangon Zone B', flag: '🇲🇲', flagImage: 'https://flagcdn.com/w40/mm.png', sub: 'Secondary · DR pair', latency: '4ms', disabled: true },
   ]
 
   const bandwidthOpts = ['100 Mbps', '500 Mbps', '1 Gbps', '10 Gbps']
@@ -302,17 +301,15 @@ Customer notes: ${f.additionalNotes || '—'}`,
                 <div className="card-head">
                   <h3 className="card-title">Specifications</h3>
                   <div className="flex gap-1" style={{ background: 'var(--surface-3)', borderRadius: 8, padding: 3 }}>
-                    {[['standard', 'Standard'], ['premium', 'Premium']].map(([id, label]) => (
-                      <button key={id} onClick={() => f.requestType !== 'trial' && set('sizing', id)}
-                        disabled={f.requestType === 'trial'}
+                    {[['standard', 'Standard'], ['premium', 'High Performance']].map(([id, label]) => (
+                      <button key={id} onClick={() => set('sizing', id)}
                         style={{
-                          padding: '5px 14px', borderRadius: 6, border: 'none', cursor: f.requestType === 'trial' ? 'not-allowed' : 'pointer',
+                          padding: '5px 14px', borderRadius: 6, border: 'none', cursor: 'pointer',
                           fontFamily: 'inherit', fontSize: 12, fontWeight: 600,
                           background: f.sizing === id ? (id === 'premium' ? 'linear-gradient(135deg, #8b5cf6, #a855f7)' : 'var(--surface)') : 'transparent',
                           color: f.sizing === id ? (id === 'premium' ? '#fff' : 'var(--ink)') : 'var(--ink-3)',
                           boxShadow: f.sizing === id ? 'var(--shadow-sm)' : 'none',
                           transition: 'all 0.15s',
-                          opacity: f.requestType === 'trial' ? 0.5 : 1,
                         }}>
                         {label}
                         {id === 'premium' && <Icon name="star" size={10} style={{ marginLeft: 4 }}/>}
@@ -330,8 +327,6 @@ Customer notes: ${f.additionalNotes || '—'}`,
                         onChange={e => set('vcpu', parseInt(e.target.value) || 0)}
                         placeholder="e.g. 4"
                         min="1"
-                        disabled={f.requestType === 'trial'}
-                        style={{ background: f.requestType === 'trial' ? 'var(--surface-3)' : undefined }}
                       />
                     </div>
                     <div className="field">
@@ -342,8 +337,6 @@ Customer notes: ${f.additionalNotes || '—'}`,
                         onChange={e => set('ram', parseInt(e.target.value) || 0)}
                         placeholder="e.g. 16"
                         min="1"
-                        disabled={f.requestType === 'trial'}
-                        style={{ background: f.requestType === 'trial' ? 'var(--surface-3)' : undefined }}
                       />
                     </div>
                     <div className="field">
@@ -354,28 +347,22 @@ Customer notes: ${f.additionalNotes || '—'}`,
                         onChange={e => set('storage', parseInt(e.target.value) || 0)}
                         placeholder="e.g. 200"
                         min="1"
-                        disabled={f.requestType === 'trial'}
-                        style={{ background: f.requestType === 'trial' ? 'var(--surface-3)' : undefined }}
                       />
                     </div>
-                    <div className="field">
+                    {/* <div className="field">
                       <label>Capacity</label>
                       <input
                         value={f.capacity}
                         onChange={e => set('capacity', e.target.value)}
                         placeholder="e.g. High performance"
-                        disabled={f.requestType === 'trial'}
-                        style={{ background: f.requestType === 'trial' ? 'var(--surface-3)' : undefined }}
                       />
-                    </div>
+                    </div> */}
                     <div className="field" style={{ gridColumn: 'span 2' }}>
                       <label>Storage partitions</label>
                       <input
                         value={f.storagePartitions}
                         onChange={e => set('storagePartitions', e.target.value)}
                         placeholder="e.g. /boot 1GB, / 50GB, /var 149GB"
-                        disabled={f.requestType === 'trial'}
-                        style={{ background: f.requestType === 'trial' ? 'var(--surface-3)' : undefined }}
                       />
                     </div>
                   </div>
@@ -392,7 +379,6 @@ Customer notes: ${f.additionalNotes || '—'}`,
                 </div>
               </div>
 
-              {f.requestType === 'paid' && (
               <div className="card">
                 <div className="card-head">
                   <h3 className="card-title">Storage volumes</h3>
@@ -430,9 +416,7 @@ Customer notes: ${f.additionalNotes || '—'}`,
                   </div>
                 </div>
               </div>
-              )}
 
-              {f.requestType === 'paid' && (
               <div className="card">
                 <div className="card-head"><h3 className="card-title">Network bandwidth</h3></div>
                 <div className="card-body">
@@ -449,10 +433,8 @@ Customer notes: ${f.additionalNotes || '—'}`,
                   </div>
                 </div>
               </div>
-              )}
 
               {/* Backup service */}
-              {f.requestType === 'paid' && (
               <div className="card">
                 <div className="card-head">
                   <h3 className="card-title">Backup service</h3>
@@ -501,10 +483,8 @@ Customer notes: ${f.additionalNotes || '—'}`,
                   </div>
                 )}
               </div>
-              )}
 
               {/* Managed monitoring */}
-              {f.requestType === 'paid' && (
               <div className="card">
                 <div className="card-head">
                   <div>
@@ -514,30 +494,30 @@ Customer notes: ${f.additionalNotes || '—'}`,
                   <span className={`toggle ${f.monitoring ? 'on' : ''}`} onClick={() => set('monitoring', !f.monitoring)}/>
                 </div>
               </div>
-              )}
 
           {/* Zone & Network */}
               <div className="card">
                 <div className="card-head"><h3 className="card-title">Choose a zone</h3></div>
                 <div className="card-body">
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-                    {(f.requestType === 'trial' ? [zones[0]] : zones).map(z => (
-                      <IaaSCard key={z.id} selected={f.zone === z.id} onClick={() => set('zone', z.id)} padding={14 as any}>
-                        <div className="flex center between mb-2">
-                          <div style={{ fontSize: 24, lineHeight: 1 }}>{z.flag}</div>
-                          {f.zone === z.id && <Icon name="check" size={14} style={{ color: 'var(--accent-strong)' }}/>}
-                        </div>
-                        <div className="fw-7 text-sm">{z.name}</div>
-                        <div className="text-xs text-mute">{z.sub}</div>
-                        <div className="text-xs mt-2 mono"><span className="text-mute">Latency:</span> <span className="fw-6">{z.latency}</span></div>
-                      </IaaSCard>
+                    {zones.map(z => (
+                      <div key={z.id} style={{ opacity: z.disabled ? 0.85 : 1, cursor: z.disabled ? 'not-allowed' : 'pointer' }}>
+                        <IaaSCard selected={f.zone === z.id} onClick={() => !z.disabled && set('zone', z.id)} padding={14 as any}>
+                          <div className="flex center between mb-2">
+                            <img src={z.flagImage} alt={z.name} style={{ width: 32, height: 24, objectFit: 'contain', borderRadius: 2 }} />
+                            {f.zone === z.id && <Icon name="check" size={14} style={{ color: 'var(--accent-strong)' }}/>}
+                          </div>
+                          <div className="fw-7 text-sm">{z.name}</div>
+                          <div className="text-xs text-mute">{z.sub}</div>
+                          <div className="text-xs mt-2 mono"><span className="text-mute">Latency:</span> <span className="fw-6">{z.latency}</span></div>
+                        </IaaSCard>
+                      </div>
                     ))}
                   </div>
                 </div>
               </div>
 
               {/* Network Interface Controllers */}
-              {f.requestType === 'paid' && (
               <div className="card">
                 <div className="card-head">
                   <h3 className="card-title">Network interfaces (NICs)</h3>
@@ -589,10 +569,8 @@ Customer notes: ${f.additionalNotes || '—'}`,
                   <div className="text-xs text-mute mt-2">Up to 3 NICs per VM. Additional NICs require VLAN setup by the network team.</div>
                 </div>
               </div>
-              )}
 
           {/* Firewall */}
-              {f.requestType === 'paid' && (
               <div className="card">
                 <div className="card-head">
                   <h3 className="card-title">Firewall rules — inbound ports</h3>
@@ -648,9 +626,7 @@ Customer notes: ${f.additionalNotes || '—'}`,
                   )}
                 </div>
               </div>
-              )}
 
-              {f.requestType === 'paid' && (
               <div className="card">
                 <div className="card-head">
                   <h3 className="card-title">Port forwarding</h3>
@@ -693,7 +669,6 @@ Customer notes: ${f.additionalNotes || '—'}`,
                   )}
                 </div>
               </div>
-              )}
 
               <div className="card">
                 <div className="card-body">
