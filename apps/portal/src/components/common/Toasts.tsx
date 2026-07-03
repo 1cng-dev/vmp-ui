@@ -5,12 +5,10 @@ import Icon from '../../lib/icons'
 const Toasts: React.FC = () => {
   const { toasts, setToasts } = useUIStore()
 
-  if (toasts.length === 0) return null
-
   return (
     <div style={{
       position: 'fixed',
-      bottom: 24, left: 24,
+      top: 24, right: 24,
       zIndex: 1000,
       display: 'flex',
       flexDirection: 'column',

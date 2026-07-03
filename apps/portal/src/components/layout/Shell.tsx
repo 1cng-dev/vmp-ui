@@ -1,6 +1,8 @@
 import React from 'react'
 import Icon from '../../lib/icons'
 import { Avatar } from '../ui/ui'
+import { useAuth } from '../auth/Auth'
+import { useCustomerStore } from '../../store/customerStore'
 
 interface NavItem {
   section?: string
@@ -30,51 +32,69 @@ interface TopbarProps {
   unread?: number
 }
 
-const NAV: NavItem[] = [
-  { section: 'Overview' },
-  { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
-  { id: 'alerts', label: 'Notifications', icon: 'bell', badge: 3 },
-  { id: 'calendar', label: 'Calendar', icon: 'clock' },
-  { id: 'activity', label: 'Activity log', icon: 'activity' },
-  { section: 'Operations' },
-  { id: 'vms', label: 'VM records', icon: 'server' },
-  { id: 'tasks', label: 'Customer Requests', icon: 'tasks', badge: 2 },
-  { id: 'network', label: 'Network & IPs', icon: 'network' },
-  { section: 'Engineering' },
-  { id: 'console', label: 'Web console', icon: 'cpu' },
-  { id: 'nodes', label: 'Proxmox nodes', icon: 'server' },
-  { id: 'topology', label: 'Topology', icon: 'network' },
-  { id: 'snapshots', label: 'Snapshots', icon: 'database' },
-  { id: 'maintenance', label: 'Maintenance', icon: 'sliders' },
-  { id: 'patches', label: 'Patch queue', icon: 'box' },
-  { id: 'firewall', label: 'Firewall rules', icon: 'shield' },
-  { section: 'Customers' },
-  { id: 'customers', label: 'Customers', icon: 'users' },
-  { id: 'customer-accounts', label: 'Account management', icon: 'shield' },
-  { id: 'kyc', label: 'KYC review', icon: 'shield', badge: 2 },
-  { section: 'Sales' },
-  { id: 'pipeline', label: 'Pipeline', icon: 'tasks' },
-  { id: 'quotes', label: 'Quotes', icon: 'file' },
-  { id: 'followups', label: 'Follow-ups', icon: 'clock' },
-  { id: 'trials', label: 'Trial conversions', icon: 'box' },
-  { section: 'Finance' },
-  { id: 'finance', label: 'Invoices', icon: 'invoice' },
-  { id: 'reports', label: 'Reports', icon: 'box' },
-  { id: 'aging', label: 'Aging receivables', icon: 'clock' },
-  { id: 'reconciliation', label: 'Reconciliation', icon: 'check' },
-  { id: 'recurring', label: 'Recurring billing', icon: 'refresh' },
-  { id: 'tax', label: 'Tax / VAT', icon: 'file' },
-  { section: 'Admin' },
-  { id: 'team', label: 'Team & roles', icon: 'lock' },
-  { id: 'settings', label: 'System settings', icon: 'settings' },
-  { id: 'health', label: 'System health', icon: 'activity' },
-  { id: 'audit', label: 'Audit log', icon: 'eye' },
-  { id: 'announcements', label: 'Announcements', icon: 'mail' },
-  { id: 'apikeys', label: 'API & webhooks', icon: 'key' },
-  { id: 'backups', label: 'Backup center', icon: 'database' },
-]
+
 
 export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames = {}, onAccountClick, onLogout }) => {
+  const { customers, loadCustomers, subscribeToCustomers } = useCustomerStore()
+  const pendingKycCount = customers.filter((c: any) => c.kyc_status === 'Pending').length
+
+  React.useEffect(() => {
+    loadCustomers()
+  }, [loadCustomers])
+
+  const NAV: NavItem[] = [
+    { section: 'Overview' },
+    { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
+    { id: 'alerts', label: 'Notifications', icon: 'bell', badge: 3 },
+    { id: 'calendar', label: 'Calendar', icon: 'clock' },
+    { id: 'activity', label: 'Activity log', icon: 'activity' },
+    { section: 'Operations' },
+    { id: 'vms', label: 'VM records', icon: 'server' },
+    { id: 'tasks', label: 'Customer Requests', icon: 'tasks', badge: 2 },
+    { id: 'network', label: 'Network & IPs', icon: 'network' },
+    { section: 'Engineering' },
+    { id: 'console', label: 'Web console', icon: 'cpu' },
+    { id: 'nodes', label: 'Proxmox nodes', icon: 'server' },
+    { id: 'topology', label: 'Topology', icon: 'network' },
+    { id: 'snapshots', label: 'Snapshots', icon: 'database' },
+    { id: 'maintenance', label: 'Maintenance', icon: 'sliders' },
+    { id: 'patches', label: 'Patch queue', icon: 'box' },
+    { id: 'firewall', label: 'Firewall rules', icon: 'shield' },
+    { section: 'Customers' },
+    { id: 'customers', label: 'Customers', icon: 'users' },
+    { id: 'customer-accounts', label: 'Account management', icon: 'shield' },
+    { id: 'kyc', label: 'KYC review', icon: 'shield', badge: pendingKycCount ?? 0 },
+    { section: 'Sales' },
+    { id: 'pipeline', label: 'Pipeline', icon: 'tasks' },
+    { id: 'quotes', label: 'Quotes', icon: 'file' },
+    { id: 'followups', label: 'Follow-ups', icon: 'clock' },
+    { id: 'trials', label: 'Trial conversions', icon: 'box' },
+    { section: 'Finance' },
+    { id: 'finance', label: 'Invoices', icon: 'invoice' },
+    { id: 'reports', label: 'Reports', icon: 'box' },
+    { id: 'aging', label: 'Aging receivables', icon: 'clock' },
+    { id: 'reconciliation', label: 'Reconciliation', icon: 'check' },
+    { id: 'recurring', label: 'Recurring billing', icon: 'refresh' },
+    { id: 'tax', label: 'Tax / VAT', icon: 'file' },
+    { section: 'Admin' },
+    { id: 'team', label: 'Team & roles', icon: 'lock' },
+    { id: 'settings', label: 'System settings', icon: 'settings' },
+    { id: 'health', label: 'System health', icon: 'activity' },
+    { id: 'audit', label: 'Audit log', icon: 'eye' },
+    { id: 'announcements', label: 'Announcements', icon: 'mail' },
+    { id: 'apikeys', label: 'API & webhooks', icon: 'key' },
+    { id: 'backups', label: 'Backup center', icon: 'database' },
+  ]
+
+  React.useEffect(() => {
+    loadCustomers()
+    const unsubscribe = subscribeToCustomers()
+    return unsubscribe
+  }, [loadCustomers, subscribeToCustomers])
+
+
+  const auth = useAuth()
+  const userName = auth?.user?.name || auth?.user?.email?.split('@')[0] || 'User'
   const roleLabel = roleNames[role] || role
   const HIDDEN = new Set(['calendar', 'network', 'console', 'nodes', 'topology', 'snapshots', 'maintenance', 'patches', 'firewall', 'health', 'apikeys', 'backups', 'pipeline', 'followups', 'trials'])
   const items = (role === 'Customer' ? [
@@ -114,20 +134,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
             <button key={it.id}
               className={`nav-item ${view === it.id ? 'active' : ''}`}
               onClick={() => it.id && setView(it.id)}>
-              <Icon name={it.icon || 'server'} className="nav-icon"/>
+              <Icon name={it.icon || 'server'} className="nav-icon" />
               <span>{it.label}</span>
-              {it.badge && <span className="nav-badge">{it.badge}</span>}
-            </button>
+              {it.badge !== undefined && <span className="nav-badge">{it.badge}</span>}            </button>
           )
         })}
       </nav>
       <div className="nav-user" style={{ cursor: onAccountClick ? 'pointer' : 'default' }} onClick={onAccountClick}>
-        <Avatar name={role === 'Customer' ? 'Thiri Ko' : (role === 'Admin' ? 'Min Khant' : role === 'Sales' ? 'Su Su' : role === 'Engineer' ? 'Ko Thein' : 'Daw Aye')} size={28}/>
+        <Avatar name={userName} size={28} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="who">{role === 'Customer' ? 'Thiri Ko' : (role === 'Admin' ? 'Min Khant' : role === 'Sales' ? 'Su Su' : role === 'Engineer' ? 'Ko Thein' : 'Daw Aye')}</div>
+          <div className="who">{userName}</div>
           <div className="role">{roleLabel}</div>
         </div>
-        <button className="icon-btn" title="Sign out" onClick={onLogout}><Icon name="logout" size={14}/></button>
+        <button className="icon-btn" title="Sign out" onClick={onLogout}><Icon name="logout" size={14} /></button>
       </div>
     </aside>
   )
@@ -138,26 +157,26 @@ export const Topbar: React.FC<TopbarProps> = ({ crumbs, actions, theme, setTheme
     <div className="crumbs">
       {crumbs.map((c, i) => (
         <React.Fragment key={i}>
-          {i > 0 && <Icon name="chevron-right" size={12} className="sep"/>}
+          {i > 0 && <Icon name="chevron-right" size={12} className="sep" />}
           {i === crumbs.length - 1 ? <strong>{c}</strong> : <span>{c}</span>}
         </React.Fragment>
       ))}
     </div>
-    <div className="topbar-spacer"/>
+    <div className="topbar-spacer" />
     <div className="search" onClick={onSearchClick}>
-      <Icon name="search" size={14} className="search-icon"/>
-      <input placeholder="Search VMs, customers, invoices…" readOnly style={{ cursor: 'pointer' }}/>
+      <Icon name="search" size={14} className="search-icon" />
+      <input placeholder="Search VMs, customers, invoices…" readOnly style={{ cursor: 'pointer' }} />
       <span className="kbd">⌘K</span>
     </div>
     <button className="icon-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} title="Toggle theme">
-      <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={15}/>
+      <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={15} />
     </button>
     <button className="icon-btn" onClick={onHelpClick} title="Keyboard shortcuts (?)">
       <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-3)' }}>?</span>
     </button>
     <button className="icon-btn" onClick={onBellClick} title="Notifications">
-      <Icon name="bell" size={15}/>
-      {unread && unread > 0 && <span className="dot"/>}
+      <Icon name="bell" size={15} />
+      {unread && unread > 0 && <span className="dot" />}
     </button>
     {actions}
   </div>

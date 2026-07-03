@@ -8,7 +8,7 @@ create extension if not exists "pgcrypto";
 -- Helpers to read role from JWT (used by RLS)
 create or replace function public.jwt_role()
 returns text language sql stable as $$
-  select (current_setting('request.jwt.claims', true)::jsonb -> 'app_metadata' ->> 'app_role')::text
+  select (current_setting('request.jwt.claims', true)::jsonb -> 'user_metadata' ->> 'role')::text
 $$;
 
 create or replace function public.is_admin()
@@ -64,7 +64,7 @@ create table if not exists public.customers (
   -- KYC
   nrc_or_id varchar(64),
   kyc_status varchar(16) not null default 'Pending'
-    check (kyc_status in ('Pending','Approved','Rejected','Under Review')),
+    check (kyc_status in ('Pending','Approved','Rejected')),
   nrc_front_url text,
   nrc_back_url text,
   org_cert_url text,
@@ -183,3 +183,24 @@ drop policy if exists customers_self_read on public.customers;
 create policy customers_self_read on public.customers
   for select to authenticated
   using (auth.uid() = id);
+
+
+alter table public.customers 
+add column if not exists kyc_reviewer_note text;
+
+
+alter table public.customers 
+add column if not exists kyc_reviewed_by text;
+
+alter table public.customers 
+add column if not exists kyc_reviewed_at timestamptz;
+
+
+-- Add policy to allow staff to update customer records
+create policy customers_staff_update on public.customers
+  for update to authenticated
+  using (public.is_staff())
+  with check (public.is_staff());
+
+
+alter publication supabase_realtime add table customers;

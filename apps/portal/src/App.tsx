@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import { Sidebar, Topbar } from './components/layout/Shell'
-import { AuthShell, useAuth } from './components/auth/Auth'
+import { AuthShell, TeamAuthShell, useAuth } from './components/auth/Auth'
 import Dashboard from './pages/Dashboard'
 import VMList from './pages/VMList'
 import VMDrawer from './components/vm/VMDrawer'
@@ -25,6 +25,8 @@ import { useTweaks, TweakState } from './components/common/useTweaks'
 import useAlertStore from './store/alertStore'
 import Welcome from './pages/Welcome'
 import SetupPassword from './pages/SetupPassword'
+import { TeamProvider, useTeamStore } from './store/TeamContext'
+import useCustomerStore, { CustomerProvider } from './store/customerStore'
 
 const ACCENT_MAP: Record<string, number> = {
   '#4F6FE3': 250,
@@ -34,10 +36,40 @@ const ACCENT_MAP: Record<string, number> = {
   '#C9883A': 75,
 }
 
+// Prefetch customers once at app startup so pages render without initial spinners
+const PrefetchCustomers: React.FC = () => {
+  const { loadCustomers } = useCustomerStore()
+  React.useEffect(() => {
+    loadCustomers()
+  }, [loadCustomers])
+  return null
+}
+
+// Prefetch team once at app startup so pages render without initial spinners
+const PrefetchTeam: React.FC = () => {
+  const { loadTeam } = useTeamStore()
+  React.useEffect(() => {
+    loadTeam()
+  }, [loadTeam])
+  return null
+}
+
 const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: keyof TweakState | Partial<TweakState>, value?: any) => void }) => {
   const { alerts, markAllAlertsRead } = useAlertStore()
   const auth = useAuth()
-  const [view, setView] = useState('dashboard')
+  const location = useLocation()
+  const navigate = useNavigate()
+  
+  // Extract view from URL path
+  const getPathView = () => {
+    const pathSegments = location.pathname.split('/').filter(Boolean)
+    if (pathSegments.length >= 2) {
+      return pathSegments[1] // Second segment after /admin/ or /
+    }
+    return 'dashboard'
+  }
+  
+  const [view, setView] = useState(getPathView)
   const [autoOpenQuote, setAutoOpenQuote] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const [cmdOpen, setCmdOpen] = useState(false)
@@ -58,6 +90,23 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
   const openCust = (id: string) => setDrawerCustId(id)
   const closeCustDrawer = () => setDrawerCustId(null)
 
+  const handleSetView = (newView: string) => {
+    setView(newView)
+    const basePath = location.pathname.split('/')[1] || ''
+    navigate(`/${basePath}/${newView}`, { replace: true })
+  }
+
+  // Sync view state with URL path changes
+  useEffect(() => {
+    const currentView = getPathView()
+    setView(currentView)
+    
+    // Redirect base paths to dashboard
+    if (location.pathname === '/admin' || location.pathname === '/') {
+      navigate(`${location.pathname}/dashboard`, { replace: true })
+    }
+  }, [location.pathname])
+
   // Keyboard shortcuts
   useEffect(() => {
     let gPressed = false, nPressed = false
@@ -72,7 +121,7 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
       if (e.key === 'n') { nPressed = true; gPressed = false; setTimeout(() => nPressed = false, 1200); return }
       if (gPressed) {
         const map: Record<string, string> = { d: 'dashboard', v: 'vms', c: 'customers', t: 'tasks', f: 'finance', k: 'kyc', a: 'alerts', l: 'activity', r: 'reports', s: 'settings' }
-        if (map[e.key]) { setView(map[e.key]); gPressed = false }
+        if (map[e.key]) { handleSetView(map[e.key]); gPressed = false }
         return
       }
       if (nPressed) {
@@ -143,7 +192,7 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
         <CustomerPortal setRole={(r) => setTweak('role', r)} roleNames={tw.roleNames || {}} />
       ) : (
         <>
-          <Sidebar view={view} setView={(v) => { setView(v); setNotifOpen(false) }} role={tw.role} roleNames={tw.roleNames || {}} onAccountClick={() => setView('account')} onLogout={() => auth?.signout()} />
+          <Sidebar view={view} setView={(v) => { handleSetView(v); setNotifOpen(false) }} role={tw.role} roleNames={tw.roleNames || {}} onAccountClick={() => handleSetView('account')} onLogout={() => auth?.signout()} />
           <div className="main">
             <Topbar
               crumbs={crumbs[view] || ['Dashboard']}
@@ -154,15 +203,15 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
               onHelpClick={() => { }}
               unread={unread}
             />
-            {notifOpen && <NotifPanel onAllRead={() => { markAllAlertsRead(); setNotifOpen(false) }} onViewAll={() => { setView('alerts'); setNotifOpen(false) }} />}
+            {notifOpen && <NotifPanel onAllRead={() => { markAllAlertsRead(); setNotifOpen(false) }} onViewAll={() => { handleSetView('alerts'); setNotifOpen(false) }} />}
 
-            {view === 'dashboard' && <Dashboard openVM={openVM} setView={setView} openModal={openModal} />}
+            {view === 'dashboard' && <Dashboard openVM={openVM} setView={handleSetView} openModal={openModal} />}
             {view === 'alerts' && <AlertsView />}
             {view === 'calendar' && <CalendarView openVM={openVM} />}
             {view === 'activity' && <ActivityView />}
             {view === 'vms' && <VMList openVM={openVM} openModal={openModal} />}
             {drawerVmId && <VMDrawer vmId={drawerVmId} onClose={closeDrawer} openCust={openCust} openModal={openModal} />}
-            {view === 'tasks' && <TasksView openModal={openModal} openTask={openTask} setView={setView} setAutoOpenQuote={setAutoOpenQuote} />}
+            {view === 'tasks' && <TasksView openModal={openModal} openTask={openTask} setView={handleSetView} setAutoOpenQuote={setAutoOpenQuote} />}
             {drawerTaskId && <TaskDrawer taskId={drawerTaskId} onClose={closeTaskDrawer} />}
             {view === 'network' && <NetworkView openVM={openVM} openModal={openModal} />}
             {view === 'console' && <PlaceholderView title="Web Console" description="Proxmox web console - coming soon" />}
@@ -193,10 +242,10 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
             {view === 'announcements' && <AnnouncementsView />}
             {view === 'apikeys' && <ApiKeysView openModal={openModal} />}
             {view === 'backups' && <BackupCenterView />}
-            {view === 'account' && <AccountSettingsView role={tw.role} setView={setView} />}
+            {view === 'account' && <AccountSettingsView role={tw.role} setView={handleSetView} />}
           </div>
 
-          {cmdOpen && <CommandPalette onClose={() => setCmdOpen(false)} setView={setView} openVM={openVM} openCust={openCust} openModal={openModal} />}
+          {cmdOpen && <CommandPalette onClose={() => setCmdOpen(false)} setView={handleSetView} openVM={openVM} openCust={openCust} openModal={openModal} />}
           {modalKind === 'newvm' && <NewVMModal onClose={closeModal} />}
           {modalKind === 'renew' && modalProps.vm && <RenewModal vm={modalProps.vm} onClose={closeModal} />}
           {modalKind === 'spec' && modalProps.vm && <SpecModal vm={modalProps.vm} onClose={closeModal} />}
@@ -233,17 +282,42 @@ const App = () => {
   })
 
   return (
-    <Router>
-      <Routes>
+    <>
+      <Toasts />
+      <TeamProvider>
+      <PrefetchTeam />
+      {/* Global customers provider to keep data cached across pages */}
+      <CustomerProvider>
+      <PrefetchCustomers />
+      <Router>
+        <Routes>
         <Route path="/welcome" element={<Welcome />} />
         <Route path="/setup-password" element={<SetupPassword />} />
-        <Route path="/*" element={
+        <Route path="/admin" element={
+          <TeamAuthShell setRole={(role) => setTweak('role' as keyof TweakState, role)}>
+            <AppInner tw={tw} setTweak={setTweak} />
+          </TeamAuthShell>
+        } />
+        <Route path="/admin/:view" element={
+          <TeamAuthShell setRole={(role) => setTweak('role' as keyof TweakState, role)}>
+            <AppInner tw={tw} setTweak={setTweak} />
+          </TeamAuthShell>
+        } />
+        <Route path="/" element={
+          <AuthShell setRole={(role) => setTweak('role' as keyof TweakState, role)}>
+            <AppInner tw={tw} setTweak={setTweak} />
+          </AuthShell>
+        } />
+        <Route path="/:view" element={
           <AuthShell setRole={(role) => setTweak('role' as keyof TweakState, role)}>
             <AppInner tw={tw} setTweak={setTweak} />
           </AuthShell>
         } />
       </Routes>
     </Router>
+    </CustomerProvider>
+    </TeamProvider>
+    </>
   )
 }
 

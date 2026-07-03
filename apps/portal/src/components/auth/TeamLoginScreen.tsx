@@ -4,14 +4,9 @@ import Icon from '../../lib/icons'
 import { supabase } from '../../lib/supabase'
 import { AuthLayout } from './shared/AuthLayout'
 
-interface LoginScreenProps {
-  onSwitchToSignup: () => void
-  prefillEmail: string
-}
-
-const LoginScreen: React.FC<LoginScreenProps> = ({ onSwitchToSignup, prefillEmail }) => {
+const TeamLoginScreen: React.FC = () => {
   const { toast } = useUIStore()
-  const [f, setF] = useState({ email: prefillEmail || '', password: '', remember: true })
+  const [f, setF] = useState({ email: '', password: '', remember: true })
   const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
 
@@ -19,7 +14,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onSwitchToSignup, prefillEmai
     e?.preventDefault()
     setLoading(true)
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: f.email,
       password: f.password,
     })
@@ -28,7 +23,19 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onSwitchToSignup, prefillEmai
       toast(error.message, 'bad')
       setLoading(false)
     } else {
-      setLoading(false)
+      // Validate role immediately after login
+      const userData = data.user?.user_metadata
+      const userRole = userData?.role || 'Admin'
+      const allowedRoles = ['Admin', 'Sales', 'Engineer', 'Finance']
+      
+      if (!allowedRoles.includes(userRole)) {
+        await supabase.auth.signOut()
+        toast('Invalid login credentials', 'bad')
+        setLoading(false)
+        return
+      }
+      
+      toast('Welcome back!', 'ok')
     }
   }
 
@@ -37,8 +44,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onSwitchToSignup, prefillEmai
       <div style={{ width: 'min(420px, 100%)' }}>
         <div className="text-center mb-4">
           <div className="brand-mark" style={{ width: 48, height: 48, fontSize: 22, margin: '0 auto 16px', borderRadius: 12 }}>V</div>
-          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em' }}>Welcome back</h1>
-          <p className="text-sm text-mute mt-2">Sign in to your VPS Myanmar account</p>
+          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em' }}>Team Login</h1>
+          <p className="text-sm text-mute mt-2">Sign in to your VPS Myanmar team account</p>
         </div>
 
         <form onSubmit={submit} className="card">
@@ -72,11 +79,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onSwitchToSignup, prefillEmai
         </form>
 
         <div className="text-center text-sm text-mute mt-3">
-          New to VPS Myanmar? <a onClick={onSwitchToSignup} style={{ color: 'var(--accent-strong)', cursor: 'pointer', fontWeight: 600 }}>Create an account</a>
+          Team members receive invite links via email. Contact your administrator if you need access.
         </div>
       </div>
     </AuthLayout>
   )
 }
 
-export { LoginScreen }
+export { TeamLoginScreen }

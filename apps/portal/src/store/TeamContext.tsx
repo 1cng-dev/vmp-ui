@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, createContext, useContext, ReactNode } from 'react'
 import { supabase, supabaseAdmin } from '../lib/supabase'
 import type { TeamMember } from '../types'
 
@@ -20,43 +20,55 @@ const formatDate = (dateString: string): string => {
 
 export interface TeamStoreValue {
   team: TeamMember[]
+  teamLoading: boolean
   loadTeam: () => Promise<void>
   addMember: (member: Omit<TeamMember, 'id' | 'last' | 'status'>) => Promise<void>
   updateMember: (id: string, patch: any) => Promise<void>
   removeMember: (id: string) => Promise<void>
+  resetPassword: (id: string, password: string) => Promise<void>
+  subscribeToTeam: () => () => void
 }
 
-const useTeamStore = (): TeamStoreValue => {
+const TeamContext = createContext<TeamStoreValue | null>(null)
+
+export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [team, setTeam] = useState<TeamMember[]>([])
+  const [teamLoading, setTeamLoading] = useState(false)
 
   const loadTeam = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('team_members')
-      .select('*')
-      .order('created_at', { ascending: false })
-    
-    if (error) {
-      console.error('Failed to load team:', error)
-      return
+    const shouldShowSpinner = team.length === 0
+    try {
+      if (shouldShowSpinner) setTeamLoading(true)
+      const { data, error } = await supabase
+        .from('team_members')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('Failed to load team:', error)
+        return
+      }
+
+      // Map database fields to interface fields and format last_login_at
+      const mappedData = (data || []).map(member => ({
+        ...member,
+        id: member.user_id,
+        last: member.last_login_at ? formatDate(member.last_login_at) : '-'
+      }))
+
+      setTeam(mappedData)
+    } finally {
+      if (shouldShowSpinner) setTeamLoading(false)
     }
-    
-    // Map database fields to interface fields and format last_login_at
-    const mappedData = (data || []).map(member => ({
-      ...member,
-      id: member.user_id,
-      last: member.last_login_at ? formatDate(member.last_login_at) : '-'
-    }))
-    
-    setTeam(mappedData)
-  }, [])
+  }, [team.length])
 
   const addMember = useCallback(async (member: any) => {
     const authUser = await supabase.auth.getUser()
     const invitedBy = authUser.data.user?.id
-    
+
     // Generate temporary password (user never sees this)
     const tempPassword = Math.random().toString(36).slice(-12)
-    
+
     // Create Supabase auth user first
     const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
       email: member.email,
@@ -68,17 +80,17 @@ const useTeamStore = (): TeamStoreValue => {
         name: member.name
       }
     })
-    
+
     if (userError) {
       console.error('Failed to create auth user:', userError)
       throw userError
     }
-    
+
     const userId = userData.user.id
-    
+
     // Generate invite token
     const inviteToken = crypto.randomUUID()
-    
+
     // Create team_members record with the user_id
     const { data, error } = await supabase
       .from('team_members')
@@ -95,18 +107,18 @@ const useTeamStore = (): TeamStoreValue => {
       })
       .select()
       .single()
-    
+
     if (error) {
       console.error('Failed to add member:', error)
       throw error
     }
-    
+
     // Generate invite token and direct link
     const inviteLink = `${window.location.origin}/setup-password?token=${inviteToken}`
     console.log('Invite token generated:', inviteToken)
     console.log('Direct invite link:', inviteLink)
     console.log('About to save to database with user_id:', userId, 'and invite_token:', inviteToken)
-    
+
     // Call Edge Function to send Resend email with direct link
     const { error: emailError } = await supabase.functions.invoke('send-invite', {
       body: {
@@ -118,12 +130,12 @@ const useTeamStore = (): TeamStoreValue => {
         inviteLink: inviteLink // Send direct link to edge function
       }
     })
-    
+
     if (emailError) {
       console.error('Failed to send invite email:', emailError)
       throw emailError
     }
-    
+
     await loadTeam()
     console.log('Team reloaded after invite')
   }, [loadTeam])
@@ -133,36 +145,86 @@ const useTeamStore = (): TeamStoreValue => {
       .from('team_members')
       .update(patch)
       .eq('user_id', id)
-    
+
     if (error) {
       console.error('Failed to update member:', error)
       throw error
     }
-    
+
     await loadTeam()
   }, [loadTeam])
 
   const removeMember = useCallback(async (id: string) => {
-    const { error } = await supabase
+    // Delete from team_members table first
+    const { error: dbError } = await supabase
       .from('team_members')
       .delete()
       .eq('user_id', id)
-    
-    if (error) {
-      console.error('Failed to remove member:', error)
-      throw error
+
+    if (dbError) {
+      console.error('Failed to remove member from team_members:', dbError)
+      throw dbError
     }
-    
+
+    // Delete from auth.users using admin client
+    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(id)
+
+    if (authError) {
+      console.error('Failed to delete auth user:', authError)
+      throw authError
+    }
+
     await loadTeam()
   }, [loadTeam])
 
-  return {
+
+  const resetPassword = useCallback(async (id: string, password: string) => {
+    // Update user's password using admin client with admin-provided password
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(id, {
+      password: password
+    })
+
+    if (error) {
+      console.error('Failed to reset password:', error)
+      throw error
+    }
+  }, [])
+
+  const subscribeToTeam = useCallback(() => {
+    const channelName = `team-changes-${Date.now()}`
+    const subscription = supabase
+      .channel(channelName)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members' }, () => {
+        loadTeam()
+      })
+      .subscribe()
+
+    return () => subscription.unsubscribe()
+  }, [loadTeam])
+
+  const value: TeamStoreValue = {
     team,
+    teamLoading,
     loadTeam,
     addMember,
     updateMember,
     removeMember,
+    resetPassword,
+    subscribeToTeam,
   }
+
+  return (
+    <TeamContext.Provider value={value}>
+      {children}
+    </TeamContext.Provider>
+  )
 }
 
-export default useTeamStore
+export const useTeamStore = (): TeamStoreValue => {
+  const context = useContext(TeamContext)
+  if (!context) {
+    throw new Error('useTeamStore must be used within TeamProvider')
+  }
+  return context
+}
+

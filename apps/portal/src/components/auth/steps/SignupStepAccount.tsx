@@ -20,7 +20,7 @@ const SignupStepAccount: React.FC<SignupStepAccountProps> = ({ f, set }) => (
     <div className="field"><label>Full name <span style={{ color: 'red' }}>*</span></label><input value={f.name} onChange={e => set('name', e.target.value)} placeholder="As it appears on your ID" autoFocus /></div>
     <div className="field"><label>Email <span style={{ color: 'red' }}>*</span></label><input type="email" value={f.email} onChange={e => set('email', e.target.value)} placeholder="you@company.com" /></div>
     <div className="grid-2" style={{ gap: 10 }}>
-      <div className="field"><label>Password <span style={{ color: 'red' }}>*</span></label><input type="password" value={f.password} onChange={e => set('password', e.target.value)} placeholder="At least 8 characters" /></div>
+      <div className="field"><label>Password <span style={{ color: 'red' }}>*</span></label><input type="password" value={f.password} onChange={e => set('password', e.target.value)} placeholder="At least 8 chars, 1 uppercase, 1 special" /></div>
       <div className="field"><label>Confirm password <span style={{ color: 'red' }}>*</span></label><input type="password" value={f.confirmPassword} onChange={e => set('confirmPassword', e.target.value)} /></div>
     </div>
     <div className="field">

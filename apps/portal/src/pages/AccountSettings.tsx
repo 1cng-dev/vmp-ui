@@ -1,10 +1,11 @@
 // Account Settings — editable user profile with save (write)
 
 import React, { useState, useEffect } from 'react'
-import useTeamStore from '../store/teamStore'
 import useUIStore from '../store/uiStore'
+import { useAuth } from '../components/auth/Auth'
 import Icon from '../lib/icons'
 import { Avatar } from '../components/ui/ui'
+import { supabase } from '@/lib/supabase'
 
 interface AccountSettingsViewProps {
   role: string
@@ -12,26 +13,20 @@ interface AccountSettingsViewProps {
 }
 
 export const AccountSettingsView: React.FC<AccountSettingsViewProps> = ({ role }) => {
-  const { team, updateMember } = useTeamStore()
   const { toast } = useUIStore()
+  const { signout, user: me } = useAuth() || { signout: () => { }, user: null }
 
-  // Map current role to a team member identity
-  const meByRole: Record<string, any> = {
-    'Admin': team.find((t: any) => t.role === 'Admin'),
-    'Sales': team.find((t: any) => t.role === 'Sales'),
-    'Engineer': team.find((t: any) => t.role === 'Engineer'),
-    'Finance': team.find((t: any) => t.role === 'Finance'),
-  }
-  const me = meByRole[role] || team[0]
 
   const [profile, setProfile] = useState({
-    name: me.name,
-    email: me.email,
-    phone: '+95 9 9988 1122',
-    title: role === 'Admin' ? 'Operations Lead' : role === 'Sales' ? 'Senior Account Manager' : role === 'Engineer' ? 'Senior Engineer' : 'Finance Manager',
-    timezone: 'Asia/Yangon',
-    language: 'English',
+    name: me?.name || 'User',
+    email: me?.email || '',
   })
+
+  const [showCurrentPw, setShowCurrentPw] = useState(false)
+  const [showPw, setShowPw] = useState(false)
+  const [showConfirmPw, setShowConfirmPw] = useState(false)
+
+
   const [security, setSecurity] = useState({
     twoFA: true, sessionTimeout: 30, currentPassword: '', newPassword: '', confirmPassword: '',
   })
@@ -43,19 +38,59 @@ export const AccountSettingsView: React.FC<AccountSettingsViewProps> = ({ role }
     densityCompact: false, showOnboarding: false, defaultLanding: 'dashboard',
   })
 
-  useEffect(() => { setProfile(p => ({ ...p, name: me.name, email: me.email })); }, [me.id])
+  useEffect(() => { if (me?.id) setProfile(p => ({ ...p, name: me.name, email: me.email })); }, [me?.id])
 
-  const saveProfile = () => {
-    updateMember(me.id, { name: profile.name, email: profile.email })
-    toast('Profile updated', 'ok')
+  const saveProfile = async () => {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        data: { name: profile.name }
+      })
+      if (error) throw error
+      toast('Profile updated', 'ok')
+    } catch (error) {
+      toast('Failed to update profile', 'bad')
+      console.error('Profile update error:', error)
+    }
   }
-  const savePassword = () => {
+
+  const savePassword = async () => {
     if (!security.currentPassword) return toast('Enter current password', 'warn')
     if (security.newPassword.length < 8) return toast('Password must be at least 8 characters', 'warn')
+    if (!/[A-Z]/.test(security.newPassword)) return toast('Password must contain at least one uppercase letter', 'warn')
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(security.newPassword)) return toast('Password must contain at least one special character', 'warn')
     if (security.newPassword !== security.confirmPassword) return toast('Passwords do not match', 'bad')
-    setSecurity(s => ({ ...s, currentPassword: '', newPassword: '', confirmPassword: '' }))
-    toast('Password changed · email confirmation sent', 'ok')
+
+    try {
+      // Get current user's email from session
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user?.email) {
+        toast('Unable to verify user email', 'bad')
+        return
+      }
+
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: security.currentPassword
+      })
+
+      if (signInError) {
+        toast('Current password is incorrect', 'bad')
+        return
+      }
+
+      // If current password is correct, update to new password
+      const { error } = await supabase.auth.updateUser({
+        password: security.newPassword
+      })
+      if (error) throw error
+      setSecurity(s => ({ ...s, currentPassword: '', newPassword: '', confirmPassword: '' }))
+      toast('Password changed successfully', 'ok')
+    } catch (error) {
+      toast('Failed to change password', 'bad')
+      console.error('Password update error:', error)
+    }
   }
+
   const saveSecurity = () => toast('Security settings saved', 'ok')
   const saveNotif = () => toast('Notification preferences saved', 'ok')
   const savePrefs = () => toast('Preferences saved', 'ok')
@@ -73,16 +108,15 @@ export const AccountSettingsView: React.FC<AccountSettingsViewProps> = ({ role }
       <div className="card mb-4">
         <div className="card-body">
           <div className="flex center gap-3">
-            <Avatar name={profile.name} size={64}/>
+            <Avatar name={profile.name} size={64} />
             <div style={{ flex: 1 }}>
               <div className="fw-7" style={{ fontSize: 18 }}>{profile.name}</div>
-              <div className="text-sm text-mute">{profile.title} · {role}</div>
+              <div className="text-sm text-mute">{role}</div>
               <div className="text-xs text-mute mt-1">{profile.email}</div>
             </div>
             <div className="flex gap-2">
-              <button className="btn" onClick={() => toast('Avatar upload opened', 'info')}><Icon name="edit" size={12}/>Change avatar</button>
-              <button className="btn danger" onClick={() => toast('Signed out', 'info')}><Icon name="logout" size={12}/>Sign out</button>
-            </div>
+              {/* <button className="btn" onClick={() => toast('Avatar upload opened', 'info')}><Icon name="edit" size={12} />Change avatar</button> */}
+              <button className="btn danger" onClick={signout}><Icon name="logout" size={12} />Sign out</button>            </div>
           </div>
         </div>
       </div>
@@ -92,20 +126,12 @@ export const AccountSettingsView: React.FC<AccountSettingsViewProps> = ({ role }
         <div className="card">
           <div className="card-head">
             <h3 className="card-title">Profile</h3>
-            <button className="btn sm accent" onClick={saveProfile}><Icon name="check" size={11}/>Save profile</button>
+            <button className="btn sm accent" onClick={saveProfile}><Icon name="check" size={11} />Save profile</button>
           </div>
           <div className="card-body">
             <div className="flex col gap-3">
-              <div className="grid-2" style={{ gap: 12 }}>
-                <div className="field"><label>Full name</label><input value={profile.name} onChange={e => setProfile({ ...profile, name: e.target.value })}/></div>
-                <div className="field"><label>Job title</label><input value={profile.title} onChange={e => setProfile({ ...profile, title: e.target.value })}/></div>
-              </div>
-              <div className="field"><label>Work email</label><input type="email" value={profile.email} onChange={e => setProfile({ ...profile, email: e.target.value })}/></div>
-              <div className="field"><label>Phone</label><input value={profile.phone} onChange={e => setProfile({ ...profile, phone: e.target.value })} style={{ fontFamily: 'var(--mono)' }}/></div>
-              <div className="grid-2" style={{ gap: 12 }}>
-                <div className="field"><label>Timezone</label><select value={profile.timezone} onChange={e => setProfile({ ...profile, timezone: e.target.value })}><option>Asia/Yangon</option><option>Asia/Bangkok</option><option>Asia/Singapore</option><option>UTC</option></select></div>
-                <div className="field"><label>Language</label><select value={profile.language} onChange={e => setProfile({ ...profile, language: e.target.value })}><option>English</option><option>မြန်မာ (Burmese)</option></select></div>
-              </div>
+              <div className="field"><label>Full name</label><input value={profile.name} onChange={e => setProfile({ ...profile, name: e.target.value })} /></div>
+              <div className="field"><label>Email</label><input type="email" value={profile.email} disabled className='disabled' /></div>
             </div>
           </div>
         </div>
@@ -114,37 +140,78 @@ export const AccountSettingsView: React.FC<AccountSettingsViewProps> = ({ role }
         <div className="card">
           <div className="card-head">
             <h3 className="card-title">Security</h3>
-            <button className="btn sm accent" onClick={saveSecurity}><Icon name="check" size={11}/>Save</button>
+            {/* <button className="btn sm accent" onClick={saveSecurity}><Icon name="check" size={11} />Save</button> */}
           </div>
           <div className="card-body">
             <div className="flex col gap-3">
-              <div className="flex center between">
+              {/* <div className="flex center between">
                 <div>
                   <div className="fw-6 text-sm">Two-factor auth</div>
                   <div className="text-xs text-mute">Authenticator app required at login</div>
                 </div>
-                <span className={`toggle ${security.twoFA ? 'on' : ''}`} onClick={() => setSecurity({ ...security, twoFA: !security.twoFA })}/>
-              </div>
-              <div className="field">
+                <span className={`toggle ${security.twoFA ? 'on' : ''}`} onClick={() => setSecurity({ ...security, twoFA: !security.twoFA })} />
+              </div> */}
+              {/* <div className="field">
                 <label>Auto-logout (minutes)</label>
-                <input type="number" value={security.sessionTimeout} onChange={e => setSecurity({ ...security, sessionTimeout: +e.target.value })} min="5" max="240"/>
-              </div>
-              <div className="divider"/>
+                <input type="number" value={security.sessionTimeout} onChange={e => setSecurity({ ...security, sessionTimeout: +e.target.value })} min="5" max="240" />
+              </div> */}
+              {/* <div className="divider" /> */}
               <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Change password</div>
-              <div className="field"><label>Current password</label><input type="password" value={security.currentPassword} onChange={e => setSecurity({ ...security, currentPassword: e.target.value })} placeholder="••••••••"/></div>
-              <div className="grid-2" style={{ gap: 12 }}>
-                <div className="field"><label>New password</label><input type="password" value={security.newPassword} onChange={e => setSecurity({ ...security, newPassword: e.target.value })} placeholder="At least 8 characters"/></div>
-                <div className="field"><label>Confirm new</label><input type="password" value={security.confirmPassword} onChange={e => setSecurity({ ...security, confirmPassword: e.target.value })}/></div>
+              <div className="field">
+                <label>Current password</label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showCurrentPw ? 'text' : 'password'}
+                    value={security.currentPassword}
+                    onChange={e => setSecurity({ ...security, currentPassword: e.target.value })}
+                    placeholder="••••••••"
+                    style={{ paddingRight: 36, width: '100%' }}
+                  />
+                  <button type="button" className="icon-btn" onClick={() => setShowCurrentPw(!showCurrentPw)} style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', width: 28, height: 28 }}>
+                    <Icon name="eye" size={13} />
+                  </button>
+                </div>
               </div>
-              <button className="btn" onClick={savePassword}><Icon name="key" size={12}/>Update password</button>
-              <div className="divider"/>
+              <div className="grid-2" style={{ gap: 12 }}>
+                <div className="field">
+                  <label>New password</label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showPw ? 'text' : 'password'}
+                      value={security.newPassword}
+                      onChange={e => setSecurity({ ...security, newPassword: e.target.value })}
+                      placeholder="At least 8 chars, 1 uppercase, 1 special"
+                      style={{ paddingRight: 36, width: '100%' }}
+                    />
+                    <button type="button" className="icon-btn" onClick={() => setShowPw(!showPw)} style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', width: 28, height: 28 }}>
+                      <Icon name="eye" size={13} />
+                    </button>
+                  </div>
+                </div>
+                <div className="field">
+                  <label>Confirm new</label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showConfirmPw ? 'text' : 'password'}
+                      value={security.confirmPassword}
+                      onChange={e => setSecurity({ ...security, confirmPassword: e.target.value })}
+                      style={{ paddingRight: 36, width: '100%' }}
+                    />
+                    <button type="button" className="icon-btn" onClick={() => setShowConfirmPw(!showConfirmPw)} style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', width: 28, height: 28 }}>
+                      <Icon name="eye" size={13} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <button className="btn" onClick={savePassword}><Icon name="key" size={12} />Update password</button>
+              {/* <div className="divider" />
               <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Active sessions</div>
               <div className="flex center between text-sm">
                 <div>
                   <div className="fw-6">Chrome · macOS · Yangon</div>
                   <div className="text-xs text-mute">Current session · 203.81.64.10</div>
                 </div>
-                <span className="pill ok"><span className="dot"/>This device</span>
+                <span className="pill ok"><span className="dot" />This device</span>
               </div>
               <div className="flex center between text-sm">
                 <div>
@@ -152,7 +219,8 @@ export const AccountSettingsView: React.FC<AccountSettingsViewProps> = ({ role }
                   <div className="text-xs text-mute">2 days ago · 203.81.64.42</div>
                 </div>
                 <button className="btn sm danger" onClick={() => toast('Session revoked', 'bad')}>Revoke</button>
-              </div>
+              </div> */}
+
             </div>
           </div>
         </div>
@@ -163,7 +231,7 @@ export const AccountSettingsView: React.FC<AccountSettingsViewProps> = ({ role }
         <div className="card">
           <div className="card-head">
             <h3 className="card-title">Notification preferences</h3>
-            <button className="btn sm accent" onClick={saveNotif}><Icon name="check" size={11}/>Save</button>
+            <button className="btn sm accent" onClick={saveNotif}><Icon name="check" size={11} />Save</button>
           </div>
           <div className="card-body">
             <div className="flex col gap-3">
@@ -176,13 +244,13 @@ export const AccountSettingsView: React.FC<AccountSettingsViewProps> = ({ role }
               ].map(([key, label]) => (
                 <div key={key} className="flex center between">
                   <span className="text-sm">{label}</span>
-                  <span className={`toggle ${(notif as any)[key] ? 'on' : ''}`} onClick={() => setNotif({ ...notif, [key]: !(notif as any)[key] })}/>
+                  <span className={`toggle ${(notif as any)[key] ? 'on' : ''}`} onClick={() => setNotif({ ...notif, [key]: !(notif as any)[key] })} />
                 </div>
               ))}
-              <div className="divider"/>
+              <div className="divider" />
               <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>In-app</div>
-              <div className="flex center between"><span className="text-sm">Show all in-app notifications</span><span className={`toggle ${notif.inappAll ? 'on' : ''}`} onClick={() => setNotif({ ...notif, inappAll: !notif.inappAll })}/></div>
-              <div className="flex center between"><span className="text-sm">Weekly digest email (Mondays)</span><span className={`toggle ${notif.weeklyDigest ? 'on' : ''}`} onClick={() => setNotif({ ...notif, weeklyDigest: !notif.weeklyDigest })}/></div>
+              <div className="flex center between"><span className="text-sm">Show all in-app notifications</span><span className={`toggle ${notif.inappAll ? 'on' : ''}`} onClick={() => setNotif({ ...notif, inappAll: !notif.inappAll })} /></div>
+              <div className="flex center between"><span className="text-sm">Weekly digest email (Mondays)</span><span className={`toggle ${notif.weeklyDigest ? 'on' : ''}`} onClick={() => setNotif({ ...notif, weeklyDigest: !notif.weeklyDigest })} /></div>
             </div>
           </div>
         </div>
@@ -191,17 +259,17 @@ export const AccountSettingsView: React.FC<AccountSettingsViewProps> = ({ role }
         <div className="card">
           <div className="card-head">
             <h3 className="card-title">Preferences</h3>
-            <button className="btn sm accent" onClick={savePrefs}><Icon name="check" size={11}/>Save</button>
+            <button className="btn sm accent" onClick={savePrefs}><Icon name="check" size={11} />Save</button>
           </div>
           <div className="card-body">
             <div className="flex col gap-3">
               <div className="flex center between">
                 <div><div className="fw-6 text-sm">Compact density</div><div className="text-xs text-mute">Tighter table rows and cards</div></div>
-                <span className={`toggle ${prefs.densityCompact ? 'on' : ''}`} onClick={() => setPrefs({ ...prefs, densityCompact: !prefs.densityCompact })}/>
+                <span className={`toggle ${prefs.densityCompact ? 'on' : ''}`} onClick={() => setPrefs({ ...prefs, densityCompact: !prefs.densityCompact })} />
               </div>
               <div className="flex center between">
                 <div><div className="fw-6 text-sm">Show onboarding tips</div><div className="text-xs text-mute">Tooltips and feature highlights</div></div>
-                <span className={`toggle ${prefs.showOnboarding ? 'on' : ''}`} onClick={() => setPrefs({ ...prefs, showOnboarding: !prefs.showOnboarding })}/>
+                <span className={`toggle ${prefs.showOnboarding ? 'on' : ''}`} onClick={() => setPrefs({ ...prefs, showOnboarding: !prefs.showOnboarding })} />
               </div>
               <div className="field">
                 <label>Default landing page</label>
@@ -213,10 +281,10 @@ export const AccountSettingsView: React.FC<AccountSettingsViewProps> = ({ role }
                   <option value="finance">Invoices</option>
                 </select>
               </div>
-              <div className="divider"/>
+              <div className="divider" />
               <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Data</div>
-              <button className="btn" onClick={() => toast('Account export queued · email link will arrive shortly', 'info')}><Icon name="download" size={12}/>Download my data</button>
-              <button className="btn danger" onClick={() => toast('Account deletion request submitted to admin', 'bad')}><Icon name="trash" size={12}/>Delete account</button>
+              <button className="btn" onClick={() => toast('Account export queued · email link will arrive shortly', 'info')}><Icon name="download" size={12} />Download my data</button>
+              <button className="btn danger" onClick={() => toast('Account deletion request submitted to admin', 'bad')}><Icon name="trash" size={12} />Delete account</button>
             </div>
           </div>
         </div>

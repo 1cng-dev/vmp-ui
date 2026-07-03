@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import useAuthStore from '../../store/authStore'
+import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { SignupStepAccount } from './steps/SignupStepAccount'
 import { SignupStepIndividual } from './steps/SignupStepIndividual'
@@ -45,6 +46,7 @@ interface SignupFormState {
 
 const SignupScreen: React.FC<{ onComplete: (email: string) => void; onSwitchToLogin: () => void }> = ({ onComplete, onSwitchToLogin }) => {
   const { signUp } = useAuthStore()
+  const { toast } = useUIStore()
   const [step, setStep] = useState(1)
   const [f, setF] = useState<SignupFormState>({
     name: '', email: '', password: '', confirmPassword: '',
@@ -59,9 +61,8 @@ const SignupScreen: React.FC<{ onComplete: (email: string) => void; onSwitchToLo
     paymentMethod: 'KBZ Pay', payerName: '', payerPhone: '',
     agreedToTerms: false,
   })
-  const [err, setErr] = useState('')
   const [loading, setLoading] = useState(false)
-  const set = (k: string, v: any) => { setF(x => ({ ...x, [k]: v })); setErr('') }
+  const set = (k: string, v: any) => { setF(x => ({ ...x, [k]: v })) }
 
   const totalSteps = 5
   const stepLabels = ['Account', f.type === 'Individual' ? 'Personal info' : 'Organization', 'Address', 'KYC', 'Payment']
@@ -70,6 +71,8 @@ const SignupScreen: React.FC<{ onComplete: (email: string) => void; onSwitchToLo
     if (!f.name.trim()) return 'Enter your name'
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) return 'Enter a valid email'
     if (f.password.length < 8) return 'Password must be at least 8 characters'
+    if (!/[A-Z]/.test(f.password)) return 'Password must contain at least one uppercase letter'
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(f.password)) return 'Password must contain at least one special character'
     if (f.password !== f.confirmPassword) return 'Passwords do not match'
     return null
   }
@@ -95,15 +98,14 @@ const SignupScreen: React.FC<{ onComplete: (email: string) => void; onSwitchToLo
 
   const next = async () => {
     const v = validators[step]?.()
-    if (v) { setErr(v); return }
+    if (v) { toast(v, 'bad'); return }
     if (step < totalSteps) setStep(step + 1)
     else await submit()
   }
 
   const submit = async () => {
     setLoading(true)
-    setErr('')
-    
+
     const result = await signUp({
       email: f.email,
       password: f.password,
@@ -143,13 +145,13 @@ const SignupScreen: React.FC<{ onComplete: (email: string) => void; onSwitchToLo
         dirIdFile: f.dirIdFile,
       }
     })
-    
+
     if (!result.success) {
-      setErr(result.error || 'Failed to create account')
+      toast(result.error || 'Failed to create account', 'bad')
       setLoading(false)
       return
     }
-    
+
     setLoading(false)
     onComplete(f.email)
   }
@@ -249,13 +251,6 @@ const SignupScreen: React.FC<{ onComplete: (email: string) => void; onSwitchToLo
               <div style={{ width: `${(step / totalSteps) * 100}%`, height: '100%', background: 'var(--accent)', transition: 'width 0.4s' }}/>
             </div>
 
-            {err && (
-              <div style={{ padding: '12px 14px', background: 'var(--bad-soft)', color: 'var(--bad)', borderRadius: 8, fontSize: 12.5, marginBottom: 16, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                <Icon name="alert" size={14} style={{ marginTop: 1, flexShrink: 0 }}/>
-                <div>{err}</div>
-              </div>
-            )}
-
             <div className="card" style={{ animation: 'fadeIn 0.25s ease-out' }}>
               <div className="card-body" style={{ padding: 28 }}>
                 {step === 1 && <SignupStepAccount f={f} set={set}/>}
@@ -267,9 +262,9 @@ const SignupScreen: React.FC<{ onComplete: (email: string) => void; onSwitchToLo
             </div>
 
             <div className="flex gap-2 mt-4">
-              {step > 1 && <button className="btn" onClick={() => setStep(step - 1)}><Icon name="chevron-left" size={11}/>Back</button>}
+              {step > 1 && <button className="btn" onClick={() => setStep(step - 1)} disabled={loading}><Icon name="chevron-left" size={11}/>Back</button>}
               <div style={{ flex: 1 }}/>
-              <button className="btn ghost" onClick={onSwitchToLogin}>Cancel</button>
+              <button className="btn ghost" onClick={onSwitchToLogin} disabled={loading}>Cancel</button>
               <button className="btn primary" onClick={next} disabled={loading} style={{ padding: '9px 18px', fontSize: 13 }}>
                 {loading ? 'Creating account...' : step < totalSteps ? <>Continue<Icon name="chevron-right" size={11}/></> : <><Icon name="check" size={12}/>Create account</>}
               </button>

@@ -3,9 +3,13 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase, supabaseAdmin } from '../lib/supabase'
 import Icon from '../lib/icons'
 import { AuthLayout } from '../components/auth/shared/AuthLayout'
+import useUIStore from '../store/uiStore'
+import { useTeamStore } from '../store/TeamContext'
 
 const SetupPassword = () => {
   const navigate = useNavigate()
+  const { toast } = useUIStore()
+  const { loadTeam } = useTeamStore()
   const [searchParams] = useSearchParams()
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -19,78 +23,105 @@ const SetupPassword = () => {
   useEffect(() => {
     const validateInvite = async () => {
       const token = searchParams.get('token')
-      
+      console.log('Setup password - token from URL:', token)
+
       if (!token) {
-        setErr('Invalid invite link')
+        console.log('No token found in URL')
+        toast('Invalid invite link', 'bad')
         setValidating(false)
         return
       }
 
       // Validate invite token
-      const { data: memberData, error: memberError } = await supabase
+      const { data: memberData, error: memberError } = await supabaseAdmin
         .from('team_members')
         .select('*')
         .eq('invite_token', token)
         .single()
 
+      console.log('Member data:', memberData)
+      console.log('Member error:', memberError)
+
       if (memberError || !memberData) {
-        setErr('Invalid or expired invite link')
+        console.log('Validation failed - memberError:', memberError, 'memberData:', memberData)
+        toast('Invalid or expired invite link', 'bad')
         setValidating(false)
         return
       }
 
       // Check if invite expired
       if (memberData.invite_expires_at && new Date(memberData.invite_expires_at) < new Date()) {
-        setErr('Invite link has expired')
+        console.log('Invite expired')
+        toast('Invite link has expired', 'bad')
         setValidating(false)
         return
       }
 
       // Check if already accepted
       if (memberData.accepted_at) {
-        setErr('This invite has already been accepted')
+        console.log('Invite already accepted')
+        toast('This invite has already been accepted', 'bad')
         setValidating(false)
         return
       }
 
+      console.log('Validation successful, member:', memberData)
       setMember(memberData)
       setValidating(false)
     }
 
     validateInvite()
-  }, [searchParams])
+  }, [searchParams, toast])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setErr('')
-    
+
     if (password !== confirmPassword) {
-      setErr('Passwords do not match')
+      toast('Passwords do not match', 'bad')
       return
     }
 
     if (password.length < 8) {
-      setErr('Password must be at least 8 characters')
+      toast('Password must be at least 8 characters', 'bad')
+      return
+    }
+    if (!/[A-Z]/.test(password)) {
+      toast('Password must contain at least one uppercase letter', 'bad')
+      return
+    }
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+      toast('Password must contain at least one special character', 'bad')
       return
     }
 
     setLoading(true)
 
     try {
+      console.log('Updating password for user:', member.user_id)
+
       // Update the auth user's password using admin client
       await supabaseAdmin.auth.admin.updateUserById(member.user_id, {
         password: password
       })
 
-      // Update team_members record
-      await supabase
+
+      // Update team_members record to mark as Active and accepted
+      const { error: updateError } = await supabaseAdmin
         .from('team_members')
-        .update({ 
+        .update({
           status: 'Active',
           accepted_at: new Date().toISOString(),
           last_login_at: new Date().toISOString()
         })
-        .eq('id', member.id)
+        .eq('invite_token', member.invite_token)
+
+      if (updateError) {
+        console.error('Failed to update team_members status:', updateError)
+        throw new Error('Failed to update status: ' + updateError.message)
+      }
+
+      console.log('Status updated successfully')
 
       // Sign in with the new password
       await supabase.auth.signInWithPassword({
@@ -98,9 +129,16 @@ const SetupPassword = () => {
         password: password
       })
 
+      console.log('Login successful, now reloading team data')
+
+      // Reload team data after authentication to update Context state
+      await loadTeam()
+
+      console.log('Team data reloaded, navigating to admin')
       navigate('/admin')
     } catch (error: any) {
-      setErr('Failed to set password: ' + error.message)
+      console.error('Error in handleSubmit:', error)
+      toast('Failed to set password: ' + error.message, 'bad')
     } finally {
       setLoading(false)
     }
@@ -108,24 +146,25 @@ const SetupPassword = () => {
 
   if (validating) {
     return (
-      <div className="content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-        <div className="card" style={{ maxWidth: 400, textAlign: 'center' }}>
-          <h2 className="card-title">Validating invite...</h2>
-          <p className="text-mute">Please wait</p>
+      <AuthLayout>
+        <div style={{ width: 'min(420px, 100%)', textAlign: 'center' }}>
+          <div className="brand-mark" style={{ width: 48, height: 48, fontSize: 22, margin: '0 auto 16px', borderRadius: 12 }}>V</div>
+          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em' }}>Validating invite...</h1>
+          <p className="text-sm text-mute mt-2">Please wait while we verify your invitation</p>
+          <div style={{ marginTop: 24, padding: '16px', background: 'var(--accent-soft)', borderRadius: 8, border: '1px solid var(--accent)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'center' }}>
+              <div style={{ width: 20, height: 20, border: '2px solid var(--accent)', borderTop: '2px solid transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+              <span style={{ fontSize: 13, color: 'var(--accent-strong)', fontWeight: 500 }}>Verifying your invitation</span>
+            </div>
+          </div>
+          <style>{`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}</style>
         </div>
-      </div>
-    )
-  }
-
-  if (err) {
-    return (
-      <div className="content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-        <div className="card" style={{ maxWidth: 400, textAlign: 'center' }}>
-          <h2 className="card-title" style={{ color: 'var(--bad)' }}>Error</h2>
-          <p className="text-mute">{err}</p>
-          <button className="btn primary" onClick={() => navigate('/')}>Go to home</button>
-        </div>
-      </div>
+      </AuthLayout>
     )
   }
 
@@ -148,16 +187,16 @@ const SetupPassword = () => {
                 </div>
               )}
               <div className="field">
-                <label>Password</label>
+                <label>Password</label>s, 1 upperas, 1 pecial
                 <div style={{ position: 'relative' }}>
-                  <input 
-                    type={showPw ? 'text' : 'password'} 
+                  <input
+                    type={showPw ? 'text' : 'password'}
                     value={password}
                     onChange={e => setPassword(e.target.value)}
-                    required 
+                    required
                     minLength={8}
                     placeholder="At least 8 characters"
-                    style={{ paddingRight: 36, width: '100%' }} 
+                    style={{ paddingRight: 36, width: '100%' }}
                   />
                   <button type="button" className="icon-btn" onClick={() => setShowPw(!showPw)} style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', width: 28, height: 28 }}>
                     <Icon name="eye" size={13} />
@@ -167,13 +206,13 @@ const SetupPassword = () => {
               <div className="field">
                 <label>Confirm password</label>
                 <div style={{ position: 'relative' }}>
-                  <input 
-                    type={showConfirmPw ? 'text' : 'password'} 
+                  <input
+                    type={showConfirmPw ? 'text' : 'password'}
                     value={confirmPassword}
                     onChange={e => setConfirmPassword(e.target.value)}
                     required
                     placeholder="Re-enter password"
-                    style={{ paddingRight: 36, width: '100%' }} 
+                    style={{ paddingRight: 36, width: '100%' }}
                   />
                   <button type="button" className="icon-btn" onClick={() => setShowConfirmPw(!showConfirmPw)} style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', width: 28, height: 28 }}>
                     <Icon name="eye" size={13} />

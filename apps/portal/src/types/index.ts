@@ -22,7 +22,10 @@ export interface Customer {
   org_employees?: string
   org_website?: string
   nrc_or_id?: string
-  kyc_status: 'Pending' | 'Approved' | 'Rejected' | 'Under Review'
+  kyc_status: 'Pending' | 'Approved' | 'Rejected'
+  kyc_reviewer_note?: string,
+  kyc_reviewed_by?: string,
+  kyc_reviewed_at?: string,
   nrc_front_url?: string
   nrc_back_url?: string
   org_cert_url?: string

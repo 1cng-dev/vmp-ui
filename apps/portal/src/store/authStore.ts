@@ -72,8 +72,6 @@ const useAuthStore = (): AuthStoreValue => {
     }
   }) => {
     try {
-      console.log('Starting signup for:', data.email)
-
       // Create Supabase auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
@@ -88,16 +86,16 @@ const useAuthStore = (): AuthStoreValue => {
         }
       })
 
-      console.log('Auth signup result:', { authData, authError })
-
       if (authError) {
         console.error('Auth error:', authError)
+        // Custom error message for already registered email (security: don't reveal email existence)
+        if (authError.message.includes('already registered') || authError.message.includes('already been registered') || authError.message.includes('User already registered')) {
+          return { success: false, error: 'Unable to create account. Please try again or contact support.' }
+        }
         return { success: false, error: authError.message }
       }
 
       if (authData.user) {
-        console.log('Auth user created:', authData.user.id)
-
         // Upload KYC documents first
         const uploadPromises = []
         if (data.customerData.nrcFrontFile) {
@@ -117,12 +115,9 @@ const useAuthStore = (): AuthStoreValue => {
         }
 
         const urls = await Promise.all(uploadPromises)
-        console.log('KYC documents uploaded:', urls)
 
         // Remove File objects from customerData before insert
         const { nrcFrontFile, nrcBackFile, orgCertFile, orgTaxIdFile, dirIdFile, ...cleanCustomerData } = data.customerData
-
-        console.log('Inserting customer data:', { id: authData.user.id, ...cleanCustomerData })
 
         // Create customer record in Supabase with auth user ID and URLs
         const { data: customerData, error: customerError } = await supabase
@@ -139,8 +134,6 @@ const useAuthStore = (): AuthStoreValue => {
           .select('id, legacy_id')
           .single()
 
-        console.log('Customer insert result:', { customerData, customerError })
-
         if (customerError) {
           console.error('Customer insert error:', customerError)
           return { success: false, error: customerError.message }
@@ -154,7 +147,6 @@ const useAuthStore = (): AuthStoreValue => {
           }
         })
 
-        console.log('Signup successful:', customerData.legacy_id || customerData.id)
         return { success: true, customerId: customerData.legacy_id || customerData.id }
       }
 

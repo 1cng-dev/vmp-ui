@@ -82,6 +82,25 @@ create table if not exists public.team_members_audit (
 create index if not exists idx_team_audit_user_id on public.team_members_audit(user_id);
 create index if not exists idx_team_audit_changed_at on public.team_members_audit(changed_at);
 
+
+-- Add invite token fields to team_members
+alter table public.team_members
+add column if not exists invite_token text unique,
+add column if not exists invite_expires_at timestamptz,
+add column if not exists accepted_at timestamptz;
+
+-- Add index for invite token lookup
+create index if not exists idx_team_invite_token on public.team_members(invite_token);
+
+drop policy if exists team_staff_insert on public.team_members;
+create policy team_staff_insert on public.team_members
+  for insert to authenticated
+  with check (public.is_staff());
+
+
+
+
+
 create or replace function public.log_team_member_change()
 returns trigger
 language plpgsql
@@ -115,16 +134,26 @@ create policy team_audit_admin_read on public.team_members_audit
 
 
 
--- Add invite token fields to team_members
-alter table public.team_members
-add column if not exists invite_token text unique,
-add column if not exists invite_expires_at timestamptz,
-add column if not exists accepted_at timestamptz;
 
--- Add index for invite token lookup
-create index if not exists idx_team_invite_token on public.team_members(invite_token);
 
-drop policy if exists team_staff_insert on public.team_members;
-create policy team_staff_insert on public.team_members
-  for insert to authenticated
-  with check (public.is_staff());
+
+
+
+CREATE POLICY "Allow invite token read"
+ON team_members
+FOR SELECT
+TO anon
+USING (invite_token IS NOT NULL);
+
+
+DROP POLICY IF EXISTS "Allow invite acceptance" ON team_members;
+ 
+CREATE POLICY "Allow invite acceptance"
+ON team_members
+FOR UPDATE
+TO anon
+USING (invite_token IS NOT NULL)
+WITH CHECK (invite_token IS NOT NULL);
+
+
+alter publication supabase_realtime add table team_members;

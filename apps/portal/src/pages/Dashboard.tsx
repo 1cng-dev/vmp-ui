@@ -1,9 +1,11 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import useCustomerStore from '../store/customerStore'
 import useVMStore from '../store/vmStore'
 import useInvoiceStore from '../store/invoiceStore'
 import useActivityStore from '../store/activityStore'
 import useTaskStore from '../store/taskStore'
+import { useAuth } from '../components/auth/Auth'
+import useTeamStore from '../store/teamStore'
 import Icon from '../lib/icons'
 import { StatusPill, formatMMK, ExpiryCell, Donut } from '../components/ui/ui'
 
@@ -19,7 +21,11 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
   const { invoices } = useInvoiceStore()
   const { activity } = useActivityStore()
   const { tasks } = useTaskStore()
+  const auth = useAuth()
+  const { team, loadTeam } = useTeamStore()
   const TODAY = new Date()
+  const hour = new Date().getHours()
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
 
   const activeVMs = vms.filter(v => v.status === 'Active').length
   const expiringSoon = vms.filter(v => {
@@ -40,37 +46,40 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
     { label: 'Expired', value: vms.filter(v => v.status === 'Expired').length, color: 'oklch(0.55 0.01 80)' },
   ]
 
+  useEffect(() => {
+    loadTeam()
+  }, [loadTeam])
+
   return (
     <div className="content">
       <div className="page-head">
         <div>
-          <h1 className="page-title">Good morning, Min Khant</h1>
-          <p className="page-subtitle">Wednesday, 27 May 2026 — here's what needs attention today.</p>
-        </div>
+          <h1 className="page-title">{greeting}, {auth?.user?.name || auth?.user?.email?.split('@')[0] || 'User'}</h1>
+          <p className="page-subtitle">{new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} — here's what needs attention today.</p>        </div>
         <div className="page-actions">
-          <button className="btn"><Icon name="download" size={13}/>Export</button>
-          <button className="btn primary" onClick={() => openModal('newvm')}><Icon name="plus" size={13}/>New VM</button>
+          <button className="btn"><Icon name="download" size={13} />Export</button>
+          <button className="btn primary" onClick={() => openModal('newvm')}><Icon name="plus" size={13} />New VM</button>
         </div>
       </div>
 
       <div className="grid-4 mb-4">
         <div className="metric">
-          <div className="label"><Icon name="server" size={13}/> Active VMs</div>
+          <div className="label"><Icon name="server" size={13} /> Active VMs</div>
           <div className="value tnum">{activeVMs}</div>
           <div className="trend"><span className="up">+3</span> this week · {vms.length} total</div>
         </div>
         <div className="metric">
-          <div className="label"><Icon name="clock" size={13}/> Expiring ≤ 7 days</div>
+          <div className="label"><Icon name="clock" size={13} /> Expiring ≤ 7 days</div>
           <div className="value tnum" style={{ color: 'oklch(0.55 0.16 75)' }}>{expiringSoon.length}</div>
           <div className="trend">{expiringSoon.length > 0 ? `${expiringSoon.length} need follow-up` : 'all clear'}</div>
         </div>
         <div className="metric">
-          <div className="label"><Icon name="invoice" size={13}/> Overdue payments</div>
+          <div className="label"><Icon name="invoice" size={13} /> Overdue payments</div>
           <div className="value tnum" style={{ color: 'var(--bad)' }}>{overdue}</div>
           <div className="trend">MMK {formatMMK(overdueValue)} outstanding</div>
         </div>
         <div className="metric">
-          <div className="label"><Icon name="arrow-up" size={13}/> Monthly recurring</div>
+          <div className="label"><Icon name="arrow-up" size={13} /> Monthly recurring</div>
           <div className="value tnum">MMK {formatMMK(mrr)}</div>
           <div className="trend"><span className="up">+8.4%</span> vs last month</div>
         </div>
@@ -83,7 +92,7 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
               <h2 className="card-title">Expiring soon</h2>
               <div className="card-sub">VMs needing renewal action in the next 7 days</div>
             </div>
-            <button className="btn sm" onClick={() => setView('vms')}>View all<Icon name="chevron-right" size={12}/></button>
+            <button className="btn sm" onClick={() => setView('vms')}>View all<Icon name="chevron-right" size={12} /></button>
           </div>
           <div className="card-body flush">
             <table className="tbl">
@@ -102,8 +111,8 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
                         <div className="text-xs text-mute mono">{v.id}</div>
                       </td>
                       <td>{c?.company}</td>
-                      <td><ExpiryCell date={v.expiry}/></td>
-                      <td><StatusPill status={v.status}/></td>
+                      <td><ExpiryCell date={v.expiry} /></td>
+                      <td><StatusPill status={v.status} /></td>
                       <td className="right" onClick={e => e.stopPropagation()}>
                         <button className="btn sm" onClick={() => openModal('renew', { vm: v })}>Renew</button>
                       </td>
@@ -124,7 +133,7 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
             <div className="card-body">
               <div className="flex center gap-4">
                 <div style={{ position: 'relative' }}>
-                  <Donut segments={statusDonut} size={120} thickness={16}/>
+                  <Donut segments={statusDonut} size={120} thickness={16} />
                   <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', textAlign: 'center' }}>
                     <div>
                       <div className="tnum" style={{ fontSize: 22, fontWeight: 700, lineHeight: 1 }}>{vms.length}</div>
@@ -136,7 +145,7 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
                   {statusDonut.map(s => (
                     <div key={s.label} className="flex center between">
                       <div className="flex center gap-2">
-                        <span style={{ width: 8, height: 8, borderRadius: 2, background: s.color }}/>
+                        <span style={{ width: 8, height: 8, borderRadius: 2, background: s.color }} />
                         <span className="text-sm">{s.label}</span>
                       </div>
                       <span className="tnum fw-6 text-sm">{s.value}</span>
@@ -151,7 +160,7 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
             <div className="card-body" style={{ padding: '0' }}>
               {pendingKYC > 0 && (
                 <div className="feed-item" style={{ padding: '12px 18px' }}>
-                  <span className="dot alert"/>
+                  <span className="dot alert" />
                   <div className="body">
                     <span className="fw-6">{pendingKYC} KYC submission{pendingKYC > 1 ? 's' : ''}</span> awaiting review
                   </div>
@@ -160,7 +169,7 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
               )}
               {pendingTasks > 0 && (
                 <div className="feed-item" style={{ padding: '12px 18px' }}>
-                  <span className="dot task"/>
+                  <span className="dot task" />
                   <div className="body">
                     <span className="fw-6">{pendingTasks} provisioning task{pendingTasks > 1 ? 's' : ''}</span> waiting to start
                   </div>
@@ -169,7 +178,7 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
               )}
               {overdue > 0 && (
                 <div className="feed-item" style={{ padding: '12px 18px' }}>
-                  <span className="dot finance"/>
+                  <span className="dot finance" />
                   <div className="body">
                     <span className="fw-6">{overdue} invoice{overdue > 1 ? 's' : ''}</span> overdue
                     <div className="meta">MMK {formatMMK(overdueValue)} outstanding</div>
@@ -205,10 +214,10 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
                 return (
                   <div key={i} className="flex col gap-1" style={{ flex: 1, alignItems: 'center' }}>
                     <div className="flex" style={{ width: '100%', alignItems: 'flex-end', height: '100%', gap: 2 }}>
-                      <div style={{ flex: 1, height: `${(mrrV/maxH)*100}%`, background: 'var(--accent)', borderRadius: '3px 3px 0 0' }}/>
-                      <div style={{ flex: 1, height: `${(newSales/maxH)*100}%`, background: 'var(--accent-soft)', borderRadius: '3px 3px 0 0' }}/>
+                      <div style={{ flex: 1, height: `${(mrrV / maxH) * 100}%`, background: 'var(--accent)', borderRadius: '3px 3px 0 0' }} />
+                      <div style={{ flex: 1, height: `${(newSales / maxH) * 100}%`, background: 'var(--accent-soft)', borderRadius: '3px 3px 0 0' }} />
                     </div>
-                    <div className="text-xs text-mute-2">{['J','J','A','S','O','N','D','J','F','M','A','M'][i]}</div>
+                    <div className="text-xs text-mute-2">{['J', 'J', 'A', 'S', 'O', 'N', 'D', 'J', 'F', 'M', 'A', 'M'][i]}</div>
                   </div>
                 )
               })}
@@ -218,12 +227,12 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
         <div className="card">
           <div className="card-head">
             <h2 className="card-title">Recent activity</h2>
-            <button className="btn ghost sm" onClick={() => setView('activity')}>All<Icon name="chevron-right" size={12}/></button>
+            <button className="btn ghost sm" onClick={() => setView('activity')}>All<Icon name="chevron-right" size={12} /></button>
           </div>
           <div className="card-body" style={{ padding: '6px 18px' }}>
             {activity.slice(0, 6).map((a, i) => (
               <div key={i} className="feed-item">
-                <span className={`dot ${a.kind}`}/>
+                <span className={`dot ${a.kind}`} />
                 <div className="body">
                   {a.text}
                   <div className="meta">{a.actor} · {a.ts.split(' ')[1] || a.ts}</div>

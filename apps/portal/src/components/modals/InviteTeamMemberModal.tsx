@@ -1,13 +1,14 @@
 import React, { useState } from 'react'
 import Icon from '../../lib/icons'
-import useTeamStore from '../../store/teamStore'
+import { useTeamStore } from '../../store/TeamContext'
 import useUIStore from '../../store/uiStore'
 
 interface InviteTeamMemberModalProps {
   onClose: () => void
+  onSuccess?: () => void
 }
 
-const InviteTeamMemberModal: React.FC<InviteTeamMemberModalProps> = ({ onClose }) => {
+const InviteTeamMemberModal: React.FC<InviteTeamMemberModalProps> = ({ onClose, onSuccess }) => {
   const { addMember } = useTeamStore()
   const { toast } = useUIStore()
   const [f, setF] = useState({ name: '', email: '', role: 'Sales', team: 'Sales' })
@@ -19,6 +20,7 @@ const InviteTeamMemberModal: React.FC<InviteTeamMemberModalProps> = ({ onClose }
     try {
       await addMember(f)
       toast(`Invite sent to ${f.email}`, 'ok')
+      onSuccess?.()
       onClose()
     } catch (error) {
       toast('Failed to send invite', 'error')
