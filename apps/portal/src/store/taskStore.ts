@@ -1,14 +1,22 @@
 import { useState, useCallback } from 'react'
+import { supabase } from '../lib/supabase'
 import type { Task } from '../types'
 
 export interface TaskStoreValue {
   tasks: Task[]
   addTask: (t: any) => string
-  updateTask: (id: string, patch: any) => void
-  deleteTask: (id: string) => void
-  moveTask: (id: string, status: string) => void
+  updateTask: (id: string, patch: Partial<Task>) => void
+  removeTask: (id: string) => void
+  moveTask: (id: string, to: number) => void
   advanceProvision: (id: string, parsedSpec?: any, addVM?: (vm: any) => string, updateVM?: (id: string, patch: any) => void) => void
-  setProvisionStage: (id: string, stage: number) => void
+  createVMManually: (taskId: string, vmDetails: {
+    publicIps: string[]
+    privateIps: string[]
+    username: string
+    password: string
+  }, addVM: (vm: any) => Promise<string>) => Promise<void>
+  setTasks: (tasks: Task[]) => void
+  updateVMExpiryForRequest: (vmRequestId: string, quotationDate: string, durationMonths?: number, updateVM?: (id: string, patch: any) => Promise<void>) => Promise<void>
 }
 
 const useTaskStore = (): TaskStoreValue => {
@@ -37,18 +45,15 @@ const useTaskStore = (): TaskStoreValue => {
     const notes: any = {
       1: { team: 'Sales', msg: `Sales reviewing ${t.id} — KYC check in progress`, kind: 'task', status: 'In Progress' },
       2: { team: 'Engineering', msg: `KYC approved — Engineering notified`, kind: 'customer', status: 'In Progress' },
-      3: { team: 'Engineering', msg: `System team provisioning VM`, kind: 'vm', status: 'In Progress' },
+      3: { team: 'Engineer', msg: `Engineer creating VM in Proxmox`, kind: 'vm', status: 'In Progress' },
       4: { team: 'Network', msg: `Network team configuring firewall rules`, kind: 'vm', status: 'In Progress' },
-      5: { team: 'Engineering', msg: `KT testing VM & uploading credentials`, kind: 'vm', status: 'In Progress' },
+      5: { team: 'Engineering', msg: `Testing VM & uploading credentials`, kind: 'vm', status: 'In Progress' },
       6: { team: 'Customer', msg: `VM is ready — customer notified ✓`, kind: 'customer', status: 'Done' },
     }[stage]
 
     let patch: any = { wfStage: stage, status: notes?.status || t.status }
 
-    if (stage === 3 && !t.createdVmId && parsedSpec && addVM) {
-      const vmId = addVM(parsedSpec)
-      patch.createdVmId = vmId
-    }
+
     if (stage === 6 && t.createdVmId && updateVM) {
       updateVM(t.createdVmId, { status: 'Active', powerState: 'Running' })
     }
@@ -56,8 +61,146 @@ const useTaskStore = (): TaskStoreValue => {
     setTasks(s => s.map(x => x.id === id ? { ...x, ...patch } : x))
   }, [tasks])
 
-  const setProvisionStage = useCallback((id: string, stage: number) => {
-    setTasks(s => s.map(x => x.id === id ? { ...x, wfStage: stage } : x))
+  const createVMManually = useCallback(async (task: any, vmDetails: {
+    publicIps: string[]
+    privateIps: string[]
+    username: string
+    password: string
+  }, addVM: (vm: any) => Promise<string>) => {
+    console.log('createVMManually called with task:', task, 'vmDetails:', vmDetails)
+    const t = task
+    if (!t) {
+      console.error('Task is null/undefined')
+      return
+    }
+    console.log('Processing task:', t)
+    
+    // Calculate expiry using quote's created_at (if accepted) or vm_request's created_at
+    // Formula: quotation_date + 1 day + duration (in months)
+    let expiry: string | undefined
+    console.log('Checking for accepted quote for vm_request:', t.id)
+    
+    // Try to get accepted quote for this vm_request
+    const { data: acceptedQuote } = await supabase
+      .from('quotes')
+      .select('created_at')
+      .eq('vm_request_id', t.id)
+      .eq('status', 'Accepted')
+      .single()
+    
+    const quotationDate = acceptedQuote?.created_at || t.created_at
+    console.log('Using quotation date:', quotationDate, 'from:', acceptedQuote ? 'accepted quote' : 'vm_request created_at')
+    
+    if (quotationDate && t.duration) {
+      const startDate = new Date(quotationDate)
+      startDate.setDate(startDate.getDate() + 1) // Add 1 day to start from next day
+      
+      // Duration is in months (integer)
+      const durationMonths = parseInt(String(t.duration)) || 3
+      
+      const expiryDate = new Date(startDate)
+      expiryDate.setMonth(expiryDate.getMonth() + durationMonths)
+      
+      expiry = expiryDate.toISOString()
+      
+      console.log('Expiry calculated:', {
+        quotationDate,
+        startDate,
+        duration: t.duration,
+        durationMonths,
+        expiry
+      })
+    } else {
+      console.log('No quotation_date or duration found in task, expiry will be null')
+      console.log('Task object keys:', Object.keys(t))
+    }
+    
+    const qty = t.qty || 1
+    const vmIds: string[] = []
+
+    // Generate legacy_id for VMs (format: VM-XXXX)
+    const { data: existingVMs } = await supabase
+      .from('vms')
+      .select('legacy_id')
+      .order('created_at', { ascending: false })
+      .limit(1)
+    
+    const lastLegacyId = existingVMs?.[0]?.legacy_id
+    let nextNum = 1001
+    if (lastLegacyId) {
+      const match = lastLegacyId.match(/VM-(\d+)/)
+      if (match) {
+        nextNum = parseInt(match[1]) + 1
+      }
+    }
+
+    for (let i = 0; i < qty; i++) {
+      const legacyId = `VM-${nextNum + i}`
+      const vmData = {
+        hostname: `${t.hostname}-${i + 1}`,
+        public_ip: vmDetails.publicIps[i] || vmDetails.publicIps[0],
+        private_ip: vmDetails.privateIps[i] || vmDetails.privateIps[0],
+        username: vmDetails.username,
+        password: vmDetails.password,
+        vcpu: t.vcpu,
+        ram_gb: t.ram,
+        storage_gb: t.storage,
+        status: 'Active',
+        power_state: 'Running',
+        customer_id: t.customer_id,
+        vm_request_id: t.id,
+        task_type: t.task_type,
+        expiry: expiry,
+        legacy_id: legacyId,
+      }
+      console.log(`About to call addVM for VM ${i + 1}:`, vmData)
+      try {
+        const vmId = await addVM(vmData)
+        console.log(`addVM returned ID for VM ${i + 1}:`, vmId)
+        vmIds.push(vmId)
+      } catch (error: any) {
+        console.error(`Error calling addVM for VM ${i + 1}:`, error)
+        throw error
+      }
+    }
+
+    console.log('All VMs created with IDs:', vmIds)
+  }, [])
+
+  // Function to update VM expiry when quotation is created
+  const updateVMExpiryForRequest = useCallback(async (vmRequestId: string, quotationDate: string, durationMonths: number = 3, updateVM?: (id: string, patch: any) => Promise<void>) => {
+    console.log('updateVMExpiryForRequest called:', { vmRequestId, quotationDate, durationMonths })
+    
+    // Calculate expiry: quotation_date + 1 day + duration
+    const startDate = new Date(quotationDate)
+    startDate.setDate(startDate.getDate() + 1)
+    const expiryDate = new Date(startDate)
+    expiryDate.setMonth(expiryDate.getMonth() + durationMonths)
+    const expiry = expiryDate.toISOString()
+    
+    console.log('Calculated expiry:', expiry)
+    
+    // Get all VMs for this request
+    const { data: vms } = await supabase
+      .from('vms')
+      .select('id')
+      .eq('vm_request_id', vmRequestId)
+    
+    if (vms && vms.length > 0) {
+      console.log(`Found ${vms.length} VMs to update expiry for`)
+      // Update each VM with the calculated expiry
+      for (const vm of vms) {
+        if (updateVM) {
+          await updateVM(vm.id, { expiry })
+        } else {
+          // Direct Supabase update if no updateVM function provided
+          await supabase.from('vms').update({ expiry }).eq('id', vm.id)
+        }
+        console.log(`Updated VM ${vm.id} with expiry ${expiry}`)
+      }
+    } else {
+      console.log('No VMs found for this request')
+    }
   }, [])
 
   const deleteTask = useCallback((id: string) => {
@@ -72,7 +215,7 @@ const useTaskStore = (): TaskStoreValue => {
 
   return {
     tasks,
-    addTask, updateTask, deleteTask, moveTask, advanceProvision, setProvisionStage,
+    addTask, updateTask, deleteTask, moveTask, advanceProvision, createVMManually, setTasks, updateVMExpiryForRequest,
   }
 }
 

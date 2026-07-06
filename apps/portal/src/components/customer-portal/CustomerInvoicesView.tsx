@@ -23,6 +23,7 @@ export const CustomerInvoicesView: React.FC<CustomerInvoicesViewProps> = ({ myIn
           <table className="tbl">
             <thead><tr><th>Invoice</th><th>VMs</th><th>Issued</th><th>Due</th><th className="right">Amount</th><th>Status</th><th></th></tr></thead>
             <tbody>
+              {myInvs.length === 0 && <tr><td colSpan={7}><div className="empty"><div className="title">No invoices yet</div><div className="sub">Invoices will appear here once they're generated for your VMs.</div></div></td></tr>}
               {myInvs.map((i: any) => (
                 <tr key={i.id} onClick={() => setDetailInvoice(i)}>
                   <td className="mono">{i.id}</td>

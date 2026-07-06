@@ -34,7 +34,7 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
         .order('created_at', { ascending: false })
 
       // For normal customers, fetch only their own row; staff/admin can load all
-      if (role !== 'Staff' && role !== 'Admin' && role !== 'Sales' && role !== 'Finance' && userId) {
+      if (role !== 'Staff' && role !== 'Admin' && role !== 'Sales' && role !== 'Finance' && role !== 'Engineer' && userId) {
         query = query.eq('id', userId)
       }
 

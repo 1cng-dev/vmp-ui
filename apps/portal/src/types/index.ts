@@ -100,6 +100,10 @@ export interface Task {
   notes: string
   wfStage?: number
   createdVmId?: string
+  vmPublicIps?: string[]
+  vmPrivateIps?: string[]
+  vmUsername?: string
+  vmPassword?: string
 }
 
 export interface Invoice {
@@ -173,4 +177,74 @@ export interface Toast {
   msg: string
   kind: string
   action?: any
+}
+
+
+export type QuoteStatus = 'Draft' | 'Sent' | 'Accepted' | 'Rejected' | 'Expired'
+
+export interface DBQuote {
+  id: string
+  vm_request_id: string
+  customer_id: string
+  legacy_id?: string
+  status: QuoteStatus
+  validity_date: string
+  subtotal_monthly: number
+  subtotal_annual: number
+  total_annual: number
+  currency: string
+  line_items: any[]
+  created_by?: string | null
+  notes?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface NewQuoteInput {
+  vm_request_id: string
+  status: QuoteStatus
+  validity_date?: string
+  subtotal_monthly: number
+  subtotal_annual: number
+  total_annual: number
+  currency?: 'MMK' | 'USD'
+  line_items: any[]
+  notes?: string | null
+}
+
+export interface VM {
+  id: string
+  hostname: string
+  public_ip?: string
+  private_ip?: string
+  username?: string
+  password?: string
+  vcpu: number
+  ram_gb: number
+  storage_gb: number
+  status: 'Active' | 'Suspended' | 'Terminated'
+  power_state: 'Running' | 'Stopped' | 'Paused'
+  customer_id?: string
+  vm_request_id?: string
+  task_type?: 'new' | 'upgrade' | 'renewal' | 'addon'
+  created_at: string
+  updated_at: string
+}
+
+export interface NewVMInput {
+  hostname: string
+  public_ip?: string
+  private_ip?: string
+  username?: string
+  password?: string
+  vcpu?: number
+  ram_gb?: number
+  storage_gb?: number
+  status?: string
+  power_state?: string
+  customer_id?: string
+  vm_request_id?: string
+  task_type?: string
+  expiry?: string
+  legacy_id?: string
 }

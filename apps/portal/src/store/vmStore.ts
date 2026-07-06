@@ -1,95 +1,118 @@
-import { useState, useCallback } from 'react'
-import type { VM } from '../types'
+import React, { useState, useCallback, createContext, useContext, type ReactNode } from 'react'
+import { supabase } from '../lib/supabase'
+import type { VM as VMType, NewVMInput } from '../types'
+
+// Use the VM interface that matches the vms table (line 215 in types/index.ts)
+export interface VM {
+  id: string
+  hostname: string
+  public_ip?: string
+  private_ip?: string
+  username?: string
+  password?: string
+  vcpu: number
+  ram_gb: number
+  storage_gb: number
+  status: 'Active' | 'Suspended' | 'Terminated'
+  power_state: 'Running' | 'Stopped' | 'Paused'
+  customer_id?: string
+  vm_request_id?: string
+  task_type?: 'new' | 'upgrade' | 'renewal' | 'addon'
+  expiry?: string
+  legacy_id?: string
+  created_at: string
+  updated_at: string
+}
 
 export interface VMStoreValue {
   vms: VM[]
-  addVM: (vm: any) => string
-  updateVM: (id: string, patch: any) => void
-  deleteVM: (id: string) => void
-  setVMStatus: (id: string, status: string, powerState?: string) => void
-  renew: (id: string, months?: number) => void
-  bulkAction: (ids: string[], action: string) => void
-  startVM: (id: string) => void
-  stopVM: (id: string) => void
-  restartVM: (id: string) => void
-  snapshotVM: (id: string, name?: string) => void
-  updateVMTags: (id: string, tags: string[]) => void
-  updateVMNotes: (id: string, notes: string) => void
+  vmsLoading: boolean
+  loadVMs: () => Promise<void>
+  addVM: (vm: NewVMInput) => Promise<string>
+  updateVM: (id: string, patch: Partial<VM>) => Promise<void>
+  deleteVM: (id: string) => Promise<void>
 }
 
-const useVMStore = (): VMStoreValue => {
-  const [vms, setVms] = useState<VM[]>([])
+const VMContext = createContext<VMStoreValue | null>(null)
 
-  const addVM = useCallback((vm: any) => {
-    const maxNum = vms.reduce((m, v) => { const n = parseInt((v.id || '').replace(/\D/g, '')); return n > m ? n : m; }, 2199)
-    const id = `VM-${maxNum + 1}`
-    const newVM = { id, ...vm }
+export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [vms, setVms] = useState<VM[]>([])
+  const [vmsLoading, setVmsLoading] = useState(false)
+
+  const loadVMs = useCallback(async () => {
+    const spin = vms.length === 0
+    try {
+      if (spin) setVmsLoading(true)
+      const { data, error } = await supabase.from('vms').select('*').order('created_at', { ascending: false })
+      if (error) throw error
+      setVms((data as VM[]) || [])
+    } finally {
+      if (spin) setVmsLoading(false)
+    }
+  }, [vms.length])
+
+  const addVM = useCallback(async (vm: NewVMInput) => {
+    console.log('addVM called with VM data:', vm)
+    const id = crypto.randomUUID()
+    const newVM: VM = {
+      id,
+      hostname: vm.hostname,
+      public_ip: vm.public_ip,
+      private_ip: vm.private_ip,
+      username: vm.username,
+      password: vm.password,
+      vcpu: vm.vcpu || 2,
+      ram_gb: vm.ram_gb || 8,
+      storage_gb: vm.storage_gb || 100,
+      status: (vm.status as any) || 'Active',
+      power_state: (vm.power_state as any) || 'Running',
+      customer_id: vm.customer_id,
+      vm_request_id: vm.vm_request_id,
+      task_type: vm.task_type as any,
+      expiry: vm.expiry,
+      legacy_id: vm.legacy_id,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    console.log('About to insert VM into database:', newVM)
+    // Persist to Supabase
+    const { error, data } = await supabase.from('vms').insert(newVM).select()
+    if (error) {
+      console.error('Error adding VM to database:', error)
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      })
+      throw error
+    }
+    console.log('VM inserted successfully:', data)
     setVms(s => [newVM, ...s])
     return id
-  }, [vms])
-
-  const updateVM = useCallback((id: string, patch: any) => {
-    setVms(s => s.map(v => v.id === id ? { ...v, ...patch } : v))
   }, [])
 
-  const deleteVM = useCallback((id: string) => {
-    setVms(s => s.filter(v => v.id !== id))
-  }, [])
+  const updateVM = useCallback(async (id: string, patch: Partial<VM>) => {
+    const { error } = await supabase.from('vms').update(patch).eq('id', id)
+    if (error) throw error
+    await loadVMs()
+  }, [loadVMs])
 
-  const setVMStatus = useCallback((id: string, status: string, powerState?: string) => {
-    updateVM(id, { status, ...(powerState ? { powerState } : {}) })
-  }, [updateVM])
+  const deleteVM = useCallback(async (id: string) => {
+    const { error } = await supabase.from('vms').delete().eq('id', id)
+    if (error) throw error
+    await loadVMs()
+  }, [loadVMs])
 
-  const renew = useCallback((id: string, months = 12) => {
-    const vm = vms.find(v => v.id === id)
-    if (!vm) return
-    const base = vm.expiry && vm.expiry !== '—' ? new Date(vm.expiry) : new Date()
-    base.setMonth(base.getMonth() + months)
-    updateVM(id, { expiry: base.toISOString().slice(0, 10), status: 'Active', powerState: 'Running' })
-  }, [vms, updateVM])
+  const value: VMStoreValue = { vms, vmsLoading, loadVMs, addVM, updateVM, deleteVM }
+  return React.createElement(VMContext.Provider, { value }, children as any)
+}
 
-  const bulkAction = useCallback((ids: string[], action: string) => {
-    if (action === 'suspend') ids.forEach(id => setVMStatus(id, 'Suspended', 'Stopped'))
-    if (action === 'activate') ids.forEach(id => setVMStatus(id, 'Active', 'Running'))
-    if (action === 'terminate') ids.forEach(id => setVMStatus(id, 'Expired', 'Stopped'))
-    if (action === 'renew') {
-      const newExpiry = new Date()
-      newExpiry.setFullYear(newExpiry.getFullYear() + 1)
-      ids.forEach(id => updateVM(id, { expiry: newExpiry.toISOString().slice(0, 10), status: 'Active' }))
-    }
-  }, [setVMStatus, updateVM])
-
-  const startVM = useCallback((id: string) => {
-    const vm = vms.find(v => v.id === id)
-    updateVM(id, { powerState: 'Running', status: vm?.status === 'Suspended' ? 'Active' : vm?.status })
-  }, [vms, updateVM])
-
-  const stopVM = useCallback((id: string) => {
-    updateVM(id, { powerState: 'Stopped' })
-  }, [updateVM])
-
-  const restartVM = useCallback((id: string) => {
-    const vm = vms.find(v => v.id === id)
-    // In a real implementation, this would call the Proxmox API
-    // For now, we just log the action
-    console.log(`Restarting VM ${vm?.name}`)
-  }, [vms])
-
-  const snapshotVM = useCallback((id: string, name?: string) => {
-    const vm = vms.find(v => v.id === id)
-    const snap = name || `manual-${new Date().toISOString().slice(0, 10)}-${Math.floor(Math.random() * 999)}`
-    // In a real implementation, this would call the Proxmox API
-    console.log(`Created snapshot ${snap} of ${vm?.name}`)
-  }, [vms])
-
-  const updateVMTags = useCallback((id: string, tags: string[]) => updateVM(id, { tags }), [updateVM])
-  const updateVMNotes = useCallback((id: string, notes: string) => updateVM(id, { notes }), [updateVM])
-
-  return {
-    vms,
-    addVM, updateVM, deleteVM, setVMStatus, renew, bulkAction,
-    startVM, stopVM, restartVM, snapshotVM, updateVMTags, updateVMNotes,
-  }
+export const useVMStore = (): VMStoreValue => {
+  const ctx = useContext(VMContext)
+  if (!ctx) throw new Error('useVMStore must be used within VMProvider')
+  return ctx
 }
 
 export default useVMStore

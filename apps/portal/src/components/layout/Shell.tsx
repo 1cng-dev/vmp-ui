@@ -3,6 +3,7 @@ import Icon from '../../lib/icons'
 import { Avatar } from '../ui/ui'
 import { useAuth } from '../auth/Auth'
 import { useCustomerStore } from '../../store/customerStore'
+import { useVMRequestStore } from '../../store/vmRequestStore'
 
 interface NavItem {
   section?: string
@@ -36,7 +37,9 @@ interface TopbarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames = {}, onAccountClick, onLogout }) => {
   const { customers, loadCustomers, subscribeToCustomers } = useCustomerStore()
+  const { vmRequests } = useVMRequestStore()
   const pendingKycCount = customers.filter((c: any) => c.kyc_status === 'Pending').length
+  const pendingRequestsCount = vmRequests.filter((r: any) => r.status === 'Pending').length
 
   React.useEffect(() => {
     loadCustomers()
@@ -50,7 +53,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
     { id: 'activity', label: 'Activity log', icon: 'activity' },
     { section: 'Operations' },
     { id: 'vms', label: 'VM records', icon: 'server' },
-    { id: 'tasks', label: 'Customer Requests', icon: 'tasks', badge: 2 },
+    { id: 'tasks', label: 'Customer Requests', icon: 'tasks', badge: pendingRequestsCount > 0 ? pendingRequestsCount : undefined },
     { id: 'network', label: 'Network & IPs', icon: 'network' },
     { section: 'Engineering' },
     { id: 'console', label: 'Web console', icon: 'cpu' },
@@ -70,6 +73,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
     { id: 'followups', label: 'Follow-ups', icon: 'clock' },
     { id: 'trials', label: 'Trial conversions', icon: 'box' },
     { section: 'Finance' },
+    { id: 'quote-review', label: 'Quote Review', icon: 'file' },
     { id: 'finance', label: 'Invoices', icon: 'invoice' },
     { id: 'reports', label: 'Reports', icon: 'box' },
     { id: 'aging', label: 'Aging receivables', icon: 'clock' },
@@ -106,7 +110,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
   const allowedFor: Record<string, Set<string> | null> = {
     'Sales': new Set(['dashboard', 'alerts', 'calendar', 'activity', 'vms', 'tasks', 'customers', 'customer-accounts', 'kyc', 'quotes']),
     'Engineer': new Set(['dashboard', 'alerts', 'calendar', 'activity', 'vms', 'tasks', 'network', 'console', 'nodes', 'topology', 'snapshots', 'maintenance', 'patches', 'firewall']),
-    'Finance': new Set(['dashboard', 'alerts', 'calendar', 'vms', 'tasks', 'finance', 'reports', 'customers', 'customer-accounts', 'aging', 'reconciliation', 'recurring', 'tax']),
+    'Finance': new Set(['dashboard', 'alerts', 'calendar', 'vms', 'tasks', 'finance', 'quote-review', 'reports', 'customers', 'customer-accounts', 'aging', 'reconciliation', 'recurring', 'tax']),
     'Admin': null,
   }
   const allow = allowedFor[role]

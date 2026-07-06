@@ -58,10 +58,10 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ me, myVMs,
               <tbody>
                 {myVMs.slice(0, 5).map((v: any) => (
                   <tr key={v.id} onClick={() => setDetailVm(v)}>
-                    <td><div className="fw-6">{v.name}</div><div className="text-xs text-mute mono">{v.id}</div></td>
+                    <td><div className="fw-6">{v.hostname}</div><div className="text-xs text-mute mono">{v.legacy_id || v.id}</div></td>
                     <td><StatusPill status={v.status}/></td>
-                    <td className="mono text-xs">{v.vcpu}c · {v.ram}GB · {v.storage}GB</td>
-                    <td className="mono text-xs">{v.publicIp}</td>
+                    <td className="mono text-xs">{v.vcpu}c · {v.ram_gb}GB · {v.storage_gb}GB</td>
+                    <td className="mono text-xs">{v.public_ip || '—'}</td>
                     <td><ExpiryCell date={v.expiry}/></td>
                   </tr>
                 ))}

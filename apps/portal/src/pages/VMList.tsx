@@ -3,7 +3,7 @@ import useVMStore from '../store/vmStore'
 import useCustomerStore from '../store/customerStore'
 import useUIStore from '../store/uiStore'
 import Icon from '../lib/icons'
-import { StatusPill, ExpiryCell } from '../components/ui/ui'
+import { StatusPill } from '../components/ui/ui'
 
 interface VMListProps {
   openVM: (id: string) => void
@@ -11,7 +11,7 @@ interface VMListProps {
 }
 
 const VMList: React.FC<VMListProps> = ({ openVM, openModal }) => {
-  const { vms, bulkAction, setVMStatus } = useVMStore()
+  const { vms } = useVMStore()
   const { customers } = useCustomerStore()
   const { toast } = useUIStore()
   const [filter, setFilter] = useState<Set<string>>(new Set(['all']))
@@ -22,33 +22,25 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal }) => {
   const filters = [
     { id: 'all', label: 'All', count: vms.length },
     { id: 'Active', label: 'Active', count: vms.filter(v => v.status === 'Active').length },
-    { id: 'Pending', label: 'Pending', count: vms.filter(v => v.status === 'Pending').length },
-    { id: 'Expired', label: 'Expired', count: vms.filter(v => v.status === 'Expired').length },
-    { id: 'Trial', label: 'Trial', count: vms.filter(v => v.type === 'Trial').length },
-    { id: 'Paid', label: 'Paid', count: vms.filter(v => v.type !== 'Trial').length },
-    { id: 'expiring', label: 'Expiring ≤ 7d', count: vms.filter(v => v.expiry !== '—' && (new Date(v.expiry).getTime() - new Date().getTime()) / 86400000 <= 7 && (new Date(v.expiry).getTime() - new Date().getTime()) / 86400000 >= 0).length },
+    { id: 'Suspended', label: 'Suspended', count: vms.filter(v => v.status === 'Suspended').length },
+    { id: 'Terminated', label: 'Terminated', count: vms.filter(v => v.status === 'Terminated').length },
+    { id: 'new', label: 'New', count: vms.filter(v => v.task_type === 'new').length },
+    { id: 'upgrade', label: 'Upgrade', count: vms.filter(v => v.task_type === 'upgrade').length },
   ]
 
   const filtered = vms.filter(v => {
     if (filter.has('all')) return true
     const matches = []
     if (filter.has('Active')) matches.push(v.status === 'Active')
-    if (filter.has('Pending')) matches.push(v.status === 'Pending')
-    if (filter.has('Expired')) matches.push(v.status === 'Expired')
-    if (filter.has('Trial')) matches.push(v.type === 'Trial')
-    if (filter.has('Paid')) matches.push(v.type !== 'Trial')
-    if (filter.has('expiring')) {
-      if (v.expiry === '—') matches.push(false)
-      else {
-        const d = (new Date(v.expiry).getTime() - new Date().getTime()) / 86400000
-        matches.push(d >= 0 && d <= 7)
-      }
-    }
+    if (filter.has('Suspended')) matches.push(v.status === 'Suspended')
+    if (filter.has('Terminated')) matches.push(v.status === 'Terminated')
+    if (filter.has('new')) matches.push(v.task_type === 'new')
+    if (filter.has('upgrade')) matches.push(v.task_type === 'upgrade')
     return matches.length > 0 && matches.every(m => m === true)
   }).filter(v => {
     if (!search) return true
-    const c = customers.find(c => c.id === v.customer)
-    return [v.name, v.id, v.publicIp, v.vlan, c?.company, c?.name].join(' ').toLowerCase().includes(search.toLowerCase())
+    const c = customers.find(c => c.id === v.customer_id)
+    return [v.hostname, v.id, v.public_ip, v.task_type, c?.org_name, c?.name].join(' ').toLowerCase().includes(search.toLowerCase())
   })
 
   const toggle = (id: string) => {
@@ -110,11 +102,11 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal }) => {
         {selected.size > 0 && (
           <div style={{ padding: '10px 18px', background: 'var(--accent-soft)', display: 'flex', alignItems: 'center', gap: 10 }}>
             <span className="fw-6 text-sm">{selected.size} selected</span>
-            <button className="btn sm" onClick={() => { bulkAction([...selected], 'suspend'); setSelected(new Set()); }}>Suspend</button>
-            <button className="btn sm" onClick={() => { bulkAction([...selected], 'activate'); setSelected(new Set()); }}>Activate</button>
-            <button className="btn sm" onClick={() => { bulkAction([...selected], 'renew'); setSelected(new Set()); }}>Renew 1 year</button>
+            <button className="btn sm" onClick={() => { toast('Suspend action not implemented', 'info'); setSelected(new Set()); }}>Suspend</button>
+            <button className="btn sm" onClick={() => { toast('Activate action not implemented', 'info'); setSelected(new Set()); }}>Activate</button>
+            <button className="btn sm" onClick={() => { toast('Renew action not implemented', 'info'); setSelected(new Set()); }}>Renew 1 year</button>
             <button className="btn sm" onClick={() => { toast(`${selected.size} VMs exported to CSV`, 'info'); }}>Export selected</button>
-            <button className="btn sm danger" onClick={() => { bulkAction([...selected], 'terminate'); setSelected(new Set()); }}>Terminate</button>
+            <button className="btn sm danger" onClick={() => { toast('Terminate action not implemented', 'info'); setSelected(new Set()); }}>Terminate</button>
             <div style={{ flex: 1 }}/>
             <button className="btn ghost sm" onClick={() => setSelected(new Set())}>Clear</button>
           </div>
@@ -135,7 +127,7 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal }) => {
           </thead>
           <tbody>
             {filtered.map(v => {
-              const c = customers.find(c => c.id === v.customer)
+              const c = customers.find(c => c.id === v.customer_id)
               return (
                 <tr key={v.id} onClick={() => openVM(v.id)}>
                   <td onClick={e => e.stopPropagation()}>
@@ -143,27 +135,26 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal }) => {
                   </td>
                   <td>
                     <div className="flex center gap-2">
-                      <span className="id-tag accent">{v.proxmoxFlag || '·'}</span>
+                      <span className="id-tag accent">{v.task_type || 'new'}</span>
                       <div>
-                        <div className="fw-6">{v.name}</div>
+                        <div className="fw-6">{v.hostname}</div>
                         <div className="text-xs text-mute mono">{v.id}</div>
                       </div>
                     </div>
                   </td>
                   <td>
-                    <div className="fw-6 text-sm">{c?.company}</div>
+                    <div className="fw-6 text-sm">{c?.org_name}</div>
                     <div className="text-xs text-mute">{c?.name}</div>
                   </td>
                   <td><StatusPill status={v.status}/></td>
-                  <td><StatusPill status={v.type}/></td>
+                  <td><StatusPill status={v.task_type || 'new'}/></td>
                   <td className="mono text-xs">
-                    {v.vcpu}c · {v.ram}GB · {v.storage}GB
+                    {v.vcpu}c · {v.ram_gb}GB · {v.storage_gb}GB
                   </td>
                   <td className="mono text-xs">
-                    {v.publicIp === '—' || v.publicIp === 'pending' ? <span className="text-mute">{v.publicIp}</span> : v.publicIp}
-                    <div className="text-mute">{v.vlan}</div>
+                    {v.public_ip || '—'}
                   </td>
-                  <td><ExpiryCell date={v.expiry}/></td>
+                  <td className="text-xs text-mute">—</td>
                   <td onClick={e => e.stopPropagation()} style={{ position: 'relative' }}>
                     <button className="icon-btn" onClick={(e) => { e.stopPropagation(); setMenu(menu === v.id ? null : v.id); }}>
                       <Icon name="more"/>
@@ -179,9 +170,9 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal }) => {
                         <button className="nav-item" onClick={() => { openModal('renew', { vm: v }); setMenu(null); }}><Icon name="refresh" size={13}/>Renew</button>
                         <button className="nav-item" onClick={() => { openModal('spec', { vm: v }); setMenu(null); }}><Icon name="sliders" size={13}/>Change spec</button>
                         {v.status === 'Active'
-                          ? <button className="nav-item" onClick={() => { setVMStatus(v.id, 'Suspended', 'Stopped'); setMenu(null); }}><Icon name="pause" size={13}/>Suspend</button>
-                          : <button className="nav-item" onClick={() => { setVMStatus(v.id, 'Active', 'Running'); setMenu(null); }}><Icon name="play" size={13}/>Activate</button>}
-                        <button className="nav-item" onClick={() => { setMenu(null); }}><Icon name="refresh" size={13}/>Restart</button>
+                          ? <button className="nav-item" onClick={() => { toast('Suspend action not implemented', 'info'); setMenu(null); }}><Icon name="pause" size={13}/>Suspend</button>
+                          : <button className="nav-item" onClick={() => { toast('Activate action not implemented', 'info'); setMenu(null); }}><Icon name="play" size={13}/>Activate</button>}
+                        <button className="nav-item" onClick={() => { toast('Restart action not implemented', 'info'); setMenu(null); }}><Icon name="refresh" size={13}/>Restart</button>
                         <div style={{ height: 1, background: 'var(--line)', margin: '4px 0' }}/>
                         <button className="nav-item" style={{ color: 'var(--bad)' }} onClick={() => { openModal('terminate', { vm: v }); setMenu(null); }}><Icon name="trash" size={13}/>Terminate</button>
                       </div>

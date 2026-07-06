@@ -27,6 +27,7 @@ import { CustomerRequestDetail } from '../components/customer-portal/CustomerReq
 import { CustomerInvoiceDetail } from '../components/customer-portal/CustomerInvoiceDetail'
 import { AddonServicesView } from '../components/customer-portal/AddonServicesView'
 import Toasts from '../components/common/Toasts'
+import { supabase } from '../lib/supabase'
 
 interface CustomerPortalProps {
   setRole?: (role: string) => void
@@ -35,22 +36,17 @@ interface CustomerPortalProps {
 
 const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRole, roleNames: _roleNames = {} }) => {
   const { customers, loadCustomers } = useCustomerStore()
-  const { vms } = useVMStore()
+  const { vms, loadVMs } = useVMStore()
   const { invoices } = useInvoiceStore()
   const { tickets } = useTicketStore()
-  const { tasks, addTask } = useTaskStore()
+  const { addTask } = useTaskStore()
   const { toast } = useUIStore()
   const auth = useAuth()
   const [view, setView] = useState(() => {
-    const saved = localStorage.getItem('customerPortalView')
-    return saved || 'dashboard'
-  })
+  const saved = localStorage.getItem('customerPortalView')
+  return saved || 'dashboard'
+})
 
-
-  useEffect(() => {
-    localStorage.setItem('customerPortalView', view)
-  }, [view])
-  
   const [detailVm, setDetailVm] = useState<any>(null)
   const [openTicket, setOpenTicket] = useState<any>(null)
   const [detailRequest, setDetailRequest] = useState<any>(null)
@@ -65,8 +61,15 @@ const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRole, role
   useEffect(() => {
     if (auth?.user) {
       loadCustomers()
+      loadVMs()
     }
-  }, [auth?.user, loadCustomers])
+  }, [auth?.user, loadCustomers, loadVMs])
+
+  useEffect(() => {
+    if (view === 'vms') {
+      loadVMs()
+    }
+  }, [view, loadVMs])
 
   const authUserId = auth?.user?.id
   const meId = auth?.user?.customerId || authUserId
@@ -80,6 +83,29 @@ const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRole, role
 
   // Provide fallback object when me is null to avoid rendering errors
   const safeMe = me || { id: '', name: '', org_name: '', kyc_status: 'Pending', legacy_id: '' }
+
+  const [vmRequests, setVmRequests] = useState<any[]>([])
+
+  useEffect(() => {
+    if (safeMe?.id) {
+      supabase
+        .from('vm_requests')
+        .select('*')
+        .eq('customer_id', safeMe.id)
+        .order('created_at', { ascending: false })
+        .then(({ data, error }) => {
+          if (error) {
+            console.error('Error fetching vm_requests:', error)
+          } else {
+            setVmRequests(data || [])
+          }
+        })
+    }
+  }, [safeMe?.id])
+
+  useEffect(() => {
+    localStorage.setItem('customerPortalView', view)
+  }, [view])
 
   useEffect(() => {
     if (me && me.kyc_status !== 'Approved' && ['request', 'vms', 'requests', 'invoices'].includes(view)) {
@@ -96,10 +122,25 @@ const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRole, role
   if (!me) {
     return <div className="content"><div className="empty"><div className="title">Account not found</div><div className="sub">Try signing out and back in.</div></div></div>
   }
-  const myVMs = vms.filter((v: any) => v.customer === safeMe.id)
+  const myVMs = vms.filter((v: any) => {
+  // Only show VMs where the customer_id matches
+  if (v.customer_id !== safeMe.id) {
+    return false
+  }
+  // Only show VMs with status 'Active' (completed/provisioned)
+  if (v.status !== 'Active') {
+    return false
+  }
+  // Only show VMs where the associated vm_request has status = 'Completed'
+  const request = vmRequests.find((r: any) => r.id === v.vm_request_id)
+  if (!request || request.status !== 'Completed') {
+    return false
+  }
+  return true
+})
   const myInvs = invoices.filter((i: any) => i.customer === safeMe.id)
   const myTickets = tickets.filter((t: any) => t.customer === safeMe.id)
-  const myRequests = tasks.filter((t: any) => t.customer === safeMe.id && t.notes && t.notes.includes('Customer-initiated'))
+  const myRequests = vmRequests
 
   const expiringSoon = myVMs.filter((v: any) => {
     if (!v.expiry || v.expiry === '—') return false
@@ -108,12 +149,13 @@ const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRole, role
   })
   const openTickets = myTickets.filter((t: any) => t.status === 'Open' || t.status === 'In Progress')
   const pendingInv = myInvs.filter((i: any) => i.status !== 'Payment Received')
+  const pendingRequests = myRequests.filter((r: any) => r.status === 'Pending')
 
   const items = [
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
     { id: 'request', label: 'Request VM', icon: 'plus', lockedByKyc: true },
-    { id: 'vms', label: 'My VMs', icon: 'server', badge: myVMs.length || null, lockedByKyc: true },
-    { id: 'requests', label: 'My requests', icon: 'tasks', badge: myRequests.length || null, lockedByKyc: true },
+    { id: 'vms', label: 'My VMs', icon: 'server', lockedByKyc: true },
+    { id: 'requests', label: 'My requests', icon: 'tasks', badge: pendingRequests.length || null, lockedByKyc: true },
     { id: 'addons', label: 'Add-on Services', icon: 'box', lockedByKyc: true },
     { id: 'invoices', label: 'Invoices', icon: 'invoice', badge: pendingInv.length || null, lockedByKyc: true },
     { id: 'tickets', label: 'Support tickets', icon: 'mail', badge: openTickets.length || null },

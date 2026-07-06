@@ -150,7 +150,7 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal }) => {
                         const data: any = {}
                         if (selectedExportColumns.includes('invoiceDate')) data['Invoice Date'] = i.invoiceDate || ''
                         if (selectedExportColumns.includes('qty')) data['Qty'] = i.vms.length
-                        if (selectedExportColumns.includes('customerName')) data['Customer Name'] = c?.company || ''
+                        if (selectedExportColumns.includes('customerName')) data['Customer Name'] = c?.org_name || ''
                         if (selectedExportColumns.includes('customerCode')) data['Customer Code'] = c?.id || ''
                         if (selectedExportColumns.includes('paidDate')) data['Paid Date'] = i.status === 'Payment Received' ? i.issued : ''
                         if (selectedExportColumns.includes('quotation')) data['Quotation'] = `QT-${i.id.slice(4)}`
@@ -181,7 +181,7 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal }) => {
                         const data: any = {}
                         if (selectedExportColumns.includes('invoiceDate')) data.invoiceDate = i.invoiceDate || ''
                         if (selectedExportColumns.includes('qty')) data.qty = i.vms.length
-                        if (selectedExportColumns.includes('customerName')) data.customerName = c?.company || ''
+                        if (selectedExportColumns.includes('customerName')) data.customerName = c?.org_name || ''
                         if (selectedExportColumns.includes('customerCode')) data.customerCode = c?.id || ''
                         if (selectedExportColumns.includes('paidDate')) data.paidDate = i.status === 'Payment Received' ? i.issued : ''
                         if (selectedExportColumns.includes('quotation')) data.quotation = `QT-${i.id.slice(4)}`
@@ -286,7 +286,7 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal }) => {
                   <tr key={i.id} onClick={() => setSelected(i)}>
                     {selectedExportColumns.includes('invoiceDate') && <td className="tnum text-sm">{i.invoiceDate}</td>}
                     {selectedExportColumns.includes('qty') && <td className="tnum text-sm">{i.vms.length}</td>}
-                    {selectedExportColumns.includes('customerName') && <td><div className="fw-6 text-sm">{c?.company}</div><div className="text-xs text-mute">{c?.name}</div></td>}
+                    {selectedExportColumns.includes('customerName') && <td><div className="fw-6 text-sm">{c?.name} ({c?.org_name})</div></td>}
                     {selectedExportColumns.includes('customerCode') && <td className="mono text-sm">{c?.id}</td>}
                     {selectedExportColumns.includes('paidDate') && <td className="tnum text-sm">{i.status === 'Payment Received' ? i.issued : '—'}</td>}
                     {selectedExportColumns.includes('quotation') && <td className="mono text-sm">QT-{i.id.slice(4)}</td>}

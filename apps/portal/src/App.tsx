@@ -18,6 +18,7 @@ import { AccountSettingsView } from './pages/AccountSettings'
 import { SystemHealthView, AuditLogView, AnnouncementsView, ApiKeysView, BackupCenterView } from './pages/AdminExtras'
 import CustomerPortal from './pages/CustomerPortal'
 import QuotesView from './pages/QuotesView'
+import FinanceQuoteReviewView from './pages/FinanceQuoteReviewView'
 import Toasts from './components/common/Toasts'
 import { CommandPalette, ShortcutsModal, CalendarView } from './components/common/Extras'
 import { NotifPanel, PlaceholderView, TweaksUI } from './components/common'
@@ -27,7 +28,11 @@ import Welcome from './pages/Welcome'
 import SetupPassword from './pages/SetupPassword'
 import { TeamProvider, useTeamStore } from './store/TeamContext'
 import useCustomerStore, { CustomerProvider } from './store/customerStore'
+import { VMRequestProvider, useVMRequestStore } from './store/vmRequestStore'
 import { ResetPasswordScreen } from './components/auth/ResetPasswordScreen'
+import { QuoteProvider, useQuoteStore } from './store/quoteStore'
+import { VMProvider } from './store/vmStore'
+
 
 const ACCENT_MAP: Record<string, number> = {
   '#4F6FE3': 250,
@@ -55,12 +60,27 @@ const PrefetchTeam: React.FC = () => {
   return null
 }
 
+// Prefetch VM requests once at app startup so pages render without initial spinners
+const PrefetchVMRequests: React.FC = () => {
+  const { loadVMRequests } = useVMRequestStore()
+  React.useEffect(() => {
+    loadVMRequests()
+  }, [loadVMRequests])
+  return null
+}
+
+const PrefetchQuotes: React.FC = () => {
+  const { loadQuotes } = useQuoteStore()
+  React.useEffect(() => { loadQuotes() }, [loadQuotes])
+  return null
+}
+
 const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: keyof TweakState | Partial<TweakState>, value?: any) => void }) => {
   const { alerts, markAllAlertsRead } = useAlertStore()
   const auth = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
-  
+
   // Extract view from URL path
   const getPathView = () => {
     const pathSegments = location.pathname.split('/').filter(Boolean)
@@ -69,9 +89,11 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
     }
     return 'dashboard'
   }
-  
+
   const [view, setView] = useState(getPathView)
   const [autoOpenQuote, setAutoOpenQuote] = useState(false)
+  const [prefillCustomerId, setPrefillCustomerId] = useState<string | undefined>(undefined)
+  const [prefillRequestId, setPrefillRequestId] = useState<string | undefined>(undefined)
   const [notifOpen, setNotifOpen] = useState(false)
   const [cmdOpen, setCmdOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
@@ -101,7 +123,7 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
   useEffect(() => {
     const currentView = getPathView()
     setView(currentView)
-    
+
     // Redirect base paths to dashboard
     if (location.pathname === '/admin' || location.pathname === '/') {
       navigate(`${location.pathname}/dashboard`, { replace: true })
@@ -212,8 +234,8 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
             {view === 'activity' && <ActivityView />}
             {view === 'vms' && <VMList openVM={openVM} openModal={openModal} />}
             {drawerVmId && <VMDrawer vmId={drawerVmId} onClose={closeDrawer} openCust={openCust} openModal={openModal} />}
-            {view === 'tasks' && <TasksView openModal={openModal} openTask={openTask} setView={handleSetView} setAutoOpenQuote={setAutoOpenQuote} />}
-            {drawerTaskId && <TaskDrawer taskId={drawerTaskId} onClose={closeTaskDrawer} />}
+            {view === 'tasks' && <TasksView openModal={openModal} openTask={openTask} setView={handleSetView} setAutoOpenQuote={setAutoOpenQuote} setPrefillCustomerId={setPrefillCustomerId} setPrefillRequestId={setPrefillRequestId} userRole={tw.role} />}
+            {drawerTaskId && <TaskDrawer requestId={drawerTaskId} onClose={closeTaskDrawer} userRole={tw.role} />}
             {view === 'network' && <NetworkView openVM={openVM} openModal={openModal} />}
             {view === 'console' && <PlaceholderView title="Web Console" description="Proxmox web console - coming soon" />}
             {view === 'nodes' && <PlaceholderView title="Proxmox Nodes" description="Node management view - coming soon" />}
@@ -227,7 +249,8 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
             {view === 'customer-accounts' && <CustomerAccountManagementView openCust={openCust} openModal={openModal} />}
             {view === 'kyc' && <KYCReviewView />}
             {view === 'pipeline' && <PlaceholderView title="Sales Pipeline" description="Sales pipeline view - coming soon" />}
-            {view === 'quotes' && <QuotesView autoOpen={autoOpenQuote} onAutoOpenReset={() => setAutoOpenQuote(false)} />}
+            {view === 'quotes' && <QuotesView autoOpen={autoOpenQuote} onAutoOpenReset={() => { setAutoOpenQuote(false); setPrefillCustomerId(undefined); setPrefillRequestId(undefined) }} prefillCustomerId={prefillCustomerId} prefillRequestId={prefillRequestId} />}
+            {view === 'quote-review' && <FinanceQuoteReviewView />}
             {view === 'followups' && <PlaceholderView title="Follow-ups" description="Sales follow-ups - coming soon" />}
             {view === 'trials' && <PlaceholderView title="Trial Conversions" description="Trial conversion tracking - coming soon" />}
             {view === 'finance' && <FinanceView openCust={(_id: string) => { }} openModal={openModal} />}
@@ -286,39 +309,50 @@ const App = () => {
     <>
       <Toasts />
       <TeamProvider>
-      <PrefetchTeam />
-      {/* Global customers provider to keep data cached across pages */}
-      <CustomerProvider>
-      <PrefetchCustomers />
-      <Router>
-        <Routes>
-        <Route path="/welcome" element={<Welcome />} />
-        <Route path="/setup-password" element={<SetupPassword />} />
-        <Route path="/auth/reset-password" element={<ResetPasswordScreen />} />
-        <Route path="/admin" element={
-          <TeamAuthShell setRole={(role) => setTweak('role' as keyof TweakState, role)}>
-            <AppInner tw={tw} setTweak={setTweak} />
-          </TeamAuthShell>
-        } />
-        <Route path="/admin/:view" element={
-          <TeamAuthShell setRole={(role) => setTweak('role' as keyof TweakState, role)}>
-            <AppInner tw={tw} setTweak={setTweak} />
-          </TeamAuthShell>
-        } />
-        <Route path="/" element={
-          <AuthShell setRole={(role) => setTweak('role' as keyof TweakState, role)}>
-            <AppInner tw={tw} setTweak={setTweak} />
-          </AuthShell>
-        } />
-        <Route path="/:view" element={
-          <AuthShell setRole={(role) => setTweak('role' as keyof TweakState, role)}>
-            <AppInner tw={tw} setTweak={setTweak} />
-          </AuthShell>
-        } />
-      </Routes>
-    </Router>
-    </CustomerProvider>
-    </TeamProvider>
+        <PrefetchTeam />
+        {/* Global customers provider to keep data cached across pages */}
+        <CustomerProvider>
+          <PrefetchCustomers />
+          {/* Global VM requests provider to keep data cached across pages */}
+          <VMRequestProvider>
+            <QuoteProvider>
+              <PrefetchVMRequests />
+              <PrefetchQuotes />
+              <VMProvider>
+                <Router>
+                  <Routes>
+                    <Route path="/welcome" element={<Welcome />} />
+                    <Route path="/setup-password" element={<SetupPassword />} />
+                    <Route path="/auth/reset-password" element={<ResetPasswordScreen />} />
+                    <Route path="/admin" element={
+                      <TeamAuthShell setRole={(role) => setTweak('role' as keyof TweakState, role)}>
+                        <AppInner tw={tw} setTweak={setTweak} />
+                      </TeamAuthShell>
+                    } />
+                    <Route path="/admin/:view" element={
+                      <TeamAuthShell setRole={(role) => setTweak('role' as keyof TweakState, role)}>
+                        <AppInner tw={tw} setTweak={setTweak} />
+                      </TeamAuthShell>
+                    } />
+                    <Route path="/" element={
+                      <AuthShell setRole={(role) => setTweak('role' as keyof TweakState, role)}>
+                        <AppInner tw={tw} setTweak={setTweak} />
+                      </AuthShell>
+                    } />
+                    <Route path="/:view" element={
+                      <AuthShell setRole={(role) => setTweak('role' as keyof TweakState, role)}>
+                        <AppInner tw={tw} setTweak={setTweak} />
+                      </AuthShell>
+                    } />
+                  </Routes>
+                </Router>
+              </VMProvider>
+            </QuoteProvider>
+
+
+          </VMRequestProvider>
+        </CustomerProvider>
+      </TeamProvider>
     </>
   )
 }
