@@ -12,6 +12,7 @@ export interface TaskStoreValue {
   createVMManually: (taskId: string, vmDetails: {
     publicIps: string[]
     privateIps: string[]
+    assigned_vmids: number[]
     username: string
     password: string
   }, addVM: (vm: any) => Promise<string>) => Promise<void>
@@ -64,6 +65,7 @@ const useTaskStore = (): TaskStoreValue => {
   const createVMManually = useCallback(async (task: any, vmDetails: {
     publicIps: string[]
     privateIps: string[]
+    assigned_vmids: number[]
     username: string
     password: string
   }, addVM: (vm: any) => Promise<string>) => {
@@ -152,6 +154,7 @@ const useTaskStore = (): TaskStoreValue => {
         task_type: t.task_type,
         expiry: expiry,
         legacy_id: legacyId,
+        assigned_vmid: vmDetails.assigned_vmids[i] || null,
       }
       console.log(`About to call addVM for VM ${i + 1}:`, vmData)
       try {

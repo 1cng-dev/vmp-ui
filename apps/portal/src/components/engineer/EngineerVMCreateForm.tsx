@@ -7,6 +7,7 @@ interface EngineerVMCreateFormProps {
   onSubmit: (details: {
     publicIps: string[]
     privateIps: string[]
+    assigned_vmids: number[]
     username: string
     password: string
   }) => void
@@ -16,12 +17,14 @@ const EngineerVMCreateForm = ({ task, onSubmit }: EngineerVMCreateFormProps) => 
   const qty = task.qty || 1
   const [publicIps, setPublicIps] = useState<string[]>(() => Array(qty).fill(''))
   const [privateIps, setPrivateIps] = useState<string[]>(() => Array(qty).fill(''))
+  const [assigned_vmids, setAssigned_vmids] = useState<number[]>(() => Array(qty).fill(0))
   const [username, setUsername] = useState<string>('')
   const [password, setPassword] = useState<string>('')
 
   useEffect(() => {
     setPublicIps(Array(qty).fill(''))
     setPrivateIps(Array(qty).fill(''))
+    setAssigned_vmids(Array(qty).fill(0))
   }, [qty])
 
   const handlePublicIpChange = (index: number, value: string) => {
@@ -36,6 +39,12 @@ const EngineerVMCreateForm = ({ task, onSubmit }: EngineerVMCreateFormProps) => 
     setPrivateIps(newIps)
   }
 
+  const handleAssignedVmidChange = (index: number, value: string) => {
+    const newIds = [...assigned_vmids]
+    newIds[index] = value ? parseInt(value) : 0
+    setAssigned_vmids(newIds)
+  }
+
   const handleSubmit = () => {
     if (!username || !password) {
       alert('Please fill in username and password')
@@ -45,7 +54,11 @@ const EngineerVMCreateForm = ({ task, onSubmit }: EngineerVMCreateFormProps) => 
       alert('Please fill in all IP fields')
       return
     }
-    onSubmit({ publicIps, privateIps, username, password })
+    if (assigned_vmids.some(id => id === 0)) {
+      alert('Please fill in all Assigned VM ID fields')
+      return
+    }
+    onSubmit({ publicIps, privateIps, assigned_vmids, username, password })
   }
 
   return (
@@ -58,7 +71,7 @@ const EngineerVMCreateForm = ({ task, onSubmit }: EngineerVMCreateFormProps) => 
       {Array.from({ length: qty }).map((_, i) => (
         <div key={i} style={{ padding: 12, background: 'var(--surface-2)', borderRadius: 4 }}>
           <div className="fw-6 mb-3" style={{ fontSize: 14 }}>VM #{i + 1}: {task.hostname}-{i + 1}</div>
-          <div className="grid-2" style={{ gap: 12 }}>
+          <div className="grid-3" style={{ gap: 12 }}>
             <div className="field">
               <label>Public IP</label>
               <input
@@ -77,6 +90,16 @@ const EngineerVMCreateForm = ({ task, onSubmit }: EngineerVMCreateFormProps) => 
                 value={privateIps[i] ?? ''}
                 onChange={e => handlePrivateIpChange(i, e.target.value)}
                 placeholder="e.g., 10.0.0.1"
+              />
+            </div>
+            <div className="field">
+              <label>Assigned VM ID</label>
+              <input
+                type="number"
+                className="input"
+                value={assigned_vmids[i] || ''}
+                onChange={e => handleAssignedVmidChange(i, e.target.value)}
+                placeholder="e.g., 100"
               />
             </div>
           </div>

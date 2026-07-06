@@ -1,10 +1,9 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import useVMStore from '../../store/vmStore'
 import useCustomerStore from '../../store/customerStore'
-import useInvoiceStore from '../../store/invoiceStore'
-import useActivityStore from '../../store/activityStore'
 import Icon from '../../lib/icons'
-import { StatusPill, ExpiryCell, formatMMK, SecCheck, Bars } from '../ui/ui'
+import { StatusPill, ExpiryCell } from '../ui/ui'
+import { supabase } from '../../lib/supabase'
 
 interface VMDrawerProps {
   vmId: string
@@ -14,17 +13,35 @@ interface VMDrawerProps {
 }
 
 const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal }) => {
-  const { vms, setVMStatus, updateVM } = useVMStore()
+  const { vms, updateVM } = useVMStore()
   const { customers } = useCustomerStore()
-  const { invoices } = useInvoiceStore()
-  const { activity, logActivity } = useActivityStore()
   const v = vms.find((x: any) => x.id === vmId)
   if (!v) return null
-  const c = customers.find((c: any) => c.id === v.customer)
-  if (!c) return null
+  const c = customers.find((c: any) => c.id === v.customer_id)
   const [tab, setTab] = useState('overview')
+  const [vmRequest, setVmRequest] = useState<any>(null)
 
-  const vmInvoices = invoices.filter((i: any) => i.vms.includes(vmId))
+  // Fetch vm_request data for additional fields
+  useEffect(() => {
+    if (v.vm_request_id) {
+      supabase
+        .from('vm_requests')
+        .select('*')
+        .eq('id', v.vm_request_id)
+        .single()
+        .then(({ data, error }) => {
+          if (error) {
+            console.error('Error fetching vm_request:', error)
+          } else {
+            setVmRequest(data)
+          }
+        })
+    }
+  }, [v.vm_request_id])
+
+  const creds = v.username && v.password ? [
+    { type: 'SSH', user: v.username, pass: v.password }
+  ] : []
 
   return (
     <div className="drawer-overlay" onClick={onClose}>
@@ -32,9 +49,11 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal 
         <div style={{ padding: '20px 22px 16px', borderBottom: '1px solid var(--line)' }}>
           <div className="flex center between mb-2">
             <div className="flex center gap-2 text-sm text-mute">
-              <span className="mono">{v.id}</span>
-              <span>·</span>
-              <a onClick={() => openCust(c.id)} style={{ cursor: 'pointer', color: 'var(--accent-strong)' }}>{c.company}</a>
+              <span className="mono">{v.legacy_id || v.id}</span>
+              {c && <>
+                <span>·</span>
+                <a onClick={() => c?.id && openCust(c.id)} style={{ cursor: 'pointer', color: 'var(--accent-strong)' }}>{c?.org_name || c?.name}</a>
+              </>}
             </div>
             <div className="flex gap-2">
               <button className="icon-btn" title="Open in Proxmox"><Icon name="external" size={14}/></button>
@@ -43,30 +62,28 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal 
           </div>
           <div className="flex center between">
             <div>
-              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em' }}>{v.name}</h2>
+              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em' }}>{v.hostname}</h2>
               <div className="flex gap-2 mt-2">
                 <StatusPill status={v.status}/>
-                <StatusPill status={v.type}/>
-                <span className="pill"><Icon name={v.powerState === 'Running' ? 'play' : 'pause'} size={10}/>{v.powerState}</span>
-                <SecCheck on={v.security}/>
+                <StatusPill status={v.task_type || 'new'}/>
+                <span className="pill"><Icon name={v.power_state === 'Running' ? 'play' : 'pause'} size={10}/>{v.power_state}</span>
               </div>
             </div>
             <div className="flex gap-2">
               <button className="btn" onClick={() => openModal('renew', { vm: v })}><Icon name="refresh" size={12}/>Renew</button>
               <button className="btn" onClick={() => openModal('spec', { vm: v })}><Icon name="sliders" size={12}/>Spec</button>
               {v.status === 'Active'
-                ? <button className="btn" onClick={() => setVMStatus(v.id, 'Suspended', 'Stopped')}><Icon name="pause" size={12}/>Suspend</button>
-                : <button className="btn primary" onClick={() => setVMStatus(v.id, 'Active', 'Running')}><Icon name="play" size={12}/>Activate</button>}
+                ? <button className="btn" onClick={() => updateVM(v.id, { status: 'Suspended' as any, power_state: 'Stopped' as any })}><Icon name="pause" size={12}/>Suspend</button>
+                : <button className="btn primary" onClick={() => updateVM(v.id, { status: 'Active' as any, power_state: 'Running' as any })}><Icon name="play" size={12}/>Activate</button>}
               <button className="btn danger" onClick={() => openModal('terminate', { vm: v })}><Icon name="trash" size={12}/></button>
             </div>
           </div>
         </div>
 
         <div className="tabs">
-          {['overview','network','creds','billing','activity','backups'].map(t => (
+          {['overview','specs','network','backups','credentials'].map(t => (
             <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
-              {t === 'overview' ? 'Overview' : t === 'network' ? 'Network' : t === 'creds' ? 'Credentials' : t === 'billing' ? 'Billing' : t === 'activity' ? 'Activity' : 'Backups'}
-              {t === 'billing' && <span className="count">{vmInvoices.length}</span>}
+              {t === 'overview' ? 'Overview' : t === 'specs' ? 'Specs' : t === 'network' ? 'Network' : t === 'backups' ? 'Backups' : 'Credentials'}
             </button>
           ))}
         </div>
@@ -81,60 +98,37 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal 
                       <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Specification</div>
                       <dl className="dl mt-3">
                         <dt>vCPU</dt><dd className="tnum">{v.vcpu} cores</dd>
-                        <dt>RAM</dt><dd className="tnum">{v.ram} GB</dd>
-                        <dt>Storage</dt><dd className="tnum">{v.storage} GB SSD</dd>
-                        <dt>Bandwidth</dt><dd>{v.bandwidth}</dd>
-                        <dt>OS</dt><dd>{v.os}</dd>
-                        <dt>Datacenter</dt><dd>{v.datacenter} <span className="text-mute">· {v.node}</span></dd>
+                        <dt>RAM</dt><dd className="tnum">{v.ram_gb} GB</dd>
+                        <dt>Storage</dt><dd className="tnum">{v.storage_gb} GB SSD</dd>
+                        <dt>OS</dt><dd>{vmRequest?.os_name || vmRequest?.custom_os_name || 'Linux'}</dd>
+                        <dt>OS Version</dt><dd>{vmRequest?.os_version || vmRequest?.custom_os_version || '—'}</dd>
+                        <dt>Purpose</dt><dd>{vmRequest?.purpose || '—'}</dd>
                       </dl>
                     </div>
                     <div>
                       <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Subscription</div>
                       <dl className="dl mt-3">
-                        <dt>Type</dt><dd>{v.type}</dd>
-                        <dt>Period</dt><dd>{v.subscription}</dd>
-                        <dt>Start</dt><dd className="tnum">{v.start}</dd>
-                        <dt>Expiry</dt><dd><ExpiryCell date={v.expiry}/></dd>
-                        <dt>Monthly</dt><dd className="tnum">MMK {formatMMK(v.priceMonth)}</dd>
+                        <dt>VM ID</dt><dd className="mono">{v.legacy_id || v.id}</dd>
+                        <dt>Assigned VM ID</dt><dd className="mono">{(v as any).assigned_vmid || vmRequest?.assigned_vmid || '—'}</dd>
+                        <dt>Request ID</dt><dd className="mono">{vmRequest?.legacy_id || v.vm_request_id || '—'}</dd>
+                        <dt>Request Type</dt><dd>{vmRequest?.request_type || 'paid'}</dd>
+                        <dt>Task Type</dt><dd>{v.task_type || 'New'}</dd>
+                        <dt>Quantity</dt><dd className="tnum">{vmRequest?.qty || 1}</dd>
+                        <dt>Duration</dt><dd className="tnum">{vmRequest?.duration ? `${vmRequest.duration} days` : '—'}</dd>
+                        <dt>Monitoring</dt><dd>{vmRequest?.monitoring ? 'Yes' : 'No'}</dd>
+                        <dt>Created</dt><dd className="tnum">{v.created_at ? new Date(v.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</dd>
+                        <dt>Expiry</dt><dd><ExpiryCell date={v.expiry || '—'}/></dd>
                       </dl>
                     </div>
                   </div>
                 </div>
               </div>
-
-              <div className="card">
-                <div className="card-head">
-                  <h3 className="card-title">Utilization · last 24h</h3>
-                  <span className="text-xs text-mute">live · synced 2 min ago</span>
+              {vmRequest?.notes && (
+                <div className="card">
+                  <div className="card-head"><h3 className="card-title">Request notes</h3></div>
+                  <div className="card-body"><p style={{ margin: 0 }}>{vmRequest.notes}</p></div>
                 </div>
-                <div className="card-body">
-                  <div className="grid-3">
-                    <div>
-                      <div className="flex center between mb-2">
-                        <span className="text-sm fw-6"><Icon name="cpu" size={12}/> CPU</span>
-                        <span className="tnum text-sm">42%</span>
-                      </div>
-                      <Bars data={[20,22,28,35,30,42,48,45,50,55,52,58,62,70,65,60,55,48,42,38,35,40,42,38]}/>
-                    </div>
-                    <div>
-                      <div className="flex center between mb-2">
-                        <span className="text-sm fw-6"><Icon name="database" size={12}/> RAM</span>
-                        <span className="tnum text-sm">68%</span>
-                      </div>
-                      <Bars data={[55,58,60,62,65,67,68,70,71,72,71,70,68,67,65,64,63,62,61,60,62,65,66,68]} color="var(--info)"/>
-                    </div>
-                    <div>
-                      <div className="flex center between mb-2">
-                        <span className="text-sm fw-6"><Icon name="network" size={12}/> Net</span>
-                        <span className="tnum text-sm">128 Mbps</span>
-                      </div>
-                      <Bars data={[30,45,60,80,90,120,140,160,180,150,130,100,80,60,50,40,55,70,90,110,128,118,100,85]} color="var(--ok)"/>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {v.notes && <div className="card"><div className="card-head"><h3 className="card-title">Internal notes</h3></div><div className="card-body"><textarea rows={3} defaultValue={v.notes} onBlur={e => updateVM(v.id, { notes: e.target.value })} style={{ width: '100%' }}/></div></div>}
+              )}
             </div>
           )}
 
@@ -142,24 +136,35 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal 
             <div className="flex col gap-4">
               <div className="card"><div className="card-body">
                 <dl className="dl">
-                  <dt>Public access</dt><dd>{v.publicAccess ? <span className="pill ok"><span className="dot"/>Enabled</span> : <span className="pill"><span className="dot"/>Disabled</span>}</dd>
-                  <dt>Public IPv4</dt><dd className="mono">{v.publicIp}</dd>
-                  <dt>VLAN</dt><dd className="mono">{v.vlan}</dd>
-                  <dt>Port forwarding</dt><dd className="mono text-sm">{v.portForward}</dd>
-                  <dt>Interconnect</dt><dd>{v.interconnect.length ? v.interconnect.map((id: string) => <span key={id} className="id-tag" style={{marginRight:4}}>{id}</span>) : <span className="text-mute">none</span>}</dd>
-                  <dt>Firewall policy</dt><dd className="mono">{v.firewallPolicy}</dd>
+                  <dt>Public IPv4</dt><dd className="mono fw-6">{v.public_ip || '—'}</dd>
+                  <dt>Private IPv4</dt><dd className="mono">{v.private_ip || '—'}</dd>
+                  <dt>Zone</dt><dd>{vmRequest?.zone || '—'}</dd>
+                  <dt>NICs</dt><dd className="mono">{vmRequest?.nics && vmRequest.nics.length > 0 
+                    ? vmRequest.nics.map((nic: any) => nic.vlan || nic.label).join(', ')
+                    : '—'}</dd>
+                  <dt>Public IP Required</dt><dd>{vmRequest?.public_ip_required ? 'Yes' : 'No'}</dd>
+                  <dt>Firewall policy</dt><dd className="mono">Default</dd>
+                  <dt>Port forwarding</dt><dd className="mono">{vmRequest?.port_forwarding?.length > 0 
+                    ? vmRequest.port_forwarding.map((pf: any) => `${pf.srcPort} → ${pf.dstPort} (${pf.protocol})`).join(', ')
+                    : '—'}</dd>
                 </dl>
               </div></div>
               <div className="card">
-                <div className="card-head"><h3 className="card-title">Firewall rules</h3><button className="btn sm" onClick={() => logActivity('Open Firewall rules editor from the sidebar', 'info')}><Icon name="edit" size={11}/>Edit</button></div>
+                <div className="card-head"><h3 className="card-title">Allowed ports</h3></div>
                 <div className="card-body flush">
                   <table className="tbl">
-                    <thead><tr><th>Action</th><th>Source</th><th>Destination</th><th>Port</th><th>Protocol</th></tr></thead>
+                    <thead><tr><th>Port</th><th>Protocol</th><th>Source</th></tr></thead>
                     <tbody>
-                      <tr><td><span className="pill ok"><span className="dot"/>Allow</span></td><td className="mono">any</td><td className="mono">{v.publicIp}</td><td className="mono">443</td><td className="mono">TCP</td></tr>
-                      <tr><td><span className="pill ok"><span className="dot"/>Allow</span></td><td className="mono">any</td><td className="mono">{v.publicIp}</td><td className="mono">80</td><td className="mono">TCP</td></tr>
-                      <tr><td><span className="pill ok"><span className="dot"/>Allow</span></td><td className="mono">trusted-admin</td><td className="mono">{v.publicIp}</td><td className="mono">22</td><td className="mono">TCP</td></tr>
-                      <tr><td><span className="pill bad"><span className="dot"/>Deny</span></td><td className="mono">any</td><td className="mono">{v.publicIp}</td><td className="mono">*</td><td className="mono">*</td></tr>
+                      {vmRequest?.firewall_ports?.map((port: any, idx: number) => (
+                        <tr key={idx}>
+                          <td className="mono fw-6">{port}</td>
+                          <td className="mono">TCP</td>
+                          <td className="text-sm">any</td>
+                        </tr>
+                      ))}
+                      {(!vmRequest?.firewall_ports || vmRequest.firewall_ports.length === 0) && (
+                        <tr><td colSpan={3}><div className="empty"><div className="sub">No specific firewall ports defined.</div></div></td></tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -167,107 +172,96 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal 
             </div>
           )}
 
-          {tab === 'creds' && (
-            <div className="flex col gap-4">
-              <div className="card">
-                <div className="card-head"><h3 className="card-title">Stored credentials</h3><SecCheck on={v.security}/></div>
-                <div className="card-body">
-                  <div style={{ padding: 12, background: 'var(--warn-soft)', borderRadius: 6, fontSize: 12, color: 'oklch(0.4 0.12 75)', display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 14 }}>
-                    <Icon name="lock" size={14}/>
-                    <div>Credentials are encrypted at rest (AES-256). Access requires 2FA and is logged.</div>
-                  </div>
-                  <table className="tbl">
-                    <thead><tr><th>Type</th><th>Username</th><th>Password</th><th>Last accessed</th><th></th></tr></thead>
-                    <tbody>
-                      <tr><td>root</td><td className="mono">root</td><td className="mono">••••••••••••</td><td className="text-mute text-sm">2 days ago · Ko Thein</td><td className="right"><button className="btn sm"><Icon name="eye" size={11}/>Reveal</button></td></tr>
-                      <tr><td>app user</td><td className="mono">{v.name.split('-')[0]}-admin</td><td className="mono">••••••••••••</td><td className="text-mute text-sm">5 days ago</td><td className="right"><button className="btn sm"><Icon name="eye" size={11}/>Reveal</button></td></tr>
-                      <tr><td>SSH key</td><td className="mono">id_ed25519</td><td className="mono">SHA256:••••••••••••</td><td className="text-mute text-sm">1 week ago</td><td className="right"><button className="btn sm"><Icon name="download" size={11}/>RAR</button></td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-              <div className="card">
-                <div className="card-head"><h3 className="card-title">Security compliance</h3></div>
-                <div className="card-body">
-                  <div className="flex col gap-2 text-sm">
-                    {[
-                      ['Root login disabled (SSH)', true],
-                      ['Firewall policy applied', true],
-                      ['Daily backups configured', !!v.backup && v.backup !== 'None'],
-                      ['Latest OS security patches', true],
-                      ['Fail2ban / brute-force protection', v.security],
-                      ['TLS certificate valid', v.publicAccess ? true : null],
-                    ].filter(([_, x]) => x !== null).map(([label, ok], i) => (
-                      <div key={i} className="flex center gap-2">
-                        <span style={{ color: ok ? 'var(--ok)' : 'var(--warn)' }}><Icon name={ok ? 'check' : 'alert'} size={14}/></span>
-                        <span>{label}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {tab === 'billing' && (
+          {tab === 'backups' && (
             <div className="card">
-              <div className="card-head"><h3 className="card-title">Invoices for this VM</h3></div>
-              <div className="card-body flush">
+              <div className="card-body">
+                <dl className="dl">
+                  <dt>Backup Enabled</dt><dd>{vmRequest?.backup_enabled ? 'Yes' : 'No'}</dd>
+                  <dt>Backup Type</dt><dd>{vmRequest?.backup_enabled ? vmRequest?.backup_type : '—'}</dd>
+                </dl>
+              </div>
+            </div>
+          )}
+
+          {tab === 'credentials' && (
+            <div className="card">
+              <div className="card-body">
+                <div style={{ padding: 12, background: 'var(--warn-soft)', borderRadius: 6, fontSize: 12, color: 'oklch(0.4 0.12 75)', display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 16 }}>
+                  <Icon name="lock" size={14}/>
+                  <div>Credentials are encrypted at rest. Access requires proper authorization and is logged.</div>
+                </div>
                 <table className="tbl">
-                  <thead><tr><th>Invoice</th><th>Issued</th><th>Due</th><th className="right">Amount</th><th>Status</th></tr></thead>
+                  <thead><tr><th>Type</th><th>Username</th><th>Password</th><th></th></tr></thead>
                   <tbody>
-                    {vmInvoices.length === 0 && <tr><td colSpan={5}><div className="empty"><div className="sub">No invoices yet.</div></div></td></tr>}
-                    {vmInvoices.map((inv: any) => (
-                      <tr key={inv.id}>
-                        <td className="mono">{inv.id}</td>
-                        <td className="tnum text-sm">{inv.issued}</td>
-                        <td className="tnum text-sm">{inv.due}</td>
-                        <td className="right tnum fw-6">MMK {formatMMK(inv.amount)}</td>
-                        <td><StatusPill status={inv.status}/></td>
+                    {creds.map((c: any) => (
+                      <tr key={c.type}>
+                        <td>{c.type}</td>
+                        <td className="mono">{c.user}</td>
+                        <td className="mono">••••••••••••••••</td>
+                        <td className="right">
+                          <button className="btn sm" onClick={() => { navigator.clipboard?.writeText(c.pass); alert('Password copied') }}><Icon name="check" size={11}/>Copy</button>
+                        </td>
                       </tr>
                     ))}
+                    {creds.length === 0 && (
+                      <tr>
+                        <td colSpan={4}><div className="empty"><div className="sub">No credentials available.</div></div></td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
             </div>
           )}
 
-          {tab === 'activity' && (
+          {tab === 'specs' && (
             <div className="card">
               <div className="card-body">
-                {activity.filter((a: any) => a.text.includes(v.name) || a.text.includes(v.id)).map((a: any, i: number) => (
-                  <div key={i} className="feed-item">
-                    <span className={`dot ${a.kind}`}/>
-                    <div className="body">{a.text}<div className="meta">{a.actor} · {a.ts}</div></div>
+                <div className="grid-2" style={{ gap: 14 }}>
+                  <div>
+                    <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Instance</div>
+                    <dl className="dl">
+                      <dt>VM ID</dt><dd className="mono">{v.legacy_id || v.id}</dd>
+                      <dt>Hostname</dt><dd>{v.hostname}</dd>
+                      <dt>Power state</dt><dd>{v.power_state}</dd>
+                      <dt>Status</dt><dd>{v.status}</dd>
+                      <dt>Task Type</dt><dd>{v.task_type || 'New'}</dd>
+                      <dt>Assigned VM ID</dt><dd>{(v as any).assigned_vmid || vmRequest?.assigned_vmid || '—'}</dd>
+                      <dt>Created</dt><dd className="tnum">{v.created_at ? new Date(v.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</dd>
+                      <dt>Updated</dt><dd className="tnum">{v.updated_at ? new Date(v.updated_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</dd>
+                    </dl>
                   </div>
-                ))}
-                {activity.filter((a: any) => a.text.includes(v.name) || a.text.includes(v.id)).length === 0 && <div className="empty"><div className="sub">No activity yet.</div></div>}
-              </div>
-            </div>
-          )}
-
-          {tab === 'backups' && (
-            <div className="flex col gap-4">
-              <div className="card">
-                <div className="card-head"><h3 className="card-title">Backup policy</h3></div>
-                <div className="card-body">
-                  <dl className="dl">
-                    <dt>Schedule</dt><dd>{v.backup}</dd>
-                    <dt>Total snapshots</dt><dd className="tnum">—</dd>
-                    <dt>Storage used</dt><dd className="tnum">—</dd>
-                    <dt>Last successful</dt><dd className="tnum">—</dd>
-                  </dl>
-                </div>
-              </div>
-              <div className="card">
-                <div className="card-head"><h3 className="card-title">Recent snapshots</h3></div>
-                <div className="card-body flush">
-                  <table className="tbl">
-                    <thead><tr><th>Snapshot ID</th><th>Created</th><th className="right">Size</th><th>Type</th><th></th></tr></thead>
-                    <tbody>
-                      <tr><td colSpan={5}><div className="empty"><div className="sub">No snapshots found.</div></div></td></tr>
-                    </tbody>
-                  </table>
+                  <div>
+                    <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Hardware</div>
+                    <dl className="dl">
+                      <dt>vCPU</dt><dd>{v.vcpu} cores</dd>
+                      <dt>Memory</dt><dd>{v.ram_gb} GB</dd>
+                      <dt>Storage</dt><dd>{v.storage_gb} GB SSD</dd>
+                      <dt>OS</dt><dd>{vmRequest?.os_name || vmRequest?.custom_os_name || 'Linux'}</dd>
+                      <dt>OS Version</dt><dd>{vmRequest?.os_version || vmRequest?.custom_os_version || '—'}</dd>
+                      <dt>Specification Type</dt><dd>{vmRequest?.sizing || 'Standard'}</dd>
+                      <dt>Storage Partitions</dt><dd>{vmRequest?.storage_partitions || '—'}</dd>
+                    </dl>
+                  </div>
+                  <div>
+                    <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Request Details</div>
+                    <dl className="dl">
+                      <dt>Request ID</dt><dd className="mono">{vmRequest?.legacy_id || v.vm_request_id || '—'}</dd>
+                      <dt>Request Type</dt><dd>{vmRequest?.request_type || 'paid'}</dd>
+                      <dt>Request Status</dt><dd>{vmRequest?.status || '—'}</dd>
+                      <dt>Quantity</dt><dd className="tnum">{vmRequest?.qty || 1}</dd>
+                      <dt>Duration</dt><dd className="tnum">{vmRequest?.duration ? `${vmRequest.duration} days` : '—'}</dd>
+                      <dt>Request Created</dt><dd className="tnum">{vmRequest?.created_at ? new Date(vmRequest.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</dd>
+                      <dt>Request Updated</dt><dd className="tnum">{vmRequest?.updated_at ? new Date(vmRequest.updated_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</dd>
+                    </dl>
+                  </div>
+                  <div>
+                    <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Addons & Assignment</div>
+                    <dl className="dl">
+                      <dt>Backup Enabled</dt><dd>{vmRequest?.backup_enabled ? vmRequest.backup_type : 'No'}</dd>
+                      <dt>Monitoring</dt><dd>{vmRequest?.monitoring ? 'Yes' : 'No'}</dd>
+                    </dl>
+                  </div>
                 </div>
               </div>
             </div>

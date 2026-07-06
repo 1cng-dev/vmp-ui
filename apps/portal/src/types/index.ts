@@ -69,6 +69,7 @@ export interface VM {
   notes: string
   subscription: string
   priceMonth: number
+  assigned_vmid?: number
   // Add-on services
   addonServices?: {
     backupEnabled?: boolean

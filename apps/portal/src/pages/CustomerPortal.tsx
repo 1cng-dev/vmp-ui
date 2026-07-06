@@ -127,15 +127,6 @@ const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRole, role
   if (v.customer_id !== safeMe.id) {
     return false
   }
-  // Only show VMs with status 'Active' (completed/provisioned)
-  if (v.status !== 'Active') {
-    return false
-  }
-  // Only show VMs where the associated vm_request has status = 'Completed'
-  const request = vmRequests.find((r: any) => r.id === v.vm_request_id)
-  if (!request || request.status !== 'Completed') {
-    return false
-  }
   return true
 })
   const myInvs = invoices.filter((i: any) => i.customer === safeMe.id)

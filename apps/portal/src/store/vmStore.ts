@@ -20,6 +20,7 @@ export interface VM {
   task_type?: 'new' | 'upgrade' | 'renewal' | 'addon'
   expiry?: string
   legacy_id?: string
+  assigned_vmid?: number
   created_at: string
   updated_at: string
 }
@@ -71,6 +72,7 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       task_type: vm.task_type as any,
       expiry: vm.expiry,
       legacy_id: vm.legacy_id,
+      assigned_vmid: (vm as any).assigned_vmid,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }

@@ -3,7 +3,7 @@ import useVMStore from '../store/vmStore'
 import useCustomerStore from '../store/customerStore'
 import useUIStore from '../store/uiStore'
 import Icon from '../lib/icons'
-import { StatusPill } from '../components/ui/ui'
+import { StatusPill, ExpiryCell } from '../components/ui/ui'
 
 interface VMListProps {
   openVM: (id: string) => void
@@ -11,13 +11,18 @@ interface VMListProps {
 }
 
 const VMList: React.FC<VMListProps> = ({ openVM, openModal }) => {
-  const { vms } = useVMStore()
+  const { vms, loadVMs } = useVMStore()
   const { customers } = useCustomerStore()
   const { toast } = useUIStore()
   const [filter, setFilter] = useState<Set<string>>(new Set(['all']))
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [menu, setMenu] = useState<string | null>(null)
+
+  // Ensure VMs are loaded when this page is opened
+  useEffect(() => {
+    loadVMs()
+  }, [loadVMs])
 
   const filters = [
     { id: 'all', label: 'All', count: vms.length },
@@ -138,7 +143,8 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal }) => {
                       <span className="id-tag accent">{v.task_type || 'new'}</span>
                       <div>
                         <div className="fw-6">{v.hostname}</div>
-                        <div className="text-xs text-mute mono">{v.id}</div>
+                        <div className="text-xs text-mute mono">{v.legacy_id || v.id}</div>
+                        {(v as any).assigned_vmid && <div className="text-xs text-mute">Proxmox ID: {(v as any).assigned_vmid}</div>}
                       </div>
                     </div>
                   </td>
@@ -154,7 +160,7 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal }) => {
                   <td className="mono text-xs">
                     {v.public_ip || '—'}
                   </td>
-                  <td className="text-xs text-mute">—</td>
+                  <td><ExpiryCell date={v.expiry as any} /></td>
                   <td onClick={e => e.stopPropagation()} style={{ position: 'relative' }}>
                     <button className="icon-btn" onClick={(e) => { e.stopPropagation(); setMenu(menu === v.id ? null : v.id); }}>
                       <Icon name="more"/>

@@ -78,3 +78,9 @@ CREATE INDEX IF NOT EXISTS idx_vms_legacy_id ON public.vms(legacy_id);
 
 
 
+-- Add assigned_vmid field to vms table
+-- This stores the VM ID from the provisioning system (e.g., Proxmox VM ID)
+ALTER TABLE public.vms ADD COLUMN IF NOT EXISTS assigned_vmid INTEGER;
+
+-- Create index for assigned_vmid queries
+CREATE INDEX IF NOT EXISTS idx_vms_assigned_vmid ON public.vms(assigned_vmid);

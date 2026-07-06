@@ -126,7 +126,7 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
 
       <div className="card">
         <div className="tabs">
-          {['overview', 'specs', 'network', 'credentials', 'snapshots', 'usage', 'addons', 'tags-notes'].map(t => {
+          {['overview', 'specs', 'network', 'backups', 'credentials', 'snapshots', 'usage', 'addons', 'tags-notes'].map(t => {
             const label = t === 'tags-notes' ? 'Tags & notes' : t === 'addons' ? 'Add-on Services' : t.charAt(0).toUpperCase() + t.slice(1)
             return (
               <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
@@ -149,6 +149,7 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
               ]}/>
               <InfoCard icon="invoice" title="Subscription" rows={[
                 ['VM ID', vm.legacy_id || vm.id],
+                ['Assigned VM ID', (vm as any).assigned_vmid || vmRequest?.assigned_vmid || '—'],
                 ['Task Type', vm.task_type || 'New'],
                 ['Created', new Date(vm.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })],
                 ['Expires', vm.expiry ? new Date(vm.expiry).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'],
@@ -201,6 +202,17 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {tab === 'backups' && (
+          <div className="card-body">
+            <div className="grid-2" style={{ gap: 16 }}>
+              <InfoCard icon="shield" title="Backup Configuration" rows={[
+                ['Backup Enabled', vmRequest?.backup_enabled ? 'Yes' : 'No'],
+                ['Backup Type', vmRequest?.backup_enabled ? vmRequest?.backup_type : '—'],
+              ]}/>
             </div>
           </div>
         )}
@@ -311,6 +323,7 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
             <div className="grid-2" style={{ gap: 14 }}>
               <InfoCard icon="server" title="Instance" mono rows={[
                 ['VM ID', vm.legacy_id || vm.id],
+                ['Assigned VM ID', (vm as any).assigned_vmid || vmRequest?.assigned_vmid || '—'],
                 ['Hostname', vm.hostname],
                 ['Power state', vm.power_state],
                 ['Request ID', vmRequest?.legacy_id || vm.vm_request_id],
