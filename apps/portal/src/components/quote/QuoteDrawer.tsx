@@ -1,9 +1,12 @@
+import React from 'react'
 import Icon from '../../lib/icons'
 import { formatMMK } from '../ui/ui'
 import type { DBQuote } from '../../types'
 import useCustomerStore from '../../store/customerStore'
 import useVMRequestStore from '../../store/vmRequestStore'
+import useVMStore from '../../store/vmStore'
 import useQuoteStore from '../../store/quoteStore'
+import useAddonRequestStore from '../../store/addonRequestStore'
 import useUIStore from '../../store/uiStore'
 
 interface QuoteDrawerProps {
@@ -14,11 +17,26 @@ interface QuoteDrawerProps {
 const QuoteDrawer = ({ quote, onClose }: QuoteDrawerProps) => {
   const { customers } = useCustomerStore()
   const { vmRequests } = useVMRequestStore()
+  const { vms, loadVMs } = useVMStore()
+  const { addonRequests } = useAddonRequestStore()
   const { updateQuote } = useQuoteStore()
   const { toast } = useUIStore()
 
+  // Load VMs if not loaded
+  React.useEffect(() => {
+    if (vms.length === 0) {
+      loadVMs()
+    }
+  }, [vms.length, loadVMs])
+
   const cust = customers.find(c => c.id === quote.customer_id)
-  const request = vmRequests.find(r => r.id === quote.vm_request_id)
+  const vmReq = vmRequests.find(r => r.id === quote.vm_request_id)
+  const addonReq = addonRequests.find(a => a.id === (quote as any).addon_request_id)
+  const isAddon = !!(quote as any).addon_request_id
+  // For renewal requests, find VM by hostname since VM is linked to original request
+  const vm = vmReq?.task_type === 'Renewal' || vmReq?.task_type === 'renewal'
+    ? vms.find(v => v.hostname === vmReq?.hostname)
+    : vms.find(v => v.vm_request_id === quote.vm_request_id)
 
   const handleApprove = async () => {
     await updateQuote(quote.id, { status: 'Accepted' })
@@ -62,11 +80,15 @@ const QuoteDrawer = ({ quote, onClose }: QuoteDrawerProps) => {
                 </div>
                 <div>
                   <div className="text-sm text-mute">Type</div>
-                  <div><span className="pill subtle">{request?.task_type || 'new'}</span></div>
+                  <div><span className="pill subtle">{isAddon ? 'Add-on Service' : (vmReq?.task_type || 'new')}</span></div>
                 </div>
                 <div>
-                  <div className="text-sm text-mute">VM Request</div>
-                  <div>{request?.legacy_id || request?.id.slice(0, 8)} · {request?.hostname || '—'}</div>
+                  <div className="text-sm text-mute">Linked Request</div>
+                  <div>
+                    {isAddon
+                      ? `${addonReq?.legacy_id || addonReq?.id?.slice(0, 8) || (quote as any).addon_request_id?.slice?.(0,8) || '—'} · ${addonReq ? `${addonReq.cpfs_enabled ? 'CPFS' : ''}${addonReq.cpfs_enabled && addonReq.ccis_enabled ? ' + ' : ''}${addonReq.ccis_enabled ? 'CCIS' : ''}` : '—'}`
+                      : `${vmReq?.legacy_id || vmReq?.id?.slice(0, 8) || quote.vm_request_id?.slice?.(0,8) || '—'} · ${vmReq?.hostname || '—'}${vm ? ` (${vm.legacy_id})` : ''}`}
+                  </div>
                 </div>
                 <div>
                   <div className="text-sm text-mute">Valid until</div>

@@ -16,10 +16,10 @@ interface CustomerDashboardProps {
 export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ me, myVMs, myInvs, myTickets, myRequests, setView, setDetailVm, setOpenTicket }) => {
   const kycLocked = me.kyc !== 'Approved'
   const activeVMs = myVMs.filter((v: any) => v.status === 'Active').length
-  const totalVcpu = myVMs.filter((v: any) => v.status === 'Active').reduce((a: number, v: any) => a + v.vcpu, 0)
-  const totalRam = myVMs.filter((v: any) => v.status === 'Active').reduce((a: number, v: any) => a + v.ram, 0)
-  const totalStorage = myVMs.filter((v: any) => v.status === 'Active').reduce((a: number, v: any) => a + v.storage, 0)
-  const monthly = myVMs.filter((v: any) => v.status === 'Active').reduce((a: number, v: any) => a + v.priceMonth, 0)
+  const totalVcpu = myVMs.filter((v: any) => v.status === 'Active').reduce((a: number, v: any) => a + (v.vcpu || 0), 0)
+  const totalRam = myVMs.filter((v: any) => v.status === 'Active').reduce((a: number, v: any) => a + (v.ram_gb || 0), 0)
+  const totalStorage = myVMs.filter((v: any) => v.status === 'Active').reduce((a: number, v: any) => a + (v.storage_gb || 0), 0)
+  const monthly = myVMs.filter((v: any) => v.status === 'Active').reduce((a: number, v: any) => a + (v.priceMonth || 0), 0)
   const openTickets = myTickets.filter((t: any) => t.status === 'Open' || t.status === 'In Progress')
   const pendingInv = myInvs.filter((i: any) => i.status !== 'Payment Received')
   const pendingReq = myRequests.filter((r: any) => r.status === 'Pending' || r.status === 'In Progress')
@@ -77,7 +77,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ me, myVMs,
               {openTickets.slice(0, 3).map((t: any) => (
                 <div key={t.id} onClick={() => setOpenTicket(t)} style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)', cursor: 'pointer' }}>
                   <div className="flex center between mb-1">
-                    <span className="mono text-xs text-mute">{t.id}</span>
+                    <span className="mono text-xs text-mute">{t.legacy_id || t.id}</span>
                     <StatusPill status={t.status}/>
                   </div>
                   <div className="fw-6 text-sm">{t.subject}</div>

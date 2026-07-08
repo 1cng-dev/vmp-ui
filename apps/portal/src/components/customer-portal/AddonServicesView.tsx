@@ -1,17 +1,24 @@
 import React, { useState } from 'react'
 import Icon from '../../lib/icons'
 import { IaaSCard } from './VMHelperComponents'
+import { useAddonRequestStore } from '../../store/addonRequestStore'
+import useUIStore from '../../store/uiStore'
 
 interface AddonServicesViewProps {
   myVMs: any[]
 }
 
 export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs }) => {
+  const { createAddonRequest } = useAddonRequestStore()
+  const { toast } = useUIStore()
   const [selectedVM, setSelectedVM] = useState<string>('')
   const [cpfsEnabled, setCpfsEnabled] = useState(false)
   const [cpfsPackage, setCpfsPackage] = useState<'standard' | 'premium'>('standard')
   const [ccisEnabled, setCcisEnabled] = useState(false)
-  const [ccisPlan, setCcisPlan] = useState<string>('')
+  const [ccisPlan, setCcisPlan] = useState<'basic' | 'standard' | 'professional' | 'enterprise' | undefined>(undefined)
+  const [duration, setDuration] = useState<number>(12)
+  const [customDuration, setCustomDuration] = useState('')
+  const [isCustomDuration, setIsCustomDuration] = useState(false)
 
   const canSubmit = () => !!selectedVM && (cpfsEnabled || ccisEnabled)
 
@@ -37,11 +44,51 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs }) =
                   </div>
                   {selectedVM === vm.id && <Icon name="check" size={14} style={{ color: 'var(--accent-strong)' }}/>}
                 </div>
-                <div className="fw-7 text-sm">{vm.name}</div>
-                <div className="text-xs text-mute mono">{vm.id}</div>
+                <div className="fw-7 text-sm">{vm.hostname}</div>
+                <div className="text-xs text-mute mono">{vm.legacy_id || vm.id}</div>
                 <div className="text-xs mt-2"><span className="text-mute">Status:</span> <span className={`fw-6 ${vm.status === 'Active' ? 'text-ok' : 'text-mute'}`}>{vm.status}</span></div>
               </IaaSCard>
             ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Duration Section */}
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="card-head"><h3 className="card-title">Duration</h3></div>
+        <div className="card-body">
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, display: 'block' }}>Duration (months)</label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+              {[1, 3, 6, 12].map(months => (
+                <button
+                  key={months}
+                  className={`filter-chip ${!isCustomDuration && duration === months ? 'active' : ''}`}
+                  onClick={() => { setDuration(months); setIsCustomDuration(false) }}
+                >
+                  {months} month{months > 1 ? 's' : ''}
+                </button>
+              ))}
+              <button
+                className={`filter-chip ${isCustomDuration ? 'active' : ''}`}
+                onClick={() => setIsCustomDuration(true)}
+              >
+                <Icon name="plus" size={11} /> Custom
+              </button>
+            </div>
+
+            {isCustomDuration && (
+              <div style={{ marginTop: 8 }}>
+                <input
+                  type="number"
+                  value={customDuration}
+                  onChange={e => { setCustomDuration(e.target.value); setDuration(parseInt(e.target.value) || 1) }}
+                  placeholder="Enter months"
+                  min="1"
+                  style={{ width: 120, padding: '7px 10px', border: '1px solid var(--line)', borderRadius: 6 }}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -98,7 +145,7 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs }) =
                 { id: 'professional', name: 'Professional Plan', mb: '1 GB' },
                 { id: 'enterprise', name: 'Enterprise Plan', mb: '5 GB' },
               ].map((plan) => (
-                <IaaSCard key={plan.id} selected={ccisPlan === plan.id} onClick={() => setCcisPlan(plan.id)} padding={16 as any}>
+                <IaaSCard key={plan.id} selected={ccisPlan === plan.id} onClick={() => setCcisPlan(plan.id as 'basic' | 'standard' | 'professional' | 'enterprise')} padding={16 as any}>
                   <div className="flex center between mb-2">
                     <div className="fw-6 text-sm">{plan.name}</div>
                     {ccisPlan === plan.id && <Icon name="check" size={14} style={{ color: 'var(--accent-strong)' }}/>}
@@ -114,9 +161,43 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs }) =
       {/* Submit Button */}
       <div className="flex center" style={{ gap: 10, paddingTop: 8, marginTop: 24 }}>
         <div style={{ flex: 1 }}/>
-        <button className="btn accent" onClick={() => {
-          // Handle submit logic here
-          console.log('Submit add-on services:', { selectedVM, cpfsEnabled, cpfsPackage, ccisEnabled, ccisPlan })
+        <button className="btn accent" onClick={async () => {
+          try {
+            console.log('Submitting add-on request:', { selectedVM, cpfsEnabled, cpfsPackage, ccisEnabled, ccisPlan, duration })
+            const vm = myVMs.find((v: any) => v.id === selectedVM)
+            console.log('Selected VM:', vm)
+            console.log('Customer ID from VM:', vm?.customer_id)
+            
+            const addonRequest = {
+              customer_id: vm?.customer_id,
+              vm_id: selectedVM,
+              cpfs_enabled: cpfsEnabled,
+              cpfs_package: cpfsEnabled ? cpfsPackage : undefined,
+              ccis_enabled: ccisEnabled,
+              ccis_package: ccisEnabled ? ccisPlan : undefined,
+              duration: duration,
+              status: 'Pending' as 'Pending',
+            }
+            console.log('Add-on request data:', addonRequest)
+            await createAddonRequest(addonRequest)
+            
+            toast('Add-on request submitted successfully', 'ok')
+            setSelectedVM('')
+            setCpfsEnabled(false)
+            setCcisEnabled(false)
+            setDuration(12)
+            setCustomDuration('')
+            setIsCustomDuration(false)
+          } catch (error: any) {
+            console.error('Error submitting add-on request:', error)
+            console.error('Error details:', {
+              message: error.message,
+              code: error.code,
+              details: error.details,
+              hint: error.hint
+            })
+            toast('Failed to submit add-on request: ' + (error.message || 'Unknown error'), 'error')
+          }
         }} disabled={!canSubmit()} style={{ padding: '10px 18px', fontSize: 13 }}><Icon name="check" size={13}/>Submit add-on request</button>
       </div>
     </div>

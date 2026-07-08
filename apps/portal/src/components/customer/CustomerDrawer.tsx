@@ -6,7 +6,7 @@ import useInvoiceStore from '../../store/invoiceStore'
 import useTeamStore from '../../store/teamStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
-import { StatusPill, formatMMK, Avatar, Spinner } from '../ui/ui'
+import { StatusPill, formatMMK, Avatar, Spinner, ExpiryCell } from '../ui/ui'
 import type { Customer } from '../../types'
 
 interface CustomerDrawerProps {
@@ -19,7 +19,7 @@ interface CustomerDrawerProps {
 const CustomerDrawer: React.FC<CustomerDrawerProps> = ({ custId, onClose, openVM, openModal }) => {
   const navigate = useNavigate()
   const { customers, updateCustomer, loadCustomers } = useCustomerStore()
-  const { vms } = useVMStore()
+  const { vms, loadVMs } = useVMStore()
   const { invoices } = useInvoiceStore()
   const { team } = useTeamStore()
   const { toast } = useUIStore()
@@ -27,7 +27,7 @@ const CustomerDrawer: React.FC<CustomerDrawerProps> = ({ custId, onClose, openVM
 
   const c = customers.find((cust: any) => cust.id === custId)
 
-  const customerVMs = vms.filter((v: any) => v.customer === custId)
+  const customerVMs = vms.filter((v: any) => v.customer_id === custId)
   const customerInvoices = invoices.filter((i: any) => i.customer === custId)
   const [tab, setTab] = useState('overview')
   const [editing, setEditing] = useState(false)
@@ -45,6 +45,11 @@ const CustomerDrawer: React.FC<CustomerDrawerProps> = ({ custId, onClose, openVM
       setIsLoading(false)
     }
   }, [custId, customers.length, c, loadCustomers])
+
+  // Load VMs on mount
+  useEffect(() => {
+    loadVMs()
+  }, [loadVMs])
 
   if (isLoading) {
     return (
@@ -157,7 +162,7 @@ const CustomerDrawer: React.FC<CustomerDrawerProps> = ({ custId, onClose, openVM
                       <dt>Payer Name</dt><dd>{c.payer_name || '—'}</dd>
                       <dt>Payer Phone</dt><dd className="mono">{c.payer_phone || '—'}</dd>
                       <dt>Agreed to Terms</dt><dd>{c.agreed_to_terms ? 'Yes' : 'No'}</dd>
-                      <dt>Customer since</dt><dd className="tnum">{c.created_at}</dd>
+                      <dt>Customer since</dt><dd className="tnum">{c.created_at ? new Date(c.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</dd>
                       <dt>Last Login</dt><dd className="tnum">{c.last_login_at || '—'}</dd>
                     </dl>
                   ) : (
@@ -196,10 +201,10 @@ const CustomerDrawer: React.FC<CustomerDrawerProps> = ({ custId, onClose, openVM
                   <tbody>
                     {customerVMs.map((v: any) => (
                       <tr key={v.id} onClick={() => openVM(v.id)}>
-                        <td><div className="fw-6">{v.name}</div><div className="text-xs text-mute mono">{v.id}</div></td>
+                        <td><div className="fw-6">{v.hostname}</div><div className="text-xs text-mute mono">{v.legacy_id || v.id}</div></td>
                         <td><StatusPill status={v.status} /></td>
-                        <td className="mono text-xs">{v.vcpu}c · {v.ram}GB · {v.storage}GB</td>
-                        <td>{v.expiry}</td>
+                        <td className="mono text-xs">{v.vcpu}c · {v.ram_gb}GB · {v.storage_gb}GB</td>
+                        <td><ExpiryCell date={v.expiry}/></td>
                       </tr>
                     ))}
                     {customerVMs.length === 0 && <tr><td colSpan={4}><div className="empty"><div className="sub">No VMs yet for this customer.</div></div></td></tr>}
@@ -220,6 +225,9 @@ const CustomerDrawer: React.FC<CustomerDrawerProps> = ({ custId, onClose, openVM
                   <dl className="dl">
                     <dt>Status</dt><dd><StatusPill status={c.kyc_status} /></dd>
                     <dt>Submitted</dt><dd className="tnum">{c.created_at}</dd>
+                    <dt>KYC Reviewed By</dt><dd>{c.kyc_reviewed_by || '—'}</dd>
+                    <dt>KYC Reviewed At</dt><dd className="tnum">{c.kyc_reviewed_at || '—'}</dd>
+                    <dt>KYC Reviewer Note</dt><dd>{c.kyc_reviewer_note || '—'}</dd>
                     <dt>Documents</dt><dd>
                       <div className="flex gap-2 wrap">
                         {c.nrc_front_url && (

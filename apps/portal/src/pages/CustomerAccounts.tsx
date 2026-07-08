@@ -6,7 +6,7 @@
 // 5. Customer segments / saved views
 // Customer360 component extracted to components/customer folder
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import useCustomerStore from '../store/customerStore'
 import useVMStore from '../store/vmStore'
 import useUIStore from '../store/uiStore'
@@ -17,25 +17,32 @@ import { Customer360 } from '../components/customer/Customer360'
 interface CustomerAccountManagementViewProps {
   openCust: (id: string) => void
   openModal: (kind: string, props?: any) => void
+  setView?: (view: string) => void
+  role?: string
 }
 
-export const CustomerAccountManagementView: React.FC<CustomerAccountManagementViewProps> = ({ openCust, openModal }) => {
+export const CustomerAccountManagementView: React.FC<CustomerAccountManagementViewProps> = ({ openCust, openModal, setView, role }) => {
   const { customers, updateCustomer } = useCustomerStore()
-  const { vms } = useVMStore()
+  const { vms, loadVMs } = useVMStore()
   const { toast } = useUIStore()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [segment, setSegment] = useState('all')
   const [search, setSearch] = useState('')
   const [view360, setView360] = useState<any>(null)
 
+  // Load VMs on mount
+  useEffect(() => {
+    loadVMs()
+  }, [loadVMs])
+
   // Feature 5: Saved segments
   const segments = [
     { id: 'all', label: 'All customers', filter: () => true },
     { id: 'high-value', label: 'High value (>5M MMK)', filter: (c: any) => c.totalSpend > 5000000 },
-    { id: 'at-risk', label: 'At risk (KYC issue)', filter: (c: any) => c.kyc === 'Rejected' || c.kyc === 'Pending' },
+    { id: 'at-risk', label: 'At risk (KYC issue)', filter: (c: any) => c.kyc_status === 'Rejected' || c.kyc_status === 'Pending' },
     { id: 'new-30d', label: 'New (last 30 days)', filter: (c: any) => (new Date().getTime() - new Date(c.since).getTime()) / 86400000 <= 30 },
-    { id: 'inactive', label: 'Inactive', filter: (c: any) => c.status === 'Inactive' || vms.filter((v: any) => v.customer === c.id && v.status === 'Active').length === 0 },
-    { id: 'enterprise', label: 'Enterprise (>3 VMs)', filter: (c: any) => vms.filter((v: any) => v.customer === c.id && v.status === 'Active').length > 3 },
+    { id: 'inactive', label: 'Inactive', filter: (c: any) => c.status === 'Inactive' },
+    { id: 'enterprise', label: 'Enterprise (>3 VMs)', filter: (c: any) => vms.filter((v: any) => v.customer_id === c.id && v.status === 'Active').length > 3 },
   ]
 
   const filtered = customers
@@ -106,7 +113,7 @@ export const CustomerAccountManagementView: React.FC<CustomerAccountManagementVi
             <span className="fw-7 text-sm">{selected.size} selected</span>
             <div style={{ flex: 1 }} />
             <button className="btn sm" onClick={() => { toast(`Email sent to ${selected.size} customers`, 'ok'); setSelected(new Set()); }}><Icon name="mail" size={11} />Bulk email</button>
-            <button className="btn sm" onClick={() => { toast(`KYC reminder sent to ${[...selected].filter(id => customers.find((c: any) => c.id === id)?.kyc === 'Pending').length} customers`, 'ok'); setSelected(new Set()); }}><Icon name="shield" size={11} />KYC reminder</button>
+            <button className="btn sm" onClick={() => { toast(`KYC reminder sent to ${[...selected].filter(id => customers.find((c: any) => c.id === id)?.kyc_status === 'Pending').length} customers`, 'ok'); setSelected(new Set()); }}><Icon name="shield" size={11} />KYC reminder</button>
             <button className="btn sm" onClick={() => { toast(`Tagged ${selected.size} customers`, 'ok'); setSelected(new Set()); }}><Icon name="plus" size={11} />Tag</button>
             <button className="btn sm" onClick={() => { toast(`Exported ${selected.size} customers (CSV)`, 'info'); setSelected(new Set()); }}><Icon name="download" size={11} />Export</button>
             <button className="btn sm danger" onClick={() => {
@@ -147,13 +154,12 @@ export const CustomerAccountManagementView: React.FC<CustomerAccountManagementVi
             <th>Status</th>
             <th className="right">VMs</th>
             <th className="right">Lifetime</th>
-            <th>Sales</th>
             <th>Since</th>
             <th style={{ width: 80 }}></th>
           </tr></thead>
           <tbody>
             {filtered.map((c: any) => {
-              const vmCount = vms.filter((v: any) => v.customer === c.id && v.status === 'Active').length
+              const vmCount = vms.filter((v: any) => v.customer_id === c.id && v.status === 'Active').length
               return (
                 <tr key={c.id} onClick={() => setView360(c)}>
                   <td onClick={e => e.stopPropagation()}>
@@ -162,29 +168,28 @@ export const CustomerAccountManagementView: React.FC<CustomerAccountManagementVi
                   <td>
                     <div className="flex center gap-2">
                       <Avatar name={c.name} size={28} />
-                      <div><div className="fw-6">{c.name}</div><div className="text-xs text-mute mono">{c.id}</div></div>
+                      <div><div className="fw-6">{c.name}</div><div className="text-xs text-mute mono">{c.legacy_id || c.id}</div></div>
                     </div>
                   </td>
                   <td><div className="fw-6 text-sm">{c.company}</div><div className="text-xs text-mute">{c.email}</div></td>
-                  <td><StatusPill status={c.kyc} /></td>
+                  <td><StatusPill status={c.kyc_status} /></td>
                   <td><StatusPill status={c.status} /></td>
                   <td className="right tnum">{vmCount}</td>
                   <td className="right tnum">MMK {formatMMK(c.totalSpend)}</td>
-                  <td className="text-sm">{c.salesperson}</td>
-                  <td className="tnum text-sm">{c.since}</td>
+                  <td className="tnum text-sm">{c.created_at ? new Date(c.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</td>
                   <td className="right" onClick={e => e.stopPropagation()}>
-                    <button className="btn sm" onClick={() => setView360(c)}><Icon name="eye" size={11} />360°</button>
+                    <button className="btn sm" onClick={() => setView360(c)}><Icon name="eye" size={11} /></button>
                   </td>
                 </tr>
               )
             })}
-            {filtered.length === 0 && <tr><td colSpan={10}><div className="empty"><div className="title">No customers in this segment</div></div></td></tr>}
+            {filtered.length === 0 && <tr><td colSpan={9}><div className="empty"><div className="title">No customers in this segment</div></div></td></tr>}
           </tbody>
         </table>
       </div>
 
       {/* Feature 2: 360° detail panel */}
-      {view360 && <Customer360 customer={view360} onClose={() => setView360(null)} openCust={openCust} openModal={openModal} />}
+      {view360 && <Customer360 customer={view360} onClose={() => setView360(null)} openCust={openCust} openModal={openModal} setView={setView} role={role} />}
 
       <style>{`
         @keyframes slideIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }

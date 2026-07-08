@@ -21,9 +21,9 @@ export const CustomerInvoicesView: React.FC<CustomerInvoicesViewProps> = ({ myIn
       <div className="card">
         <div className="card-body flush">
           <table className="tbl">
-            <thead><tr><th>Invoice</th><th>VMs</th><th>Issued</th><th>Due</th><th className="right">Amount</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>Invoice</th><th>VMs</th><th>Issued</th><th>Due</th><th className="right">Net Amount</th><th className="right">VAT</th><th className="right">Gross Amount</th><th>Status</th><th></th></tr></thead>
             <tbody>
-              {myInvs.length === 0 && <tr><td colSpan={7}><div className="empty"><div className="title">No invoices yet</div><div className="sub">Invoices will appear here once they're generated for your VMs.</div></div></td></tr>}
+              {myInvs.length === 0 && <tr><td colSpan={9}><div className="empty"><div className="title">No invoices yet</div><div className="sub">Invoices will appear here once they're generated for your VMs.</div></div></td></tr>}
               {myInvs.map((i: any) => (
                 <tr key={i.id} onClick={() => setDetailInvoice(i)}>
                   <td className="mono">{i.id}</td>
@@ -31,6 +31,8 @@ export const CustomerInvoicesView: React.FC<CustomerInvoicesViewProps> = ({ myIn
                   <td className="tnum text-sm">{i.issued}</td>
                   <td className="tnum text-sm">{i.due}</td>
                   <td className="right tnum fw-6">MMK {formatMMK(i.amount)}</td>
+                  <td className="right tnum text-sm">MMK {formatMMK(i.vat || 0)}</td>
+                  <td className="right tnum fw-6 text-sm">MMK {formatMMK(i.grossAmount || i.amount)}</td>
                   <td><StatusPill status={i.status}/></td>
                   <td className="right" onClick={e => e.stopPropagation()}>
                     <button className="btn sm" onClick={() => toast(`Downloaded ${i.id}.pdf`, 'info')}><Icon name="download" size={11}/>PDF</button>

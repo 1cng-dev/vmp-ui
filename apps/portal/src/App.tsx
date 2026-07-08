@@ -19,6 +19,8 @@ import { SystemHealthView, AuditLogView, AnnouncementsView, ApiKeysView, BackupC
 import CustomerPortal from './pages/CustomerPortal'
 import QuotesView from './pages/QuotesView'
 import FinanceQuoteReviewView from './pages/FinanceQuoteReviewView'
+import SupportTicketsView from './pages/SupportTicketsView'
+import AddonServicesView from './pages/AddonServices'
 import Toasts from './components/common/Toasts'
 import { CommandPalette, ShortcutsModal, CalendarView } from './components/common/Extras'
 import { NotifPanel, PlaceholderView, TweaksUI } from './components/common'
@@ -26,12 +28,14 @@ import { useTweaks, TweakState } from './components/common/useTweaks'
 import useAlertStore from './store/alertStore'
 import Welcome from './pages/Welcome'
 import SetupPassword from './pages/SetupPassword'
+import { TicketProvider } from './store/ticketStore'
 import { TeamProvider, useTeamStore } from './store/TeamContext'
 import useCustomerStore, { CustomerProvider } from './store/customerStore'
 import { VMRequestProvider, useVMRequestStore } from './store/vmRequestStore'
 import { ResetPasswordScreen } from './components/auth/ResetPasswordScreen'
 import { QuoteProvider, useQuoteStore } from './store/quoteStore'
 import { VMProvider } from './store/vmStore'
+import { AddonRequestProvider } from './store/addonRequestStore'
 
 
 const ACCENT_MAP: Record<string, number> = {
@@ -94,6 +98,7 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
   const [autoOpenQuote, setAutoOpenQuote] = useState(false)
   const [prefillCustomerId, setPrefillCustomerId] = useState<string | undefined>(undefined)
   const [prefillRequestId, setPrefillRequestId] = useState<string | undefined>(undefined)
+  const [prefillRequestType, setPrefillRequestType] = useState<'vm' | 'addon' | undefined>(undefined)
   const [notifOpen, setNotifOpen] = useState(false)
   const [cmdOpen, setCmdOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
@@ -177,6 +182,7 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
     'activity': ['Overview', 'Activity log'],
     'vms': ['Operations', 'VM records'],
     'tasks': ['Operations', 'Provisioning tasks'],
+    'addons': ['Operations', 'Add-on Services'],
     'network': ['Operations', 'Network & IPs'],
     'console': ['Engineering', 'Web console'],
     'nodes': ['Engineering', 'Proxmox nodes'],
@@ -212,7 +218,7 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
   return (
     <div className="app">
       {tw.role === 'Customer' ? (
-        <CustomerPortal setRole={(r) => setTweak('role', r)} roleNames={tw.roleNames || {}} />
+        <CustomerPortal setRole={(r: string) => setTweak('role', r)} roleNames={tw.roleNames || {}} />
       ) : (
         <>
           <Sidebar view={view} setView={(v) => { handleSetView(v); setNotifOpen(false) }} role={tw.role} roleNames={tw.roleNames || {}} onAccountClick={() => handleSetView('account')} onLogout={() => auth?.signout()} />
@@ -234,7 +240,8 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
             {view === 'activity' && <ActivityView />}
             {view === 'vms' && <VMList openVM={openVM} openModal={openModal} />}
             {drawerVmId && <VMDrawer vmId={drawerVmId} onClose={closeDrawer} openCust={openCust} openModal={openModal} />}
-            {view === 'tasks' && <TasksView openModal={openModal} openTask={openTask} setView={handleSetView} setAutoOpenQuote={setAutoOpenQuote} setPrefillCustomerId={setPrefillCustomerId} setPrefillRequestId={setPrefillRequestId} userRole={tw.role} />}
+            {view === 'tasks' && <TasksView openModal={openModal} openTask={openTask} setView={handleSetView} setAutoOpenQuote={setAutoOpenQuote} setPrefillCustomerId={setPrefillCustomerId} setPrefillRequestId={setPrefillRequestId} setPrefillRequestType={setPrefillRequestType} userRole={tw.role} />}
+            {view === 'addons' && <AddonServicesView openTask={openTask} setView={handleSetView} setAutoOpenQuote={setAutoOpenQuote} setPrefillCustomerId={setPrefillCustomerId} setPrefillRequestId={setPrefillRequestId} setPrefillRequestType={setPrefillRequestType} />}
             {drawerTaskId && <TaskDrawer requestId={drawerTaskId} onClose={closeTaskDrawer} userRole={tw.role} />}
             {view === 'network' && <NetworkView openVM={openVM} openModal={openModal} />}
             {view === 'console' && <PlaceholderView title="Web Console" description="Proxmox web console - coming soon" />}
@@ -246,13 +253,14 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
             {view === 'firewall' && <PlaceholderView title="Firewall Rules" description="Firewall configuration - coming soon" />}
             {view === 'customers' && <CustomersView openCust={openCust} openModal={openModal} />}
             {drawerCustId && <CustomerDrawer custId={drawerCustId} onClose={closeCustDrawer} openVM={openVM} openModal={openModal} />}
-            {view === 'customer-accounts' && <CustomerAccountManagementView openCust={openCust} openModal={openModal} />}
+            {view === 'customer-accounts' && <CustomerAccountManagementView openCust={openCust} openModal={openModal} setView={handleSetView} role={tw.role} />}
             {view === 'kyc' && <KYCReviewView />}
             {view === 'pipeline' && <PlaceholderView title="Sales Pipeline" description="Sales pipeline view - coming soon" />}
-            {view === 'quotes' && <QuotesView autoOpen={autoOpenQuote} onAutoOpenReset={() => { setAutoOpenQuote(false); setPrefillCustomerId(undefined); setPrefillRequestId(undefined) }} prefillCustomerId={prefillCustomerId} prefillRequestId={prefillRequestId} />}
+            {view === 'quotes' && <QuotesView autoOpen={autoOpenQuote} onAutoOpenReset={() => { setAutoOpenQuote(false); setPrefillCustomerId(undefined); setPrefillRequestId(undefined); setPrefillRequestType(undefined) }} prefillCustomerId={prefillCustomerId} prefillRequestId={prefillRequestId} prefillRequestType={prefillRequestType} />}
             {view === 'quote-review' && <FinanceQuoteReviewView />}
             {view === 'followups' && <PlaceholderView title="Follow-ups" description="Sales follow-ups - coming soon" />}
             {view === 'trials' && <PlaceholderView title="Trial Conversions" description="Trial conversion tracking - coming soon" />}
+            {view === 'tickets' && <SupportTicketsView openModal={openModal} />}
             {view === 'finance' && <FinanceView openCust={(_id: string) => { }} openModal={openModal} />}
             {view === 'reports' && <ReportsView />}
             {view === 'aging' && <AgingView />}
@@ -308,17 +316,19 @@ const App = () => {
   return (
     <>
       <Toasts />
-      <TeamProvider>
-        <PrefetchTeam />
-        {/* Global customers provider to keep data cached across pages */}
-        <CustomerProvider>
-          <PrefetchCustomers />
-          {/* Global VM requests provider to keep data cached across pages */}
-          <VMRequestProvider>
-            <QuoteProvider>
-              <PrefetchVMRequests />
-              <PrefetchQuotes />
-              <VMProvider>
+      <TicketProvider>
+        <TeamProvider>
+          <PrefetchTeam />
+          {/* Global customers provider to keep data cached across pages */}
+          <CustomerProvider>
+            <PrefetchCustomers />
+            {/* Global VM requests provider to keep data cached across pages */}
+            <VMRequestProvider>
+              <QuoteProvider>
+                <AddonRequestProvider>
+                  <PrefetchVMRequests />
+                  <PrefetchQuotes />
+                  <VMProvider>
                 <Router>
                   <Routes>
                     <Route path="/welcome" element={<Welcome />} />
@@ -347,12 +357,14 @@ const App = () => {
                   </Routes>
                 </Router>
               </VMProvider>
-            </QuoteProvider>
+            </AddonRequestProvider>
+          </QuoteProvider>
 
 
           </VMRequestProvider>
         </CustomerProvider>
       </TeamProvider>
+    </TicketProvider>
     </>
   )
 }

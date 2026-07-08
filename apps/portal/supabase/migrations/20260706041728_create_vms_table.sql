@@ -84,3 +84,23 @@ ALTER TABLE public.vms ADD COLUMN IF NOT EXISTS assigned_vmid INTEGER;
 
 -- Create index for assigned_vmid queries
 CREATE INDEX IF NOT EXISTS idx_vms_assigned_vmid ON public.vms(assigned_vmid);
+
+
+-- Add duration field to vms table
+ALTER TABLE public.vms ADD COLUMN IF NOT EXISTS duration INTEGER;
+
+-- Create index for duration queries
+CREATE INDEX IF NOT EXISTS idx_vms_duration ON public.vms(duration);
+
+
+-- Add billing_term field to vms table
+ALTER TABLE public.vms ADD COLUMN IF NOT EXISTS billing_term TEXT CHECK (billing_term IN ('Monthly', 'Annual'));
+
+-- Create index for billing_term queries
+CREATE INDEX IF NOT EXISTS idx_vms_billing_term ON public.vms(billing_term);
+
+
+
+-- Add backup columns to vms table
+ALTER TABLE public.vms ADD COLUMN IF NOT EXISTS backup_enabled BOOLEAN DEFAULT false;
+ALTER TABLE public.vms ADD COLUMN IF NOT EXISTS backup_type TEXT DEFAULT NULL CHECK (backup_type IN ('daily', 'weekly', NULL));

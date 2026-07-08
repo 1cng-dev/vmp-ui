@@ -17,8 +17,10 @@ export interface VM {
   power_state: 'Running' | 'Stopped' | 'Paused'
   customer_id?: string
   vm_request_id?: string
-  task_type?: 'new' | 'upgrade' | 'renewal' | 'addon'
+  task_type?: 'new' | 'change-plan' | 'renewal' | 'addon'
   expiry?: string
+  duration?: number
+  billing_term?: 'Monthly' | 'Annual'
   legacy_id?: string
   assigned_vmid?: number
   created_at: string
@@ -71,6 +73,8 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       vm_request_id: vm.vm_request_id,
       task_type: vm.task_type as any,
       expiry: vm.expiry,
+      duration: vm.duration,
+      billing_term: vm.billing_term,
       legacy_id: vm.legacy_id,
       assigned_vmid: (vm as any).assigned_vmid,
       created_at: new Date().toISOString(),

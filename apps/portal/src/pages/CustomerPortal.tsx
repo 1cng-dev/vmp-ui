@@ -24,6 +24,8 @@ import { CustomerRequestVMView } from '../components/customer-portal/CustomerReq
 import { CustomerTicketsView } from '../components/customer-portal/CustomerTicketsView'
 import { CustomerTicketDetail } from '../components/customer-portal/CustomerTicketDetail'
 import { CustomerRequestDetail } from '../components/customer-portal/CustomerRequestDetail'
+import { CustomerAddonRequestDetail } from '../components/customer-portal/CustomerAddonRequestDetail'
+import { CustomerAddonRequestsView } from '../components/customer-portal/CustomerAddonRequestsView'
 import { CustomerInvoiceDetail } from '../components/customer-portal/CustomerInvoiceDetail'
 import { AddonServicesView } from '../components/customer-portal/AddonServicesView'
 import Toasts from '../components/common/Toasts'
@@ -34,7 +36,7 @@ interface CustomerPortalProps {
   roleNames?: Record<string, string>
 }
 
-const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRole, roleNames: _roleNames = {} }) => {
+export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRole, roleNames: _roleNames = {} }) => {
   const { customers, loadCustomers } = useCustomerStore()
   const { vms, loadVMs } = useVMStore()
   const { invoices } = useInvoiceStore()
@@ -85,6 +87,7 @@ const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRole, role
   const safeMe = me || { id: '', name: '', org_name: '', kyc_status: 'Pending', legacy_id: '' }
 
   const [vmRequests, setVmRequests] = useState<any[]>([])
+  const [addonRequestsData, setAddonRequestsData] = useState<any[]>([])
 
   useEffect(() => {
     if (safeMe?.id) {
@@ -98,6 +101,23 @@ const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRole, role
             console.error('Error fetching vm_requests:', error)
           } else {
             setVmRequests(data || [])
+          }
+        })
+    }
+  }, [safeMe?.id])
+
+  useEffect(() => {
+    if (safeMe?.id) {
+      supabase
+        .from('addon_requests')
+        .select('*')
+        .eq('customer_id', safeMe.id)
+        .order('created_at', { ascending: false })
+        .then(({ data, error }) => {
+          if (error) {
+            console.error('Error fetching addon_requests:', error)
+          } else {
+            setAddonRequestsData(data || [])
           }
         })
     }
@@ -130,7 +150,7 @@ const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRole, role
   return true
 })
   const myInvs = invoices.filter((i: any) => i.customer === safeMe.id)
-  const myTickets = tickets.filter((t: any) => t.customer === safeMe.id)
+  const myTickets = tickets.filter((t: any) => t.customer_id === safeMe.id)
   const myRequests = vmRequests
 
   const expiringSoon = myVMs.filter((v: any) => {
@@ -147,7 +167,8 @@ const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRole, role
     { id: 'request', label: 'Request VM', icon: 'plus', lockedByKyc: true },
     { id: 'vms', label: 'My VMs', icon: 'server', lockedByKyc: true },
     { id: 'requests', label: 'My requests', icon: 'tasks', badge: pendingRequests.length || null, lockedByKyc: true },
-    { id: 'addons', label: 'Add-on Services', icon: 'box', lockedByKyc: true },
+    { id: 'addon-requests', label: 'My add-on requests', icon: 'box', lockedByKyc: true },
+    { id: 'addons', label: 'Add-on Services', icon: 'plus', lockedByKyc: true },
     { id: 'invoices', label: 'Invoices', icon: 'invoice', badge: pendingInv.length || null, lockedByKyc: true },
     { id: 'tickets', label: 'Support tickets', icon: 'mail', badge: openTickets.length || null },
   ]
@@ -284,11 +305,13 @@ const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRole, role
         )}
 
         {detailVm
-          ? <CustomerVMDetail vm={detailVm} onClose={() => setDetailVm(null)} onRenew={() => setRenewVm(detailVm)} />
+          ? <CustomerVMDetail vm={detailVm} onClose={() => setDetailVm(null)} onRenew={() => setRenewVm(detailVm)} me={safeMe} />
           : openTicket
             ? <CustomerTicketDetail ticket={openTicket} onClose={() => setOpenTicket(null)} />
             : detailRequest
-              ? <CustomerRequestDetail request={detailRequest} onClose={() => setDetailRequest(null)} />
+              ? detailRequest.requestType === 'addon'
+                ? <CustomerAddonRequestDetail request={detailRequest} onClose={() => setDetailRequest(null)} />
+                : <CustomerRequestDetail request={detailRequest} onClose={() => setDetailRequest(null)} />
               : detailInvoice
                 ? <CustomerInvoiceDetail invoice={detailInvoice} onClose={() => setDetailInvoice(null)} />
                 : (
@@ -297,8 +320,9 @@ const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRole, role
                     {view === 'request' && <CustomerRequestVMView me={safeMe} setView={setView} />}
                     {view === 'vms' && <CustomerVMListView myVMs={myVMs} setDetailVm={setDetailVm} setRenewVm={setRenewVm} />}
                     {view === 'requests' && <CustomerRequestsView myRequests={myRequests} setDetailRequest={setDetailRequest} />}
+                    {view === 'addon-requests' && <CustomerAddonRequestsView myAddonRequests={addonRequestsData} setDetailRequest={(req) => { setDetailRequest({ ...req, requestType: 'addon' }) }} />}
                     {view === 'invoices' && <CustomerInvoicesView myInvs={myInvs} setDetailInvoice={setDetailInvoice} />}
-                    {view === 'tickets' && <CustomerTicketsView me={safeMe} myTickets={myTickets} setOpenTicket={setOpenTicket} />}
+                    {view === 'tickets' && <CustomerTicketsView me={safeMe} setOpenTicket={setOpenTicket} />}
                     {view === 'addons' && <AddonServicesView myVMs={myVMs} />}
                     {view === 'account' && <CustomerAccountView me={safeMe} />}
                   </>
@@ -306,7 +330,7 @@ const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRole, role
         }
       </div>
 
-      {renewVm && <CustRenewModal vm={renewVm} onClose={() => setRenewVm(null)} onSubmit={submitRenewalRequest} />}
+      {renewVm && <CustRenewModal vm={renewVm} onClose={() => setRenewVm(null)} onSubmit={submitRenewalRequest} me={safeMe} />}
       <Toasts />
     </div >
   )

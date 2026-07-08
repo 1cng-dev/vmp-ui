@@ -12,10 +12,18 @@ interface NewTicketFormProps {
 export const NewTicketForm: React.FC<NewTicketFormProps> = ({ me, onClose, onCreated }) => {
   const { addTicket } = useTicketStore()
   const [f, setF] = useState({ subject: '', priority: 'Normal', body: '', category: 'general' })
-  const submit = () => {
+  const [submitting, setSubmitting] = useState(false)
+  const submit = async () => {
     if (!f.subject || !f.body) return
-    addTicket({ ...f, customer: me.id, status: 'Open', assignee: '—' })
-    onCreated()
+    setSubmitting(true)
+    try {
+      await addTicket({ customer_id: me.id, subject: f.subject, body: f.body, priority: f.priority })
+      onCreated()
+    } catch (error) {
+      console.error('Error creating ticket:', error)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const categories = [
@@ -90,7 +98,7 @@ export const NewTicketForm: React.FC<NewTicketFormProps> = ({ me, onClose, onCre
             <button className="btn ghost" onClick={onClose}>Cancel</button>
             <div style={{ flex: 1 }}/>
             <button className="btn" onClick={() => { onClose() }}>Save as draft</button>
-            <button className="btn accent" disabled={!f.subject || !f.body} onClick={submit}><Icon name="check" size={12}/>Submit ticket</button>
+            <button className="btn accent" disabled={!f.subject || !f.body || submitting} onClick={submit}><Icon name="check" size={12}/>{submitting ? 'Submitting...' : 'Submit ticket'}</button>
           </div>
         </div>
       </div>

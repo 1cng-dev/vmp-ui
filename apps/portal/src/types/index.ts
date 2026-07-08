@@ -39,6 +39,9 @@ export interface Customer {
   created_at?: string
   updated_at?: string
   last_login_at?: string
+  totalSpend?: number
+  company?: string
+  since?: string
 }
 
 export interface VM {
@@ -64,6 +67,8 @@ export interface VM {
   expiry: string
   firewallPolicy: string
   backup: string
+  backup_enabled?: boolean
+  backup_type?: string
   proxmoxFlag: string
   security: boolean
   notes: string
@@ -121,6 +126,9 @@ export interface Invoice {
   method: string
   receipt: string
   invoiceDate?: string
+  discount?: number
+  quote_id?: string
+  sales_person?: string
 }
 
 export interface Activity {
@@ -152,20 +160,26 @@ export interface Alert {
 
 export interface Ticket {
   id: string
-  customer: string
+  legacy_id?: string
+  customer_id?: string
+  customer?: string
+  category?: string
   subject: string
   body: string
   priority: string
   status: string
-  created: string
-  updated: string
+  created_at: string
+  updated_at: string
   assignee: string
-  replies: Array<{ who: string; when: string; body: string }>
+  attachments?: string[]
+  replies: Array<{ id?: string; who: string; when: string; body: string }>
 }
 
 export interface Quote {
   id: string
   customer: string
+  vm_request_id?: string
+  addon_request_id?: string
   items: number
   total: number
   validity: string
@@ -202,7 +216,8 @@ export interface DBQuote {
 }
 
 export interface NewQuoteInput {
-  vm_request_id: string
+  vm_request_id?: string
+  addon_request_id?: string
   status: QuoteStatus
   validity_date?: string
   subtotal_monthly: number
@@ -213,24 +228,22 @@ export interface NewQuoteInput {
   notes?: string | null
 }
 
-export interface VM {
+export interface AddonRequest {
   id: string
-  hostname: string
-  public_ip?: string
-  private_ip?: string
-  username?: string
-  password?: string
-  vcpu: number
-  ram_gb: number
-  storage_gb: number
-  status: 'Active' | 'Suspended' | 'Terminated'
-  power_state: 'Running' | 'Stopped' | 'Paused'
-  customer_id?: string
-  vm_request_id?: string
-  task_type?: 'new' | 'upgrade' | 'renewal' | 'addon'
+  customer_id: string
+  vm_id: string
+  legacy_id?: string
+  cpfs_enabled?: boolean
+  cpfs_package?: 'standard' | 'premium'
+  ccis_enabled?: boolean
+  ccis_package?: 'basic' | 'standard' | 'professional' | 'enterprise'
+  duration?: number
+  status: 'Pending' | 'In Progress' | 'Completed' | 'Rejected'
+  notes?: string
   created_at: string
   updated_at: string
 }
+
 
 export interface NewVMInput {
   hostname: string
@@ -247,5 +260,7 @@ export interface NewVMInput {
   vm_request_id?: string
   task_type?: string
   expiry?: string
+  duration?: number
+  billing_term?: 'Monthly' | 'Annual'
   legacy_id?: string
 }

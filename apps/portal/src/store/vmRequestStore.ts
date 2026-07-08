@@ -12,6 +12,7 @@ export interface VMRequest {
   storage: number
   qty: number
   duration: number | null
+  billing_term: 'Monthly' | 'Annual' | null
   sizing: string
   storage_partitions: string
   os_name: string

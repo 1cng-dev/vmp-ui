@@ -4,6 +4,7 @@ import { Avatar } from '../ui/ui'
 import { useAuth } from '../auth/Auth'
 import { useCustomerStore } from '../../store/customerStore'
 import { useVMRequestStore } from '../../store/vmRequestStore'
+import useTicketStore from '../../store/ticketStore'
 
 interface NavItem {
   section?: string
@@ -38,8 +39,10 @@ interface TopbarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames = {}, onAccountClick, onLogout }) => {
   const { customers, loadCustomers, subscribeToCustomers } = useCustomerStore()
   const { vmRequests } = useVMRequestStore()
+  const { tickets } = useTicketStore()
   const pendingKycCount = customers.filter((c: any) => c.kyc_status === 'Pending').length
   const pendingRequestsCount = vmRequests.filter((r: any) => r.status === 'Pending').length
+  const openTicketsCount = tickets.filter((t: any) => t.status === 'Open').length
 
   React.useEffect(() => {
     loadCustomers()
@@ -54,6 +57,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
     { section: 'Operations' },
     { id: 'vms', label: 'VM records', icon: 'server' },
     { id: 'tasks', label: 'Customer Requests', icon: 'tasks', badge: pendingRequestsCount > 0 ? pendingRequestsCount : undefined },
+    { id: 'addons', label: 'Add-on Services', icon: 'box' },
     { id: 'network', label: 'Network & IPs', icon: 'network' },
     { section: 'Engineering' },
     { id: 'console', label: 'Web console', icon: 'cpu' },
@@ -67,6 +71,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
     { id: 'customers', label: 'Customers', icon: 'users' },
     { id: 'customer-accounts', label: 'Account management', icon: 'shield' },
     { id: 'kyc', label: 'KYC review', icon: 'shield', badge: pendingKycCount ?? 0 },
+    { id: 'tickets', label: 'Support tickets', icon: 'mail', badge: openTicketsCount > 0 ? openTicketsCount : undefined },
     { section: 'Sales' },
     { id: 'pipeline', label: 'Pipeline', icon: 'tasks' },
     { id: 'quotes', label: 'Quotes', icon: 'file' },
@@ -108,8 +113,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
   ] : NAV).filter(it => it.section || (it.id && !HIDDEN.has(it.id)))
 
   const allowedFor: Record<string, Set<string> | null> = {
-    'Sales': new Set(['dashboard', 'alerts', 'calendar', 'activity', 'vms', 'tasks', 'customers', 'customer-accounts', 'kyc', 'quotes']),
-    'Engineer': new Set(['dashboard', 'alerts', 'calendar', 'activity', 'vms', 'tasks', 'network', 'console', 'nodes', 'topology', 'snapshots', 'maintenance', 'patches', 'firewall']),
+    'Sales': new Set(['dashboard', 'alerts', 'calendar', 'activity', 'vms', 'tasks', 'addons', 'customers', 'customer-accounts', 'kyc', 'quotes']),
+    'Engineer': new Set(['dashboard', 'alerts', 'calendar', 'activity', 'vms', 'tasks', 'addons', 'network', 'console', 'nodes', 'topology', 'snapshots', 'maintenance', 'patches', 'firewall']),
     'Finance': new Set(['dashboard', 'alerts', 'calendar', 'vms', 'tasks', 'finance', 'quote-review', 'reports', 'customers', 'customer-accounts', 'aging', 'reconciliation', 'recurring', 'tax']),
     'Admin': null,
   }

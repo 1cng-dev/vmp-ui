@@ -425,7 +425,12 @@ const RenewModal: React.FC<RenewModalProps> = ({ vm, onClose }) => {
 
   const submit = () => {
     renew(vm.id, months)
-    addInvoice({ customer: vm.customer, vms: [vm.id], amount: price, due: new Date(Date.now() + 10 * 86400000).toISOString().slice(0, 10) })
+    const invoiceDate = new Date().toISOString().slice(0, 10)
+    // Issued date = VM start date
+    const issuedDate = vm.start
+    // Due date = VM expiry date
+    const dueDate = vm.expiry
+    addInvoice({ customer: vm.customer, vms: [vm.id], amount: price, invoiceDate, due: dueDate, issued: issuedDate })
     toast(`Renewed ${vm.name} for ${months} months`, 'ok')
     onClose()
   }
@@ -905,26 +910,72 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ taskId, onClose }) =>
 interface NewInvoiceModalProps {
   onClose: () => void
   presetCustomer?: string
+  presetQuote?: any
 }
 
-const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({ onClose, presetCustomer }) => {
+const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({ onClose, presetCustomer, presetQuote }) => {
   const { addInvoice } = useInvoiceStore()
   const { customers } = useCustomerStore()
-  const { vms } = useVMStore()
+  const { vms, loadVMs } = useVMStore()
+  
   const [f, setF] = useState({
-    customer: presetCustomer || customers[0]?.id || '',
+    customer: presetCustomer || presetQuote?.customer_id || '',
     vms: [] as string[],
     months: 6,
     invoiceDate: new Date().toISOString().slice(0, 10),
     vatRate: 5,
   })
+  
+  // Ensure VMs are loaded and auto-fill from quote
+  React.useEffect(() => {
+    if (vms.length === 0) {
+      loadVMs()
+    }
+    
+    if (presetQuote) {
+      let initialVms: string[] = []
+      
+      // First try to find VMs from quote line_items
+      if (presetQuote.line_items && presetQuote.line_items.length > 0) {
+        const vmIdsFromLineItems = presetQuote.line_items
+          .filter((item: any) => item.vm_id || item.id)
+          .map((item: any) => item.vm_id || item.id)
+        
+        // Find actual VM objects that match these IDs
+        initialVms = vms
+          .filter((v: any) => vmIdsFromLineItems.includes(v.id))
+          .map((v: any) => v.id)
+      }
+      
+      // If no VMs from line_items, try vm_request_id
+      if (initialVms.length === 0 && presetQuote.vm_request_id) {
+        const vmFromRequest = vms.find((v: any) => v.vm_request_id === presetQuote.vm_request_id)
+        if (vmFromRequest) {
+          initialVms = [vmFromRequest.id]
+        }
+      }
+      
+      // If still no VMs, fallback to customer VMs
+      if (initialVms.length === 0 && presetQuote.customer_id) {
+        initialVms = vms
+          .filter((v: any) => v.customer_id === presetQuote.customer_id && v.status !== 'Expired')
+          .map((v: any) => v.id)
+      }
+      
+      setF(prev => ({
+        ...prev,
+        customer: presetCustomer || presetQuote.customer_id || prev.customer,
+        vms: initialVms.length > 0 ? initialVms : prev.vms
+      }))
+    }
+  }, [presetQuote, vms, loadVMs, presetCustomer])
   const set = (k: string, v: any) => setF(x => ({ ...x, [k]: v }))
-  const custVMs = vms.filter((v: any) => v.customer === f.customer && v.status !== 'Expired')
+  const custVMs = vms.filter((v: any) => v.customer_id === f.customer && v.status !== 'Expired')
   const amount = custVMs.filter((v: any) => f.vms.includes(v.id)).reduce((a: number, v: any) => a + v.priceMonth * f.months, 0)
   const vat = amount * (f.vatRate / 100)
   const grossAmount = amount + vat
 
-  // Invoice date = today (cretae invoice date)
+  // Invoice date = today (create invoice date)
   const invoiceDate = f.invoiceDate
 
   // Issued Date = from VM start date (customer request date)
@@ -933,17 +984,30 @@ const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({ onClose, presetCustom
     ? selectedVMs.reduce((min: string, v: any) => v.start < min ? v.start : min, selectedVMs[0].start)
     : new Date().toISOString().slice(0, 10)
 
-  // Due Date = Issued Date + 30 days
-  const dueDate = (() => {
-    const d = new Date(issuedDate)
-    d.setDate(d.getDate() + 30)
-    return d.toISOString().slice(0, 10)
-  })()
+  // Due Date = from VM end date (expiry)
+  const dueDate = selectedVMs.length > 0
+    ? selectedVMs.reduce((max: string, v: any) => v.expiry > max ? v.expiry : max, selectedVMs[0].expiry)
+    : (() => {
+        const d = new Date(invoiceDate)
+        d.setDate(d.getDate() + 7)
+        return d.toISOString().slice(0, 10)
+      })()
 
   const toggle = (id: string) => set('vms', f.vms.includes(id) ? f.vms.filter((x: string) => x !== id) : [...f.vms, id])
 
   const submit = () => {
-    addInvoice({ customer: f.customer, vms: f.vms, amount, vat, grossAmount, due: dueDate, issued: issuedDate, invoiceDate: invoiceDate })
+    addInvoice({ 
+      customer: f.customer, 
+      vms: f.vms, 
+      amount, 
+      vat, 
+      grossAmount, 
+      due: dueDate, 
+      issued: issuedDate, 
+      invoiceDate: invoiceDate,
+      quote_id: presetQuote?.id,
+      sales_person: presetQuote?.created_by
+    })
     onClose()
   }
 
@@ -980,7 +1044,7 @@ const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({ onClose, presetCustom
                       <input type="checkbox" checked={f.vms.includes(v.id)} onChange={() => toggle(v.id)} />
                       <div style={{ flex: 1 }}>
                         <div className="fw-6 text-sm">{v.name}</div>
-                        <div className="text-xs text-mute mono">{v.id} · {v.vcpu}c · {v.ram}GB · {v.storage}GB</div>
+                        <div className="text-xs text-mute mono">{v.legacy_id || v.id} · {v.vcpu}c · {v.ram}GB · {v.storage}GB</div>
                       </div>
                       <div className="tnum text-sm">MMK {formatMMK(v.priceMonth)}/mo</div>
                     </label>
@@ -1087,8 +1151,8 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({ onClose, title = 'Confirm a
           <div className="text-sm">{message}</div>
         </div>
         <div className="modal-foot">
-          <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <button className="btn accent" onClick={submit}>Confirm</button>
+         <button className="btn ghost" onClick={onClose}>Cancel</button>
+         <button className="btn accent" onClick={submit}>Confirm</button>
         </div>
       </div>
     </div>

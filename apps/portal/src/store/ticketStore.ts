@@ -1,51 +1,217 @@
-import { useState, useCallback } from 'react'
+import React, { useState, useCallback, createContext, useContext, type ReactNode, useEffect } from 'react'
 import type { Ticket } from '../types'
+import { supabase } from '../lib/supabase'
 
 export interface TicketStoreValue {
   tickets: Ticket[]
-  addTicket: (t: any) => string
-  updateTicket: (id: string, patch: any) => void
-  setTicketStatus: (id: string, status: string) => void
-  replyTicket: (id: string, who: string, body: string) => void
-  deleteTicket: (id: string) => void
+  ticketsLoading: boolean
+  loadTickets: () => Promise<void>
+  addTicket: (t: any) => Promise<string>
+  updateTicket: (id: string, patch: any) => Promise<void>
+  setTicketStatus: (id: string, status: string) => Promise<void>
+  replyTicket: (id: string, who: string, body: string, attachments?: string[]) => Promise<void>
+  deleteTicket: (id: string) => Promise<void>
+  subscribeToTickets: () => () => void
 }
 
-const useTicketStore = (): TicketStoreValue => {
+// ── Global Ticket Context Store ─────────────────────────────────────────────
+const TicketContext = createContext<TicketStoreValue | null>(null)
+
+export const TicketProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [tickets, setTickets] = useState<Ticket[]>([])
+  const [ticketsLoading, setTicketsLoading] = useState(false)
 
-  const addTicket = useCallback((t: any) => {
-    const year = new Date().getFullYear()
-    const id = `TKT-${year}-${String(100 + Math.floor(Math.random() * 900)).padStart(3, '0')}`
-    const now = new Date().toISOString().slice(0, 16).replace('T', ' ')
-    const newT = { id, status: 'Open', priority: 'Normal', assignee: '—', created: now, updated: now, replies: [], ...t }
-    setTickets(s => [newT, ...s])
-    return id
+  const loadTickets = useCallback(async () => {
+    const shouldShowSpinner = tickets.length === 0
+    try {
+      if (shouldShowSpinner) setTicketsLoading(true)
+      const { data, error } = await supabase
+        .from('tickets')
+        .select('*, ticket_replies(*)')
+        .order('created_at', { ascending: false })
+      
+      if (error) {
+        console.error('Error fetching tickets:', error)
+      } else {
+        // Transform data to match Ticket interface
+        const transformedTickets = data?.map((t: any) => ({
+          id: t.id,
+          legacy_id: t.legacy_id,
+          customer_id: t.customer_id,
+          customer: '', // Will be populated by joining with customers
+          category: t.category,
+          subject: t.subject,
+          body: t.body,
+          priority: t.priority,
+          status: t.status,
+          created_at: t.created_at,
+          updated_at: t.updated_at,
+          assignee: t.assignee || '—',
+          attachments: t.attachments || [],
+          replies: t.ticket_replies?.map((r: any) => ({
+            id: r.id,
+            who: r.who,
+            when: r.created_at,
+            body: r.body,
+            attachments: r.attachments || []
+          })) || []
+        })) || []
+        
+        setTickets(transformedTickets)
+      }
+    } catch (error) {
+      console.error('Error loading tickets:', error)
+    } finally {
+      if (shouldShowSpinner) setTicketsLoading(false)
+    }
+  }, [tickets.length])
+
+  const subscribeToTickets = useCallback(() => {
+    const channelName = `tickets-changes-${Date.now()}`
+    const subscription = supabase
+      .channel(channelName)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => {
+        loadTickets()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ticket_replies' }, () => {
+        loadTickets()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(subscription)
+    }
+  }, [loadTickets])
+
+  // Set up realtime subscription on mount
+  useEffect(() => {
+    const unsubscribe = subscribeToTickets()
+    loadTickets() // Initial load
+    return unsubscribe
+  }, [subscribeToTickets, loadTickets])
+
+  const addTicket = useCallback(async (t: any) => {
+    try {
+      // Generate legacy_id
+      const { data: lastTicket } = await supabase
+        .from('tickets')
+        .select('legacy_id')
+        .order('created_at', { ascending: false })
+        .limit(1)
+      
+      const lastLegacyId = lastTicket?.[0]?.legacy_id
+      let nextNum = 1001
+      if (lastLegacyId) {
+        const match = lastLegacyId.match(/TKT-(\d+)/)
+        if (match) {
+          nextNum = parseInt(match[1]) + 1
+        }
+      }
+      const legacyId = `TKT-${nextNum}`
+
+      const { data, error } = await supabase
+        .from('tickets')
+        .insert({
+          legacy_id: legacyId,
+          customer_id: t.customer_id,
+          category: t.category || null,
+          subject: t.subject,
+          body: t.body,
+          priority: t.priority || 'Normal',
+          status: 'Open',
+          assignee: '—',
+          attachments: t.attachments || []
+        })
+        .select()
+        .single()
+      
+      if (error) throw error
+      
+      return data.id
+    } catch (error) {
+      console.error('Error adding ticket:', error)
+      throw error
+    }
   }, [])
 
-  const updateTicket = useCallback((id: string, patch: any) => {
-    const now = new Date().toISOString().slice(0, 16).replace('T', ' ')
-    setTickets(s => s.map(t => t.id === id ? { ...t, ...patch, updated: now } : t))
+  const updateTicket = useCallback(async (id: string, patch: any) => {
+    try {
+      const { error } = await supabase
+        .from('tickets')
+        .update(patch)
+        .eq('id', id)
+      
+      if (error) throw error
+    } catch (error) {
+      console.error('Error updating ticket:', error)
+      throw error
+    }
   }, [])
 
-  const setTicketStatus = useCallback((id: string, status: string) => {
-    updateTicket(id, { status })
+  const setTicketStatus = useCallback(async (id: string, status: string) => {
+    await updateTicket(id, { status })
   }, [updateTicket])
 
-  const replyTicket = useCallback((id: string, who: string, body: string) => {
-    const now = new Date().toISOString().slice(0, 16).replace('T', ' ')
-    setTickets(s => s.map(t => t.id === id
-      ? { ...t, updated: now, replies: [...t.replies, { who, when: now, body }] }
-      : t))
+  const replyTicket = useCallback(async (id: string, who: string, body: string, attachments: string[] = []) => {
+    try {
+      const dataToInsert: any = {
+        ticket_id: id,
+        who: who,
+        body: body
+      }
+      
+      // Only include attachments if it has items
+      if (attachments && attachments.length > 0) {
+        dataToInsert.attachments = attachments
+      }
+      
+      const { error } = await supabase
+        .from('ticket_replies')
+        .insert(dataToInsert)
+      
+      if (error) throw error
+      
+      // Reload tickets to get the new reply
+      await loadTickets()
+    } catch (error) {
+      console.error('Error replying to ticket:', error)
+      throw error
+    }
+  }, [loadTickets])
+
+  const deleteTicket = useCallback(async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('tickets')
+        .delete()
+        .eq('id', id)
+      
+      if (error) throw error
+    } catch (error) {
+      console.error('Error deleting ticket:', error)
+      throw error
+    }
   }, [])
 
-  const deleteTicket = useCallback((id: string) => {
-    setTickets(s => s.filter(t => t.id !== id))
-  }, [])
-
-  return {
+  const value: TicketStoreValue = {
     tickets,
-    addTicket, updateTicket, setTicketStatus, replyTicket, deleteTicket,
+    ticketsLoading,
+    loadTickets,
+    addTicket,
+    updateTicket,
+    setTicketStatus,
+    replyTicket,
+    deleteTicket,
+    subscribeToTickets,
   }
+
+  return React.createElement(TicketContext.Provider, { value }, children as any)
+}
+
+export const useTicketStore = (): TicketStoreValue => {
+  const ctx = useContext(TicketContext)
+  if (!ctx) throw new Error('useTicketStore must be used within TicketProvider')
+  return ctx
 }
 
 export default useTicketStore

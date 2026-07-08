@@ -9,6 +9,7 @@ export interface CustomerStoreValue {
   addCustomer: (c: Omit<Customer, 'id'>) => Promise<string>
   updateCustomer: (id: string, patch: Partial<Customer>) => Promise<void>
   setKYC: (id: string, decision: 'Pending' | 'Approved' | 'Rejected') => Promise<void>
+  resetPassword: (id: string, password: string) => Promise<void>
   deleteCustomer: (id: string) => Promise<void>
   subscribeToCustomers: () => () => void
 }
@@ -116,6 +117,17 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
     await updateCustomer(id, { kyc_status: decision })
   }, [updateCustomer])
 
+  const resetPassword = useCallback(async (id: string, password: string) => {
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(id, {
+      password: password
+    })
+
+    if (error) {
+      console.error('Failed to reset password:', error)
+      throw error
+    }
+  }, [])
+
   const deleteCustomer = useCallback(async (id: string) => {
     try {
       // Delete from dependent tables that don't have cascade delete
@@ -146,6 +158,7 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
     addCustomer,
     updateCustomer,
     setKYC,
+    resetPassword,
     deleteCustomer,
     subscribeToCustomers,
   }

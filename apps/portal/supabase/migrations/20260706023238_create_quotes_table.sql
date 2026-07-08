@@ -75,3 +75,33 @@ create policy quotes_staff_update on public.quotes
   for update to authenticated using (public.is_staff()) with check (public.is_staff());
 
 alter publication supabase_realtime add table quotes;
+
+
+-- Add addon_request_id to quotes table
+ALTER TABLE public.quotes 
+ADD COLUMN IF NOT EXISTS addon_request_id UUID REFERENCES public.addon_requests(id) ON DELETE CASCADE;
+
+-- Add index for addon_request_id
+CREATE INDEX IF NOT EXISTS idx_quotes_addon_request ON public.quotes(addon_request_id);
+
+
+-- Make vm_request_id nullable to support both VM requests and addon requests
+ALTER TABLE public.quotes 
+ALTER COLUMN vm_request_id DROP NOT NULL;
+
+-- Update the trigger to sync customer_id from either vm_request or addon_request
+CREATE OR REPLACE FUNCTION public.sync_quote_customer_from_request()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.vm_request_id IS NOT NULL THEN
+    SELECT customer_id INTO NEW.customer_id
+    FROM public.vm_requests
+    WHERE id = NEW.vm_request_id;
+  ELSIF NEW.addon_request_id IS NOT NULL THEN
+    SELECT customer_id INTO NEW.customer_id
+    FROM public.addon_requests
+    WHERE id = NEW.addon_request_id;
+  END IF;
+  RETURN NEW;
+END;
+$$;

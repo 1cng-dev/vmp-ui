@@ -153,6 +153,8 @@ const useTaskStore = (): TaskStoreValue => {
         vm_request_id: t.id,
         task_type: t.task_type,
         expiry: expiry,
+        duration: t.duration,
+        billing_term: (t as any).billing_term,
         legacy_id: legacyId,
         assigned_vmid: vmDetails.assigned_vmids[i] || null,
       }

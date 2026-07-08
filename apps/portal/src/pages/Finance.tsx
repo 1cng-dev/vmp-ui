@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react'
 import useInvoiceStore from '../store/invoiceStore'
 import useCustomerStore from '../store/customerStore'
+import useVMStore from '../store/vmStore'
 import useUIStore from '../store/uiStore'
 import Icon from '../lib/icons'
-import { formatMMK } from '../components/ui/ui'
+import { formatMMK, StatusPill } from '../components/ui/ui'
 import { InvoiceDrawer } from '../components/finance/InvoiceDrawer'
 import { ReportsView } from '../components/finance/ReportsView'
 import { exportToCSV } from '@/lib/csvExport'
@@ -16,6 +17,7 @@ interface FinanceViewProps {
 
 const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal }) => {
   const { invoices, markPaid } = useInvoiceStore()
+  const { vms } = useVMStore()
   const { customers } = useCustomerStore()
   const { toast } = useUIStore()
   const [filter, setFilter] = useState('all')
@@ -25,7 +27,7 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal }) => {
   const [endDate, setEndDate] = useState('')
   const [showExportColumns, setShowExportColumns] = useState(false)
   const [selectedExportColumns, setSelectedExportColumns] = useState<string[]>([
-    'invoiceDate', 'qty', 'customerName', 'customerCode', 'quotation', 'vat', 'grossAmount'
+    'invoiceDate', 'qty', 'customerName', 'customerCode', 'quotation', 'netAmount', 'vat', 'grossAmount'
   ])
   const exportDropdownRef = useRef<HTMLDivElement>(null)
 
@@ -36,6 +38,10 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal }) => {
     { key: 'customerCode', label: 'Customer Code' },
     { key: 'paidDate', label: 'Paid Date' },
     { key: 'quotation', label: 'Quotation' },
+    { key: 'status', label: 'Status' },
+    { key: 'vmName', label: 'VM Name' },
+    { key: 'discount', label: 'Discount' },
+    { key: 'netAmount', label: 'Net Amount' },
     { key: 'vat', label: 'VAT' },
     { key: 'grossAmount', label: 'Gross Amount' },
   ]
@@ -147,6 +153,7 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal }) => {
                       }
                       const csvData = filtered.map(i => {
                         const c = customers.find(cust => cust.id === i.customer)
+                        const vmsList = vms.filter((v: any) => i.vms.includes(v.id))
                         const data: any = {}
                         if (selectedExportColumns.includes('invoiceDate')) data['Invoice Date'] = i.invoiceDate || ''
                         if (selectedExportColumns.includes('qty')) data['Qty'] = i.vms.length
@@ -154,6 +161,10 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal }) => {
                         if (selectedExportColumns.includes('customerCode')) data['Customer Code'] = c?.id || ''
                         if (selectedExportColumns.includes('paidDate')) data['Paid Date'] = i.status === 'Payment Received' ? i.issued : ''
                         if (selectedExportColumns.includes('quotation')) data['Quotation'] = `QT-${i.id.slice(4)}`
+                        if (selectedExportColumns.includes('status')) data['Status'] = i.status
+                        if (selectedExportColumns.includes('vmName')) data['VM Name'] = vmsList.map((v: any) => v.name).join(', ')
+                        if (selectedExportColumns.includes('discount')) data['Discount'] = i.discount || 0
+                        if (selectedExportColumns.includes('netAmount')) data['Net Amount'] = i.amount
                         if (selectedExportColumns.includes('vat')) data['VAT'] = i.vat || 0
                         if (selectedExportColumns.includes('grossAmount')) data['Gross Amount'] = i.grossAmount || i.amount
                         return data
@@ -178,6 +189,7 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal }) => {
                       }
                       const pdfData = filtered.map(i => {
                         const c = customers.find(cust => cust.id === i.customer)
+                        const vmsList = vms.filter((v: any) => i.vms.includes(v.id))
                         const data: any = {}
                         if (selectedExportColumns.includes('invoiceDate')) data.invoiceDate = i.invoiceDate || ''
                         if (selectedExportColumns.includes('qty')) data.qty = i.vms.length
@@ -185,6 +197,10 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal }) => {
                         if (selectedExportColumns.includes('customerCode')) data.customerCode = c?.id || ''
                         if (selectedExportColumns.includes('paidDate')) data.paidDate = i.status === 'Payment Received' ? i.issued : ''
                         if (selectedExportColumns.includes('quotation')) data.quotation = `QT-${i.id.slice(4)}`
+                        if (selectedExportColumns.includes('status')) data.status = i.status
+                        if (selectedExportColumns.includes('vmName')) data.vmName = vmsList.map((v: any) => v.name).join(', ')
+                        if (selectedExportColumns.includes('discount')) data.discount = i.discount || 0
+                        if (selectedExportColumns.includes('netAmount')) data.netAmount = i.amount
                         if (selectedExportColumns.includes('vat')) data.vat = i.vat || 0
                         if (selectedExportColumns.includes('grossAmount')) data.grossAmount = i.grossAmount || i.amount
                         return data
@@ -274,6 +290,10 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal }) => {
                 {selectedExportColumns.includes('customerCode') && <th>Customer Code</th>}
                 {selectedExportColumns.includes('paidDate') && <th>Paid Date</th>}
                 {selectedExportColumns.includes('quotation') && <th>Quotation</th>}
+                {selectedExportColumns.includes('status') && <th>Status</th>}
+                {selectedExportColumns.includes('vmName') && <th>VM Name</th>}
+                {selectedExportColumns.includes('discount') && <th className="right">Discount</th>}
+                {selectedExportColumns.includes('netAmount') && <th className="right">Net Amount</th>}
                 {selectedExportColumns.includes('vat') && <th className="right">VAT</th>}
                 {selectedExportColumns.includes('grossAmount') && <th className="right">Gross Amount</th>}
                 <th style={{ width: 100 }}></th>
@@ -290,6 +310,10 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal }) => {
                     {selectedExportColumns.includes('customerCode') && <td className="mono text-sm">{c?.id}</td>}
                     {selectedExportColumns.includes('paidDate') && <td className="tnum text-sm">{i.status === 'Payment Received' ? i.issued : '—'}</td>}
                     {selectedExportColumns.includes('quotation') && <td className="mono text-sm">QT-{i.id.slice(4)}</td>}
+                    {selectedExportColumns.includes('status') && <td><StatusPill status={i.status}/></td>}
+                    {selectedExportColumns.includes('vmName') && <td className="text-sm">{vms.filter((v: any) => i.vms.includes(v.id)).map((v: any) => v.name).join(', ')}</td>}
+                    {selectedExportColumns.includes('discount') && <td className="right tnum text-sm">MMK {formatMMK(i.discount || 0)}</td>}
+                    {selectedExportColumns.includes('netAmount') && <td className="right tnum text-sm">MMK {formatMMK(i.amount)}</td>}
                     {selectedExportColumns.includes('vat') && <td className="right tnum text-sm">MMK {formatMMK(i.vat || 0)}</td>}
                     {selectedExportColumns.includes('grossAmount') && <td className="right tnum fw-6 text-sm">MMK {formatMMK(i.grossAmount || i.amount)}</td>}
                     <td onClick={e => e.stopPropagation()} className="right">
@@ -310,3 +334,4 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal }) => {
 }
 
 export { FinanceView, ReportsView }
+

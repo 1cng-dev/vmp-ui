@@ -7,6 +7,7 @@ import useTicketStore from '../../store/ticketStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { formatMMK } from '../ui/ui'
+import { supabase } from '@/lib/supabase'
 
 interface VM {
   id: string
@@ -64,26 +65,100 @@ interface CustRenewModalProps {
   vm: VM
   onClose: () => void
   onSubmit: (vm: VM, months: number) => void
+  me: any
 }
 
-const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, onSubmit }) => {
+const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, onSubmit, me }) => {
+  const { addTask } = useTaskStore()
+  const { toast } = useUIStore()
   const [months, setMonths] = useState(12)
-  const periods = [
-    { months: 1, label: '1 month', discount: 0 },
-    { months: 3, label: '3 months', discount: 5 },
-    { months: 6, label: '6 months', discount: 8 },
-    { months: 12, label: '12 months', tag: 'Best value', discount: 12 },
-    { months: 24, label: '24 months', discount: 18 },
-  ]
-  const selected = periods.find(p => p.months === months)
-  const subtotal = vm.priceMonth * months
-  const discount = Math.round(subtotal * (selected?.discount || 0) / 100)
-  const total = subtotal - discount
+  const [customMode, setCustomMode] = useState(false)
+  const [customValue, setCustomValue] = useState('12')
+  const periods = [1, 3, 6, 12]
+
+  const formatDate = (dateStr: string) => {
+    if (dateStr === '—') return '—'
+    const d = new Date(dateStr)
+    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+  }
+
   const newExpiry = (() => {
     const d = new Date(vm.expiry === '—' ? Date.now() : vm.expiry)
     d.setMonth(d.getMonth() + months)
-    return d.toISOString().slice(0, 10)
+    return formatDate(d.toISOString())
   })()
+
+  const currentExpiry = formatDate(vm.expiry)
+  const displayId = (vm as any).legacy_id || vm.id
+
+  const handleCustomToggle = () => {
+    setCustomMode(!customMode)
+    if (!customMode) {
+      setCustomValue(String(months))
+    }
+  }
+
+  const handleCustomChange = (value: string) => {
+    setCustomValue(value)
+    const num = parseFloat(value)
+    if (num && num > 0) {
+      setMonths(num)
+    }
+  }
+
+  const submit = async () => {
+    if (!me) {
+      toast('Customer information not found', 'error')
+      return
+    }
+
+    try {
+      // Create VM request with task_type='renewal'
+      const { error } = await supabase.from('vm_requests').insert({
+        customer_id: me.id,
+        task_type: 'Renewal',
+        request_type: 'paid',
+        billing_term: (vm as any).billing_term || 'Monthly',
+        hostname: (vm as any).hostname || vm.name,
+        purpose: `Renew for ${(vm as any).hostname || vm.name}`,
+        vcpu: vm.vcpu,
+        ram_gb: (vm as any).ram_gb || vm.ram,
+        storage: (vm as any).storage_gb || vm.storage,
+        qty: 1,
+        duration: months,
+        sizing: (vm as any).sizing || 'Standard',
+        storage_partitions: (vm as any).storage_partitions || '',
+        os_name: (vm as any).os_name || 'Linux',
+        os_version: (vm as any).os_version || '',
+        custom_os_name: (vm as any).custom_os_name || null,
+        custom_os_version: (vm as any).custom_os_version || null,
+        zone: (vm as any).zone || 'yangon-dc1',
+        nics: (vm as any).nics || [],
+        public_ip_required: (vm as any).public_ip_required !== undefined ? (vm as any).public_ip_required : true,
+        firewall_ports: (vm as any).firewall_ports || [],
+        port_forwarding: (vm as any).port_forwarding || [],
+        backup_enabled: (vm as any).backup_enabled || false,
+        backup_type: (vm as any).backup_type || 'weekly',
+        monitoring: (vm as any).monitoring || false,
+        notes: `Renewal request for ${months} month${months > 1 ? 's' : ''}. Current expiry: ${vm.expiry}, New expiry: ${newExpiry}`,
+      })
+
+      if (error) throw error
+
+      // Also create task for ops visibility
+      addTask({
+        title: `Renewal — ${(vm as any).hostname || vm.name} (${months} month${months > 1 ? 's' : ''})`,
+        customer: me.id, vm: vm.id, type: 'Renewal', priority: 'Normal', status: 'Pending', team: 'Sales',
+        notes: `Customer-initiated renewal request for ${months} month${months > 1 ? 's' : ''}. Current expiry: ${vm.expiry}, New expiry: ${newExpiry}`,
+      })
+
+      toast('Renewal request sent to Sales', 'ok')
+      onClose()
+    } catch (err) {
+      console.error('Error creating renewal request:', err)
+      toast('Failed to submit renewal request', 'error')
+    }
+  }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -91,48 +166,64 @@ const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, onSubmit }
         <div className="modal-head">
           <div>
             <h3 style={{ margin: 0, fontSize: 16 }}>Renew {vm.name}</h3>
-            <div className="text-xs text-mute mt-1 mono">{vm.id} · expires {vm.expiry}</div>
+            <div className="text-xs text-mute mt-1 mono">{displayId} · expires {currentExpiry}</div>
           </div>
           <button className="icon-btn" onClick={onClose}><Icon name="x" size={14}/></button>
         </div>
         <div className="modal-body">
-          <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Renewal period</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}>
-            {periods.map(p => (
-              <IaaSCard key={p.months} selected={months === p.months} onClick={() => setMonths(p.months)} padding={12}>
-                <div className="flex between">
-                  <div>
-                    <div className="fw-7 text-sm">{p.label}</div>
-                    <div className="text-xs text-mute mt-1">
-                      {p.discount > 0 && <span className="fw-6" style={{ color: 'var(--ok)' }}>{p.discount}% off</span>}
-                      {p.discount === 0 && <span className="text-mute">No discount</span>}
-                    </div>
-                  </div>
-                  {p.tag && <span className="pill accent" style={{ fontSize: 10, alignSelf: 'flex-start' }}><span className="dot"/>{p.tag}</span>}
+          <div className="card" style={{ borderColor: 'var(--line)' }}>
+            <div className="card-body" style={{ padding: 14 }}>
+              <div className="flex center between mb-2">
+                <div className="flex center gap-2">
+                  <Icon name="clock" size={13}/>
+                  <span className="fw-7 text-sm">Renewal period</span>
                 </div>
-              </IaaSCard>
-            ))}
-          </div>
-
-          <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Summary</div>
-          <div style={{ background: 'var(--surface-2)', borderRadius: 8, padding: 14 }}>
-            <SummaryLine icon="server" label="VM" value={<span className="mono">{vm.name}</span>}/>
-            <SummaryLine icon="clock" label="Current expiry" value={vm.expiry}/>
-            <SummaryLine icon="clock" label="New expiry" value={<span style={{ color: 'var(--ok)' }} className="fw-7">{newExpiry}</span>}/>
-            <SummaryLine icon="invoice" label="Monthly rate" value={`MMK ${formatMMK(vm.priceMonth)}`}/>
-            <div className="divider" style={{ margin: '10px 0' }}/>
-            <div className="flex between text-sm"><span className="text-mute">Subtotal ({months} mo)</span><span className="tnum">MMK {formatMMK(subtotal)}</span></div>
-            {discount > 0 && <div className="flex between text-sm mt-1"><span className="text-mute">Discount</span><span className="tnum" style={{ color: 'var(--ok)' }}>− MMK {formatMMK(discount)}</span></div>}
-            <div className="divider" style={{ margin: '10px 0' }}/>
-            <div className="flex center between">
-              <span className="fw-7">Total</span>
-              <span className="tnum fw-7" style={{ fontSize: 18 }}>MMK {formatMMK(total)}</span>
+                <div className="text-xs text-mute">
+                  Current expiry: <span className="tnum fw-6">{currentExpiry}</span>
+                  <span> → </span>
+                  <span className="tnum fw-7" style={{ color: 'var(--accent-strong)' }}>{newExpiry}</span>
+                </div>
+              </div>
+              <div className="flex gap-1 wrap">
+                {periods.map(m => (
+                  <button key={m}
+                    className={`filter-chip ${!customMode && months === m ? 'active' : ''}`}
+                    onClick={() => { setMonths(m); setCustomMode(false); }}>
+                    {m} month{m > 1 ? 's' : ''}
+                  </button>
+                ))}
+                {customMode ? (
+                  <>
+                    <input
+                      type="number"
+                      value={customValue}
+                      onChange={(e) => handleCustomChange(e.target.value)}
+                      placeholder="Enter months"
+                      min="1"
+                      style={{ padding: '6px 10px', border: '1px solid var(--accent)', borderRadius: 6, width: 100, fontSize: 12 }}
+                    />
+                    <span className="text-xs text-mute" style={{ alignSelf: 'center' }}>months</span>
+                    <button
+                      className="btn sm ghost"
+                      onClick={() => { setCustomMode(false); setMonths(12) }}
+                      style={{ padding: '6px 10px', fontSize: 11 }}>
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    className="filter-chip"
+                    onClick={handleCustomToggle}>
+                    <Icon name="plus" size={11} /> Custom
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
         <div className="modal-foot">
           <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <button className="btn accent" onClick={() => onSubmit(vm, months)}><Icon name="check" size={12}/>Submit renewal request</button>
+          <button className="btn accent" onClick={submit}><Icon name="check" size={12}/>Submit renewal request</button>
         </div>
       </div>
     </div>
@@ -143,88 +234,198 @@ const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, onSubmit }
 interface CustUpgradeModalProps {
   vm: VM
   onClose: () => void
+  me: any
+  vmRequestId?: string // Optional: if upgrading an existing VM request
 }
 
-const CustUpgradeModal: React.FC<CustUpgradeModalProps> = ({ vm, onClose }) => {
+const CustUpgradeModal: React.FC<CustUpgradeModalProps> = ({ vm, onClose, me }) => {
   const { addTask } = useTaskStore()
-  const { customers } = useCustomerStore()
   const { toast } = useUIStore()
-  const me = customers.find((c: any) => c.id === vm.customer)
-  const [spec, setSpec] = useState({ vcpu: vm.vcpu, ram: vm.ram, storage: vm.storage, bandwidth: vm.bandwidth })
+  const [spec, setSpec] = useState({ vcpu: vm.vcpu, ram: (vm as any).ram_gb || vm.ram, storage: (vm as any).storage_gb || vm.storage })
   const [backupEnabled, setBackupEnabled] = useState(false)
-  const [backupTime, setBackupTime] = useState('02:00')
   const [backupType, setBackupType] = useState('daily')
+  const [errors, setErrors] = useState({ vcpu: '', ram: '', storage: '' })
 
-  const oldCost = vm.priceMonth
-  const calcCost = (s: typeof spec) => Math.round(s.vcpu * 20000 + s.ram * 6000 + s.storage * 200 + (s.bandwidth === '1 Gbps' ? 30000 : s.bandwidth === '500 Mbps' ? 10000 : 0))
-  const newCost = calcCost(spec)
-  const diff = newCost - oldCost
+  const currentVcpu = vm.vcpu
+  const currentRam = (vm as any).ram_gb || vm.ram
+  const currentStorage = (vm as any).storage_gb || vm.storage
 
-  const cpuSteps = [1, 2, 4, 8, 16, 32]
-  const ramSteps = [2, 4, 8, 16, 32, 64, 128]
-  const storageSteps = [50, 100, 200, 500, 1000, 2000]
-  const bwOpts = ['100 Mbps', '500 Mbps', '1 Gbps']
-
-  const submit = () => {
-    addTask({
-      title: `Spec upgrade — ${vm.name} (${vm.vcpu}/${vm.ram}/${vm.storage} → ${spec.vcpu}/${spec.ram}/${spec.storage})`,
-      customer: vm.customer, vm: vm.id, type: 'Upgrade', priority: 'Normal', status: 'Pending', team: 'Sales',
-      subscription: '—',
-      assignee: me?.salesperson || '—',
-      notes: `Customer-initiated spec upgrade via portal.
-Current: ${vm.vcpu} vCPU · ${vm.ram} GB RAM · ${vm.storage} GB · ${vm.bandwidth}
-Requested: ${spec.vcpu} vCPU · ${spec.ram} GB RAM · ${spec.storage} GB · ${spec.bandwidth}
-Backup: ${backupEnabled ? `${backupType === 'daily' ? 'Daily' : 'Weekly'} at ${backupTime}` : 'No'}
-Cost diff: ${diff >= 0 ? '+' : ''}MMK ${formatMMK(Math.abs(diff))}/mo`,
-    })
-    toast('Upgrade request sent to Sales', 'ok')
-    onClose()
+  const validateField = (field: 'vcpu' | 'ram' | 'storage', value: number) => {
+    const current = field === 'vcpu' ? currentVcpu : field === 'ram' ? currentRam : currentStorage
+    if (value < current) {
+      setErrors(prev => ({ ...prev, [field]: `${field} cannot be less than current (${current})` }))
+      return false
+    }
+    setErrors(prev => ({ ...prev, [field]: '' }))
+    return true
   }
 
-  const Section: React.FC<{ label: string; current: number | string; options: (number | string)[]; value: number | string; onChange: (v: number | string) => void; unit: string; icon: string }> = ({ label, current, options, value, onChange, unit, icon }) => (
-    <div className="card" style={{ borderColor: 'var(--line)' }}>
-      <div className="card-body" style={{ padding: 14 }}>
-        <div className="flex center between mb-2">
-          <div className="flex center gap-2">
-            <Icon name={icon} size={13}/>
-            <span className="fw-7 text-sm">{label}</span>
-          </div>
-          <div className="text-xs text-mute">
-            Current: <span className="tnum fw-6">{current}{unit}</span>
-            {value !== current && <> → <span className="tnum fw-7" style={{ color: 'var(--accent-strong)' }}>{value}{unit}</span></>}
-          </div>
-        </div>
-        <div className="flex gap-1 wrap">
-          {options.map((o, i) => (
-            <button key={i}
-              className={`filter-chip ${value === o ? 'active' : ''}`}
-              onClick={() => onChange(o)}
-              disabled={typeof o === 'number' && typeof current === 'number' && o < current}
-              style={{ opacity: typeof o === 'number' && typeof current === 'number' && o < current ? 0.4 : 1, cursor: typeof o === 'number' && typeof current === 'number' && o < current ? 'not-allowed' : 'pointer', minWidth: 50 }}>
-              {o}{unit}{o === current && <span className="text-xs text-mute" style={{ marginLeft: 4 }}>(now)</span>}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
+  const handleSpecChange = (field: 'vcpu' | 'ram' | 'storage', value: string) => {
+    const num = parseFloat(value)
+    if (!isNaN(num) && num > 0) {
+      setSpec(prev => ({ ...prev, [field]: num }))
+      validateField(field, num)
+    }
+  }
+
+  const submit = async () => {
+    if (!me) {
+      toast('Customer information not found', 'error')
+      return
+    }
+
+    // Validate all fields
+    const isValid = validateField('vcpu', spec.vcpu) && validateField('ram', spec.ram) && validateField('storage', spec.storage)
+    if (!isValid) {
+      toast('Please fix validation errors before submitting', 'error')
+      return
+    }
+
+    try {
+      // Fetch original VM request to get all original data
+      let originalRequest = null
+      if ((vm as any).vm_request_id) {
+        const { data } = await supabase.from('vm_requests').select('*').eq('id', (vm as any).vm_request_id).single()
+        originalRequest = data
+      } else {
+        // Try to find original request by hostname (strip suffix for qty>1 cases)
+        const baseHostname = ((vm as any).hostname || vm.name).replace(/-\d+$/, '')
+        const { data } = await supabase.from('vm_requests').select('*').eq('hostname', baseHostname).order('created_at', { ascending: false }).limit(1).single()
+        originalRequest = data
+      }
+
+      if (!originalRequest) {
+        toast('Could not find original VM request data', 'error')
+        return
+      }
+
+      // Use current VM's actual hostname (e.g., my-web-app-2) instead of original base hostname
+      const currentHostname = (vm as any).hostname || vm.name
+
+      // Check if only backup is changed (compare with correct property names)
+      const currentVcpu = vm.vcpu
+      const currentRam = (vm as any).ram_gb || vm.ram
+      const currentStorage = (vm as any).storage_gb || vm.storage
+      const specChanged = spec.vcpu !== currentVcpu || spec.ram !== currentRam || spec.storage !== currentStorage
+      const backupChanged = backupEnabled !== (vm as any).backup_enabled || (backupEnabled && backupType !== (vm as any).backup_type)
+      
+      // Set purpose based on what changed
+      let purpose: string
+      if (specChanged && backupChanged) {
+        purpose = `Change Plan and Backup service for ${currentHostname}`
+      } else if (specChanged) {
+        purpose = `Change Plan for ${currentHostname}`
+      } else {
+        purpose = `Backup service ${backupEnabled ? 'enable' : 'disable'} for ${currentHostname}`
+      }
+
+      // Create VM request with task_type='change-plan' using all original data, only changing upgrade fields
+      const { error } = await supabase.from('vm_requests').insert({
+        customer_id: me.id,
+        task_type: 'change-plan',
+        request_type: originalRequest.request_type || 'paid',
+        billing_term: originalRequest.billing_term || 'Monthly',
+        hostname: currentHostname,
+        purpose: purpose,
+        vcpu: spec.vcpu,
+        ram_gb: spec.ram,
+        storage: spec.storage,
+        qty: 1, // Upgrade is always for a single VM
+        duration: originalRequest.duration || null,
+        sizing: originalRequest.sizing || 'Standard',
+        storage_partitions: originalRequest.storage_partitions || '',
+        os_name: originalRequest.os_name || 'Linux',
+        os_version: originalRequest.os_version || '',
+        custom_os_name: originalRequest.custom_os_name || null,
+        custom_os_version: originalRequest.custom_os_version || null,
+        zone: originalRequest.zone || 'yangon-dc1',
+        nics: originalRequest.nics || [],
+        public_ip_required: originalRequest.public_ip_required !== undefined ? originalRequest.public_ip_required : true,
+        firewall_ports: originalRequest.firewall_ports || [],
+        port_forwarding: originalRequest.port_forwarding || [],
+        backup_enabled: backupEnabled,
+        backup_type: backupType,
+        monitoring: originalRequest.monitoring || false,
+        notes: `${originalRequest.notes || ''}\n\n${specChanged 
+          ? `Change Plan from: ${vm.vcpu} vCPU · ${(vm as any).ram_gb || vm.ram} GB RAM · ${(vm as any).storage_gb || vm.storage} GB storage\nTo: ${spec.vcpu} vCPU · ${spec.ram} GB RAM · ${spec.storage} GB storage\nBackup: ${backupEnabled ? `${backupType === 'daily' ? 'Daily' : 'Weekly'}` : 'No'}`
+          : `Backup service ${backupEnabled ? 'enabled' : 'disabled'} (${backupType === 'daily' ? 'Daily' : 'Weekly'})`
+        }`,
+      })
+
+      if (error) throw error
+
+      // Also create task for ops visibility
+      addTask({
+        title: specChanged 
+          ? `Change Plan — ${currentHostname} (${vm.vcpu}/${(vm as any).ram_gb || vm.ram}/${(vm as any).storage_gb || vm.storage} → ${spec.vcpu}/${spec.ram}/${spec.storage})`
+          : `Backup ${backupEnabled ? 'enable' : 'disable'} — ${currentHostname}`,
+        customer: me.id, vm: vm.id, type: 'Change Plan', priority: 'Normal', status: 'Pending', team: 'Sales',
+        subscription: '—',
+        assignee: (me as any)?.salesperson || '—',
+        notes: `Customer-initiated ${specChanged ? 'change plan' : 'backup service'} request via portal.
+${specChanged ? `Current: ${vm.vcpu} vCPU · ${(vm as any).ram_gb || vm.ram} GB RAM · ${(vm as any).storage_gb || vm.storage} GB
+Requested: ${spec.vcpu} vCPU · ${spec.ram} GB RAM · ${spec.storage} GB` : ''}
+Backup: ${backupEnabled ? `${backupType === 'daily' ? 'Daily' : 'Weekly'}` : 'No'}`,
+      })
+
+      toast('Upgrade request sent to Sales', 'ok')
+      onClose()
+    } catch (err) {
+      console.error('Error creating upgrade request:', err)
+      toast('Failed to submit upgrade request', 'error')
+    }
+  }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 760 }}>
         <div className="modal-head">
           <div>
-            <h3 style={{ margin: 0, fontSize: 16 }}>Upgrade {vm.name}</h3>
+            <h3 style={{ margin: 0, fontSize: 16 }}>Change Plan {vm.name}</h3>
             <div className="text-xs text-mute mt-1">Pick higher spec — downgrades require sales approval</div>
           </div>
           <button className="icon-btn" onClick={onClose}><Icon name="x" size={14}/></button>
         </div>
         <div className="modal-body">
-          <div className="flex col gap-2">
-            <Section label="vCPU cores" icon="cpu" current={vm.vcpu} options={cpuSteps} value={spec.vcpu} onChange={v => setSpec({...spec, vcpu: v as number})} unit=""/>
-            <Section label="RAM" icon="database" current={vm.ram} options={ramSteps} value={spec.ram} onChange={v => setSpec({...spec, ram: v as number})} unit=" GB"/>
-            <Section label="Storage" icon="box" current={vm.storage} options={storageSteps} value={spec.storage} onChange={v => setSpec({...spec, storage: v as number})} unit=" GB"/>
-            <Section label="Network traffic" icon="network" current={vm.bandwidth} options={bwOpts} value={spec.bandwidth} onChange={v => setSpec({...spec, bandwidth: v as string})} unit=""/>
+          <div className="flex col gap-3">
+            <div className="grid-3" style={{ gap: 12 }}>
+              <div className="field">
+                <label>vCPU</label>
+                <input 
+                  type="number" 
+                  value={spec.vcpu} 
+                  onChange={(e) => handleSpecChange('vcpu', e.target.value)}
+                  min={currentVcpu}
+                  step={1}
+                />
+                <div className="text-xs text-mute mt-1">Current: {currentVcpu}</div>
+                {errors.vcpu && <div className="text-xs" style={{ color: 'var(--bad)', marginTop: 4 }}>{errors.vcpu}</div>}
+              </div>
+              <div className="field">
+                <label>RAM (GB)</label>
+                <input 
+                  type="number" 
+                  value={spec.ram} 
+                  onChange={(e) => handleSpecChange('ram', e.target.value)}
+                  min={currentRam}
+                  step={1}
+                />
+                <div className="text-xs text-mute mt-1">Current: {currentRam}</div>
+                {errors.ram && <div className="text-xs" style={{ color: 'var(--bad)', marginTop: 4 }}>{errors.ram}</div>}
+              </div>
+              <div className="field">
+                <label>Storage (GB)</label>
+                <input 
+                  type="number" 
+                  value={spec.storage} 
+                  onChange={(e) => handleSpecChange('storage', e.target.value)}
+                  min={currentStorage}
+                  step={10}
+                />
+                <div className="text-xs text-mute mt-1">Current: {currentStorage}</div>
+                {errors.storage && <div className="text-xs" style={{ color: 'var(--bad)', marginTop: 4 }}>{errors.storage}</div>}
+              </div>
+            </div>
 
             {/* Backup service */}
             <div className="card" style={{ borderColor: 'var(--line)' }}>
@@ -235,78 +436,44 @@ Cost diff: ${diff >= 0 ? '+' : ''}MMK ${formatMMK(Math.abs(diff))}/mo`,
               {backupEnabled && (
                 <div className="card-body">
                   <div className="text-xs text-mute fw-6 mb-3" style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>Backup Options <span style={{ color: 'var(--bad)' }}>*</span></div>
-                  <div className="flex col gap-3">
-                    <div>
-                      <div className="text-xs text-mute">(Backup Time - within 12:00 AM - 6:00 AM)</div>
-                    </div>
-                    <div>
-                      <div className="flex col gap-2">
-                        <label className="flex center gap-2" style={{ cursor: 'pointer', padding: 12, background: backupType === 'daily' ? 'var(--accent-soft)' : 'var(--surface)', border: backupType === 'daily' ? '1.5px solid var(--accent)' : '1px solid var(--line)', borderRadius: 8 }}>
-                          <input
-                            type="radio"
-                            name="backupType"
-                            value="daily"
-                            checked={backupType === 'daily'}
-                            onChange={() => setBackupType('daily')}
-                            style={{ cursor: 'pointer' }}
-                          />
-                          <div className="flex-1">
-                            <div className="fw-6 text-sm">Daily backup</div>
-                            <div className="text-xs text-mute">Every day at specified time</div>
-                          </div>
-                        </label>
-                        <label className="flex center gap-2" style={{ cursor: 'pointer', padding: 12, background: backupType === 'weekly' ? 'var(--accent-soft)' : 'var(--surface)', border: backupType === 'weekly' ? '1.5px solid var(--accent)' : '1px solid var(--line)', borderRadius: 8 }}>
-                          <input
-                            type="radio"
-                            name="backupType"
-                            value="weekly"
-                            checked={backupType === 'weekly'}
-                            onChange={() => setBackupType('weekly')}
-                            style={{ cursor: 'pointer' }}
-                          />
-                          <div className="flex-1">
-                            <div className="fw-6 text-sm">Weekly backup</div>
-                            <div className="text-xs text-mute">Once per week at specified time</div>
-                          </div>
-                        </label>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-xs text-mute fw-6" style={{ display: 'block', marginBottom: 6 }}>Backup time</label>
+                  <div className="flex col gap-2">
+                    <label className="flex center gap-2" style={{ cursor: 'pointer', padding: 12, background: backupType === 'daily' ? 'var(--accent-soft)' : 'var(--surface)', border: backupType === 'daily' ? '1.5px solid var(--accent)' : '1px solid var(--line)', borderRadius: 8 }}>
                       <input
-                        type="time"
-                        value={backupTime}
-                        onChange={(e) => setBackupTime(e.target.value)}
-                        style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid var(--line)', background: 'var(--surface-2)' }}
+                        type="radio"
+                        name="backupType"
+                        value="daily"
+                        checked={backupType === 'daily'}
+                        onChange={() => setBackupType('daily')}
+                        style={{ cursor: 'pointer' }}
                       />
-                    </div>
+                      <div>
+                        <div className="fw-6 text-sm">Daily Backup</div>
+                        <div className="text-xs text-mute">Daily Backups with 7 days Retention</div>
+                      </div>
+                    </label>
+                    <label className="flex center gap-2" style={{ cursor: 'pointer', padding: 12, background: backupType === 'weekly' ? 'var(--accent-soft)' : 'var(--surface)', border: backupType === 'weekly' ? '1.5px solid var(--accent)' : '1px solid var(--line)', borderRadius: 8 }}>
+                      <input
+                        type="radio"
+                        name="backupType"
+                        value="weekly"
+                        checked={backupType === 'weekly'}
+                        onChange={() => setBackupType('weekly')}
+                        style={{ cursor: 'pointer' }}
+                      />
+                      <div>
+                        <div className="fw-6 text-sm">Weekly Backup</div>
+                        <div className="text-xs text-mute">Weekly Backup with 4 weeks Retention</div>
+                      </div>
+                    </label>
                   </div>
                 </div>
               )}
             </div>
           </div>
-
-          <div style={{ background: 'var(--surface-2)', borderRadius: 8, padding: 14, marginTop: 16 }}>
-            <div className="flex center between">
-              <div>
-                <div className="text-xs text-mute">Current monthly</div>
-                <div className="tnum fw-7" style={{ fontSize: 15 }}>MMK {formatMMK(oldCost)}</div>
-              </div>
-              <Icon name="chevron-right" size={16} className="text-mute"/>
-              <div>
-                <div className="text-xs text-mute">New monthly</div>
-                <div className="tnum fw-7" style={{ fontSize: 15 }}>MMK {formatMMK(newCost)}</div>
-              </div>
-              <div className="right">
-                <div className="text-xs text-mute">Cost diff</div>
-                <div className="tnum fw-7" style={{ fontSize: 15, color: diff >= 0 ? 'var(--bad)' : 'var(--ok)' }}>{diff >= 0 ? '+' : '−'}MMK {formatMMK(Math.abs(diff))}/mo</div>
-              </div>
-            </div>
-          </div>
         </div>
         <div className="modal-foot">
           <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <button className="btn accent" disabled={spec.vcpu === vm.vcpu && spec.ram === vm.ram && spec.storage === vm.storage && spec.bandwidth === vm.bandwidth} onClick={submit}>
+          <button className="btn accent" disabled={spec.vcpu === vm.vcpu && spec.ram === vm.ram && spec.storage === vm.storage && !backupEnabled} onClick={submit}>
             <Icon name="arrow-up" size={12}/>Submit upgrade request
           </button>
         </div>
@@ -419,6 +586,125 @@ Cost diff: ${diff >= 0 ? '+' : ''}MMK ${formatMMK(Math.abs(diff))}/mo`,
   )
 }
 
+// ── Convert to Paid Modal ──────────────────────────────────────────────────────
+interface CustConvertToPaidModalProps {
+  vm: VM
+  onClose: () => void
+}
+
+const CustConvertToPaidModal: React.FC<CustConvertToPaidModalProps> = ({ vm, onClose }) => {
+  const { toast } = useUIStore()
+  const { customers } = useCustomerStore()
+  const { addTask } = useTaskStore()
+  const me = customers.find((c: any) => c.id === (vm as any).customer_id)
+
+  const [duration, setDuration] = useState(12)
+  const [billingTerm, setBillingTerm] = useState<'Monthly' | 'Annual'>('Monthly')
+
+  const submit = async () => {
+    if (!me) {
+      toast('Customer information not found', 'error')
+      return
+    }
+
+    try {
+      // Create VM request for conversion with task_type='New' and request_type='paid'
+      const { error } = await supabase.from('vm_requests').insert({
+        customer_id: me.id,
+        task_type: 'New',
+        request_type: 'paid',
+        billing_term: billingTerm,
+        hostname: (vm as any).hostname || vm.name,
+        purpose: `Convert trial to paid for ${(vm as any).hostname || vm.name}`,
+        vcpu: vm.vcpu,
+        ram_gb: (vm as any).ram_gb || vm.ram,
+        storage: (vm as any).storage_gb || vm.storage,
+        qty: 1,
+        duration: duration,
+        sizing: (vm as any).sizing || 'Standard',
+        storage_partitions: (vm as any).storage_partitions || '',
+        os_name: (vm as any).os_name || 'Linux',
+        os_version: (vm as any).os_version || '',
+        zone: (vm as any).zone || 'yangon-dc1',
+        nics: (vm as any).nics || [],
+        public_ip_required: (vm as any).public_ip_required ?? true,
+        firewall_ports: (vm as any).firewall_ports || [],
+        backup_enabled: (vm as any).backup_enabled || false,
+        monitoring: (vm as any).monitoring || false,
+        notes: `Trial to paid conversion for VM: ${vm.id}`,
+      })
+
+      if (error) throw error
+
+      // Create task for ops visibility
+      addTask({
+        id: crypto.randomUUID(),
+        title: `Convert trial to paid - ${(vm as any).hostname || vm.name}`,
+        customer: me.org_name || me.name,
+        status: 'Pending',
+        priority: 'Normal',
+        team: 'Sales',
+        assignee: '—',
+        created: new Date().toISOString().slice(0, 10),
+        notes: `Duration: ${duration} months, Billing: ${billingTerm}`,
+        vm_id: vm.id,
+      })
+
+      toast('Trial to paid conversion request submitted', 'ok')
+      onClose()
+    } catch (error: any) {
+      toast('Failed to submit conversion request: ' + error.message, 'error')
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+        <div className="modal-head">
+          <div>
+            <h3 style={{ margin: 0, fontSize: 16 }}>Convert to Paid — {(vm as any).hostname || vm.name}</h3>
+            <div className="text-xs text-mute mt-1">Convert your trial VM to a paid subscription</div>
+          </div>
+          <button className="icon-btn" onClick={onClose}><Icon name="x" size={14}/></button>
+        </div>
+        <div className="modal-body">
+          <div className="field">
+            <label>Duration (months) <span style={{ color: 'var(--bad)' }}>*</span></label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+              {[1, 3, 6, 12].map(months => (
+                <button
+                  key={months}
+                  className={`filter-chip ${duration === months ? 'active' : ''}`}
+                  onClick={() => setDuration(months)}
+                >
+                  {months} month{months > 1 ? 's' : ''}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="field">
+            <label>Billing Term <span style={{ color: 'var(--bad)' }}>*</span></label>
+            <select
+              value={billingTerm}
+              onChange={e => setBillingTerm(e.target.value as 'Monthly' | 'Annual')}
+              style={{ padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 6, width: '100%' }}
+            >
+              <option value="Monthly">Monthly</option>
+              <option value="Annual">Annual</option>
+            </select>
+          </div>
+        </div>
+        <div className="modal-foot">
+          <button className="btn ghost" onClick={onClose}>Cancel</button>
+          <button className="btn primary" onClick={submit}>
+            <Icon name="check" size={12}/>Submit Conversion Request
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Support ticket modal (legacy — kept for back-compat) ─────────────────
 interface SupportTicketModalProps {
   onClose: () => void
@@ -469,4 +755,4 @@ const CustVMModal: React.FC<CustVMModalProps> = ({ vm, onClose }) => (
   </div>
 )
 
-export { CustRenewModal, CustUpgradeModal, CustChangePlanModal, SupportTicketModal, CustVMModal }
+export { CustRenewModal, CustUpgradeModal, CustChangePlanModal, CustConvertToPaidModal, SupportTicketModal, CustVMModal }

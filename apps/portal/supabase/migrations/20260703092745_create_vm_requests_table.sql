@@ -127,3 +127,11 @@ alter table public.vm_requests drop constraint if exists vm_requests_status_chec
 alter table public.vm_requests 
   add constraint vm_requests_status_check 
   check (status in ('Pending','In Progress','Provisioning','Network','Testing','Completed','Rejected'));
+
+
+
+-- Add billing_term field to vm_requests table
+ALTER TABLE public.vm_requests ADD COLUMN IF NOT EXISTS billing_term TEXT DEFAULT 'Monthly' CHECK (billing_term IN ('Monthly', 'Annual'));
+
+-- Create index for billing_term queries
+CREATE INDEX IF NOT EXISTS idx_vm_requests_billing_term ON public.vm_requests(billing_term);

@@ -21,7 +21,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onSwitchToSignup, prefillEmai
     e?.preventDefault()
     setLoading(true)
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data: authData, error } = await supabase.auth.signInWithPassword({
       email: f.email,
       password: f.password,
     })
@@ -29,9 +29,33 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onSwitchToSignup, prefillEmai
     if (error) {
       toast(error.message, 'bad')
       setLoading(false)
-    } else {
-      setLoading(false)
+      return
     }
+
+    // Check customer status after successful auth
+    if (authData.user) {
+      const { data: customer, error: customerError } = await supabase
+        .from('customers')
+        .select('status')
+        .eq('id', authData.user.id)
+        .single()
+
+      if (customerError || !customer) {
+        toast('Account not found', 'bad')
+        await supabase.auth.signOut()
+        setLoading(false)
+        return
+      }
+
+      if (customer.status !== 'Active') {
+        toast('Your account has been suspended. Please contact support.', 'bad')
+        await supabase.auth.signOut()
+        setLoading(false)
+        return
+      }
+    }
+
+    setLoading(false)
   }
 
   if (showForgotPassword) {

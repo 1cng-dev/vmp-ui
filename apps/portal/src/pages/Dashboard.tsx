@@ -4,6 +4,7 @@ import useVMStore from '../store/vmStore'
 import useInvoiceStore from '../store/invoiceStore'
 import useActivityStore from '../store/activityStore'
 import useTaskStore from '../store/taskStore'
+import useTicketStore from '../store/ticketStore'
 import { useAuth } from '../components/auth/Auth'
 import useTeamStore from '../store/teamStore'
 import Icon from '../lib/icons'
@@ -21,6 +22,7 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
   const { invoices } = useInvoiceStore()
   const { activity } = useActivityStore()
   const { tasks } = useTaskStore()
+  const { tickets } = useTicketStore()
   const auth = useAuth()
   const { team, loadTeam } = useTeamStore()
   const TODAY = new Date()
@@ -34,10 +36,11 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
     return d >= 0 && d <= 7
   })
   const overdue = invoices.filter(i => i.status === 'Overdue').length
-  const pendingKYC = customers.filter(c => c.kyc === 'Pending').length
-  const mrr = vms.filter(v => v.status === 'Active').reduce((a, v) => a + v.priceMonth, 0)
+  const pendingKYC = customers.filter(c => (c as any).kyc === 'Pending').length
+  const mrr = vms.filter(v => v.status === 'Active').reduce((a, v) => a + (v as any).priceMonth, 0)
   const overdueValue = invoices.filter(i => i.status === 'Overdue').reduce((a, i) => a + i.amount, 0)
   const pendingTasks = tasks.filter(t => t.status === 'Pending').length
+  const openTickets = tickets.filter(t => t.status === 'Open').length
 
   const statusDonut = [
     { label: 'Active', value: vms.filter(v => v.status === 'Active').length, color: 'oklch(0.62 0.13 155)' },
@@ -186,7 +189,16 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
                   <button className="btn sm" onClick={() => setView('finance')}>View</button>
                 </div>
               )}
-              {pendingKYC === 0 && pendingTasks === 0 && overdue === 0 && (
+              {openTickets > 0 && (
+                <div className="feed-item" style={{ padding: '12px 18px' }}>
+                  <span className="dot support" />
+                  <div className="body">
+                    <span className="fw-6">{openTickets} open ticket{openTickets > 1 ? 's' : ''}</span> awaiting response
+                  </div>
+                  <button className="btn sm" onClick={() => setView('tickets')}>View</button>
+                </div>
+              )}
+              {pendingKYC === 0 && pendingTasks === 0 && overdue === 0 && openTickets === 0 && (
                 <div className="empty"><div className="title">All caught up</div><div className="sub">No actions needed right now.</div></div>
               )}
             </div>

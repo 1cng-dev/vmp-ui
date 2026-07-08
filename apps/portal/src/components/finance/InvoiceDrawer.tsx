@@ -74,8 +74,18 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
                     )
                   })}
                   <tr style={{ background: 'var(--surface-2)' }}>
-                    <td colSpan={4} className="right fw-7">Total</td>
+                    <td colSpan={4} className="right fw-7">Net Amount</td>
                     <td className="right tnum fw-7" style={{ fontSize: 14 }}>MMK {formatMMK(live.amount)}</td>
+                  </tr>
+                  {live.vat > 0 && (
+                    <tr>
+                      <td colSpan={4} className="right text-mute">VAT</td>
+                      <td className="right tnum text-mute">MMK {formatMMK(live.vat)}</td>
+                    </tr>
+                  )}
+                  <tr style={{ background: 'var(--surface-2)' }}>
+                    <td colSpan={4} className="right fw-7">Gross Amount</td>
+                    <td className="right tnum fw-7" style={{ fontSize: 14 }}>MMK {formatMMK(live.grossAmount || live.amount)}</td>
                   </tr>
                 </tbody>
               </table>

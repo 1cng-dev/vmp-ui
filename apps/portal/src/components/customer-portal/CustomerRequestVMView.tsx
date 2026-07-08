@@ -33,6 +33,7 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
     storage: 200,
     qty: 1,
     duration: null,
+    billingTerm: 'Monthly',
     volumes: [{ size: 200 }],
     capacity: '',
     storagePartitions: '',
@@ -145,6 +146,7 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
         storage: f.storage,
         qty: f.qty,
         duration: f.requestType === 'paid' ? f.duration : null,
+        billing_term: f.requestType === 'paid' ? f.billingTerm : null,
         sizing: f.sizing,
         storage_partitions: f.storagePartitions,
         os_name: f.os === 'custom' ? f.customOsName : selectedOS?.name,
@@ -423,6 +425,20 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
                       />
                     </div>
                   )}
+                </div>
+              )}
+
+              {f.requestType === 'paid' && (
+                <div className="field">
+                  <label>Billing Term <span style={{ color: 'var(--bad)' }}>*</span></label>
+                  <select
+                    value={f.billingTerm}
+                    onChange={e => set('billingTerm', e.target.value)}
+                    style={{ padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 6, width: '100%' }}
+                  >
+                    <option value="Monthly">Monthly</option>
+                    <option value="Annual">Annual</option>
+                  </select>
                 </div>
               )}
               {/* <div className="field">

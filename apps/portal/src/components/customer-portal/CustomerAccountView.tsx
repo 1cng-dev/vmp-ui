@@ -1,7 +1,9 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import useCustomerStore from '../../store/customerStore'
+import useVMStore from '../../store/vmStore'
+import useTicketStore from '../../store/ticketStore'
 import useUIStore from '../../store/uiStore'
-import { Avatar, StatusPill } from '../ui/ui'
+import { Avatar, formatMMK } from '../ui/ui'
 import Icon from '../../lib/icons'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '../auth/Auth'
@@ -12,8 +14,32 @@ interface CustomerAccountViewProps {
 
 export const CustomerAccountView: React.FC<CustomerAccountViewProps> = ({ me }) => {
   const { updateCustomer } = useCustomerStore()
+  const { vms, loadVMs } = useVMStore()
+  const { tickets, loadTickets } = useTicketStore()
   const { toast } = useUIStore()
   const { signout } = useAuth() || { signout: () => { } }
+
+  // Load VMs and tickets on mount
+  useEffect(() => {
+    loadVMs()
+    loadTickets()
+  }, [loadVMs, loadTickets])
+
+  // Calculate MRR from active VMs
+  const customerVMs = vms.filter((v: any) => v.customer_id === me.id)
+  const mrr = customerVMs.filter((v: any) => v.status === 'Active').reduce((a: number, v: any) => a + (v.priceMonth || 0), 0)
+
+  // Calculate open tickets - recalculate when tickets change
+  const openTickets = React.useMemo(() => {
+    const customerTickets = tickets.filter((t: any) => {
+      const customerId = t.customer || t.customer_id
+      return customerId === me.id
+    })
+    return customerTickets.filter((t: any) => {
+      const status = t.status?.toLowerCase()
+      return status === 'open' || status === 'in progress'
+    }).length
+  }, [tickets, me.id])
 
   const [profile, setProfile] = useState({
     name: me.name,
@@ -101,6 +127,23 @@ export const CustomerAccountView: React.FC<CustomerAccountViewProps> = ({ me }) 
               <div className="fw-7" style={{ fontSize: 18 }}>{profile.name}</div>
               <div className="text-sm text-mute">Customer</div>
               <div className="text-xs text-mute mt-1">{profile.email}</div>
+              <div className="flex gap-3 mt-1">
+                {me.totalSpend !== undefined && (
+                  <div className="text-xs" style={{ color: 'var(--accent)' }}>
+                    Lifetime: MMK {formatMMK(me.totalSpend)}
+                  </div>
+                )}
+                {mrr > 0 && (
+                  <div className="text-xs" style={{ color: 'var(--ok)' }}>
+                    Monthly Recurring: MMK {formatMMK(mrr)}
+                  </div>
+                )}
+                {openTickets > 0 && (
+                  <div className="text-xs" style={{ color: 'var(--bad)' }}>
+                    Open issues: {openTickets} tickets
+                  </div>
+                )}
+              </div>
             </div>
             <div className="flex gap-2">
               <button className="btn danger" onClick={signout}><Icon name="logout" size={12} />Sign out</button>

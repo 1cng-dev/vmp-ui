@@ -18,9 +18,9 @@ export const CustomerRequestsView: React.FC<CustomerRequestsViewProps> = ({ myRe
     <div className="card">
       <div className="card-body flush">
         <table className="tbl">
-          <thead><tr><th>Hostname</th><th>Type</th><th>Submitted</th><th>Duration</th><th>Spec Type</th><th>Status</th><th></th></tr></thead>
+          <thead><tr><th>Hostname</th><th>Request Type</th><th>Task Type</th><th>Submitted</th><th>Duration</th><th>Spec Type</th><th>Status</th><th></th></tr></thead>
           <tbody>
-            {myRequests.length === 0 && <tr><td colSpan={7}><div className="empty"><div className="title">No requests yet</div><div className="sub">Click "Request VM" in the sidebar to submit your first.</div></div></td></tr>}
+            {myRequests.length === 0 && <tr><td colSpan={8}><div className="empty"><div className="title">No requests yet</div><div className="sub">Click "Request VM" in the sidebar to submit your first.</div></div></td></tr>}
             {myRequests.map((t: any) => (
               <tr key={t.id} onClick={() => setDetailRequest(t)}>
                 <td>
@@ -28,6 +28,7 @@ export const CustomerRequestsView: React.FC<CustomerRequestsViewProps> = ({ myRe
                   <div className="text-xs text-mute">{t.purpose || 'No purpose'}</div>
                 </td>
                 <td><span className="pill subtle">{t.request_type === 'trial' ? 'Trial' : 'Paid'}</span></td>
+                <td><span className={`pill ${t.task_type === 'change-plan' ? 'accent' : 'subtle'}`}>{t.task_type || 'new'}</span></td>
                 <td className="tnum text-sm">{new Date(t.created_at).toLocaleDateString()}</td>
                 <td className="text-sm">{t.duration ? `${t.duration} month${t.duration > 1 ? 's' : ''}` : 'N/A'}</td>
                 <td className="text-sm" style={{ color: t.sizing === 'Standard' ? 'var(--ok)' : 'var(--accent-strong)' }}>{t.sizing}</td>

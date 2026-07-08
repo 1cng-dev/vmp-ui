@@ -30,7 +30,7 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal }) => {
     { id: 'Suspended', label: 'Suspended', count: vms.filter(v => v.status === 'Suspended').length },
     { id: 'Terminated', label: 'Terminated', count: vms.filter(v => v.status === 'Terminated').length },
     { id: 'new', label: 'New', count: vms.filter(v => v.task_type === 'new').length },
-    { id: 'upgrade', label: 'Upgrade', count: vms.filter(v => v.task_type === 'upgrade').length },
+    { id: 'change-plan', label: 'Change Plan', count: vms.filter(v => v.task_type === 'change-plan').length },
   ]
 
   const filtered = vms.filter(v => {
@@ -40,7 +40,7 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal }) => {
     if (filter.has('Suspended')) matches.push(v.status === 'Suspended')
     if (filter.has('Terminated')) matches.push(v.status === 'Terminated')
     if (filter.has('new')) matches.push(v.task_type === 'new')
-    if (filter.has('upgrade')) matches.push(v.task_type === 'upgrade')
+    if (filter.has('change-plan')) matches.push(v.task_type === 'change-plan')
     return matches.length > 0 && matches.every(m => m === true)
   }).filter(v => {
     if (!search) return true

@@ -50,6 +50,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ onClose, setView, openV
     { type: 'Navigate', label: 'Calendar', action: () => { setView('calendar'); onClose() }, icon: 'clock' },
     { type: 'Navigate', label: 'Customers', action: () => { setView('customers'); onClose() }, icon: 'users' },
     { type: 'Navigate', label: 'KYC review', action: () => { setView('kyc'); onClose() }, icon: 'shield' },
+    { type: 'Navigate', label: 'Support tickets', action: () => { setView('tickets'); onClose() }, icon: 'mail' },
     { type: 'Navigate', label: 'Invoices', action: () => { setView('finance'); onClose() }, icon: 'invoice' },
     { type: 'Navigate', label: 'Reports', action: () => { setView('reports'); onClose() }, icon: 'box' },
     { type: 'Navigate', label: 'Alerts', action: () => { setView('alerts'); onClose() }, icon: 'bell' },

@@ -4,16 +4,17 @@ import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { StatusPill, SecCheck, formatMMK } from '../ui/ui'
 import { InfoCard, UsageCard, UsageDetailCard } from './VMHelperComponents'
-import { CustUpgradeModal, CustChangePlanModal } from '../modals/CustomerVMModals'
+import { CustUpgradeModal, CustConvertToPaidModal } from '../modals/CustomerVMModals'
 import { supabase } from '../../lib/supabase'
 
 interface CustomerVMDetailProps {
   vm: any
   onClose: () => void
   onRenew: () => void
+  me: any
 }
 
-export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialVm, onClose, onRenew }) => {
+export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialVm, onClose, onRenew, me }) => {
   const { vms, startVM, stopVM, restartVM, snapshotVM, updateVMTags, updateVMNotes } = useVMStore()
   const { toast } = useUIStore()
   const vm = vms.find((v: any) => v.id === initialVm.id) || initialVm
@@ -23,7 +24,7 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
   const [notesDraft, setNotesDraft] = useState(vm.notes || '')
   const [snapName, setSnapName] = useState('')
   const [upgradeOpen, setUpgradeOpen] = useState(false)
-  const [changePlanOpen, setChangePlanOpen] = useState(false)
+  const [convertToPaidOpen, setConvertToPaidOpen] = useState(false)
   const [vmRequest, setVmRequest] = useState<any>(null)
 
   // Fetch vm_request data
@@ -108,13 +109,13 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
           }
           <button className="btn" onClick={() => restartVM(vm.id)} disabled={!isRunning}><Icon name="refresh" size={12}/>Restart</button>
           <button className="btn" onClick={openConsole} disabled={!isRunning} title={isRunning ? 'Open VNC console in new tab' : 'Start the VM to open console'}><Icon name="terminal" size={12}/>Console<Icon name="external" size={10}/></button>
-          <button className="btn" onClick={() => setUpgradeOpen(true)}><Icon name="arrow-up" size={12}/>Upgrade</button>
-          <button className="btn" onClick={() => setChangePlanOpen(true)}><Icon name="sliders" size={12}/>Change plan</button>
+          <button className="btn" onClick={() => setUpgradeOpen(true)}><Icon name="arrow-up" size={12}/>Change Plan</button>
+          {vmRequest?.request_type === 'trial' && <button className="btn primary" onClick={() => setConvertToPaidOpen(true)}><Icon name="credit-card" size={12}/>Convert to Paid</button>}
           <button className="btn accent" onClick={onRenew}><Icon name="refresh" size={12}/>Renew</button>
         </div>
 
-      {upgradeOpen && <CustUpgradeModal vm={vm} onClose={() => setUpgradeOpen(false)}/>}
-      {changePlanOpen && <CustChangePlanModal vm={vm} onClose={() => setChangePlanOpen(false)}/>}
+      {upgradeOpen && <CustUpgradeModal vm={vm} onClose={() => setUpgradeOpen(false)} me={me}/>}
+      {convertToPaidOpen && <CustConvertToPaidModal vm={vm} onClose={() => setConvertToPaidOpen(false)}/>}
       </div>
 
       <div className="grid-4 mb-4">
@@ -210,8 +211,8 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
           <div className="card-body">
             <div className="grid-2" style={{ gap: 16 }}>
               <InfoCard icon="shield" title="Backup Configuration" rows={[
-                ['Backup Enabled', vmRequest?.backup_enabled ? 'Yes' : 'No'],
-                ['Backup Type', vmRequest?.backup_enabled ? vmRequest?.backup_type : '—'],
+                ['Backup Enabled', (vm as any).backup_enabled ? 'Yes' : 'No'],
+                ['Backup Type', (vm as any).backup_enabled ? (vm as any).backup_type : '—'],
               ]}/>
             </div>
           </div>
@@ -329,6 +330,8 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
                 ['Request ID', vmRequest?.legacy_id || vm.vm_request_id],
                 ['Request Type', vmRequest?.request_type || 'paid'],
                 ['Status', vmRequest?.status || '—'],
+                ['Duration', (vm as any).duration ? `${(vm as any).duration} month${(vm as any).duration > 1 ? 's' : ''}` : vmRequest?.duration ? `${vmRequest.duration} month${vmRequest.duration > 1 ? 's' : ''}` : '—'],
+                ['Expiry', vm.expiry ? new Date(vm.expiry).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'],
               ]}/>
               <InfoCard icon="cpu" title="Hardware" rows={[
                 ['vCPU', `${vm.vcpu} cores`],

@@ -99,6 +99,11 @@ export const CustomerRequestDetail: React.FC<CustomerRequestDetailProps> = ({ re
                     <dt>Request ID</dt><dd className="mono">{t.legacy_id}</dd>
                   </>
                 )}
+                {t.billing_term && (
+                  <>
+                    <dt>Billing Term</dt><dd>{t.billing_term}</dd>
+                  </>
+                )}
               </dl>
             </div>
           </div>

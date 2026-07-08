@@ -1,26 +1,39 @@
-import React, { useState } from 'react'
-import Icon from '../../lib/icons'
-import NewCustomerTicketModal from '../modals/NewCustomerTicketModal'
-import useTicketStore from '../../store/ticketStore'
+import React, { useState, useEffect, useRef } from 'react'
+import useTicketStore from '../store/ticketStore'
+import useCustomerStore from '../store/customerStore'
+import Icon from '../lib/icons'
+import { TeamTicketDetail } from '../components/ops/TeamTicketDetail'
+import NewTicketModal from '../components/modals/NewTicketModal'
 
-interface CustomerTicketsViewProps {
-  me: any
-  setOpenTicket: (ticket: any) => void
+interface SupportTicketsViewProps {
+  openModal?: (kind: string, props?: any) => void
 }
 
-export const CustomerTicketsView: React.FC<CustomerTicketsViewProps> = ({ me, setOpenTicket }) => {
-  const { tickets, loadTickets } = useTicketStore()
-  const [showNew, setShowNew] = useState(false)
+export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ openModal }) => {
+  const { tickets } = useTicketStore()
+  const { customers } = useCustomerStore()
   const [filter, setFilter] = useState('all')
-  const [sort, setSort] = useState('updated')
+  const [selectedTicket, setSelectedTicket] = useState<any>(null)
+  const [showNew, setShowNew] = useState(false)
+  const selectedTicketIdRef = useRef<string | null>(null)
 
-  // Load tickets on mount
-  React.useEffect(() => {
-    loadTickets()
-  }, [loadTickets])
+  // Update selectedTicket when tickets change to get the latest data
+  useEffect(() => {
+    if (selectedTicketIdRef.current) {
+      const updatedTicket = tickets.find((t: any) => t.id === selectedTicketIdRef.current)
+      if (updatedTicket) {
+        setSelectedTicket(updatedTicket)
+      }
+    }
+  }, [tickets])
 
-  // Filter tickets for current customer
-  const myTickets = tickets.filter((t: any) => t.customer_id === me.id)
+  useEffect(() => {
+    if (selectedTicket) {
+      selectedTicketIdRef.current = selectedTicket.id
+    } else {
+      selectedTicketIdRef.current = null
+    }
+  }, [selectedTicket])
 
   const statusConfig: any = {
     'Open': { color: 'oklch(0.62 0.15 230)', bg: 'var(--info-soft)', icon: 'mail', desc: 'Awaiting team response' },
@@ -29,28 +42,28 @@ export const CustomerTicketsView: React.FC<CustomerTicketsViewProps> = ({ me, se
 
   const stats = ['Open', 'Closed'].map((s: string) => ({
     status: s,
-    count: myTickets.filter((t: any) => t.status === s).length,
+    count: tickets.filter((t: any) => t.status === s).length,
     ...statusConfig[s],
   }))
 
-  let list = filter === 'all' ? myTickets : myTickets.filter((t: any) => t.status === filter)
-  list = [...list].sort((a: any, b: any) => sort === 'updated'
-    ? b.updated_at.localeCompare(a.updated_at)
-    : a.priority === 'Urgent' ? -1 : 1)
+  let list = filter === 'all' ? tickets : tickets.filter((t: any) => t.status === filter)
+
+  if (selectedTicket) {
+    return <TeamTicketDetail ticket={selectedTicket} onClose={() => setSelectedTicket(null)} openModal={openModal} />
+  }
 
   return (
-    <div className="content" style={{ animation: 'fadeIn 0.3s ease-out' }}>
+    <div className="content">
       <div className="page-head">
         <div>
           <h1 className="page-title">Support tickets</h1>
-          <p className="page-subtitle">{myTickets.length} total · responses within 4 hours during business hours</p>
+          <p className="page-subtitle">{tickets.length} total · Manage customer support requests</p>
         </div>
         <div className="page-actions">
           <button className="btn primary" onClick={() => setShowNew(true)}><Icon name="plus" size={13}/>New ticket</button>
         </div>
       </div>
 
-      {/* Stat cards — IaaS style */}
       <div className="grid-4 mb-4">
         {stats.map((s: any) => {
           const active = filter === s.status
@@ -87,36 +100,20 @@ export const CustomerTicketsView: React.FC<CustomerTicketsViewProps> = ({ me, se
         })}
       </div>
 
-      {showNew && (
-        <NewCustomerTicketModal me={me} onClose={() => setShowNew(false)} onCreated={() => setShowNew(false)} />
-      )}
-
-      {/* Filter bar */}
-      <div className="flex center between mb-3">
-        <div className="flex gap-2 wrap">
-          <button className={`filter-chip ${filter === 'all' ? 'active' : ''}`} onClick={() => setFilter('all')}>All<span className="ct">{myTickets.length}</span></button>
-          {['Open', 'Closed'].map((s: string) => (
-            <button key={s} className={`filter-chip ${filter === s ? 'active' : ''}`} onClick={() => setFilter(s)}>
-              {s}<span className="ct">{stats.find((x: any) => x.status === s).count}</span>
-            </button>
-          ))}
-        </div>
-        <div className="flex center gap-2">
-          <span className="text-xs text-mute">Sort by</span>
-          <select value={sort} onChange={e => setSort(e.target.value)}
-            style={{ padding: '5px 10px', border: '1px solid var(--line)', borderRadius: 6, background: 'var(--surface)', fontSize: 12 }}>
-            <option value="updated">Recently updated</option>
-            <option value="priority">Priority</option>
-          </select>
-        </div>
+      <div className="flex gap-2 wrap mb-3">
+        <button className={`filter-chip ${filter === 'all' ? 'active' : ''}`} onClick={() => setFilter('all')}>All<span className="ct">{tickets.length}</span></button>
+        {['Open', 'Closed'].map((s: string) => (
+          <button key={s} className={`filter-chip ${filter === s ? 'active' : ''}`} onClick={() => setFilter(s)}>
+            {s}<span className="ct">{stats.find((x: any) => x.status === s).count}</span>
+          </button>
+        ))}
       </div>
 
-      {/* Ticket cards — IaaS style */}
       {list.length === 0 ? (
         <div className="card">
           <div className="empty">
             <div className="title">No tickets {filter !== 'all' ? `in ${filter}` : 'yet'}</div>
-            <div className="sub">Click "New ticket" to open one.</div>
+            <div className="sub">Tickets will appear here when customers submit support requests.</div>
           </div>
         </div>
       ) : (
@@ -127,6 +124,7 @@ export const CustomerTicketsView: React.FC<CustomerTicketsViewProps> = ({ me, se
                 <tr>
                   <th>Ticket ID</th>
                   <th>Subject</th>
+                  <th>Customer</th>
                   <th>Priority</th>
                   <th>Status</th>
                   <th>Replies</th>
@@ -137,13 +135,18 @@ export const CustomerTicketsView: React.FC<CustomerTicketsViewProps> = ({ me, se
               <tbody>
                 {list.map((t: any) => {
                   const cfg = statusConfig[t.status]
+                  const customer = customers.find((c: any) => c.id === t.customer_id)
                   return (
-                    <tr key={t.id} style={{ cursor: 'pointer' }} onClick={() => setOpenTicket(t)}>
+                    <tr key={t.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedTicket(t)}>
                       <td>
                         <div className="mono text-xs">{t.legacy_id || t.id}</div>
                       </td>
                       <td>
                         <div className="fw-6">{t.subject}</div>
+                      </td>
+                      <td>
+                        <div className="fw-6 text-sm">{customer?.org_name || customer?.name || 'Unknown'}</div>
+                        <div className="text-xs text-mute">{customer?.name}</div>
                       </td>
                       <td>
                         <span className={`pill ${t.priority === 'Urgent' ? 'bad' : t.priority === 'Low' ? 'subtle' : 'warn'}`} style={{ fontSize: 10 }}>
@@ -174,8 +177,9 @@ export const CustomerTicketsView: React.FC<CustomerTicketsViewProps> = ({ me, se
           </div>
         </div>
       )}
-
-      <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+      {showNew && <NewTicketModal onClose={() => setShowNew(false)} onCreated={() => setShowNew(false)} />}
     </div>
   )
 }
+
+export default SupportTicketsView
