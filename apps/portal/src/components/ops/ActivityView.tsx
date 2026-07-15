@@ -2,10 +2,10 @@ import React, { useState } from 'react'
 import useActivityStore from '../../store/activityStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
-import { Avatar } from '../ui/ui'
+import { Avatar, Spinner } from '../ui/ui'
 
 export const ActivityView: React.FC = () => {
-  const { activity } = useActivityStore()
+  const { activity, activityLoading } = useActivityStore()
   const { toast } = useUIStore()
   const [filter, setFilter] = useState('All')
   const [search, setSearch] = useState('')
@@ -73,30 +73,36 @@ export const ActivityView: React.FC = () => {
             </div>
           </div>
           <div className="card-body" style={{ padding: '6px 22px' }}>
-            {filtered.map((a, i) => (
-              <div key={i} onClick={() => setSelected({ ...a, _i: i })} style={{
-                cursor: 'pointer',
-                borderRadius: 8,
-                background: selected && selected._i === i ? 'var(--accent-soft)' : 'transparent',
-                transition: 'background 0.12s',
-                margin: '0 -10px', padding: '0 10px',
-              }}>
-                <div className="feed-item">
-                  <span className={`dot ${a.kind}`}/>
-                  <div className="body">
-                    {a.text}
-                    <div className="meta">
-                      <span className="fw-6">{a.actor}</span>
-                      <span> · </span>
-                      <span className="tnum">{a.ts}</span>
-                      <span> · </span>
-                      <span style={{ textTransform: 'capitalize' }}>{a.kind}</span>
+            {activityLoading ? (
+              <div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div>
+            ) : (
+              <>
+                {filtered.map((a, i) => (
+                  <div key={i} onClick={() => setSelected({ ...a, _i: i })} style={{
+                    cursor: 'pointer',
+                    borderRadius: 8,
+                    background: selected && selected._i === i ? 'var(--accent-soft)' : 'transparent',
+                    transition: 'background 0.12s',
+                    margin: '0 -10px', padding: '0 10px',
+                  }}>
+                    <div className="feed-item">
+                      <span className={`dot ${a.kind}`}/>
+                      <div className="body">
+                        {a.text}
+                        <div className="meta">
+                          <span className="fw-6">{a.actor}</span>
+                          <span> · </span>
+                          <span className="tnum">{a.ts}</span>
+                          <span> · </span>
+                          <span style={{ textTransform: 'capitalize' }}>{a.kind}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
-            ))}
-            {filtered.length === 0 && <div className="empty"><div className="sub">No events for this filter.</div></div>}
+                ))}
+                {filtered.length === 0 && <div className="empty"><div className="sub">No events for this filter.</div></div>}
+              </>
+            )}
           </div>
         </div>
 

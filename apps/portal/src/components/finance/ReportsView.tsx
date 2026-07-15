@@ -3,7 +3,7 @@ import useCustomerStore from '../../store/customerStore'
 import useVMStore from '../../store/vmStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
-import { formatMMK, ExpiryCell } from '../ui/ui'
+import { formatMMK, ExpiryCell, Spinner } from '../ui/ui'
 import useInvoiceStore from '../../store/invoiceStore'
 import * as XLSX from 'xlsx'
 
@@ -11,7 +11,8 @@ export const ReportsView: React.FC = () => {
   const { customers } = useCustomerStore()
   const { vms, loadVMs } = useVMStore()
   const { toast } = useUIStore()
-  const { invoices, loadInvoices } = useInvoiceStore()
+  const { invoices, invoicesLoading, loadInvoices } = useInvoiceStore()
+  const [isLoading, setIsLoading] = useState(false)
   const [dateFilter, setDateFilter] = useState<'all' | 'custom'>('all')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
@@ -25,9 +26,16 @@ export const ReportsView: React.FC = () => {
   const allInvoices = invoices
 
   React.useEffect(() => {
-    loadInvoices()
-    loadVMs()
-  }, [loadInvoices, loadVMs])
+    setIsLoading(true)
+    const promises: Promise<void>[] = []
+    if (invoices.length === 0) {
+      promises.push(loadInvoices())
+    }
+    if (vms.length === 0) {
+      promises.push(loadVMs())
+    }
+    Promise.all(promises).finally(() => setIsLoading(false))
+  }, [loadInvoices, loadVMs, invoices.length, vms.length])
 
   // Get the fiscal year to display based on filter
   const getDisplayFiscalYear = () => {
@@ -215,7 +223,9 @@ export const ReportsView: React.FC = () => {
                 </colgroup>
                 <thead><tr><th>Customer</th><th className="right">VMs</th><th className="right">Lifetime</th><th>YTD</th></tr></thead>
                 <tbody style={{ height: '100%' }}>
-                  {(() => {
+                  {isLoading ? (
+                    <tr><td colSpan={4}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div></td></tr>
+                  ) : (() => {
                     const rows = [...displayCustomers]
                       .map(c => {
                         const lifetimeSpend = allInvoices

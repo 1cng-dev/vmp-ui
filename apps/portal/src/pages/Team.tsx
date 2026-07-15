@@ -66,19 +66,17 @@ const TeamView: React.FC<TeamViewProps> = () => {
         </button>
       </div>
 
-      {teamLoading ? (
-        <div className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 300 }}>
-          <Spinner />
-        </div>
-      ) : (
-        <>
+      <>
       <div className="grid-2 mb-4">
           <div className="card">
             <div className="card-head"><h3 className="card-title">Team members</h3></div>
             <div className="card-body flush" style={{ overflowX: 'auto' }}>
-              <table className="tbl" style={{ minWidth: 800 }}>
-                <thead><tr><th>User</th><th>Role</th><th>Team</th><th>Status</th><th>Last active</th><th style={{ width: 40 }}></th></tr></thead>
-                <tbody>
+              {teamLoading ? (
+                <div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div>
+              ) : (
+                <table className="tbl" style={{ minWidth: 800 }}>
+                  <thead><tr><th>User</th><th>Role</th><th>Team</th><th>Status</th><th>Last active</th><th style={{ width: 40 }}></th></tr></thead>
+                  <tbody>
                   {team.map(u => (
                     <tr key={u.id}>
                       <td>
@@ -115,8 +113,9 @@ const TeamView: React.FC<TeamViewProps> = () => {
                     </tr>
                   ))}
                   {team.length === 0 && <tr><td colSpan={6}><div className="empty"><div className="title">No team members</div><div className="sub">Invite team members to get started.</div></div></td></tr>}
-                </tbody>
-              </table>
+                  </tbody>
+                </table>
+                )}
             </div>
           </div>
 
@@ -138,7 +137,6 @@ const TeamView: React.FC<TeamViewProps> = () => {
           </div>
       </div>
       </>
-      )}
 
         <div className="card">
           <div className="card-head"><h3 className="card-title">Auth & security</h3></div>

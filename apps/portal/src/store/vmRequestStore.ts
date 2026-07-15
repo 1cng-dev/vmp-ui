@@ -51,25 +51,17 @@ export interface VMRequestStoreValue {
 const VMRequestContext = createContext<VMRequestStoreValue | null>(null)
 
 export const VMRequestProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Initialize with cached data from localStorage if available
-  const [vmRequests, setVmRequests] = useState<VMRequest[]>(() => {
-    if (typeof window !== 'undefined') {
-      const cached = localStorage.getItem('vm-requests-cache')
-      return cached ? JSON.parse(cached) : []
-    }
-    return []
-  })
+  const [vmRequests, setVmRequests] = useState<VMRequest[]>([])
   const [vmRequestsLoading, setVmRequestsLoading] = useState(false)
   const { logActivity } = useActivityStore()
 
-  // Save to localStorage whenever vmRequests changes
-  useEffect(() => {
-    if (typeof window !== 'undefined' && vmRequests.length > 0) {
-      localStorage.setItem('vm-requests-cache', JSON.stringify(vmRequests))
-    }
-  }, [vmRequests])
 
   const loadVMRequests = useCallback(async () => {
+    setVmRequestsLoading(true)
+    
+    const MIN_LOADING_TIME = 400 // 400ms minimum loading time
+    const startTime = Date.now()
+    
     try {
       const { data, error } = await supabase
         .from('vm_requests')
@@ -82,6 +74,14 @@ export const VMRequestProvider: React.FC<{ children: ReactNode }> = ({ children 
         setVmRequests(data || [])
       }
     } finally {
+      // Ensure minimum loading time
+      const elapsedTime = Date.now() - startTime
+      const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime)
+      
+      if (remainingTime > 0) {
+        await new Promise(resolve => setTimeout(resolve, remainingTime))
+      }
+      
       setVmRequestsLoading(false)
     }
   }, [])

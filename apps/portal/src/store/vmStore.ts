@@ -50,30 +50,30 @@ export interface VMStoreValue {
 const VMContext = createContext<VMStoreValue | null>(null)
 
 export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Initialize with cached data from localStorage if available
-  const [vms, setVms] = useState<VM[]>(() => {
-    if (typeof window !== 'undefined') {
-      const cached = localStorage.getItem('vms-cache')
-      return cached ? JSON.parse(cached) : []
-    }
-    return []
-  })
+  const [vms, setVms] = useState<VM[]>([])
   const [vmsLoading, setVmsLoading] = useState(false)
   const { logActivity } = useActivityStore()
 
-  // Save to localStorage whenever vms changes
-  useEffect(() => {
-    if (typeof window !== 'undefined' && vms.length > 0) {
-      localStorage.setItem('vms-cache', JSON.stringify(vms))
-    }
-  }, [vms])
 
   const loadVMs = useCallback(async () => {
+    setVmsLoading(true)
+    
+    const MIN_LOADING_TIME = 400 // 400ms minimum loading time
+    const startTime = Date.now()
+    
     try {
       const { data, error } = await supabase.from('vms').select('*').order('created_at', { ascending: false })
       if (error) throw error
       setVms((data as VM[]) || [])
     } finally {
+      // Ensure minimum loading time
+      const elapsedTime = Date.now() - startTime
+      const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime)
+      
+      if (remainingTime > 0) {
+        await new Promise(resolve => setTimeout(resolve, remainingTime))
+      }
+      
       setVmsLoading(false)
     }
   }, [])

@@ -82,12 +82,7 @@ const CustomersView: React.FC<CustomersViewProps> = ({ openCust, openModal }) =>
         </div>
       </div>
 
-      {customersLoading ? (
-        <div className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 300 }}>
-          <Spinner />
-        </div>
-      ) : (
-        <div className="card">
+      <div className="card">
           <div className="filter-bar">
             {filters.map(f => (
               <button key={f.id} className={`filter-chip ${filter === f.id ? 'active' : ''}`} onClick={() => setFilter(f.id)}>
@@ -100,7 +95,11 @@ const CustomersView: React.FC<CustomersViewProps> = ({ openCust, openModal }) =>
               <input placeholder="Name, company, email…" value={search} onChange={e => setSearch(e.target.value)} />
             </div>
           </div>
-          <table className="tbl">
+          <div className="card-body" style={{ padding: 0 }}>
+            {customersLoading ? (
+              <div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div>
+            ) : (
+              <table className="tbl">
             <thead>
               <tr>
                 <th>Customer</th>
@@ -177,10 +176,11 @@ const CustomersView: React.FC<CustomersViewProps> = ({ openCust, openModal }) =>
                 )
               })}
               {filtered.length === 0 && <tr><td colSpan={9}><div className="empty"><div className="title">No customers found</div><div className="sub">Try adjusting filters or add a new customer.</div></div></td></tr>}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+            )}
+          </div>
         </div>
-      )}
     </div>
   )
 }

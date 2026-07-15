@@ -20,25 +20,17 @@ export interface CustomerStoreValue {
 const CustomerContext = createContext<CustomerStoreValue | null>(null)
 
 export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Initialize with cached data from localStorage if available
-  const [customers, setCustomers] = useState<Customer[]>(() => {
-    if (typeof window !== 'undefined') {
-      const cached = localStorage.getItem('customers-cache')
-      return cached ? JSON.parse(cached) : []
-    }
-    return []
-  })
+  const [customers, setCustomers] = useState<Customer[]>([])
   const [customersLoading, setCustomersLoading] = useState(false)
   const { logActivity } = useActivityStore()
 
-  // Save to localStorage whenever customers changes
-  useEffect(() => {
-    if (typeof window !== 'undefined' && customers.length > 0) {
-      localStorage.setItem('customers-cache', JSON.stringify(customers))
-    }
-  }, [customers])
 
   const loadCustomers = useCallback(async () => {
+    setCustomersLoading(true)
+    
+    const MIN_LOADING_TIME = 400 // 400ms minimum loading time
+    const startTime = Date.now()
+    
     try {
       const { data: userRes } = await supabase.auth.getUser()
       const role = userRes?.user?.user_metadata?.role || userRes?.user?.role
@@ -84,6 +76,14 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
         setCustomers(enriched)
       }
     } finally {
+      // Ensure minimum loading time
+      const elapsedTime = Date.now() - startTime
+      const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime)
+      
+      if (remainingTime > 0) {
+        await new Promise(resolve => setTimeout(resolve, remainingTime))
+      }
+      
       setCustomersLoading(false)
     }
   }, [])

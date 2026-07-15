@@ -22,9 +22,12 @@ export const TicketProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [ticketsLoading, setTicketsLoading] = useState(false)
 
   const loadTickets = useCallback(async () => {
-    const shouldShowSpinner = tickets.length === 0
+    setTicketsLoading(true)
+    
+    const MIN_LOADING_TIME = 400 // 400ms minimum loading time
+    const startTime = Date.now()
+    
     try {
-      if (shouldShowSpinner) setTicketsLoading(true)
       const { data, error } = await supabase
         .from('tickets')
         .select('*, ticket_replies(*)')
@@ -62,14 +65,23 @@ export const TicketProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     } catch (error) {
       console.error('Error loading tickets:', error)
     } finally {
-      if (shouldShowSpinner) setTicketsLoading(false)
+      // Ensure minimum loading time
+      const elapsedTime = Date.now() - startTime
+      const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime)
+      
+      if (remainingTime > 0) {
+        await new Promise(resolve => setTimeout(resolve, remainingTime))
+      }
+      
+      setTicketsLoading(false)
     }
-  }, [tickets.length])
+  }, [])
 
   const subscribeToTickets = useCallback(() => {
-    const channelName = `tickets-changes-${Date.now()}`
-    const subscription = supabase
-      .channel(channelName)
+    const channelName = `tickets-changes`
+    const channel = supabase.channel(channelName)
+    
+    channel
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => {
         loadTickets()
       })
@@ -79,7 +91,7 @@ export const TicketProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       .subscribe()
 
     return () => {
-      supabase.removeChannel(subscription)
+      supabase.removeChannel(channel)
     }
   }, [loadTickets])
 

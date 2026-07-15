@@ -1,5 +1,5 @@
-import React from 'react'
-import { StatusPill, formatMMK } from '../ui/ui'
+import React, { useState, useEffect } from 'react'
+import { StatusPill, formatMMK, Spinner } from '../ui/ui'
 import Icon from '../../lib/icons'
 import useUIStore from '../../store/uiStore'
 import useVMRequestStore from '../../store/vmRequestStore'
@@ -7,7 +7,7 @@ import useAddonRequestStore from '../../store/addonRequestStore'
 import useQuoteStore from '../../store/quoteStore'
 import useVMStore from '../../store/vmStore'
 import useCustomerStore from '../../store/customerStore'
-import { useEffect } from 'react'
+import useInvoiceStore from '../../store/invoiceStore'
 import { exportInvoiceToPDF } from '../../lib/pdfExport'
 
 interface CustomerInvoicesViewProps {
@@ -22,6 +22,7 @@ export const CustomerInvoicesView: React.FC<CustomerInvoicesViewProps> = ({ myIn
   const { quotes, loadQuotes } = useQuoteStore()
   const { vms, loadVMs } = useVMStore()
   const { customers } = useCustomerStore()
+  const { invoicesLoading } = useInvoiceStore()
 
   useEffect(() => {
     loadAddonRequests()
@@ -58,7 +59,11 @@ export const CustomerInvoicesView: React.FC<CustomerInvoicesViewProps> = ({ myIn
               </tr>
             </thead>
             <tbody>
-              {myInvs.length === 0 && <tr><td colSpan={13}><div className="empty"><div className="title">No invoices yet</div><div className="sub">Invoices will appear here once they're generated for your VMs.</div></div></td></tr>}
+              {invoicesLoading ? (
+                <tr><td colSpan={13}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div></td></tr>
+              ) : (
+                <>
+                  {myInvs.length === 0 && <tr><td colSpan={13}><div className="empty"><div className="title">No invoices yet</div><div className="sub">Invoices will appear here once they're generated for your VMs.</div></div></td></tr>}
               {myInvs.map((i: any) => {
                 const vmRequestsList = vmRequests.filter((v: any) => i.vm_request_ids && i.vm_request_ids.includes(v.id))
                 const addonRequestsList = addonRequests.filter((a: any) => i.addon_request_ids && i.addon_request_ids.includes(a.id))
@@ -95,6 +100,8 @@ export const CustomerInvoicesView: React.FC<CustomerInvoicesViewProps> = ({ myIn
                   </tr>
                 )
               })}
+                </>
+              )}
             </tbody>
           </table>
         </div>

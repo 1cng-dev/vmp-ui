@@ -17,30 +17,30 @@ export interface QuoteStoreValue {
 const QuoteContext = createContext<QuoteStoreValue | null>(null)
 
 export const QuoteProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Initialize with cached data from localStorage if available
-  const [quotes, setQuotes] = useState<DBQuote[]>(() => {
-    if (typeof window !== 'undefined') {
-      const cached = localStorage.getItem('quotes-cache')
-      return cached ? JSON.parse(cached) : []
-    }
-    return []
-  })
+  const [quotes, setQuotes] = useState<DBQuote[]>([])
   const [quotesLoading, setQuotesLoading] = useState(false)
   const { logActivity } = useActivityStore()
 
-  // Save to localStorage whenever quotes changes
-  useEffect(() => {
-    if (typeof window !== 'undefined' && quotes.length > 0) {
-      localStorage.setItem('quotes-cache', JSON.stringify(quotes))
-    }
-  }, [quotes])
 
   const loadQuotes = useCallback(async () => {
+    setQuotesLoading(true)
+    
+    const MIN_LOADING_TIME = 400 // 400ms minimum loading time
+    const startTime = Date.now()
+    
     try {
       const { data, error } = await supabase.from('quotes').select('*').order('created_at', { ascending: false })
       if (error) throw error
       setQuotes((data as DBQuote[]) || [])
     } finally {
+      // Ensure minimum loading time
+      const elapsedTime = Date.now() - startTime
+      const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime)
+      
+      if (remainingTime > 0) {
+        await new Promise(resolve => setTimeout(resolve, remainingTime))
+      }
+      
       setQuotesLoading(false)
     }
   }, [])

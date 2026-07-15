@@ -3,7 +3,7 @@ import useVMStore from '../../store/vmStore'
 import useCustomerStore from '../../store/customerStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
-import { StatusPill } from '../ui/ui'
+import { StatusPill, Spinner } from '../ui/ui'
 
 interface NetworkViewProps {
   openVM: (id: string) => void
@@ -11,8 +11,8 @@ interface NetworkViewProps {
 }
 
 export const NetworkView: React.FC<NetworkViewProps> = ({ openVM, openModal }) => {
-  const { vms } = useVMStore()
-  const { customers } = useCustomerStore()
+  const { vms, vmsLoading } = useVMStore()
+  const { customers, customersLoading } = useCustomerStore()
   const { toast } = useUIStore()
   const withIp = vms.filter(v => v.publicIp && v.publicIp !== '—' && v.publicIp !== 'pending')
   const ranges = [
@@ -61,25 +61,29 @@ export const NetworkView: React.FC<NetworkViewProps> = ({ openVM, openModal }) =
           </div>
         </div>
         <div className="card-body flush">
-          <table className="tbl">
-            <thead><tr><th>Public IP</th><th>VLAN</th><th>VM</th><th>Customer</th><th>Port forward</th><th>Firewall policy</th><th>Status</th></tr></thead>
-            <tbody>
-              {withIp.map(v => {
-                const c = customers.find(c => c.id === v.customer)
-                return (
-                  <tr key={v.id} onClick={() => openVM(v.id)}>
-                    <td className="mono fw-6">{v.publicIp}</td>
-                    <td className="mono">{v.vlan}</td>
-                    <td><div className="fw-6">{v.name}</div><div className="text-xs text-mute mono">{v.id}</div></td>
-                    <td className="text-sm">{c?.company}</td>
-                    <td className="mono text-xs">{v.portForward}</td>
-                    <td className="mono text-xs">{v.firewallPolicy}</td>
-                    <td><StatusPill status={v.status}/></td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          {vmsLoading || customersLoading ? (
+            <div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div>
+          ) : (
+            <table className="tbl">
+              <thead><tr><th>Public IP</th><th>VLAN</th><th>VM</th><th>Customer</th><th>Port forward</th><th>Firewall policy</th><th>Status</th></tr></thead>
+              <tbody>
+                {withIp.map(v => {
+                  const c = customers.find(c => c.id === v.customer_id)
+                  return (
+                    <tr key={v.id} onClick={() => openVM(v.id)}>
+                      <td className="mono fw-6">{v.public_ip}</td>
+                      <td className="mono">{v.vlan || '—'}</td>
+                      <td><div className="fw-6">{v.hostname}</div><div className="text-xs text-mute mono">{v.id}</div></td>
+                      <td className="text-sm">{c?.name || c?.org_name || 'Unknown'}</td>
+                      <td className="mono text-xs">{v.port_forward || '—'}</td>
+                      <td className="mono text-xs">{v.firewall_policy || '—'}</td>
+                      <td><StatusPill status={v.status}/></td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>

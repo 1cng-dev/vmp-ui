@@ -5,9 +5,10 @@ import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { supabase } from '../../lib/supabase'
 import { createAlert } from '../../services/notificationService'
+import { Spinner } from '../ui/ui'
 
 export const AlertsView: React.FC = () => {
-  const { alerts, markAlertRead, markAllAlertsRead } = useAlertStore()
+  const { alerts, alertsLoading, markAlertRead, markAllAlertsRead } = useAlertStore()
   const { vms, loadVMs } = useVMStore()
   const { toast } = useUIStore()
   const [filter, setFilter] = useState('All')
@@ -131,16 +132,21 @@ export const AlertsView: React.FC = () => {
           ))}
         </div>
         <div className="card-body" style={{ padding: 0 }}>
-          {filtered.map(a => (
-            <div key={a.id} onClick={() => open(a)} style={{
-              padding: '14px 18px',
-              borderBottom: '1px solid var(--line)',
-              display: 'flex',
-              gap: 12,
-              background: !a.read ? 'var(--surface-2)' : 'transparent',
-              cursor: 'pointer',
-              transition: 'background 0.12s',
-            }}>
+          {alertsLoading ? (
+            <div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div>
+          ) : filtered.length === 0 ? (
+            <div className="empty"><div className="title">No notifications</div><div className="sub">No alerts match your filters.</div></div>
+          ) : (
+            filtered.map(a => (
+              <div key={a.id} onClick={() => open(a)} style={{
+                padding: '14px 18px',
+                borderBottom: '1px solid var(--line)',
+                display: 'flex',
+                gap: 12,
+                background: !a.read ? 'var(--surface-2)' : 'transparent',
+                cursor: 'pointer',
+                transition: 'background 0.12s',
+              }}>
               <div style={{
                 width: 30, height: 30, borderRadius: 8, flexShrink: 0,
                 background: `${sevColor[a.sev]}1a`, color: sevColor[a.sev],
@@ -164,8 +170,8 @@ export const AlertsView: React.FC = () => {
                 </div>
               </div>
             </div>
-          ))}
-          {filtered.length === 0 && <div className="empty"><div className="title">All clear</div><div className="sub">No notifications match these filters.</div></div>}
+            ))
+          )}
         </div>
       </div>
     </div>

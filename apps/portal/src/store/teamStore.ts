@@ -20,6 +20,7 @@ const formatDate = (dateString: string): string => {
 
 export interface TeamStoreValue {
   team: TeamMember[]
+  teamLoading: boolean
   loadTeam: () => Promise<void>
   addMember: (member: Omit<TeamMember, 'id' | 'last' | 'status'>) => Promise<void>
   updateMember: (id: string, patch: any) => Promise<void>
@@ -28,8 +29,14 @@ export interface TeamStoreValue {
 
 const useTeamStore = (): TeamStoreValue => {
   const [team, setTeam] = useState<TeamMember[]>([])
+  const [teamLoading, setTeamLoading] = useState(false)
 
   const loadTeam = useCallback(async () => {
+    setTeamLoading(true)
+    
+    const MIN_LOADING_TIME = 400 // 400ms minimum loading time
+    const startTime = Date.now()
+    
     const { data, error } = await supabase
       .from('team_members')
       .select('*')
@@ -37,6 +44,7 @@ const useTeamStore = (): TeamStoreValue => {
     
     if (error) {
       console.error('Failed to load team:', error)
+      setTeamLoading(false)
       return
     }
     
@@ -48,6 +56,16 @@ const useTeamStore = (): TeamStoreValue => {
     }))
     
     setTeam(mappedData)
+    
+    // Ensure minimum loading time
+    const elapsedTime = Date.now() - startTime
+    const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime)
+    
+    if (remainingTime > 0) {
+      await new Promise(resolve => setTimeout(resolve, remainingTime))
+    }
+    
+    setTeamLoading(false)
   }, [])
 
   const addMember = useCallback(async (member: any) => {
@@ -157,6 +175,7 @@ const useTeamStore = (): TeamStoreValue => {
   }, [loadTeam])
 
   return {
+    teamLoading,
     team,
     loadTeam,
     addMember,

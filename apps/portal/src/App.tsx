@@ -39,8 +39,8 @@ import { QuoteProvider, useQuoteStore } from './store/quoteStore'
 import { VMProvider } from './store/vmStore'
 import { AddonRequestProvider } from './store/addonRequestStore'
 import { InvoiceProvider } from './store/invoiceStore'
+import { ReceiptProvider } from './store/receiptStore'
 import { ActivityProvider } from './store/activityStore'
-
 
 const ACCENT_MAP: Record<string, number> = {
   '#4F6FE3': 250,
@@ -338,6 +338,7 @@ const App = () => {
                   <AddonRequestProvider>
                     <AlertProvider>
                       <InvoiceProvider>
+                      <ReceiptProvider>
                       <PrefetchVMRequests />
                       <PrefetchQuotes />
                       <VMProvider>
@@ -370,6 +371,7 @@ const App = () => {
                     </Routes>
                   </Router>
                     </VMProvider>
+                    </ReceiptProvider>
                     </InvoiceProvider>
                   </AlertProvider>
                 </AddonRequestProvider>

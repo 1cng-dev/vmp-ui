@@ -8,7 +8,7 @@ import useVMStore from '../store/vmStore'
 import useUIStore from '../store/uiStore'
 import useReceiptStore from '../store/receiptStore'
 import Icon from '../lib/icons'
-import { formatMMK, StatusPill } from '../components/ui/ui'
+import { formatMMK, StatusPill, Spinner } from '../components/ui/ui'
 import { InvoiceDrawer } from '../components/finance/InvoiceDrawer'
 import { ReportsView } from '../components/finance/ReportsView'
 import { exportToCSV } from '@/lib/csvExport'
@@ -20,7 +20,7 @@ interface FinanceViewProps {
 }
 
 const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal }) => {
-  const { invoices, markPaid, loadInvoices } = useInvoiceStore()
+  const { invoices, invoicesLoading, markPaid, loadInvoices } = useInvoiceStore()
   const { customers } = useCustomerStore()
   const { vmRequests } = useVMRequestStore()
   const { addonRequests, loadAddonRequests } = useAddonRequestStore()
@@ -33,7 +33,9 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal }) => {
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
 
   useEffect(() => {
-    loadInvoices()
+    if (invoices.length === 0) {
+      loadInvoices()
+    }
     loadAddonRequests()
     loadQuotes()
     loadVMs()
@@ -370,8 +372,13 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal }) => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map(i => {
-                    const c = customers.find(c => c.id === i.customer_id)
+                  {invoicesLoading ? (
+                    <tr><td colSpan={selectedExportColumns.length + 1}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div></td></tr>
+                  ) : (
+                    <>
+                      {filtered.length === 0 && <tr><td colSpan={selectedExportColumns.length + 1}><div className="empty"><div className="title">No invoices yet</div><div className="sub">Invoices will appear here once they're generated.</div></div></td></tr>}
+                      {filtered.map(i => {
+                        const c = customers.find(c => c.id === i.customer_id)
                     const vmRequestsList = vmRequests.filter((v: any) => i.vm_request_ids.includes(v.id))
                     const addonRequestsList = addonRequests.filter((a: any) => i.addon_request_ids.includes(a.id))
                     const addonVMs = addonRequestsList.map((a: any) => vms.find((vm: any) => vm.id === a.vm_id)).filter(Boolean)
@@ -430,7 +437,8 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal }) => {
                       </tr>
                     )
                   })}
-                  {filtered.length === 0 && <tr><td colSpan={selectedExportColumns.length + 1}><div className="empty"><div className="title">No invoices found</div><div className="sub">Try adjusting filters or create a new invoice.</div></div></td></tr>}
+                    </>
+                  )}
                 </tbody>
               </table>
             </div>

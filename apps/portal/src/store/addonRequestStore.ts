@@ -5,6 +5,7 @@ import useActivityStore from './activityStore'
 
 export interface AddonRequestStoreValue {
   addonRequests: AddonRequest[]
+  addonRequestsLoading: boolean
   loadAddonRequests: () => Promise<void>
   createAddonRequest: (request: Omit<AddonRequest, 'id' | 'legacy_id' | 'created_at' | 'updated_at'>) => Promise<string>
   updateAddonRequest: (id: string, patch: Partial<AddonRequest>) => Promise<void>
@@ -14,27 +15,31 @@ export interface AddonRequestStoreValue {
 const AddonRequestContext = React.createContext<AddonRequestStoreValue | null>(null)
 
 export const AddonRequestProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Initialize with cached data from localStorage if available
-  const [addonRequests, setAddonRequests] = useState<AddonRequest[]>(() => {
-    if (typeof window !== 'undefined') {
-      const cached = localStorage.getItem('addon-requests-cache')
-      return cached ? JSON.parse(cached) : []
-    }
-    return []
-  })
+  const [addonRequests, setAddonRequests] = useState<AddonRequest[]>([])
+  const [addonRequestsLoading, setAddonRequestsLoading] = useState(false)
   const { logActivity } = useActivityStore()
 
-  // Save to localStorage whenever addonRequests changes
-  useEffect(() => {
-    if (typeof window !== 'undefined' && addonRequests.length > 0) {
-      localStorage.setItem('addon-requests-cache', JSON.stringify(addonRequests))
-    }
-  }, [addonRequests])
-
   const loadAddonRequests = useCallback(async () => {
-    const { data, error } = await supabase.from('addon_requests').select('*').order('created_at', { ascending: false })
-    if (error) throw error
-    setAddonRequests((data as AddonRequest[]) || [])
+    setAddonRequestsLoading(true)
+    
+    const MIN_LOADING_TIME = 400 // 400ms minimum loading time
+    const startTime = Date.now()
+    
+    try {
+      const { data, error } = await supabase.from('addon_requests').select('*').order('created_at', { ascending: false })
+      if (error) throw error
+      setAddonRequests((data as AddonRequest[]) || [])
+    } finally {
+      // Ensure minimum loading time
+      const elapsedTime = Date.now() - startTime
+      const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime)
+      
+      if (remainingTime > 0) {
+        await new Promise(resolve => setTimeout(resolve, remainingTime))
+      }
+      
+      setAddonRequestsLoading(false)
+    }
   }, [])
 
   const subscribeToAddonRequests = useCallback(() => {
@@ -128,7 +133,7 @@ export const AddonRequestProvider: React.FC<{ children: React.ReactNode }> = ({ 
     await loadAddonRequests()
   }, [loadAddonRequests])
 
-  const value = { addonRequests, loadAddonRequests, createAddonRequest, updateAddonRequest, deleteAddonRequest }
+  const value = { addonRequests, addonRequestsLoading, loadAddonRequests, createAddonRequest, updateAddonRequest, deleteAddonRequest }
   return React.createElement(AddonRequestContext.Provider, { value }, children as any)
 }
 

@@ -2,10 +2,10 @@ import React, { useState, useMemo } from 'react'
 import useUIStore from '../../store/uiStore'
 import useActivityStore from '../../store/activityStore'
 import Icon from '../../lib/icons'
-import { Avatar } from '../ui/ui'
+import { Avatar, Spinner } from '../ui/ui'
 
 export const AuditLogView: React.FC = () => {
-  const { activity } = useActivityStore()
+  const { activity, activityLoading } = useActivityStore()
   const { toast } = useUIStore()
   const [actor, setActor] = useState('All')
   const [action, setAction] = useState('All')
@@ -54,20 +54,26 @@ export const AuditLogView: React.FC = () => {
           <table className="tbl">
             <thead><tr><th>Timestamp</th><th>Actor</th><th>Type</th><th>Event</th></tr></thead>
             <tbody>
-              {filtered.map((a: any, i: number) => (
-                <tr key={i}>
-                  <td className="tnum text-sm" style={{ whiteSpace: 'nowrap' }}>{a.ts}</td>
-                  <td>
-                    <div className="flex center gap-2">
-                      {a.actor !== 'system' && a.actor !== 'cron' && <Avatar name={a.actor} size={22}/>}
-                      <span className="fw-6 text-sm">{a.actor}</span>
-                    </div>
-                  </td>
-                  <td><span className="pill subtle" style={{ textTransform: 'capitalize' }}>{a.kind}</span></td>
-                  <td className="text-sm">{a.text}</td>
-                </tr>
-              ))}
-              {filtered.length === 0 && <tr><td colSpan={4}><div className="empty"><div className="sub">No matching events.</div></div></td></tr>}
+              {activityLoading ? (
+                <tr><td colSpan={4}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div></td></tr>
+              ) : (
+                <>
+                  {filtered.map((a: any, i: number) => (
+                    <tr key={i}>
+                      <td className="tnum text-sm" style={{ whiteSpace: 'nowrap' }}>{a.ts}</td>
+                      <td>
+                        <div className="flex center gap-2">
+                          {a.actor !== 'system' && a.actor !== 'cron' && <Avatar name={a.actor} size={22}/>}
+                          <span className="fw-6 text-sm">{a.actor}</span>
+                        </div>
+                      </td>
+                      <td><span className="pill subtle" style={{ textTransform: 'capitalize' }}>{a.kind}</span></td>
+                      <td className="text-sm">{a.text}</td>
+                    </tr>
+                  ))}
+                  {filtered.length === 0 && <tr><td colSpan={4}><div className="empty"><div className="sub">No matching events.</div></div></td></tr>}
+                </>
+              )}
             </tbody>
           </table>
         </div>

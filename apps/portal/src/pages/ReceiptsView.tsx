@@ -2,6 +2,7 @@ import React, { useEffect } from 'react'
 import useReceiptStore from '../store/receiptStore'
 import useCustomerStore from '../store/customerStore'
 import useInvoiceStore from '../store/invoiceStore'
+import { Spinner } from '../components/ui/ui'
 
 interface ReceiptsViewProps {
   openCust: (id: string) => void
@@ -13,9 +14,13 @@ export const ReceiptsView: React.FC<ReceiptsViewProps> = ({ openCust }) => {
   const { invoices, loadInvoices } = useInvoiceStore()
 
   useEffect(() => {
-    loadReceipts()
-    loadInvoices()
-  }, [loadReceipts, loadInvoices])
+    if (receipts.length === 0) {
+      loadReceipts()
+    }
+    if (invoices.length === 0) {
+      loadInvoices()
+    }
+  }, [loadReceipts, loadInvoices, receipts.length, invoices.length])
 
   return (
     <div className="content">
@@ -28,27 +33,24 @@ export const ReceiptsView: React.FC<ReceiptsViewProps> = ({ openCust }) => {
 
       <div className="card">
         <div className="card-body" style={{ padding: 0 }}>
-          {receiptsLoading ? (
-            <div className="empty"><div className="sub">Loading receipts...</div></div>
-          ) : receipts.length === 0 ? (
-            <div className="empty">
-              <div className="title">No receipts yet</div>
-              <div className="sub">Receipts will appear here after Finance sends them.</div>
-            </div>
-          ) : (
-            <table className="tbl">
-              <thead>
-                <tr>
-                  <th>Receipt ID</th>
-                  <th>Customer</th>
-                  <th>Invoice ID</th>
-                  <th>Date</th>
-                  <th>Status</th>
-                  <th>Message</th>
-                </tr>
-              </thead>
-              <tbody>
-                {receipts.map((r: any) => {
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Receipt ID</th>
+                <th>Customer</th>
+                <th>Invoice ID</th>
+                <th>Date</th>
+                <th>Status</th>
+                <th>Message</th>
+              </tr>
+            </thead>
+            <tbody>
+              {receiptsLoading ? (
+                <tr><td colSpan={6}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div></td></tr>
+              ) : receipts.length === 0 ? (
+                <tr><td colSpan={6}><div className="empty"><div className="title">No receipts yet</div><div className="sub">Receipts will appear here after Finance sends them.</div></div></td></tr>
+              ) : (
+                receipts.map((r: any) => {
                   const customer = customers.find((c: any) => c.id === r.customer_id)
                   const invoice = invoices.find((i: any) => i.id === r.invoice_id)
                   return (
@@ -69,10 +71,10 @@ export const ReceiptsView: React.FC<ReceiptsViewProps> = ({ openCust }) => {
                       <td className="text-sm text-mute" style={{ maxWidth: 300 }}>{r.message}</td>
                     </tr>
                   )
-                })}
-              </tbody>
-            </table>
-          )}
+                })
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

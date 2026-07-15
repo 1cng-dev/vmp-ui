@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import Icon from '../lib/icons'
-import { formatMMK } from '../components/ui/ui'
+import { formatMMK, Spinner } from '../components/ui/ui'
 import useQuoteStore from '../store/quoteStore'
 import useUIStore from '../store/uiStore'
 import useCustomerStore from '../store/customerStore'
@@ -21,7 +21,7 @@ interface QuotesViewProps {
 }
 
 const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, prefillRequestId, prefillRequestType }: QuotesViewProps) => {
-  const { quotes, addQuote } = useQuoteStore()
+  const { quotes, quotesLoading, addQuote } = useQuoteStore()
   const { toast } = useUIStore()
   const { user, refreshUser } = useAuthStore()
   const { vms, loadVMs } = useVMStore()
@@ -36,8 +36,8 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
   type BackupLine = { spec: string; storage: number; unit: number; term: string }
   type PublicIPLine = { spec: string; unit: number; term: string }
 
-  const { customers } = useCustomerStore()
-  const { vmRequests } = useVMRequestStore()
+  const { customers, customersLoading } = useCustomerStore()
+  const { vmRequests, vmRequestsLoading } = useVMRequestStore()
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>(undefined)
   const [selectedRequestId, setSelectedRequestId] = useState<string | undefined>(undefined)
@@ -996,32 +996,38 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
           <table className="tbl">
             <thead><tr><th>Quote #</th><th>Customer</th><th>Type</th><th>Request</th><th>Billing Term</th><th className="right">Lines</th><th className="right">Total</th><th>Valid until</th><th>Status</th><th></th></tr></thead>
             <tbody>
-              {quotes.map(q => {
-                const cust = customers.find(c => c.id === q.customer_id)
-                const request = vmRequests.find(r => r.id === q.vm_request_id)
-                const addonReq = addonRequests.find(a => a.id === (q as any).addon_request_id)
-                const isAddon = !!(q as any).addon_request_id
-                const requestHostname = isAddon ? addonReq?.description : request?.hostname || request?.sizing || '—'
-                return (
-                  <tr key={q.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedQuote(q)}>
-                    <td className="mono fw-6">{q.legacy_id || q.id.slice(0, 8)}</td>
-                    <td>{cust?.org_name || cust?.name || '—'}</td>
-                    <td><span className="pill subtle"><span className="dot" />{isAddon ? 'Add-on' : (request?.task_type || 'new')}</span></td>
-                    <td>{requestHostname}</td>
-                    <td>{q.billing_term || 'Monthly'}</td>
-                    <td className="right tnum">{(q.line_items || []).length}</td>
-                    <td className="right tnum fw-6">MMK {formatMMK(q.grand_total || 0)}</td>
-                    <td className="tnum text-sm">{new Date(q.validity_date).toLocaleDateString()}</td>
-                    <td><span className={`pill ${q.status === 'Accepted' ? 'ok' : q.status === 'Sent' ? 'accent' : 'subtle'}`}><span className="dot" />{q.status}</span></td>
-                    <td className="right" onClick={e => e.stopPropagation()}><button className="btn sm" onClick={async () => {
+              {quotesLoading || customersLoading ? (
+                <tr><td colSpan={10}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div></td></tr>
+              ) : (
+                <>
+                  {quotes.map(q => {
                   const cust = customers.find(c => c.id === q.customer_id)
                   const request = vmRequests.find(r => r.id === q.vm_request_id)
-                  await exportQuoteToPDF(q, cust, request)
-                }}><Icon name="download" size={11} />PDF</button></td>
-                  </tr>
-                )
-              })}
-              {quotes.length === 0 && <tr><td colSpan={10}><div className="empty"><div className="title">No quotes yet</div><div className="sub">Create your first quote to get started.</div></div></td></tr>}
+                  const addonReq = addonRequests.find(a => a.id === (q as any).addon_request_id)
+                  const isAddon = !!(q as any).addon_request_id
+                  const requestHostname = isAddon ? addonReq?.description : request?.hostname || request?.sizing || '—'
+                  return (
+                    <tr key={q.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedQuote(q)}>
+                      <td className="mono fw-6">{q.legacy_id || q.id.slice(0, 8)}</td>
+                      <td>{cust?.org_name || cust?.name || '—'}</td>
+                      <td><span className="pill subtle"><span className="dot" />{isAddon ? 'Add-on' : (request?.task_type || 'new')}</span></td>
+                      <td>{requestHostname}</td>
+                      <td>{q.billing_term || 'Monthly'}</td>
+                      <td className="right tnum">{(q.line_items || []).length}</td>
+                      <td className="right tnum fw-6">MMK {formatMMK(q.grand_total || 0)}</td>
+                      <td className="tnum text-sm">{new Date(q.validity_date).toLocaleDateString()}</td>
+                      <td><span className={`pill ${q.status === 'Accepted' ? 'ok' : q.status === 'Sent' ? 'accent' : 'subtle'}`}><span className="dot" />{q.status}</span></td>
+                      <td className="right" onClick={e => e.stopPropagation()}><button className="btn sm" onClick={async () => {
+                    const cust = customers.find(c => c.id === q.customer_id)
+                    const request = vmRequests.find(r => r.id === q.vm_request_id)
+                    await exportQuoteToPDF(q, cust, request)
+                  }}><Icon name="download" size={11} />PDF</button></td>
+                    </tr>
+                  )
+                  })}
+                  {quotes.length === 0 && <tr><td colSpan={10}><div className="empty"><div className="title">No quotes yet</div><div className="sub">Create your first quote to get started.</div></div></td></tr>}
+                </>
+              )}
             </tbody>
           </table>
         </div>

@@ -8,7 +8,7 @@ import useTicketStore from '../store/ticketStore'
 import { useAuth } from '../components/auth/Auth'
 import useTeamStore from '../store/teamStore'
 import Icon from '../lib/icons'
-import { StatusPill, formatMMK, ExpiryCell, Donut } from '../components/ui/ui'
+import { StatusPill, formatMMK, ExpiryCell, Donut, Spinner } from '../components/ui/ui'
 
 interface DashboardProps {
   openVM: (id: string) => void
@@ -18,7 +18,7 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => {
   const { customers } = useCustomerStore()
-  const { vms, loadVMs } = useVMStore()
+  const { vms, vmsLoading, loadVMs } = useVMStore()
   const { invoices, loadInvoices } = useInvoiceStore()
   const { activity } = useActivityStore()
   const { tasks } = useTaskStore()
@@ -86,10 +86,15 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
   ]
 
   useEffect(() => {
-    loadTeam()
-    loadVMs()
-    loadInvoices()
-  }, [loadTeam, loadVMs, loadInvoices])
+    // Load data only if not already loaded
+    if (vms.length === 0) {
+      loadVMs()
+    }
+    if (invoices.length === 0) {
+      loadInvoices()
+    }
+    loadTeam() // Always load team as it's not state-persisted
+  }, [loadTeam, loadVMs, loadInvoices, vms.length, invoices.length])
 
   // Check VM expiry and create notifications
   useEffect(() => {
@@ -158,24 +163,30 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
                 </tr>
               </thead>
               <tbody>
-                {expiringSoon.slice(0, 6).map(v => {
-                  const c = customers.find(c => c.id === (v as any).customer_id)
-                  return (
-                    <tr key={v.id} onClick={() => openVM(v.id)}>
-                      <td>
-                        <div className="fw-6">{(v as any).hostname || v.id}</div>
-                        <div className="text-xs text-mute mono">{(v as any).legacy_id || v.id}</div>
-                      </td>
-                      <td>{c?.name}{c?.org_name || c?.company ? ` (${c?.org_name || c?.company})` : ''}</td>
-                      <td><ExpiryCell date={v.expiry || ''} /></td>
-                      <td><StatusPill status={v.status} /></td>
-                      <td className="right" onClick={e => e.stopPropagation()}>
-                        <button className="btn sm" onClick={() => openModal('renew', { vm: v })}>Renew</button>
-                      </td>
-                    </tr>
-                  )
-                })}
-                {expiringSoon.length === 0 && <tr><td colSpan={5}><div className="empty"><div className="title">Nothing expiring soon</div><div className="sub">No VMs need renewal in the next 7 days.</div></div></td></tr>}
+                {vmsLoading ? (
+                  <tr><td colSpan={5}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div></td></tr>
+                ) : (
+                  <>
+                    {expiringSoon.slice(0, 6).map(v => {
+                      const c = customers.find(c => c.id === (v as any).customer_id)
+                      return (
+                        <tr key={v.id} onClick={() => openVM(v.id)}>
+                          <td>
+                            <div className="fw-6">{(v as any).hostname || v.id}</div>
+                            <div className="text-xs text-mute mono">{(v as any).legacy_id || v.id}</div>
+                          </td>
+                          <td>{c?.name}{c?.org_name || c?.company ? ` (${c?.org_name || c?.company})` : ''}</td>
+                          <td><ExpiryCell date={v.expiry || ''} /></td>
+                          <td><StatusPill status={v.status} /></td>
+                          <td className="right" onClick={e => e.stopPropagation()}>
+                            <button className="btn sm" onClick={() => openModal('renew', { vm: v })}>Renew</button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                    {expiringSoon.length === 0 && <tr><td colSpan={5}><div className="empty"><div className="title">Nothing expiring soon</div><div className="sub">No VMs need renewal in the next 7 days.</div></div></td></tr>}
+                  </>
+                )}
               </tbody>
             </table>
           </div>
@@ -295,25 +306,31 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
                 </tr>
               </thead>
               <tbody>
-                {expiredVMs.slice(0, 6).map(v => {
-                  const c = customers.find(c => c.id === (v as any).customer_id)
-                  const daysExpired = v.expiry ? Math.ceil((new Date(v.expiry).getTime() - TODAY.getTime()) / 86400000) : 0
-                  return (
-                    <tr key={v.id} onClick={() => openVM(v.id)}>
-                      <td>
-                        <div className="fw-6">{(v as any).hostname || v.id}</div>
-                        <div className="text-xs text-mute mono">{(v as any).legacy_id || v.id}</div>
-                      </td>
-                      <td>{c?.name}{c?.org_name || c?.company ? ` (${c?.org_name || c?.company})` : ''}</td>
-                      <td><div className="text-sm" style={{ color: 'var(--bad)' }}>{Math.abs(daysExpired)} days ago</div></td>
-                      <td><StatusPill status={v.status} /></td>
-                      <td className="right" onClick={e => e.stopPropagation()}>
-                        <button className="btn sm" onClick={() => openModal('renew', { vm: v })}>Renew</button>
-                      </td>
-                    </tr>
-                  )
-                })}
+                {vmsLoading ? (
+                  <tr><td colSpan={5}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div></td></tr>
+                ) : (
+                  <>
+                    {expiredVMs.slice(0, 6).map(v => {
+                      const c = customers.find(c => c.id === (v as any).customer_id)
+                      const daysExpired = v.expiry ? Math.ceil((new Date(v.expiry).getTime() - TODAY.getTime()) / 86400000) : 0
+                      return (
+                        <tr key={v.id} onClick={() => openVM(v.id)}>
+                          <td>
+                            <div className="fw-6">{(v as any).hostname || v.id}</div>
+                            <div className="text-xs text-mute mono">{(v as any).legacy_id || v.id}</div>
+                          </td>
+                          <td>{c?.name}{c?.org_name || c?.company ? ` (${c?.org_name || c?.company})` : ''}</td>
+                          <td><div className="text-sm" style={{ color: 'var(--bad)' }}>{Math.abs(daysExpired)} days ago</div></td>
+                          <td><StatusPill status={v.status} /></td>
+                          <td className="right" onClick={e => e.stopPropagation()}>
+                            <button className="btn sm" onClick={() => openModal('renew', { vm: v })}>Renew</button>
+                          </td>
+                        </tr>
+                      )
+                    })}
                 {expiredVMs.length === 0 && <tr><td colSpan={5}><div className="empty"><div className="title">No expired VMs</div><div className="sub">All VMs are within their expiry period.</div></div></td></tr>}
+                  </>
+                )}
               </tbody>
             </table>
           </div>

@@ -4,13 +4,14 @@ import useCustomerStore from '../store/customerStore'
 import Icon from '../lib/icons'
 import { TeamTicketDetail } from '../components/ops/TeamTicketDetail'
 import NewTicketModal from '../components/modals/NewTicketModal'
+import { Spinner } from '../components/ui/ui'
 
 interface SupportTicketsViewProps {
   openModal?: (kind: string, props?: any) => void
 }
 
 export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ openModal }) => {
-  const { tickets } = useTicketStore()
+  const { tickets, ticketsLoading } = useTicketStore()
   const { customers } = useCustomerStore()
   const [filter, setFilter] = useState('all')
   const [selectedTicket, setSelectedTicket] = useState<any>(null)
@@ -105,16 +106,7 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ openModa
           </button>
         ))}
       </div>
-
-      {list.length === 0 ? (
-        <div className="card">
-          <div className="empty">
-            <div className="title">No tickets {filter !== 'all' ? `in ${filter}` : 'yet'}</div>
-            <div className="sub">Tickets will appear here when customers submit support requests.</div>
-          </div>
-        </div>
-      ) : (
-        <div className="card">
+      <div className="card">
           <div className="card-body flush">
             <table className="tbl">
               <thead>
@@ -130,18 +122,23 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ openModa
                 </tr>
               </thead>
               <tbody>
-                {list.map((t: any) => {
-                  const cfg = statusConfig[t.status]
-                  const customer = customers.find((c: any) => c.id === t.customer_id)
-                  return (
-                    <tr key={t.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedTicket(t)}>
-                      <td>
-                        <div className="mono text-xs">{t.legacy_id || t.id}</div>
-                      </td>
-                      <td>
-                        <div className="fw-6">{t.subject}</div>
-                      </td>
-                      <td>
+                {ticketsLoading ? (
+                  <tr><td colSpan={8}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div></td></tr>
+                ) : list.length === 0 ? (
+                  <tr><td colSpan={8}><div className="empty"><div className="title">No tickets {filter !== 'all' ? `in ${filter}` : 'yet'}</div><div className="sub">Tickets will appear here when customers submit support requests.</div></div></td></tr>
+                ) : (
+                  list.map((t: any) => {
+                    const cfg = statusConfig[t.status]
+                    const customer = customers.find((c: any) => c.id === t.customer_id)
+                    return (
+                      <tr key={t.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedTicket(t)}>
+                        <td>
+                          <div className="mono text-xs">{t.legacy_id || t.id}</div>
+                        </td>
+                        <td>
+                          <div className="fw-6">{t.subject}</div>
+                        </td>
+                        <td>
                         <div className="fw-6 text-sm">{customer?.org_name ? customer.org_name : customer?.name || 'Unknown'}</div>
                         {customer?.org_name && <div className="text-xs text-mute">{customer?.name}</div>}
                       </td>
@@ -166,12 +163,12 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ openModa
                       <td></td>
                     </tr>
                   )
-                })}
+                })
+                )}
               </tbody>
             </table>
           </div>
         </div>
-      )}
       {showNew && <NewTicketModal onClose={() => setShowNew(false)} onCreated={() => setShowNew(false)} />}
     </div>
   )

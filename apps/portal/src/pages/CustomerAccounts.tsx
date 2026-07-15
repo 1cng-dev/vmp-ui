@@ -11,7 +11,7 @@ import useCustomerStore from '../store/customerStore'
 import useVMStore from '../store/vmStore'
 import useUIStore from '../store/uiStore'
 import Icon from '../lib/icons'
-import { Avatar, StatusPill, formatMMK } from '../components/ui/ui'
+import { Avatar, StatusPill, formatMMK, Spinner } from '../components/ui/ui'
 import { Customer360 } from '../components/customer/Customer360'
 
 interface CustomerAccountManagementViewProps {
@@ -23,7 +23,7 @@ interface CustomerAccountManagementViewProps {
 
 export const CustomerAccountManagementView: React.FC<CustomerAccountManagementViewProps> = ({ openCust, openModal, setView, role }) => {
   const { customers } = useCustomerStore()
-  const { vms, loadVMs } = useVMStore()
+  const { vms, vmsLoading, loadVMs } = useVMStore()
   const { toast } = useUIStore()
   const [segment, setSegment] = useState('all')
   const [search, setSearch] = useState('')
@@ -31,8 +31,10 @@ export const CustomerAccountManagementView: React.FC<CustomerAccountManagementVi
 
   // Load VMs on mount
   useEffect(() => {
-    loadVMs()
-  }, [loadVMs])
+    if (vms.length === 0) {
+      loadVMs()
+    }
+  }, [loadVMs, vms.length])
 
   // Feature 5: Saved segments
   const segments = [
@@ -142,29 +144,35 @@ export const CustomerAccountManagementView: React.FC<CustomerAccountManagementVi
             <th style={{ width: 80 }}></th>
           </tr></thead>
           <tbody>
-            {filtered.map((c: any) => {
-              const vmCount = vms.filter((v: any) => v.customer_id === c.id && v.status === 'Active').length
-              return (
-                <tr key={c.id} onClick={() => setView360(c)}>
-                  <td>
-                    <div className="flex center gap-2">
-                      <Avatar name={c.name} size={28} />
-                      <div><div className="fw-6">{c.name}</div><div className="text-xs text-mute mono">{c.legacy_id || c.id}</div></div>
-                    </div>
-                  </td>
-                  <td><div className="fw-6 text-sm">{c.org_name || c.email}{c.org_name && `, ${c.email}`}</div></td>
-                  <td><StatusPill status={c.kyc_status} /></td>
-                  <td><StatusPill status={c.status} /></td>
-                  <td className="right tnum">{vmCount}</td>
-                  <td className="right tnum">MMK {formatMMK(c.totalSpend)}</td>
-                  <td className="tnum text-sm">{c.created_at ? new Date(c.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</td>
-                  <td className="right" onClick={e => e.stopPropagation()}>
-                    <button className="btn sm" onClick={() => setView360(c)}><Icon name="eye" size={11} /></button>
-                  </td>
-                </tr>
-              )
-            })}
-            {filtered.length === 0 && <tr><td colSpan={8}><div className="empty"><div className="title">No customers in this segment</div></div></td></tr>}
+            {vmsLoading ? (
+              <tr><td colSpan={8}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div></td></tr>
+            ) : (
+              <>
+                {filtered.map((c: any) => {
+                  const vmCount = vms.filter((v: any) => v.customer_id === c.id && v.status === 'Active').length
+                  return (
+                    <tr key={c.id} onClick={() => setView360(c)}>
+                      <td>
+                        <div className="flex center gap-2">
+                          <Avatar name={c.name} size={28} />
+                          <div><div className="fw-6">{c.name}</div><div className="text-xs text-mute mono">{c.legacy_id || c.id}</div></div>
+                        </div>
+                      </td>
+                      <td><div className="fw-6 text-sm">{c.org_name || c.email}{c.org_name && `, ${c.email}`}</div></td>
+                      <td><StatusPill status={c.kyc_status} /></td>
+                      <td><StatusPill status={c.status} /></td>
+                      <td className="right tnum">{vmCount}</td>
+                      <td className="right tnum">MMK {formatMMK(c.totalSpend)}</td>
+                      <td className="tnum text-sm">{c.created_at ? new Date(c.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</td>
+                      <td className="right" onClick={e => e.stopPropagation()}>
+                        <button className="btn sm" onClick={() => setView360(c)}><Icon name="eye" size={11} /></button>
+                      </td>
+                    </tr>
+                  )
+                })}
+                {filtered.length === 0 && <tr><td colSpan={8}><div className="empty"><div className="title">No customers in this segment</div></div></td></tr>}
+              </>
+            )}
           </tbody>
         </table>
       </div>

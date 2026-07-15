@@ -1,6 +1,6 @@
 import React from 'react'
 import Icon from '../lib/icons'
-import { StatusPill } from '../components/ui/ui'
+import { StatusPill, Spinner } from '../components/ui/ui'
 import useAddonRequestStore from '../store/addonRequestStore'
 import useCustomerStore from '../store/customerStore'
 import useVMStore from '../store/vmStore'
@@ -16,12 +16,16 @@ interface AddonServicesViewProps {
 }
 
 const AddonServicesView: React.FC<AddonServicesViewProps> = ({ openTask, setView, setAutoOpenQuote, setPrefillCustomerId, setPrefillRequestId, setPrefillRequestType }) => {
-  const { addonRequests, loadAddonRequests } = useAddonRequestStore()
-  const { customers } = useCustomerStore()
+  const { addonRequests, addonRequestsLoading, loadAddonRequests } = useAddonRequestStore()
+  const { customers, customersLoading } = useCustomerStore()
   const { vms } = useVMStore()
   const [filter, setFilter] = React.useState<'all' | 'Pending' | 'In Progress' | 'Completed' | 'Rejected'>('all')
 
-  React.useEffect(() => { loadAddonRequests() }, [loadAddonRequests])
+  React.useEffect(() => {
+    if (addonRequests.length === 0) {
+      loadAddonRequests()
+    }
+  }, [loadAddonRequests, addonRequests.length])
 
   // Create a map of VM data for quick lookup
   const vmData = React.useMemo(() => {
@@ -77,9 +81,13 @@ const AddonServicesView: React.FC<AddonServicesViewProps> = ({ openTask, setView
               </tr>
             </thead>
             <tbody>
-              {list.length === 0 && (
-                <tr><td colSpan={7}><div className="empty"><div className="title">No add-on requests</div><div className="sub">Try a different filter or create a new request from the customer portal.</div></div></td></tr>
-              )}
+              {addonRequestsLoading || customersLoading ? (
+                <tr><td colSpan={7}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div></td></tr>
+              ) : (
+                <>
+                  {list.length === 0 && (
+                    <tr><td colSpan={7}><div className="empty"><div className="title">No add-on requests</div><div className="sub">Try a different filter or create a new request from the customer portal.</div></div></td></tr>
+                  )}
               {list.map((t: any) => {
                 const cust = customers.find(c => c.id === t.customer_id)
                 const svc = `${t.cpfs_enabled ? 'CPFS' : ''}${t.cpfs_enabled && t.ccis_enabled ? ' + ' : ''}${t.ccis_enabled ? 'CCIS' : ''}` || '—'
@@ -108,6 +116,8 @@ const AddonServicesView: React.FC<AddonServicesViewProps> = ({ openTask, setView
                   </tr>
                 )
               })}
+              </>
+              )}
             </tbody>
           </table>
         </div>

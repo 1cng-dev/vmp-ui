@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import Icon from '../lib/icons'
-import { formatMMK } from '../components/ui/ui'
+import { formatMMK, Spinner } from '../components/ui/ui'
 import useQuoteStore from '../store/quoteStore'
 import useCustomerStore from '../store/customerStore'
 import useVMRequestStore from '../store/vmRequestStore'
@@ -12,7 +12,7 @@ import { NewInvoiceModal } from '../components/modals/AdminVMModals'
 import type { DBQuote } from '../types'
 
 const FinanceQuoteReviewView = () => {
-  const { quotes, updateQuote } = useQuoteStore()
+  const { quotes, quotesLoading, updateQuote } = useQuoteStore()
   const { customers } = useCustomerStore()
   const { vmRequests } = useVMRequestStore()
   const { vms, loadVMs } = useVMStore()
@@ -74,7 +74,12 @@ const FinanceQuoteReviewView = () => {
               </tr>
             </thead>
             <tbody>
-              {financeQuotes.map((q: DBQuote) => {
+              {quotesLoading ? (
+                <tr><td colSpan={9}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div></td></tr>
+              ) : financeQuotes.length === 0 ? (
+                <tr><td colSpan={9}><div className="empty"><div className="title">No quotes yet</div><div className="sub">Quotes will appear here when customers request pricing.</div></div></td></tr>
+              ) : (
+                financeQuotes.map((q: DBQuote) => {
                 const cust = customers.find(c => c.id === q.customer_id)
                 const vmReq = vmRequests.find(r => r.id === q.vm_request_id)
                 const addonReq = addonRequests.find(a => a.id === (q as any).addon_request_id)
@@ -116,16 +121,7 @@ const FinanceQuoteReviewView = () => {
                     </td>
                   </tr>
                 )
-              })}
-              {financeQuotes.length === 0 && (
-                <tr>
-                  <td colSpan={8}>
-                    <div className="empty">
-                      <div className="title">No quotes found</div>
-                      <div className="sub">No quotes with status Sent, Accepted, or Rejected.</div>
-                    </div>
-                  </td>
-                </tr>
+              })
               )}
             </tbody>
           </table>

@@ -3,7 +3,7 @@ import useCustomerStore from '../../store/customerStore'
 import useVMRequestStore from '../../store/vmRequestStore'
 import useQuoteStore from '../../store/quoteStore'
 import Icon from '../../lib/icons'
-import { Avatar, StatusPill } from '../ui/ui'
+import { Avatar, StatusPill, Spinner } from '../ui/ui'
 
 interface TasksViewProps {
   openTask: (id: string) => void
@@ -16,8 +16,8 @@ interface TasksViewProps {
 }
 
 export const TasksView: React.FC<TasksViewProps> = ({ openTask, setView, setAutoOpenQuote, setPrefillCustomerId, setPrefillRequestId, setPrefillRequestType, userRole }) => {
-  const { customers, loadCustomers } = useCustomerStore()
-  const { vmRequests } = useVMRequestStore()
+  const { customers, customersLoading, loadCustomers } = useCustomerStore()
+  const { vmRequests, vmRequestsLoading } = useVMRequestStore()
   const { quotes } = useQuoteStore()
   const [filter, setFilter] = useState('all')
 
@@ -64,7 +64,11 @@ export const TasksView: React.FC<TasksViewProps> = ({ openTask, setView, setAuto
           <table className="tbl">
             <thead><tr><th>Request</th><th>Customer</th><th>Service type</th><th>Type</th><th>Status</th><th>Quote</th><th></th></tr></thead>
             <tbody>
-              {filteredTasks.length === 0 && <tr><td colSpan={7}><div className="empty"><div className="title">No requests yet</div><div className="sub">Waiting for customer VM requests.</div></div></td></tr>}
+              {customersLoading || vmRequestsLoading ? (
+                <tr><td colSpan={7}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div></td></tr>
+              ) : (
+                <>
+                  {filteredTasks.length === 0 && <tr><td colSpan={7}><div className="empty"><div className="title">No requests yet</div><div className="sub">Waiting for customer VM requests.</div></div></td></tr>}
               {filteredTasks.map(t => {
                 const c = customers.find(c => c.id === t.customer_id)
                 const quote = quotes.find((q: any) => q.vm_request_id === t.id)
@@ -121,6 +125,8 @@ export const TasksView: React.FC<TasksViewProps> = ({ openTask, setView, setAuto
                   </tr>
                 )
               })}
+              </>
+              )}
             </tbody>
           </table>
         </div>

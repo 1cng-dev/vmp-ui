@@ -16,25 +16,21 @@ export interface InvoiceStoreValue {
 const InvoiceContext = createContext<InvoiceStoreValue | null>(null)
 
 export const InvoiceProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Initialize with cached data from localStorage if available
-  const [invoices, setInvoices] = useState<DBInvoice[]>(() => {
-    if (typeof window !== 'undefined') {
-      const cached = localStorage.getItem('invoices-cache')
-      return cached ? JSON.parse(cached) : []
-    }
-    return []
-  })
+  const [invoices, setInvoices] = useState<DBInvoice[]>([])
   const [invoicesLoading, setInvoicesLoading] = useState(false)
   const { logActivity } = useActivityStore()
 
-  // Save to localStorage whenever invoices changes
-  useEffect(() => {
-    if (typeof window !== 'undefined' && invoices.length > 0) {
-      localStorage.setItem('invoices-cache', JSON.stringify(invoices))
-    }
-  }, [invoices])
 
   const loadInvoices = useCallback(async () => {
+    // Don't set loading state if we already have data
+    const shouldShowLoading = invoices.length === 0
+    if (shouldShowLoading) {
+      setInvoicesLoading(true)
+    }
+    
+    const MIN_LOADING_TIME = 400 // 400ms minimum loading time
+    const startTime = Date.now()
+    
     try {
       const { data, error } = await supabase.from('invoices').select('*').order('issued', { ascending: false })
       if (error) throw error
@@ -51,14 +47,26 @@ export const InvoiceProvider: React.FC<{ children: ReactNode }> = ({ children })
       })) as DBInvoice[]
       setInvoices(mappedData)
     } finally {
-      setInvoicesLoading(false)
+      // Ensure minimum loading time
+      const elapsedTime = Date.now() - startTime
+      const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime)
+      
+      if (remainingTime > 0) {
+        await new Promise(resolve => setTimeout(resolve, remainingTime))
+      }
+      
+      if (shouldShowLoading) {
+        setInvoicesLoading(false)
+      }
     }
-  }, [])
+  }, [invoices.length])
 
   // Real-time subscription for invoice changes
   useEffect(() => {
-    const channel = supabase
-      .channel(`invoices-changes-${Date.now()}`)
+    const channelName = `invoices-changes`
+    const channel = supabase.channel(channelName)
+    
+    channel
       .on(
         'postgres_changes',
         {
@@ -75,11 +83,6 @@ export const InvoiceProvider: React.FC<{ children: ReactNode }> = ({ children })
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [loadInvoices])
-
-  // Initial load
-  useEffect(() => {
-    loadInvoices()
   }, [loadInvoices])
 
   const addInvoice = useCallback(async (i: NewInvoiceInput) => {

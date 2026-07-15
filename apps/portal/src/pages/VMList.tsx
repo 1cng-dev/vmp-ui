@@ -3,7 +3,7 @@ import useVMStore from '../store/vmStore'
 import useCustomerStore from '../store/customerStore'
 import useUIStore from '../store/uiStore'
 import Icon from '../lib/icons'
-import { StatusPill, ExpiryCell } from '../components/ui/ui'
+import { StatusPill, ExpiryCell, Spinner } from '../components/ui/ui'
 
 interface VMListProps {
   openVM: (id: string) => void
@@ -11,7 +11,7 @@ interface VMListProps {
 }
 
 const VMList: React.FC<VMListProps> = ({ openVM, openModal }) => {
-  const { vms, loadVMs, updateVM } = useVMStore()
+  const { vms, vmsLoading, loadVMs, updateVM } = useVMStore()
   const { customers } = useCustomerStore()
   const { toast } = useUIStore()
   const [filter, setFilter] = useState<Set<string>>(new Set(['all']))
@@ -20,8 +20,10 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal }) => {
 
   // Ensure VMs are loaded when this page is opened
   useEffect(() => {
-    loadVMs()
-  }, [loadVMs])
+    if (vms.length === 0) {
+      loadVMs()
+    }
+  }, [loadVMs, vms.length])
 
   const filters = [
     { id: 'all', label: 'All', count: vms.length },
@@ -180,7 +182,12 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal }) => {
             </tr>
           </thead>
           <tbody>
-            {filtered.map(v => {
+            {vmsLoading ? (
+              <tr><td colSpan={10}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div></td></tr>
+            ) : filtered.length === 0 ? (
+              <tr><td colSpan={10}><div className="empty"><div className="title">No VMs match these filters</div><div className="sub">Try a different status or clear the search.</div></div></td></tr>
+            ) : (
+              filtered.map(v => {
               const c = customers.find(c => c.id === v.customer_id)
               return (
                 <tr key={v.id} onClick={() => openVM(v.id)}>
@@ -235,10 +242,10 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal }) => {
                   </td>
                 </tr>
               )
-            })}
+            })
+            )}
           </tbody>
         </table>
-        {filtered.length === 0 && <div className="empty"><div className="title">No VMs match these filters</div><div className="sub">Try a different status or clear the search.</div></div>}
       </div>
     </div>
   )

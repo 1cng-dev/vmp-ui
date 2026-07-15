@@ -19,6 +19,10 @@ export const ActivityProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   const loadActivity = useCallback(async () => {
     setActivityLoading(true)
+    
+    const MIN_LOADING_TIME = 400 // 400ms minimum loading time
+    const startTime = Date.now()
+    
     try {
       const { data, error } = await supabase
         .from('activity_log')
@@ -39,6 +43,14 @@ export const ActivityProvider: React.FC<{ children: ReactNode }> = ({ children }
     } catch (error) {
       console.error('Error loading activity:', error)
     } finally {
+      // Ensure minimum loading time
+      const elapsedTime = Date.now() - startTime
+      const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime)
+      
+      if (remainingTime > 0) {
+        await new Promise(resolve => setTimeout(resolve, remainingTime))
+      }
+      
       setActivityLoading(false)
     }
   }, [])

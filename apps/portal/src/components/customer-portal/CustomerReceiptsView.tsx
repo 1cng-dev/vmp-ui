@@ -12,10 +12,14 @@ export const CustomerReceiptsView: React.FC<CustomerReceiptsViewProps> = ({ me }
 
   useEffect(() => {
     if (me?.id) {
-      loadReceiptsByCustomer(me.id)
-      loadInvoices()
+      if (receipts.length === 0) {
+        loadReceiptsByCustomer(me.id)
+      }
+      if (invoices.length === 0) {
+        loadInvoices()
+      }
     }
-  }, [me?.id, loadReceiptsByCustomer, loadInvoices])
+  }, [me?.id, loadReceiptsByCustomer, loadInvoices, receipts.length, invoices.length])
 
   return (
     <div className="content">

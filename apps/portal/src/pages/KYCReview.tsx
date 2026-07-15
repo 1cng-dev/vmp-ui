@@ -31,8 +31,10 @@ export const KYCReviewView: React.FC = () => {
 
   // Load customers on mount (real-time subscription is handled at provider level)
   useEffect(() => {
-    loadCustomers()
-  }, [loadCustomers])
+    if (customers.length === 0) {
+      loadCustomers()
+    }
+  }, [loadCustomers, customers.length])
   const pending = customers.filter((c: any) => c.kyc_status === 'Pending')
   const approved = customers.filter((c: any) => c.kyc_status === 'Approved')
   const rejected = customers.filter((c: any) => c.kyc_status === 'Rejected')
@@ -178,12 +180,6 @@ export const KYCReviewView: React.FC = () => {
         </div>
       </div>
 
-      {customersLoading ? (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 300 }}>
-          <Spinner />
-        </div>
-      ) : (
-        <>
       {/* Stats */}
         <div className="grid-4 mb-4">
           {[
@@ -212,7 +208,11 @@ export const KYCReviewView: React.FC = () => {
               ))}
             </div>
             <div className="card-body" style={{ padding: 0 }}>
-              {list.map((c: any) => (
+              {customersLoading ? (
+                <div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div>
+              ) : (
+                <>
+                  {list.map((c: any) => (
                 <div key={c.id} onClick={() => setSelected(c)} style={{
                   padding: '14px 18px', borderBottom: '1px solid var(--line)',
                   display: 'flex', gap: 12, alignItems: 'center', cursor: 'pointer',
@@ -222,11 +222,14 @@ export const KYCReviewView: React.FC = () => {
                   <Avatar name={c.name} size={38} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="fw-6 text-sm">{c.name}</div>
-                    <div className="text-xs text-mute" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.org_name || c.name} · {c.id}</div>                  </div>
+                    <div className="text-xs text-mute" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.org_name || c.name} · {c.id}</div>
+                  </div>
                   <StatusPill status={c.kyc_status} />
                 </div>
               ))}
               {list.length === 0 && <div className="empty"><div className="title">All caught up</div><div className="sub">No {tab.toLowerCase()} submissions.</div></div>}
+                </>
+              )}
             </div>
           </div>
 
@@ -313,8 +316,6 @@ export const KYCReviewView: React.FC = () => {
           )}
         </div>
       </div>
-      </>
-      )}
 
       {/* Confirmation dialog */}
       {showReopenConfirm && sel && (

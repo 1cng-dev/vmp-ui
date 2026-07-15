@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import React, { useState, useCallback, createContext, useContext, useEffect, type ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
 import type { DBReceipt, NewReceiptInput } from '../types'
 import { createAlert } from '../services/notificationService'
@@ -13,27 +13,65 @@ export interface ReceiptStoreValue {
   addReceipt: (r: NewReceiptInput) => Promise<string>
 }
 
-const useReceiptStore = (): ReceiptStoreValue => {
+const ReceiptContext = createContext<ReceiptStoreValue | null>(null)
+
+export const ReceiptProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [receipts, setReceipts] = useState<DBReceipt[]>([])
   const [receiptsLoading, setReceiptsLoading] = useState(false)
   const { logActivity } = useActivityStore()
 
   const loadReceipts = useCallback(async () => {
-    const spin = receipts.length === 0
+    // Don't set loading state if we already have data
+    const shouldShowLoading = receipts.length === 0
+    if (shouldShowLoading) {
+      setReceiptsLoading(true)
+    }
+    
+    const MIN_LOADING_TIME = 400 // 400ms minimum loading time
+    const startTime = Date.now()
+    
     try {
-      if (spin) setReceiptsLoading(true)
       const { data, error } = await supabase.from('receipts').select('*').order('sent_at', { ascending: false })
       if (error) throw error
       setReceipts((data as DBReceipt[]) || [])
     } finally {
-      if (spin) setReceiptsLoading(false)
+      // Ensure minimum loading time
+      const elapsedTime = Date.now() - startTime
+      const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime)
+      
+      if (remainingTime > 0) {
+        await new Promise(resolve => setTimeout(resolve, remainingTime))
+      }
+      
+      if (shouldShowLoading) {
+        setReceiptsLoading(false)
+      }
     }
   }, [receipts.length])
 
+  const subscribeToReceipts = useCallback(() => {
+    const channelName = 'receipts-changes'
+    const subscription = supabase
+      .channel(channelName)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'receipts' }, () => {
+        loadReceipts()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(subscription)
+    }
+  }, [loadReceipts])
+
+  // Set up realtime subscription on mount
+  useEffect(() => {
+    const unsubscribe = subscribeToReceipts()
+    return unsubscribe
+  }, [subscribeToReceipts])
+
   const loadReceiptsByCustomer = useCallback(async (customerId: string) => {
-    const spin = receipts.length === 0
+    setReceiptsLoading(true)
     try {
-      if (spin) setReceiptsLoading(true)
       const { data, error } = await supabase
         .from('receipts')
         .select('*')
@@ -42,9 +80,9 @@ const useReceiptStore = (): ReceiptStoreValue => {
       if (error) throw error
       setReceipts((data as DBReceipt[]) || [])
     } finally {
-      if (spin) setReceiptsLoading(false)
+      setReceiptsLoading(false)
     }
-  }, [receipts.length])
+  }, [])
 
   const loadReceiptsByInvoice = useCallback(async (invoiceId: string) => {
     try {
@@ -136,7 +174,7 @@ const useReceiptStore = (): ReceiptStoreValue => {
     return receipt.id
   }, [loadReceipts, logActivity])
 
-  return {
+  const value: ReceiptStoreValue = {
     receipts,
     receiptsLoading,
     loadReceipts,
@@ -144,6 +182,14 @@ const useReceiptStore = (): ReceiptStoreValue => {
     loadReceiptsByInvoice,
     addReceipt,
   }
+
+  return React.createElement(ReceiptContext.Provider, { value }, children as any)
+}
+
+const useReceiptStore = (): ReceiptStoreValue => {
+  const context = useContext(ReceiptContext)
+  if (!context) throw new Error('useReceiptStore must be used within ReceiptProvider')
+  return context
 }
 
 export default useReceiptStore
