@@ -66,6 +66,12 @@ drop policy if exists quotes_staff_read on public.quotes;
 create policy quotes_staff_read on public.quotes
   for select to authenticated using (public.is_staff());
 
+drop policy if exists quotes_customer_read on public.quotes;
+create policy quotes_customer_read on public.quotes
+  for select to authenticated using (
+    customer_id in (select id from public.customers where id = auth.uid())
+  );
+
 drop policy if exists quotes_staff_insert on public.quotes;
 create policy quotes_staff_insert on public.quotes
   for insert to authenticated with check (public.is_staff());
@@ -105,3 +111,17 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+
+ALTER TABLE public.quotes 
+DROP COLUMN IF EXISTS subtotal_monthly,
+DROP COLUMN IF EXISTS subtotal_annual,
+DROP COLUMN IF EXISTS total_annual,
+ADD COLUMN IF NOT EXISTS instance_total NUMERIC DEFAULT 0,
+ADD COLUMN IF NOT EXISTS public_ip_total NUMERIC DEFAULT 0,
+ADD COLUMN IF NOT EXISTS backup_total NUMERIC DEFAULT 0,
+ADD COLUMN IF NOT EXISTS discount_amount NUMERIC DEFAULT 0,
+ADD COLUMN IF NOT EXISTS tax_amount NUMERIC DEFAULT 0,
+ADD COLUMN IF NOT EXISTS net_amount NUMERIC DEFAULT 0,
+ADD COLUMN IF NOT EXISTS grand_total NUMERIC DEFAULT 0,
+ADD COLUMN IF NOT EXISTS billing_term TEXT DEFAULT 'Monthly';

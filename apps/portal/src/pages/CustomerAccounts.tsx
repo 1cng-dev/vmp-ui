@@ -22,10 +22,9 @@ interface CustomerAccountManagementViewProps {
 }
 
 export const CustomerAccountManagementView: React.FC<CustomerAccountManagementViewProps> = ({ openCust, openModal, setView, role }) => {
-  const { customers, updateCustomer } = useCustomerStore()
+  const { customers } = useCustomerStore()
   const { vms, loadVMs } = useVMStore()
   const { toast } = useUIStore()
-  const [selected, setSelected] = useState<Set<string>>(new Set())
   const [segment, setSegment] = useState('all')
   const [search, setSearch] = useState('')
   const [view360, setView360] = useState<any>(null)
@@ -47,12 +46,29 @@ export const CustomerAccountManagementView: React.FC<CustomerAccountManagementVi
 
   const filtered = customers
     .filter(segments.find(s => s.id === segment)?.filter || (() => true))
-    .filter((c: any) => !search || [c.name, c.company, c.email, c.id, c.phone].join(' ').toLowerCase().includes(search.toLowerCase()))
+    .filter((c: any) => !search || [c.name, c.org_name, c.email, c.id].join(' ').toLowerCase().includes(search.toLowerCase()))
 
-  const toggle = (id: string) => {
-    const next = new Set(selected)
-    next.has(id) ? next.delete(id) : next.add(id)
-    setSelected(next)
+  const handleExport = () => {
+    const headers = ['Name', 'Company', 'Email', 'Phone', 'KYC Status', 'Status', 'Legacy ID', 'Created At']
+    const rows = filtered.map(c => [c.name, c.org_name, c.email, c.phone, c.kyc_status, c.status, c.legacy_id, c.created_at])
+    
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n')
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    
+    link.setAttribute('href', url)
+    link.setAttribute('download', `customer-accounts-${new Date().toISOString().split('T')[0]}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    toast(`Exported ${filtered.length} customers to CSV`, 'ok')
   }
 
   return (
@@ -63,7 +79,7 @@ export const CustomerAccountManagementView: React.FC<CustomerAccountManagementVi
           <p className="page-subtitle">Complete customer management · {customers.length} total · {customers.filter((c: any) => c.kyc === 'Pending').length} pending KYC · MMK {formatMMK(customers.reduce((a: number, c: any) => a + c.totalSpend, 0))} total lifetime value</p>
         </div>
         <div className="page-actions">
-          <button className="btn" onClick={() => toast('Customer report exported', 'info')}><Icon name="download" size={13} />Export</button>
+          <button className="btn" onClick={handleExport}><Icon name="download" size={13} />Export</button>
           <button className="btn primary" onClick={() => openModal('newcust')}><Icon name="plus" size={13} />Add customer</button>
         </div>
       </div>
@@ -100,54 +116,22 @@ export const CustomerAccountManagementView: React.FC<CustomerAccountManagementVi
                 <span className="ct">{customers.filter(s.filter).length}</span>
               </button>
             ))}
-            <div style={{ flex: 1 }} />
-            <button className="btn ghost sm" onClick={() => toast('Save current filters as a new segment', 'info')}><Icon name="plus" size={11} />Save view</button>
           </div>
         </div>
       </div>
-
-      {/* Feature 4: Bulk actions bar */}
-      {selected.size > 0 && (
-        <div className="card mb-3" style={{ borderColor: 'var(--accent)', background: 'var(--accent-soft)', animation: 'slideIn 0.2s ease-out' }}>
-          <div className="card-body" style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span className="fw-7 text-sm">{selected.size} selected</span>
-            <div style={{ flex: 1 }} />
-            <button className="btn sm" onClick={() => { toast(`Email sent to ${selected.size} customers`, 'ok'); setSelected(new Set()); }}><Icon name="mail" size={11} />Bulk email</button>
-            <button className="btn sm" onClick={() => { toast(`KYC reminder sent to ${[...selected].filter(id => customers.find((c: any) => c.id === id)?.kyc_status === 'Pending').length} customers`, 'ok'); setSelected(new Set()); }}><Icon name="shield" size={11} />KYC reminder</button>
-            <button className="btn sm" onClick={() => { toast(`Tagged ${selected.size} customers`, 'ok'); setSelected(new Set()); }}><Icon name="plus" size={11} />Tag</button>
-            <button className="btn sm" onClick={() => { toast(`Exported ${selected.size} customers (CSV)`, 'info'); setSelected(new Set()); }}><Icon name="download" size={11} />Export</button>
-            <button className="btn sm danger" onClick={() => {
-              openModal('confirm', {
-                title: 'Suspend Customers',
-                message: `Suspend ${selected.size} selected customers?`,
-                onConfirm: () => {
-                  selected.forEach(id => updateCustomer(id, { status: 'Inactive' }))
-                  toast(`Suspended ${selected.size} customers`, 'warn')
-                  setSelected(new Set())
-                }
-              })
-            }}><Icon name="pause" size={11} />Suspend</button>            <button className="btn ghost sm" onClick={() => setSelected(new Set())}><Icon name="x" size={11} /></button>
-          </div>
-        </div>
-      )}
 
       {/* Customers table */}
       <div className="card">
         <div className="filter-bar">
           <div className="search" style={{ width: 280 }}>
             <Icon name="search" size={13} className="search-icon" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, company, email, phone…" />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, company, email…" />
           </div>
           <div style={{ flex: 1 }} />
           <span className="text-xs text-mute">{filtered.length} of {customers.length}</span>
         </div>
         <table className="tbl">
           <thead><tr>
-            <th style={{ width: 30 }}>
-              <input type="checkbox"
-                checked={filtered.length > 0 && filtered.every((c: any) => selected.has(c.id))}
-                onChange={e => setSelected(e.target.checked ? new Set(filtered.map((c: any) => c.id)) : new Set())} />
-            </th>
             <th>Customer</th>
             <th>Company</th>
             <th>KYC</th>
@@ -162,16 +146,13 @@ export const CustomerAccountManagementView: React.FC<CustomerAccountManagementVi
               const vmCount = vms.filter((v: any) => v.customer_id === c.id && v.status === 'Active').length
               return (
                 <tr key={c.id} onClick={() => setView360(c)}>
-                  <td onClick={e => e.stopPropagation()}>
-                    <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)} />
-                  </td>
                   <td>
                     <div className="flex center gap-2">
                       <Avatar name={c.name} size={28} />
                       <div><div className="fw-6">{c.name}</div><div className="text-xs text-mute mono">{c.legacy_id || c.id}</div></div>
                     </div>
                   </td>
-                  <td><div className="fw-6 text-sm">{c.company}</div><div className="text-xs text-mute">{c.email}</div></td>
+                  <td><div className="fw-6 text-sm">{c.org_name || c.email}{c.org_name && `, ${c.email}`}</div></td>
                   <td><StatusPill status={c.kyc_status} /></td>
                   <td><StatusPill status={c.status} /></td>
                   <td className="right tnum">{vmCount}</td>
@@ -183,7 +164,7 @@ export const CustomerAccountManagementView: React.FC<CustomerAccountManagementVi
                 </tr>
               )
             })}
-            {filtered.length === 0 && <tr><td colSpan={9}><div className="empty"><div className="title">No customers in this segment</div></div></td></tr>}
+            {filtered.length === 0 && <tr><td colSpan={8}><div className="empty"><div className="title">No customers in this segment</div></div></td></tr>}
           </tbody>
         </table>
       </div>

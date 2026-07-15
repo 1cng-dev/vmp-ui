@@ -9,6 +9,10 @@ interface CustomerRequestDetailProps {
 
 export const CustomerRequestDetail: React.FC<CustomerRequestDetailProps> = ({ request, onClose }) => {
   const t = request
+  
+  const isChangePlan = t.task_type?.toLowerCase() === 'change-plan'
+  const isSpecChange = t.spec_changed || false
+  const isBackupChange = t.backup_changed || false
 
   const timeline = [
     { ts: t.created_at, who: 'You', event: 'Request submitted', kind: 'customer' },
@@ -42,13 +46,17 @@ export const CustomerRequestDetail: React.FC<CustomerRequestDetailProps> = ({ re
               <dl className="dl">
                 <dt>Purpose</dt><dd className="mono">{t.purpose || 'No purpose specified'}</dd>
                 <dt>Hostname</dt><dd className="mono">{t.hostname}</dd>
-                <dt>vCPU</dt><dd className="mono">{t.vcpu} cores</dd>
-                <dt>Memory</dt><dd className="mono">{t.ram_gb} GB</dd>
-                <dt>Storage</dt><dd className="mono">{t.storage} GB</dd>
+                {!isChangePlan || isSpecChange ? (
+                  <>
+                    <dt>vCPU</dt><dd className="mono">{t.vcpu} cores</dd>
+                    <dt>Memory</dt><dd className="mono">{t.ram_gb} GB</dd>
+                    <dt>Storage</dt><dd className="mono">{t.storage} GB</dd>
+                  </>
+                ) : null}
                 <dt>Quantity</dt><dd className="mono">{t.qty}</dd>
                 {t.duration && (
                   <>
-                    <dt>Duration</dt><dd className="mono">{t.duration} month{t.duration > 1 ? 's' : ''}</dd>
+                    <dt>{t.task_type === 'renewal' ? 'Renewal Duration' : 'Billing Term'}</dt><dd className="mono">{t.duration === 1 ? 'Monthly' : t.duration === 3 ? 'Quarterly' : t.duration === 6 ? 'Half Yearly' : t.duration === 12 ? 'Yearly' : `${t.duration} month${t.duration > 1 ? 's' : ''}`}</dd>
                   </>
                 )}
                 <dt>Specification Type</dt><dd className="mono" style={{ color: t.sizing === 'Standard' ? 'var(--ok)' : 'var(--accent-strong)' }}>{t.sizing}</dd>
@@ -61,14 +69,9 @@ export const CustomerRequestDetail: React.FC<CustomerRequestDetailProps> = ({ re
                     <dd className="mono">{t.nics.map((n: any) => `${n.label} (${n.type}, VLAN: ${n.vlan})`).join(', ')}</dd>
                   </>
                 )}
-                {t.backup_enabled && (
+                {(!isChangePlan || isBackupChange) && t.backup_enabled && (
                   <>
                     <dt>Backup</dt><dd className="mono">{t.backup_type}</dd>
-                  </>
-                )}
-                {t.monitoring && (
-                  <>
-                    <dt>Monitoring</dt><dd className="mono">Yes</dd>
                   </>
                 )}
                 {t.notes && (
@@ -86,24 +89,12 @@ export const CustomerRequestDetail: React.FC<CustomerRequestDetailProps> = ({ re
                     <dt>Firewall Ports</dt><dd className="mono">{t.firewall_ports.join(', ')}</dd>
                   </>
                 )}
-                {t.port_forwarding && t.port_forwarding.length > 0 && (
-                  <>
-                    <dt>Port Forwarding</dt>
-                    <dd className="mono">
-                      {t.port_forwarding.map((pf: any) => `${pf.srcPort} → ${pf.dstPort} (${pf.protocol})`).join(', ')}
-                    </dd>
-                  </>
-                )}
                 {t.legacy_id && (
                   <>
                     <dt>Request ID</dt><dd className="mono">{t.legacy_id}</dd>
                   </>
                 )}
-                {t.billing_term && (
-                  <>
-                    <dt>Billing Term</dt><dd>{t.billing_term}</dd>
-                  </>
-                )}
+               
               </dl>
             </div>
           </div>

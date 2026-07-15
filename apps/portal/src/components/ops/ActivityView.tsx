@@ -21,6 +21,29 @@ export const ActivityView: React.FC = () => {
     return true
   })
 
+  const handleExport = () => {
+    const headers = ['Timestamp', 'Actor', 'Kind', 'Text']
+    const rows = filtered.map(a => [a.ts, a.actor, a.kind, a.text])
+    
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n')
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    
+    link.setAttribute('href', url)
+    link.setAttribute('download', `activity-log-${new Date().toISOString().split('T')[0]}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    toast(`Exported ${filtered.length} events to CSV`, 'ok')
+  }
+
   return (
     <div className="content">
       <div className="page-head">
@@ -29,7 +52,7 @@ export const ActivityView: React.FC = () => {
           <p className="page-subtitle">{activity.length} events · who, what, when across the system</p>
         </div>
         <div className="page-actions">
-          <button className="btn" onClick={() => toast('Activity log exported', 'info')}><Icon name="download" size={13}/>Export</button>
+          <button className="btn" onClick={handleExport}><Icon name="download" size={13}/>Export</button>
         </div>
       </div>
       <div className="grid-asym">
@@ -105,7 +128,6 @@ export const ActivityView: React.FC = () => {
                 <pre className="code" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{JSON.stringify({ actor: selected.actor, kind: selected.kind, ts: selected.ts, message: selected.text }, null, 2)}</pre>
                 <div className="divider"/>
                 <div className="flex gap-2 wrap">
-                  <button className="btn sm" onClick={() => toast('Opened related record', 'info')}><Icon name="external" size={11}/>View related</button>
                   <button className="btn sm" onClick={() => { navigator.clipboard?.writeText(`${selected.ts} · ${selected.actor} · ${selected.text}`); toast('Event copied', 'ok'); }}><Icon name="file" size={11}/>Copy</button>
                 </div>
               </div>

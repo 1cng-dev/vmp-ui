@@ -30,13 +30,14 @@ interface ExpiryCellProps {
 const ExpiryCell: React.FC<ExpiryCellProps> = ({ date }) => {
   if (!date || date === '—') return <span className="text-mute">—</span>
   const d = new Date(date)
-  const diff = Math.ceil((d.getTime() - (new Date()).getTime()) / 86400000)
+  const now = new Date()
+  const diff = Math.floor((d.getTime() - now.getTime()) / 86400000)
   const formattedDate = d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
   return (
     <div className="flex col" style={{ gap: 1 }}>
       <span className="tnum">{formattedDate}</span>
       <span className="text-xs tnum" style={{ color: diff < 0 ? 'var(--bad)' : diff <= 7 ? 'oklch(0.45 0.13 75)' : 'var(--ink-3)' }}>
-        {diff < 0 ? `${Math.abs(diff)} days ago` : `${diff} days left`}
+        {diff < 0 ? `${Math.abs(diff)} days ago` : diff === 0 ? 'expires today' : `${diff} days left`}
       </span>
     </div>
   )

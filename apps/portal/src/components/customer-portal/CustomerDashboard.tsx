@@ -1,6 +1,7 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { StatusPill, ExpiryCell, formatMMK } from '../ui/ui'
 import Icon from '../../lib/icons'
+import useReceiptStore from '../../store/receiptStore'
 
 interface CustomerDashboardProps {
   me: any
@@ -14,12 +15,28 @@ interface CustomerDashboardProps {
 }
 
 export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ me, myVMs, myInvs, myTickets, myRequests, setView, setDetailVm, setOpenTicket }) => {
-  const kycLocked = me.kyc !== 'Approved'
+  const { receipts, loadReceiptsByCustomer } = useReceiptStore()
+  
+  useEffect(() => {
+    if (me?.id) {
+      loadReceiptsByCustomer(me.id)
+    }
+  }, [me?.id, loadReceiptsByCustomer])
+  
+  const kycLocked = me.kyc_status !== 'Approved'
   const activeVMs = myVMs.filter((v: any) => v.status === 'Active').length
   const totalVcpu = myVMs.filter((v: any) => v.status === 'Active').reduce((a: number, v: any) => a + (v.vcpu || 0), 0)
   const totalRam = myVMs.filter((v: any) => v.status === 'Active').reduce((a: number, v: any) => a + (v.ram_gb || 0), 0)
   const totalStorage = myVMs.filter((v: any) => v.status === 'Active').reduce((a: number, v: any) => a + (v.storage_gb || 0), 0)
-  const monthly = myVMs.filter((v: any) => v.status === 'Active').reduce((a: number, v: any) => a + (v.priceMonth || 0), 0)
+  const now = new Date()
+  const currentMonth = now.getMonth()
+  const currentYear = now.getFullYear()
+  const monthly = myInvs
+    .filter((i: any) => {
+      const invDate = i.invoice_date ? new Date(i.invoice_date) : null
+      return invDate && invDate.getMonth() === currentMonth && invDate.getFullYear() === currentYear && i.status === 'Payment Received'
+    })
+    .reduce((a: number, i: any) => a + (parseFloat(i.gross_amount) || parseFloat(i.amount) || 0), 0)
   const openTickets = myTickets.filter((t: any) => t.status === 'Open' || t.status === 'In Progress')
   const pendingInv = myInvs.filter((i: any) => i.status !== 'Payment Received')
   const pendingReq = myRequests.filter((r: any) => r.status === 'Pending' || r.status === 'In Progress')
@@ -32,7 +49,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ me, myVMs,
           <p className="page-subtitle">{me.company} · here's your service status today.</p>
         </div>
         <div className="page-actions">
-          <button className="btn primary" onClick={() => setView('request')} disabled={kycLocked} title={kycLocked ? `Locked — KYC ${me.kyc}` : ''}>
+          <button className="btn primary" onClick={() => setView('request')} disabled={kycLocked} title={kycLocked ? `Locked — KYC ${me.kyc_status}` : ''}>
             {kycLocked && <Icon name="lock" size={11}/>}
             <Icon name="plus" size={13}/>Request new VM
           </button>
@@ -100,6 +117,22 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ me, myVMs,
               </div>
             </div>
           </div>
+          {receipts.length > 0 && (
+            <div className="card">
+              <div className="card-head"><h3 className="card-title">Recent receipts</h3><button className="btn sm" onClick={() => setView('invoices')}>View all</button></div>
+              <div className="card-body" style={{ padding: 0 }}>
+                {receipts.slice(0, 3).map((r: any) => (
+                  <div key={r.id} style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)' }}>
+                    <div className="flex center between mb-1">
+                      <span className="mono text-xs text-mute">{r.legacy_id}</span>
+                      <span className="text-xs text-mute">{new Date(r.sent_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).replace(',', '')}</span>
+                    </div>
+                    <div className="text-sm text-mute" style={{ lineHeight: 1.4 }}>{r.message}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

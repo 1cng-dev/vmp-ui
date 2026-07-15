@@ -66,8 +66,9 @@ const FinanceQuoteReviewView = () => {
                 <th>Customer</th>
                 <th>Type</th>
                 <th>Request</th>
+                <th>Billing Term</th>
                 <th className="right">Lines</th>
-                <th className="right">Total (1y)</th>
+                <th className="right">Total</th>
                 <th>Valid until</th>
                 <th className="right">Actions</th>
               </tr>
@@ -90,8 +91,9 @@ const FinanceQuoteReviewView = () => {
                         ? `${addonReq?.legacy_id || addonReq?.id?.slice(0, 8) || (q as any).addon_request_id?.slice?.(0, 8) || '—'} · ${addonReq ? `${addonReq.cpfs_enabled ? 'CPFS' : ''}${addonReq.cpfs_enabled && addonReq.ccis_enabled ? ' + ' : ''}${addonReq.ccis_enabled ? 'CCIS' : ''}` : '—'}`
                         : `${vmReq?.legacy_id || vmReq?.id?.slice(0, 8) || q.vm_request_id?.slice?.(0, 8) || '—'} · ${vmReq?.hostname || '—'}${vm ? ` (${vm.legacy_id})` : ''}`}
                     </td>
+                    <td className="tnum text-sm">{(q as any).billing_term || '—'}</td>
                     <td className="right tnum">{(q.line_items || []).length}</td>
-                    <td className="right tnum fw-6">MMK {formatMMK(q.total_annual)}</td>
+                    <td className="right tnum fw-6">MMK {formatMMK((q as any).grand_total)}</td>
                     <td className="tnum text-sm">{new Date(q.validity_date).toLocaleDateString()}</td>
                     <td className="right">
                       <div className="flex gap-1" onClick={e => e.stopPropagation()}>

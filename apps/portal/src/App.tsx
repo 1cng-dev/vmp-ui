@@ -5,11 +5,12 @@ import { AuthShell, TeamAuthShell, useAuth } from './components/auth/Auth'
 import Dashboard from './pages/Dashboard'
 import VMList from './pages/VMList'
 import VMDrawer from './components/vm/VMDrawer'
-import { NewVMModal, RenewModal, SpecModal, TerminateModal, NewTaskModal, NewCustomerModal, EmailModal, NewInvoiceModal, InviteMemberModal, ConfirmModal } from './components/modals/AdminVMModals'
+import { NewVMModal, RenewModal, SpecModal, TerminateModal, DeleteModal, NewTaskModal, NewCustomerModal, TempPasswordModal, EmailModal, NewInvoiceModal, InviteMemberModal, ConfirmModal } from './components/modals/AdminVMModals'
 import CustomersView from './pages/Customers'
 import CustomerDrawer from './components/customer/CustomerDrawer'
 import { TeamView, SettingsView } from './pages/Team'
 import { FinanceView, ReportsView } from './pages/Finance'
+import { ReceiptsView } from './pages/ReceiptsView'
 import { TasksView, ActivityView, AlertsView, NetworkView, TaskDrawer } from './pages/Ops'
 import { CustomerAccountManagementView } from './pages/CustomerAccounts'
 import { KYCReviewView } from './pages/KYCReview'
@@ -25,9 +26,10 @@ import Toasts from './components/common/Toasts'
 import { CommandPalette, ShortcutsModal, CalendarView } from './components/common/Extras'
 import { NotifPanel, PlaceholderView, TweaksUI } from './components/common'
 import { useTweaks, TweakState } from './components/common/useTweaks'
-import useAlertStore from './store/alertStore'
+import { AlertProvider, useAlertStore } from './store/alertStore'
 import Welcome from './pages/Welcome'
 import SetupPassword from './pages/SetupPassword'
+import ChangePasswordPage from './pages/ChangePassword'
 import { TicketProvider } from './store/ticketStore'
 import { TeamProvider, useTeamStore } from './store/TeamContext'
 import useCustomerStore, { CustomerProvider } from './store/customerStore'
@@ -36,6 +38,7 @@ import { ResetPasswordScreen } from './components/auth/ResetPasswordScreen'
 import { QuoteProvider, useQuoteStore } from './store/quoteStore'
 import { VMProvider } from './store/vmStore'
 import { AddonRequestProvider } from './store/addonRequestStore'
+import { InvoiceProvider } from './store/invoiceStore'
 
 
 const ACCENT_MAP: Record<string, number> = {
@@ -105,6 +108,7 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
 
   const [modalKind, setModalKind] = useState<string | null>(null)
   const [modalProps, setModalProps] = useState<any>({})
+  const [tempPasswordData, setTempPasswordData] = useState<{ email: string; tempPassword: string; name: string } | null>(null)
   const [drawerVmId, setDrawerVmId] = useState<string | null>(null)
   const [drawerTaskId, setDrawerTaskId] = useState<string | null>(null)
   const [drawerCustId, setDrawerCustId] = useState<string | null>(null)
@@ -199,6 +203,7 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
     'followups': ['Sales', 'Follow-ups'],
     'trials': ['Sales', 'Trial conversions'],
     'finance': ['Finance', 'Invoices'],
+    'receipts': ['Finance', 'Receipts'],
     'reports': ['Finance', 'Reports'],
     'aging': ['Finance', 'Aging receivables'],
     'reconciliation': ['Finance', 'Reconciliation'],
@@ -218,7 +223,7 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
   return (
     <div className="app">
       {tw.role === 'Customer' ? (
-        <CustomerPortal setRole={(r: string) => setTweak('role', r)} roleNames={tw.roleNames || {}} />
+        <CustomerPortal key="customer-portal" setRole={(r: string) => setTweak('role', r)} roleNames={tw.roleNames || {}} />
       ) : (
         <>
           <Sidebar view={view} setView={(v) => { handleSetView(v); setNotifOpen(false) }} role={tw.role} roleNames={tw.roleNames || {}} onAccountClick={() => handleSetView('account')} onLogout={() => auth?.signout()} />
@@ -240,7 +245,7 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
             {view === 'activity' && <ActivityView />}
             {view === 'vms' && <VMList openVM={openVM} openModal={openModal} />}
             {drawerVmId && <VMDrawer vmId={drawerVmId} onClose={closeDrawer} openCust={openCust} openModal={openModal} />}
-            {view === 'tasks' && <TasksView openModal={openModal} openTask={openTask} setView={handleSetView} setAutoOpenQuote={setAutoOpenQuote} setPrefillCustomerId={setPrefillCustomerId} setPrefillRequestId={setPrefillRequestId} setPrefillRequestType={setPrefillRequestType} userRole={tw.role} />}
+            {view === 'tasks' && <TasksView openTask={openTask} setView={handleSetView} setAutoOpenQuote={setAutoOpenQuote} setPrefillCustomerId={setPrefillCustomerId} setPrefillRequestId={setPrefillRequestId} setPrefillRequestType={setPrefillRequestType} userRole={tw.role} />}
             {view === 'addons' && <AddonServicesView openTask={openTask} setView={handleSetView} setAutoOpenQuote={setAutoOpenQuote} setPrefillCustomerId={setPrefillCustomerId} setPrefillRequestId={setPrefillRequestId} setPrefillRequestType={setPrefillRequestType} />}
             {drawerTaskId && <TaskDrawer requestId={drawerTaskId} onClose={closeTaskDrawer} userRole={tw.role} />}
             {view === 'network' && <NetworkView openVM={openVM} openModal={openModal} />}
@@ -262,6 +267,7 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
             {view === 'trials' && <PlaceholderView title="Trial Conversions" description="Trial conversion tracking - coming soon" />}
             {view === 'tickets' && <SupportTicketsView openModal={openModal} />}
             {view === 'finance' && <FinanceView openCust={(_id: string) => { }} openModal={openModal} />}
+            {view === 'receipts' && <ReceiptsView openCust={openCust} />}
             {view === 'reports' && <ReportsView />}
             {view === 'aging' && <AgingView />}
             {view === 'reconciliation' && <ReconciliationView />}
@@ -282,8 +288,10 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
           {modalKind === 'renew' && modalProps.vm && <RenewModal vm={modalProps.vm} onClose={closeModal} />}
           {modalKind === 'spec' && modalProps.vm && <SpecModal vm={modalProps.vm} onClose={closeModal} />}
           {modalKind === 'terminate' && modalProps.vm && <TerminateModal vm={modalProps.vm} onClose={closeModal} />}
+          {modalKind === 'delete' && modalProps.vm && <DeleteModal vm={modalProps.vm} onClose={closeModal} />}
           {modalKind === 'newtask' && <NewTaskModal onClose={closeModal} presetStatus={modalProps.status} />}
-          {modalKind === 'newcust' && <NewCustomerModal onClose={closeModal} />}
+          {modalKind === 'newcust' && <NewCustomerModal onClose={closeModal} onPasswordGenerated={(email, tempPassword, name) => { setTempPasswordData({ email, tempPassword, name }); setModalKind(null) }} />}
+          {tempPasswordData && <TempPasswordModal email={tempPasswordData.email} tempPassword={tempPasswordData.tempPassword} name={tempPasswordData.name} onClose={() => setTempPasswordData(null)} />}
           {modalKind === 'email' && <EmailModal onClose={closeModal} to={modalProps.to} template={modalProps.template} />}
           {modalKind === 'newinvoice' && <NewInvoiceModal onClose={closeModal} presetCustomer={modalProps.customer} />}
           {modalKind === 'invite' && <InviteMemberModal onClose={closeModal} />}
@@ -326,13 +334,16 @@ const App = () => {
             <VMRequestProvider>
               <QuoteProvider>
                 <AddonRequestProvider>
-                  <PrefetchVMRequests />
-                  <PrefetchQuotes />
-                  <VMProvider>
+                  <AlertProvider>
+                    <InvoiceProvider>
+                    <PrefetchVMRequests />
+                    <PrefetchQuotes />
+                    <VMProvider>
                 <Router>
                   <Routes>
                     <Route path="/welcome" element={<Welcome />} />
                     <Route path="/setup-password" element={<SetupPassword />} />
+                    <Route path="/change-password" element={<ChangePasswordPage />} />
                     <Route path="/auth/reset-password" element={<ResetPasswordScreen />} />
                     <Route path="/admin" element={
                       <TeamAuthShell setRole={(role) => setTweak('role' as keyof TweakState, role)}>
@@ -356,15 +367,17 @@ const App = () => {
                     } />
                   </Routes>
                 </Router>
-              </VMProvider>
-            </AddonRequestProvider>
-          </QuoteProvider>
+                  </VMProvider>
+                  </InvoiceProvider>
+                </AlertProvider>
+              </AddonRequestProvider>
+            </QuoteProvider>
 
 
-          </VMRequestProvider>
-        </CustomerProvider>
-      </TeamProvider>
-    </TicketProvider>
+            </VMRequestProvider>
+          </CustomerProvider>
+        </TeamProvider>
+      </TicketProvider>
     </>
   )
 }

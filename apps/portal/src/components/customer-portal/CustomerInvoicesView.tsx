@@ -2,6 +2,13 @@ import React from 'react'
 import { StatusPill, formatMMK } from '../ui/ui'
 import Icon from '../../lib/icons'
 import useUIStore from '../../store/uiStore'
+import useVMRequestStore from '../../store/vmRequestStore'
+import useAddonRequestStore from '../../store/addonRequestStore'
+import useQuoteStore from '../../store/quoteStore'
+import useVMStore from '../../store/vmStore'
+import useCustomerStore from '../../store/customerStore'
+import { useEffect } from 'react'
+import { exportInvoiceToPDF } from '../../lib/pdfExport'
 
 interface CustomerInvoicesViewProps {
   myInvs: any[]
@@ -10,6 +17,18 @@ interface CustomerInvoicesViewProps {
 
 export const CustomerInvoicesView: React.FC<CustomerInvoicesViewProps> = ({ myInvs, setDetailInvoice }) => {
   const { toast } = useUIStore()
+  const { vmRequests } = useVMRequestStore()
+  const { addonRequests, loadAddonRequests } = useAddonRequestStore()
+  const { quotes, loadQuotes } = useQuoteStore()
+  const { vms, loadVMs } = useVMStore()
+  const { customers } = useCustomerStore()
+
+  useEffect(() => {
+    loadAddonRequests()
+    loadQuotes()
+    loadVMs()
+  }, [loadAddonRequests, loadQuotes, loadVMs])
+
   return (
     <div className="content">
       <div className="page-head">
@@ -19,26 +38,63 @@ export const CustomerInvoicesView: React.FC<CustomerInvoicesViewProps> = ({ myIn
         </div>
       </div>
       <div className="card">
-        <div className="card-body flush">
-          <table className="tbl">
-            <thead><tr><th>Invoice</th><th>VMs</th><th>Issued</th><th>Due</th><th className="right">Net Amount</th><th className="right">VAT</th><th className="right">Gross Amount</th><th>Status</th><th></th></tr></thead>
+        <div className="card-body flush" style={{ maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' }}>
+          <table className="tbl" style={{ minWidth: 1200 }}>
+            <thead>
+              <tr>
+                <th>Invoice ID</th>
+                <th>Invoice Date</th>
+                <th>Qty</th>
+                <th>VM Name</th>
+                <th>Request ID</th>
+                <th>Quotation</th>
+                <th>Status</th>
+                <th className="right">Discount</th>
+                <th className="right">Net Amount</th>
+                <th className="right">VAT</th>
+                <th className="right">Gross Amount</th>
+                <th>Paid Date</th>
+                <th></th>
+              </tr>
+            </thead>
             <tbody>
-              {myInvs.length === 0 && <tr><td colSpan={9}><div className="empty"><div className="title">No invoices yet</div><div className="sub">Invoices will appear here once they're generated for your VMs.</div></div></td></tr>}
-              {myInvs.map((i: any) => (
-                <tr key={i.id} onClick={() => setDetailInvoice(i)}>
-                  <td className="mono">{i.id}</td>
-                  <td><div className="flex gap-1 wrap">{i.vms.map((v: string) => <span key={v} className="id-tag">{v}</span>)}</div></td>
-                  <td className="tnum text-sm">{i.issued}</td>
-                  <td className="tnum text-sm">{i.due}</td>
-                  <td className="right tnum fw-6">MMK {formatMMK(i.amount)}</td>
-                  <td className="right tnum text-sm">MMK {formatMMK(i.vat || 0)}</td>
-                  <td className="right tnum fw-6 text-sm">MMK {formatMMK(i.grossAmount || i.amount)}</td>
-                  <td><StatusPill status={i.status}/></td>
-                  <td className="right" onClick={e => e.stopPropagation()}>
-                    <button className="btn sm" onClick={() => toast(`Downloaded ${i.id}.pdf`, 'info')}><Icon name="download" size={11}/>PDF</button>
-                  </td>
-                </tr>
-              ))}
+              {myInvs.length === 0 && <tr><td colSpan={13}><div className="empty"><div className="title">No invoices yet</div><div className="sub">Invoices will appear here once they're generated for your VMs.</div></div></td></tr>}
+              {myInvs.map((i: any) => {
+                const vmRequestsList = vmRequests.filter((v: any) => i.vm_request_ids && i.vm_request_ids.includes(v.id))
+                const addonRequestsList = addonRequests.filter((a: any) => i.addon_request_ids && i.addon_request_ids.includes(a.id))
+                const addonVMs = addonRequestsList.map((a: any) => vms.find((vm: any) => vm.id === a.vm_id)).filter(Boolean)
+                const totalQty = (i.line_items || []).reduce((sum: number, item: any) => {
+                  if (item.kind === 'instance') return sum + (item.qty || 1)
+                  return sum
+                }, 0)
+                return (
+                  <tr key={i.id} onClick={() => setDetailInvoice(i)}>
+                    <td className="mono fw-6 text-sm">{i.legacy_id || i.id.slice(0, 8)}</td>
+                    <td className="tnum text-sm">{i.invoice_date ? new Date(i.invoice_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).replace(',', '') : '—'}</td>
+                    <td className="tnum text-sm">{totalQty}</td>
+                    <td className="text-sm">{[...vmRequestsList.map((v: any) => v.hostname), ...addonVMs.map((vm: any) => vm.hostname)].join(', ')}</td>
+                    <td className="mono text-sm">
+                      {[...vmRequestsList.map((v: any) => v.legacy_id || v.id.slice(0, 8)), ...addonRequestsList.map((a: any) => a.legacy_id || a.id.slice(0, 8))].join(', ')}
+                    </td>
+                    <td className="mono text-sm">{(() => {
+                      const quote = quotes.find((q: any) => q.id === i.quote_id)
+                      return quote?.legacy_id || '—'
+                    })()}</td>
+                    <td><StatusPill status={i.status}/></td>
+                    <td className="right tnum text-sm">MMK {formatMMK(i.discount || 0)}</td>
+                    <td className="right tnum text-sm">MMK {formatMMK(i.net_amount || i.amount)}</td>
+                    <td className="right tnum text-sm">MMK {formatMMK(i.vat || 0)}</td>
+                    <td className="right tnum fw-6 text-sm">MMK {formatMMK(i.gross_amount || i.amount)}</td>
+                    <td className="tnum text-sm">{i.paid_date ? new Date(i.paid_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).replace(',', '') : '—'}</td>
+                    <td className="right" onClick={e => e.stopPropagation()}>
+                      <button className="btn sm" onClick={async () => {
+                        const c = customers.find(cust => cust.id === i.customer_id || cust.id === i.customer)
+                        if (c) await exportInvoiceToPDF(i, c)
+                      }}><Icon name="download" size={11}/>PDF</button>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

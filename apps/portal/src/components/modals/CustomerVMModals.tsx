@@ -53,7 +53,7 @@ const IaaSCard: React.FC<IaaSCardProps> = ({ selected, onClick, padding = 14, ch
 const SummaryLine: React.FC<{ icon: string; label: string; value: React.ReactNode }> = ({ icon, label, value }) => (
   <div className="flex between text-sm" style={{ marginBottom: 6 }}>
     <span className="text-mute flex center gap-2">
-      <Icon name={icon} size={12}/>
+      <Icon name={icon} size={12} />
       {label}
     </span>
     <span>{value}</span>
@@ -118,7 +118,6 @@ const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, onSubmit, 
         customer_id: me.id,
         task_type: 'Renewal',
         request_type: 'paid',
-        billing_term: (vm as any).billing_term || 'Monthly',
         hostname: (vm as any).hostname || vm.name,
         purpose: `Renew for ${(vm as any).hostname || vm.name}`,
         vcpu: vm.vcpu,
@@ -136,10 +135,8 @@ const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, onSubmit, 
         nics: (vm as any).nics || [],
         public_ip_required: (vm as any).public_ip_required !== undefined ? (vm as any).public_ip_required : true,
         firewall_ports: (vm as any).firewall_ports || [],
-        port_forwarding: (vm as any).port_forwarding || [],
         backup_enabled: (vm as any).backup_enabled || false,
         backup_type: (vm as any).backup_type || 'weekly',
-        monitoring: (vm as any).monitoring || false,
         notes: `Renewal request for ${months} month${months > 1 ? 's' : ''}. Current expiry: ${vm.expiry}, New expiry: ${newExpiry}`,
       })
 
@@ -168,14 +165,14 @@ const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, onSubmit, 
             <h3 style={{ margin: 0, fontSize: 16 }}>Renew {vm.name}</h3>
             <div className="text-xs text-mute mt-1 mono">{displayId} · expires {currentExpiry}</div>
           </div>
-          <button className="icon-btn" onClick={onClose}><Icon name="x" size={14}/></button>
+          <button className="icon-btn" onClick={onClose}><Icon name="x" size={14} /></button>
         </div>
         <div className="modal-body">
           <div className="card" style={{ borderColor: 'var(--line)' }}>
             <div className="card-body" style={{ padding: 14 }}>
               <div className="flex center between mb-2">
                 <div className="flex center gap-2">
-                  <Icon name="clock" size={13}/>
+                  <Icon name="clock" size={13} />
                   <span className="fw-7 text-sm">Renewal period</span>
                 </div>
                 <div className="text-xs text-mute">
@@ -223,7 +220,7 @@ const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, onSubmit, 
         </div>
         <div className="modal-foot">
           <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <button className="btn accent" onClick={submit}><Icon name="check" size={12}/>Submit renewal request</button>
+          <button className="btn accent" onClick={submit}><Icon name="check" size={12} />Submit renewal request</button>
         </div>
       </div>
     </div>
@@ -242,8 +239,8 @@ const CustUpgradeModal: React.FC<CustUpgradeModalProps> = ({ vm, onClose, me }) 
   const { addTask } = useTaskStore()
   const { toast } = useUIStore()
   const [spec, setSpec] = useState({ vcpu: vm.vcpu, ram: (vm as any).ram_gb || vm.ram, storage: (vm as any).storage_gb || vm.storage })
-  const [backupEnabled, setBackupEnabled] = useState(false)
-  const [backupType, setBackupType] = useState('daily')
+  const [backupEnabled, setBackupEnabled] = useState((vm as any).backup_enabled || false)
+  const [backupType, setBackupType] = useState(() => (vm as any).backup_type || 'daily')
   const [errors, setErrors] = useState({ vcpu: '', ram: '', storage: '' })
 
   const currentVcpu = vm.vcpu
@@ -308,7 +305,7 @@ const CustUpgradeModal: React.FC<CustUpgradeModalProps> = ({ vm, onClose, me }) 
       const currentStorage = (vm as any).storage_gb || vm.storage
       const specChanged = spec.vcpu !== currentVcpu || spec.ram !== currentRam || spec.storage !== currentStorage
       const backupChanged = backupEnabled !== (vm as any).backup_enabled || (backupEnabled && backupType !== (vm as any).backup_type)
-      
+
       // Set purpose based on what changed
       let purpose: string
       if (specChanged && backupChanged) {
@@ -320,11 +317,10 @@ const CustUpgradeModal: React.FC<CustUpgradeModalProps> = ({ vm, onClose, me }) 
       }
 
       // Create VM request with task_type='change-plan' using all original data, only changing upgrade fields
-      const { error } = await supabase.from('vm_requests').insert({
+      const requestData: any = {
         customer_id: me.id,
         task_type: 'change-plan',
         request_type: originalRequest.request_type || 'paid',
-        billing_term: originalRequest.billing_term || 'Monthly',
         hostname: currentHostname,
         purpose: purpose,
         vcpu: spec.vcpu,
@@ -336,27 +332,31 @@ const CustUpgradeModal: React.FC<CustUpgradeModalProps> = ({ vm, onClose, me }) 
         storage_partitions: originalRequest.storage_partitions || '',
         os_name: originalRequest.os_name || 'Linux',
         os_version: originalRequest.os_version || '',
+        spec_changed: specChanged,
+        backup_changed: backupChanged,
         custom_os_name: originalRequest.custom_os_name || null,
         custom_os_version: originalRequest.custom_os_version || null,
         zone: originalRequest.zone || 'yangon-dc1',
         nics: originalRequest.nics || [],
         public_ip_required: originalRequest.public_ip_required !== undefined ? originalRequest.public_ip_required : true,
         firewall_ports: originalRequest.firewall_ports || [],
-        port_forwarding: originalRequest.port_forwarding || [],
         backup_enabled: backupEnabled,
         backup_type: backupType,
-        monitoring: originalRequest.monitoring || false,
-        notes: `${originalRequest.notes || ''}\n\n${specChanged 
+        notes: `${originalRequest.notes || ''}\n\n${specChanged && backupChanged
           ? `Change Plan from: ${vm.vcpu} vCPU · ${(vm as any).ram_gb || vm.ram} GB RAM · ${(vm as any).storage_gb || vm.storage} GB storage\nTo: ${spec.vcpu} vCPU · ${spec.ram} GB RAM · ${spec.storage} GB storage\nBackup: ${backupEnabled ? `${backupType === 'daily' ? 'Daily' : 'Weekly'}` : 'No'}`
+          : specChanged
+          ? `Change Plan from: ${vm.vcpu} vCPU · ${(vm as any).ram_gb || vm.ram} GB RAM · ${(vm as any).storage_gb || vm.storage} GB storage\nTo: ${spec.vcpu} vCPU · ${spec.ram} GB RAM · ${spec.storage} GB storage`
           : `Backup service ${backupEnabled ? 'enabled' : 'disabled'} (${backupType === 'daily' ? 'Daily' : 'Weekly'})`
-        }`,
-      })
+          }`,
+      }
+
+      const { error } = await supabase.from('vm_requests').insert(requestData)
 
       if (error) throw error
 
       // Also create task for ops visibility
       addTask({
-        title: specChanged 
+        title: specChanged
           ? `Change Plan — ${currentHostname} (${vm.vcpu}/${(vm as any).ram_gb || vm.ram}/${(vm as any).storage_gb || vm.storage} → ${spec.vcpu}/${spec.ram}/${spec.storage})`
           : `Backup ${backupEnabled ? 'enable' : 'disable'} — ${currentHostname}`,
         customer: me.id, vm: vm.id, type: 'Change Plan', priority: 'Normal', status: 'Pending', team: 'Sales',
@@ -365,7 +365,7 @@ const CustUpgradeModal: React.FC<CustUpgradeModalProps> = ({ vm, onClose, me }) 
         notes: `Customer-initiated ${specChanged ? 'change plan' : 'backup service'} request via portal.
 ${specChanged ? `Current: ${vm.vcpu} vCPU · ${(vm as any).ram_gb || vm.ram} GB RAM · ${(vm as any).storage_gb || vm.storage} GB
 Requested: ${spec.vcpu} vCPU · ${spec.ram} GB RAM · ${spec.storage} GB` : ''}
-Backup: ${backupEnabled ? `${backupType === 'daily' ? 'Daily' : 'Weekly'}` : 'No'}`,
+${backupChanged ? `Backup: ${backupEnabled ? `${backupType === 'daily' ? 'Daily' : 'Weekly'}` : 'No'}` : ''}`,
       })
 
       toast('Upgrade request sent to Sales', 'ok')
@@ -384,16 +384,16 @@ Backup: ${backupEnabled ? `${backupType === 'daily' ? 'Daily' : 'Weekly'}` : 'No
             <h3 style={{ margin: 0, fontSize: 16 }}>Change Plan {vm.name}</h3>
             <div className="text-xs text-mute mt-1">Pick higher spec — downgrades require sales approval</div>
           </div>
-          <button className="icon-btn" onClick={onClose}><Icon name="x" size={14}/></button>
+          <button className="icon-btn" onClick={onClose}><Icon name="x" size={14} /></button>
         </div>
         <div className="modal-body">
           <div className="flex col gap-3">
             <div className="grid-3" style={{ gap: 12 }}>
               <div className="field">
                 <label>vCPU</label>
-                <input 
-                  type="number" 
-                  value={spec.vcpu} 
+                <input
+                  type="number"
+                  value={spec.vcpu}
                   onChange={(e) => handleSpecChange('vcpu', e.target.value)}
                   min={currentVcpu}
                   step={1}
@@ -403,9 +403,9 @@ Backup: ${backupEnabled ? `${backupType === 'daily' ? 'Daily' : 'Weekly'}` : 'No
               </div>
               <div className="field">
                 <label>RAM (GB)</label>
-                <input 
-                  type="number" 
-                  value={spec.ram} 
+                <input
+                  type="number"
+                  value={spec.ram}
                   onChange={(e) => handleSpecChange('ram', e.target.value)}
                   min={currentRam}
                   step={1}
@@ -415,9 +415,9 @@ Backup: ${backupEnabled ? `${backupType === 'daily' ? 'Daily' : 'Weekly'}` : 'No
               </div>
               <div className="field">
                 <label>Storage (GB)</label>
-                <input 
-                  type="number" 
-                  value={spec.storage} 
+                <input
+                  type="number"
+                  value={spec.storage}
                   onChange={(e) => handleSpecChange('storage', e.target.value)}
                   min={currentStorage}
                   step={10}
@@ -431,7 +431,7 @@ Backup: ${backupEnabled ? `${backupType === 'daily' ? 'Daily' : 'Weekly'}` : 'No
             <div className="card" style={{ borderColor: 'var(--line)' }}>
               <div className="card-head">
                 <h3 className="card-title">Backup service</h3>
-                <span className={`toggle ${backupEnabled ? 'on' : ''}`} onClick={() => setBackupEnabled(!backupEnabled)}/>
+                <span className={`toggle ${backupEnabled ? 'on' : ''}`} onClick={() => setBackupEnabled(!backupEnabled)} />
               </div>
               {backupEnabled && (
                 <div className="card-body">
@@ -474,7 +474,7 @@ Backup: ${backupEnabled ? `${backupType === 'daily' ? 'Daily' : 'Weekly'}` : 'No
         <div className="modal-foot">
           <button className="btn ghost" onClick={onClose}>Cancel</button>
           <button className="btn accent" disabled={spec.vcpu === vm.vcpu && spec.ram === vm.ram && spec.storage === vm.storage && !backupEnabled} onClick={submit}>
-            <Icon name="arrow-up" size={12}/>Submit upgrade request
+            <Icon name="arrow-up" size={12} />Submit upgrade request
           </button>
         </div>
       </div>
@@ -534,7 +534,7 @@ Cost diff: ${diff >= 0 ? '+' : ''}MMK ${formatMMK(Math.abs(diff))}/mo`,
             <h3 style={{ margin: 0, fontSize: 16 }}>Change plan — {vm.name}</h3>
             <div className="text-xs text-mute mt-1">Currently on <strong>{currentPlan.label}</strong> · MMK {formatMMK(vm.priceMonth)}/mo</div>
           </div>
-          <button className="icon-btn" onClick={onClose}><Icon name="x" size={14}/></button>
+          <button className="icon-btn" onClick={onClose}><Icon name="x" size={14} /></button>
         </div>
         <div className="modal-body">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
@@ -555,11 +555,11 @@ Cost diff: ${diff >= 0 ? '+' : ''}MMK ${formatMMK(Math.abs(diff))}/mo`,
                       <div className="text-xs text-mute">/month</div>
                     </div>
                   </div>
-                  <div className="divider" style={{ margin: '8px 0' }}/>
+                  <div className="divider" style={{ margin: '8px 0' }} />
                   <div className="flex between text-xs">
-                    <span><Icon name="cpu" size={10}/> <span className="tnum fw-6">{p.vcpu}</span>c</span>
-                    <span><Icon name="database" size={10}/> <span className="tnum fw-6">{p.ram}</span>GB</span>
-                    <span><Icon name="box" size={10}/> <span className="tnum fw-6">{p.storage}</span>GB</span>
+                    <span><Icon name="cpu" size={10} /> <span className="tnum fw-6">{p.vcpu}</span>c</span>
+                    <span><Icon name="database" size={10} /> <span className="tnum fw-6">{p.ram}</span>GB</span>
+                    <span><Icon name="box" size={10} /> <span className="tnum fw-6">{p.storage}</span>GB</span>
                   </div>
                 </IaaSCard>
               )
@@ -578,7 +578,7 @@ Cost diff: ${diff >= 0 ? '+' : ''}MMK ${formatMMK(Math.abs(diff))}/mo`,
         <div className="modal-foot">
           <button className="btn ghost" onClick={onClose}>Cancel</button>
           <button className="btn accent" disabled={!target || target.id === currentPlan.id} onClick={submit}>
-            <Icon name="check" size={12}/>Submit {direction.toLowerCase()} request
+            <Icon name="check" size={12} />Submit {direction.toLowerCase()} request
           </button>
         </div>
       </div>
@@ -599,7 +599,33 @@ const CustConvertToPaidModal: React.FC<CustConvertToPaidModalProps> = ({ vm, onC
   const me = customers.find((c: any) => c.id === (vm as any).customer_id)
 
   const [duration, setDuration] = useState(12)
-  const [billingTerm, setBillingTerm] = useState<'Monthly' | 'Annual'>('Monthly')
+  const [customMode, setCustomMode] = useState(false)
+  const [customValue, setCustomValue] = useState('12')
+
+  const getDurationLabel = (months: number) => {
+    const labels: Record<number, string> = {
+      1: 'Monthly',
+      3: 'Quarterly',
+      6: 'Half Yearly',
+      12: 'Yearly'
+    }
+    return labels[months] || `${months} month${months > 1 ? 's' : ''}`
+  }
+
+  const handleCustomToggle = () => {
+    setCustomMode(!customMode)
+    if (!customMode) {
+      setCustomValue(String(duration))
+    }
+  }
+
+  const handleCustomChange = (value: string) => {
+    setCustomValue(value)
+    const num = parseFloat(value)
+    if (num && num > 0) {
+      setDuration(num)
+    }
+  }
 
   const submit = async () => {
     if (!me) {
@@ -613,7 +639,6 @@ const CustConvertToPaidModal: React.FC<CustConvertToPaidModalProps> = ({ vm, onC
         customer_id: me.id,
         task_type: 'New',
         request_type: 'paid',
-        billing_term: billingTerm,
         hostname: (vm as any).hostname || vm.name,
         purpose: `Convert trial to paid for ${(vm as any).hostname || vm.name}`,
         vcpu: vm.vcpu,
@@ -630,7 +655,6 @@ const CustConvertToPaidModal: React.FC<CustConvertToPaidModalProps> = ({ vm, onC
         public_ip_required: (vm as any).public_ip_required ?? true,
         firewall_ports: (vm as any).firewall_ports || [],
         backup_enabled: (vm as any).backup_enabled || false,
-        monitoring: (vm as any).monitoring || false,
         notes: `Trial to paid conversion for VM: ${vm.id}`,
       })
 
@@ -646,7 +670,7 @@ const CustConvertToPaidModal: React.FC<CustConvertToPaidModalProps> = ({ vm, onC
         team: 'Sales',
         assignee: '—',
         created: new Date().toISOString().slice(0, 10),
-        notes: `Duration: ${duration} months, Billing: ${billingTerm}`,
+        notes: `Duration: ${getDurationLabel(duration)}`,
         vm_id: vm.id,
       })
 
@@ -665,39 +689,53 @@ const CustConvertToPaidModal: React.FC<CustConvertToPaidModalProps> = ({ vm, onC
             <h3 style={{ margin: 0, fontSize: 16 }}>Convert to Paid — {(vm as any).hostname || vm.name}</h3>
             <div className="text-xs text-mute mt-1">Convert your trial VM to a paid subscription</div>
           </div>
-          <button className="icon-btn" onClick={onClose}><Icon name="x" size={14}/></button>
+          <button className="icon-btn" onClick={onClose}><Icon name="x" size={14} /></button>
         </div>
         <div className="modal-body">
           <div className="field">
-            <label>Duration (months) <span style={{ color: 'var(--bad)' }}>*</span></label>
+            <label>Billing Term <span style={{ color: 'var(--bad)' }}>*</span></label>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
               {[1, 3, 6, 12].map(months => (
                 <button
                   key={months}
-                  className={`filter-chip ${duration === months ? 'active' : ''}`}
-                  onClick={() => setDuration(months)}
+                  className={`filter-chip ${!customMode && duration === months ? 'active' : ''}`}
+                  onClick={() => { setDuration(months); setCustomMode(false); }}
                 >
-                  {months} month{months > 1 ? 's' : ''}
+                  {getDurationLabel(months)}
                 </button>
               ))}
+              {customMode ? (
+                <>
+                  <input
+                    type="number"
+                    value={customValue}
+                    onChange={(e) => handleCustomChange(e.target.value)}
+                    placeholder="Enter months"
+                    min="1"
+                    style={{ padding: '6px 10px', border: '1px solid var(--accent)', borderRadius: 6, width: 100, fontSize: 12 }}
+                  />
+                  <span className="text-xs text-mute" style={{ alignSelf: 'center' }}>months</span>
+                  <button
+                    className="btn sm ghost"
+                    onClick={() => { setCustomMode(false); setDuration(12) }}
+                    style={{ padding: '6px 10px', fontSize: 11 }}>
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button
+                  className="filter-chip"
+                  onClick={handleCustomToggle}>
+                  <Icon name="plus" size={11} /> Custom
+                </button>
+              )}
             </div>
-          </div>
-          <div className="field">
-            <label>Billing Term <span style={{ color: 'var(--bad)' }}>*</span></label>
-            <select
-              value={billingTerm}
-              onChange={e => setBillingTerm(e.target.value as 'Monthly' | 'Annual')}
-              style={{ padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 6, width: '100%' }}
-            >
-              <option value="Monthly">Monthly</option>
-              <option value="Annual">Annual</option>
-            </select>
           </div>
         </div>
         <div className="modal-foot">
           <button className="btn ghost" onClick={onClose}>Cancel</button>
           <button className="btn primary" onClick={submit}>
-            <Icon name="check" size={12}/>Submit Conversion Request
+            <Icon name="check" size={12} />Submit Conversion Request
           </button>
         </div>
       </div>
@@ -718,16 +756,16 @@ const SupportTicketModal: React.FC<SupportTicketModalProps> = ({ onClose }) => {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
-        <div className="modal-head"><h3 style={{ margin: 0 }}>New support ticket</h3><button className="icon-btn" onClick={onClose}><Icon name="x" size={14}/></button></div>
+        <div className="modal-head"><h3 style={{ margin: 0 }}>New support ticket</h3><button className="icon-btn" onClick={onClose}><Icon name="x" size={14} /></button></div>
         <div className="modal-body">
           <div className="flex col gap-3">
-            <div className="field"><label>Subject</label><input value={f.subject} onChange={e => setF({...f, subject: e.target.value})}/></div>
+            <div className="field"><label>Subject</label><input value={f.subject} onChange={e => setF({ ...f, subject: e.target.value })} /></div>
             <div className="field"><label>Priority</label>
               <div className="flex gap-2">
-                {['Low', 'Normal', 'Urgent'].map(p => <button key={p} className={`filter-chip ${f.priority === p ? 'active' : ''}`} onClick={() => setF({...f, priority: p})}>{p}</button>)}
+                {['Low', 'Normal', 'Urgent'].map(p => <button key={p} className={`filter-chip ${f.priority === p ? 'active' : ''}`} onClick={() => setF({ ...f, priority: p })}>{p}</button>)}
               </div>
             </div>
-            <div className="field"><label>Describe the issue</label><textarea rows={6} value={f.body} onChange={e => setF({...f, body: e.target.value})}/></div>
+            <div className="field"><label>Describe the issue</label><textarea rows={6} value={f.body} onChange={e => setF({ ...f, body: e.target.value })} /></div>
           </div>
         </div>
         <div className="modal-foot">
@@ -748,7 +786,7 @@ interface CustVMModalProps {
 const CustVMModal: React.FC<CustVMModalProps> = ({ vm, onClose }) => (
   <div className="modal-overlay" onClick={onClose}>
     <div className="modal" onClick={e => e.stopPropagation()}>
-      <div className="modal-head"><h3 style={{ margin: 0 }}>{vm.name}</h3><button className="icon-btn" onClick={onClose}><Icon name="x" size={14}/></button></div>
+      <div className="modal-head"><h3 style={{ margin: 0 }}>{vm.name}</h3><button className="icon-btn" onClick={onClose}><Icon name="x" size={14} /></button></div>
       <div className="modal-body"><div className="text-sm">Open the full VM detail page for control actions.</div></div>
       <div className="modal-foot"><button className="btn primary" onClick={onClose}>Close</button></div>
     </div>

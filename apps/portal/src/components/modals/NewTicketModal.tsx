@@ -3,6 +3,7 @@ import Icon from '../../lib/icons'
 import useTicketStore from '../../store/ticketStore'
 import useCustomerStore from '../../store/customerStore'
 import useUIStore from '../../store/uiStore'
+import useActivityStore from '../../store/activityStore'
 import { uploadTicketAttachment } from '../../lib/storage'
 import { supabase } from '../../lib/supabase'
 
@@ -15,6 +16,7 @@ const NewTicketModal: React.FC<NewTicketModalProps> = ({ onClose, onCreated }) =
   const { addTicket } = useTicketStore()
   const { customers } = useCustomerStore()
   const { toast } = useUIStore()
+  const { logActivity } = useActivityStore()
   const [query, setQuery] = useState('')
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null)
   const [category, setCategory] = useState('')
@@ -93,6 +95,12 @@ const NewTicketModal: React.FC<NewTicketModalProps> = ({ onClose, onCreated }) =
       }
 
       toast('Ticket created', 'ok')
+      await logActivity(
+        `Created ticket: ${subject}`,
+        'task',
+        'Staff',
+        { ticketId, customerId: selectedCustomerId, priority }
+      )
       onCreated?.()
       onClose()
     } catch (e) {

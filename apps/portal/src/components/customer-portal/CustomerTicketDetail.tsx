@@ -20,6 +20,42 @@ export const CustomerTicketDetail: React.FC<CustomerTicketDetailProps> = ({ tick
   const [uploading, setUploading] = useState(false)
   const [showCloseConfirm, setShowCloseConfirm] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
+  const [previewImage, setPreviewImage] = useState<string | null>(null)
+
+  const isImageUrl = (url: string) => {
+    return /\.(jpg|jpeg|png|gif|webp|bmp|svg|ico|heic|heif)$/i.test(url)
+  }
+
+  const AttachmentThumbs = ({ urls }: { urls: string[] }) => (
+    <div className="flex gap-2 wrap" style={{ marginTop: 8 }}>
+      {urls.map((url: string, j: number) => (
+        isImageUrl(url) ? (
+          <img
+            key={j}
+            src={url}
+            alt={`Attachment ${j + 1}`}
+            onClick={() => setPreviewImage(url)}
+            style={{
+              width: 64,
+              height: 64,
+              objectFit: 'cover',
+              borderRadius: 8,
+              cursor: 'pointer',
+              border: '1px solid var(--line)',
+              transition: 'opacity 0.15s',
+            }}
+            onMouseEnter={e => (e.target as HTMLImageElement).style.opacity = '0.8'}
+            onMouseLeave={e => (e.target as HTMLImageElement).style.opacity = '1'}
+          />
+        ) : (
+          <button key={j} className="btn sm" onClick={() => window.open(url, '_blank')}>
+            <Icon name="attach" size={11}/> Attachment {j + 1}
+          </button>
+        )
+      ))}
+    </div>
+  )
 
   const handleClose = () => {
     if (openModal) {
@@ -48,13 +84,32 @@ export const CustomerTicketDetail: React.FC<CustomerTicketDetailProps> = ({ tick
     }
   }
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files || files.length === 0) return
+  const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'application/pdf']
+  const MAX_FILE_SIZE = 10 * 1024 * 1024
+
+  const validateFiles = (files: File[]): File[] => {
+    const valid: File[] = []
+    for (const file of files) {
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        alert(`${file.name} is not allowed. Only PNG, JPG, and PDF files are accepted.`)
+        continue
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        alert(`${file.name} is too large. Maximum file size is 10MB.`)
+        continue
+      }
+      valid.push(file)
+    }
+    return valid
+  }
+
+  const uploadFiles = async (fileList: File[]) => {
+    const validFiles = validateFiles(fileList)
+    if (validFiles.length === 0) return
 
     setUploading(true)
     try {
-      const uploadPromises = Array.from(files).map(async (file) => {
+      const uploadPromises = validFiles.map(async (file) => {
         const fileName = `ticket-reply-${Date.now()}-${file.name}`
         const { error } = await supabase.storage.from('ticket-attachments').upload(fileName, file)
         
@@ -71,9 +126,22 @@ export const CustomerTicketDetail: React.FC<CustomerTicketDetailProps> = ({ tick
       alert('Failed to upload files')
     } finally {
       setUploading(false)
-      // Reset input
-      e.target.value = ''
     }
+  }
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+    await uploadFiles(Array.from(files))
+    e.target.value = ''
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOver(false)
+    const files = Array.from(e.dataTransfer.files)
+    if (files.length > 0) uploadFiles(files)
   }
 
   const handleReply = async () => {
@@ -113,7 +181,7 @@ export const CustomerTicketDetail: React.FC<CustomerTicketDetailProps> = ({ tick
         </div>
       </div>
 
-      <div className="grid-asym">
+      <div>
         {/* Conversation */}
         <div className="card">
           <div className="card-head">
@@ -132,13 +200,7 @@ export const CustomerTicketDetail: React.FC<CustomerTicketDetailProps> = ({ tick
                 <div style={{ background: 'var(--surface-2)', padding: '12px 16px', borderRadius: 12, borderBottomLeftRadius: 4 }}>
                   <div className="text-sm" style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{ticket.body}</div>
                   {ticket.attachments && ticket.attachments.length > 0 && (
-                    <div className="flex col gap-1" style={{ marginTop: 8, alignItems: 'flex-start' }}>
-                      {ticket.attachments.map((url: string, j: number) => (
-                        <button key={j} className="btn sm" onClick={() => window.open(url, '_blank')}>
-                          <Icon name="attach" size={11}/> Attachment {j + 1}
-                        </button>
-                      ))}
-                    </div>
+                    <AttachmentThumbs urls={ticket.attachments} />
                   )}
                 </div>
               </div>
@@ -164,13 +226,7 @@ export const CustomerTicketDetail: React.FC<CustomerTicketDetailProps> = ({ tick
                   }}>
                     <div className="text-sm" style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{r.body}</div>
                     {r.attachments && r.attachments.length > 0 && (
-                      <div className="flex col gap-1" style={{ marginTop: 8, alignItems: 'flex-start' }}>
-                        {r.attachments.map((url: string, j: number) => (
-                          <button key={j} className="btn sm" onClick={() => window.open(url, '_blank')}>
-                            <Icon name="attach" size={11}/> Attachment {j + 1}
-                          </button>
-                        ))}
-                      </div>
+                      <AttachmentThumbs urls={r.attachments} />
                     )}
                   </div>
                 </div>
@@ -189,19 +245,52 @@ export const CustomerTicketDetail: React.FC<CustomerTicketDetailProps> = ({ tick
                   ))}
                 </div>
               )}
-              <textarea
-                value={replyBody}
-                onChange={e => setReplyBody(e.target.value)}
-                placeholder="Type your reply here…"
-                rows={3}
-                style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 6, fontSize: 12.5, resize: 'vertical', marginBottom: 8 }}
-              />
+              <div
+                onDragOver={e => { e.preventDefault(); e.stopPropagation(); setDragOver(true) }}
+                onDragLeave={e => { e.preventDefault(); e.stopPropagation(); setDragOver(false) }}
+                onDrop={handleDrop}
+                style={{ position: 'relative', marginBottom: 8 }}
+              >
+                <textarea
+                  value={replyBody}
+                  onChange={e => setReplyBody(e.target.value)}
+                  placeholder="Type your reply here…"
+                  rows={3}
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 6, fontSize: 12.5, resize: 'vertical', background: 'var(--surface)', outline: 'none' }}
+                />
+                {dragOver && (
+                  <div style={{
+                    position: 'absolute', inset: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    borderRadius: 6,
+                    background: 'rgba(255,255,255,0.85)',
+                    backdropFilter: 'blur(2px)',
+                    pointerEvents: 'none',
+                    animation: 'fadeIn 0.12s ease-out',
+                  }}>
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '8px 16px',
+                      borderRadius: 999,
+                      background: 'var(--accent)',
+                      color: 'white',
+                      fontSize: 12.5,
+                      fontWeight: 600,
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                    }}>
+                      <Icon name="attach" size={14} />
+                      Drop to attach
+                    </div>
+                  </div>
+                )}
+              </div>
               <div className="flex between">
                 <div className="flex gap-2">
-                  <input type="file" multiple onChange={handleFileUpload} style={{ display: 'none' }} id="reply-file-upload" />
+                  <input type="file" multiple accept="image/png,image/jpeg,application/pdf" onChange={handleFileUpload} style={{ display: 'none' }} id="reply-file-upload" />
                   <label htmlFor="reply-file-upload" className="btn sm" style={{ cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.6 : 1 }}>
                     <Icon name="attach" size={11}/> {uploading ? 'Uploading...' : 'Attach files'}
                   </label>
+                  <span className="text-xs text-mute" style={{ alignSelf: 'center' }}>or drag & drop onto the text area (PNG, JPG, PDF — 10MB max)</span>
                 </div>
                 <button className="btn primary" onClick={handleReply} disabled={!replyBody.trim() && replyAttachments.length === 0}><Icon name="send" size={12}/>Send reply</button>
               </div>
@@ -209,46 +298,50 @@ export const CustomerTicketDetail: React.FC<CustomerTicketDetailProps> = ({ tick
           )}
         </div>
 
-        {/* Sidebar info */}
-        <div className="flex col" style={{ gap: 16 }}>
-          <div className="card">
-            <div className="card-head"><h3 className="card-title">Ticket info</h3></div>
-            <div className="card-body">
-              <dl className="dl">
-                <dt>Ticket ID</dt><dd className="mono">{ticket.legacy_id || ticket.id}</dd>
-                <dt>Category</dt><dd>{ticket.category || <span className="text-mute">Not specified</span>}</dd>
-                <dt>Status</dt><dd><StatusPill status={ticket.status}/></dd>
-                <dt>Priority</dt><dd><span className={`pill ${ticket.priority === 'Urgent' ? 'bad' : ticket.priority === 'Low' ? 'subtle' : 'warn'}`}><span className="dot"/>{ticket.priority}</span></dd>
-                <dt>Created</dt><dd className="tnum">{new Date(ticket.created_at).toLocaleString()}</dd>
-                {ticket.attachments && ticket.attachments.length > 0 && (
-                  <>
-                    <dt>Attachments</dt>
-                    <dd>
-                      <div className="flex col gap-1">
-                        {ticket.attachments.map((url: string, i: number) => (
-                          <button key={i} className="btn sm" onClick={() => window.open(url, '_blank')}>
-                            <Icon name="attach" size={11}/> Attachment {i + 1}
-                          </button>
-                        ))}
-                      </div>
-                    </dd>
-                  </>
-                )}
-              </dl>
-            </div>
-          </div>
-          <div className="card">
-            <div className="card-head"><h3 className="card-title">Actions</h3></div>
-            <div className="card-body">
-              <div className="flex col gap-2">
-                <div className="text-xs text-mute">
-                  {ticket.status === 'Open' ? 'Ticket is open for team response. Close when you are satisfied with the resolution.' : 'Ticket is closed. Create a new ticket if you need more help.'}
-                </div>
-              </div>
-            </div>
+      </div>
+
+      {previewImage && (
+        <div
+          className="modal-overlay"
+          onClick={() => setPreviewImage(null)}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32 }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}
+          >
+            <button
+              onClick={() => setPreviewImage(null)}
+              style={{
+                position: 'absolute',
+                top: -14,
+                right: -14,
+                zIndex: 1,
+                width: 32,
+                height: 32,
+                borderRadius: '50%',
+                border: 'none',
+                background: 'var(--surface)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                cursor: 'pointer',
+                display: 'grid',
+                placeItems: 'center',
+                fontSize: 18,
+                lineHeight: 1,
+                color: 'var(--ink-2)',
+                fontFamily: 'inherit',
+              }}
+            >
+              ×
+            </button>
+            <img
+              src={previewImage}
+              alt="Attachment preview"
+              style={{ maxWidth: '90vw', maxHeight: '90vh', borderRadius: 8, objectFit: 'contain' }}
+            />
           </div>
         </div>
-      </div>
+      )}
 
       {showCloseConfirm && (
         <div className="modal-overlay" onClick={() => setShowCloseConfirm(false)}>
@@ -292,6 +385,7 @@ export const CustomerTicketDetail: React.FC<CustomerTicketDetailProps> = ({ tick
           </div>
         </div>
       )}
+      <style>{`@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }`}</style>
     </div>
   )
 }

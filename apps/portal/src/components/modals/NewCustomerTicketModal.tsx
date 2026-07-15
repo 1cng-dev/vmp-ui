@@ -21,10 +21,47 @@ const NewCustomerTicketModal: React.FC<NewCustomerTicketModalProps> = ({ me, onC
   const [submitting, setSubmitting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [files, setFiles] = useState<File[]>([])
+  const [dragOver, setDragOver] = useState(false)
+
+  const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'application/pdf']
+  const MAX_FILE_SIZE = 10 * 1024 * 1024
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const list = Array.from(e.target.files || [])
-    setFiles(list)
+    const valid: File[] = []
+    for (const file of list) {
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        toast(`${file.name} is not allowed. Only PNG, JPG, and PDF files are accepted.`, 'bad')
+        continue
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        toast(`${file.name} is too large. Maximum file size is 10MB.`, 'bad')
+        continue
+      }
+      valid.push(file)
+    }
+    setFiles(prev => [...prev, ...valid])
+    e.target.value = ''
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOver(false)
+    const list = Array.from(e.dataTransfer.files || [])
+    const valid: File[] = []
+    for (const file of list) {
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        toast(`${file.name} is not allowed. Only PNG, JPG, and PDF files are accepted.`, 'bad')
+        continue
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        toast(`${file.name} is too large. Maximum file size is 10MB.`, 'bad')
+        continue
+      }
+      valid.push(file)
+    }
+    if (valid.length > 0) setFiles(prev => [...prev, ...valid])
   }
 
   const submit = async () => {
@@ -130,37 +167,63 @@ const NewCustomerTicketModal: React.FC<NewCustomerTicketModalProps> = ({ me, onC
 
                 <div className="field">
                   <label>Describe the issue<span style={{ color: 'var(--bad)' }}>*</span></label>
-                  <textarea rows={6} value={body} onChange={e => setBody(e.target.value)} placeholder="Provide detailed information about the issue..." />
+                  <div
+                    onDragOver={e => { e.preventDefault(); e.stopPropagation(); setDragOver(true) }}
+                    onDragLeave={e => { e.preventDefault(); e.stopPropagation(); setDragOver(false) }}
+                    onDrop={handleDrop}
+                    style={{ position: 'relative' }}
+                  >
+                    <textarea
+                      rows={6}
+                      value={body}
+                      onChange={e => setBody(e.target.value)}
+                      placeholder="Provide detailed information about the issue..."
+                      style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 6, fontSize: 12.5, resize: 'vertical', background: 'var(--surface)', outline: 'none' }}
+                    />
+                    {dragOver && (
+                      <div style={{
+                        position: 'absolute', inset: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        borderRadius: 6,
+                        background: 'rgba(255,255,255,0.85)',
+                        backdropFilter: 'blur(2px)',
+                        pointerEvents: 'none',
+                        animation: 'fadeIn 0.12s ease-out',
+                      }}>
+                        <div style={{
+                          display: 'flex', alignItems: 'center', gap: 8,
+                          padding: '8px 16px',
+                          borderRadius: 999,
+                          background: 'var(--accent)',
+                          color: 'white',
+                          fontSize: 12.5,
+                          fontWeight: 600,
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                        }}>
+                          <Icon name="attach" size={14} />
+                          Drop to attach
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div>
                   <label className="text-sm" style={{ display: 'block', marginBottom: 6 }}>Attachment (optional)</label>
                   <input ref={fileInputRef} type="file" multiple accept="image/png,image/jpeg,application/pdf" onChange={onFileChange} style={{ display: 'none' }} />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    style={{
-                      padding: '14px 16px',
-                      border: '1.5px dashed var(--line-strong)',
-                      background: 'var(--surface-2)',
-                      borderRadius: 8,
-                      display: 'flex', alignItems: 'center', gap: 12,
-                      cursor: 'pointer', width: '100%',
-                      textAlign: 'left',
-                    }}
-                  >
-                    <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--surface-3)', color: 'var(--ink-3)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                      <Icon name="attach" size={14} />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div className="fw-6 text-sm">{files.length > 0 ? `${files.length} file${files.length > 1 ? 's' : ''} selected` : 'Click to upload or drag and drop'}</div>
-                      <div className="text-xs text-mute">PNG, JPG, PDF up to 10MB</div>
-                    </div>
-                  </button>
+                  <div className="flex center gap-2">
+                    <button type="button" className="btn sm" onClick={() => fileInputRef.current?.click()}>
+                      <Icon name="attach" size={11}/> Attach files
+                    </button>
+                    <span className="text-xs text-mute">or drag & drop onto the text area above (PNG, JPG, PDF — 10MB max)</span>
+                  </div>
                   {files.length > 0 && (
                     <div className="text-xs" style={{ marginTop: 8 }}>
                       {files.map((f, i) => (
-                        <div key={i} className="mono" style={{ marginTop: 2 }}>{f.name} ({Math.ceil(f.size/1024)} KB)</div>
+                        <div key={i} className="flex center gap-2" style={{ marginTop: 2 }}>
+                          <span className="mono" style={{ flex: 1 }}>{f.name} ({Math.ceil(f.size/1024)} KB)</span>
+                          <button className="icon-btn" onClick={(e) => { e.stopPropagation(); setFiles(files.filter((_, idx) => idx !== i)) }}><Icon name="x" size={12}/></button>
+                        </div>
                       ))}
                     </div>
                   )}
@@ -176,6 +239,7 @@ const NewCustomerTicketModal: React.FC<NewCustomerTicketModalProps> = ({ me, onC
           </button>
         </div>
       </div>
+      <style>{`@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }`}</style>
     </div>
   )
 }

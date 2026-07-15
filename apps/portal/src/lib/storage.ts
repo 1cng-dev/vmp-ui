@@ -35,9 +35,12 @@ export const deleteKYCDocument = async (fileName: string) => {
 }
 
 export const uploadTicketAttachment = async (
-  file: File
+  file: File,
+  ticketId?: string
 ) => {
-  const fileName = `ticket-reply-${Date.now()}-${file.name}`
+  const fileName = ticketId 
+    ? `${ticketId}/${Date.now()}-${file.name}`
+    : `ticket-reply-${Date.now()}-${file.name}`
   
   const { error } = await supabase.storage
     .from('ticket-attachments')

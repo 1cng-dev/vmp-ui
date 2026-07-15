@@ -11,12 +11,11 @@ interface VMListProps {
 }
 
 const VMList: React.FC<VMListProps> = ({ openVM, openModal }) => {
-  const { vms, loadVMs } = useVMStore()
+  const { vms, loadVMs, updateVM } = useVMStore()
   const { customers } = useCustomerStore()
   const { toast } = useUIStore()
   const [filter, setFilter] = useState<Set<string>>(new Set(['all']))
   const [search, setSearch] = useState('')
-  const [selected, setSelected] = useState<Set<string>>(new Set())
   const [menu, setMenu] = useState<string | null>(null)
 
   // Ensure VMs are loaded when this page is opened
@@ -48,10 +47,71 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal }) => {
     return [v.hostname, v.id, v.public_ip, v.task_type, c?.org_name, c?.name].join(' ').toLowerCase().includes(search.toLowerCase())
   })
 
-  const toggle = (id: string) => {
-    const next = new Set(selected)
-    next.has(id) ? next.delete(id) : next.add(id)
-    setSelected(next)
+  const exportToCSV = (vmsToExport: any[], filename: string) => {
+    const headers = [
+      'Legacy ID',
+      'Hostname',
+      'Customer Name',
+      'Customer Organization',
+      'Status',
+      'Task Type',
+      'vCPU',
+      'RAM (GB)',
+      'Storage (GB)',
+      'Public IP',
+      'Private IP',
+      'Username',
+      'Power State',
+      'Assigned VMID',
+      'Start Date',
+      'End Date',
+      'Expiry Date',
+      'Created At'
+    ]
+
+    const rows = vmsToExport.map(v => {
+      const c = customers.find(c => c.id === v.customer_id)
+      return [
+        v.legacy_id || v.id,
+        v.hostname || '',
+        c?.name || '',
+        c?.org_name || c?.company || '',
+        v.status || '',
+        v.task_type || 'new',
+        v.vcpu || 0,
+        v.ram_gb || 0,
+        v.storage_gb || 0,
+        v.public_ip || '',
+        v.private_ip || '',
+        v.username || '',
+        v.power_state || '',
+        (v as any).assigned_vmid || '',
+        (v as any).start_date ? new Date((v as any).start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '',
+        (v as any).end_date ? new Date((v as any).end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '',
+        v.expiry ? new Date(v.expiry).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '',
+        v.created_at ? new Date(v.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : ''
+      ]
+    })
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `${filename}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const handleExportAll = () => {
+    exportToCSV(filtered, `vms_export_${new Date().toISOString().split('T')[0]}`)
+    toast(`${filtered.length} VMs exported to CSV`, 'ok')
   }
 
   useEffect(() => {
@@ -70,8 +130,8 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal }) => {
           <p className="page-subtitle">{vms.length} virtual machines · {vms.filter(v => v.status === 'Active').length} running</p>
         </div>
         <div className="page-actions">
-          <button className="btn" onClick={() => toast('VMs CSV download started', 'info')}><Icon name="download" size={13}/>Export CSV</button>
-          <button className="btn primary" onClick={() => openModal('newvm')}><Icon name="plus" size={13}/>New VM</button>
+          <button className="btn" onClick={handleExportAll}><Icon name="download" size={13} />Export CSV</button>
+          <button className="btn primary" onClick={() => openModal('newvm')}><Icon name="plus" size={13} />New VM</button>
         </div>
       </div>
 
@@ -98,35 +158,24 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal }) => {
               {f.label}<span className="ct">{f.count}</span>
             </button>
           ))}
-          <div style={{ flex: 1 }}/>
+          <div style={{ flex: 1 }} />
           <div className="search" style={{ width: 220 }}>
-            <Icon name="search" size={13} className="search-icon"/>
-            <input placeholder="Name, IP, customer…" value={search} onChange={e => setSearch(e.target.value)}/>
+            <Icon name="search" size={13} className="search-icon" />
+            <input placeholder="Name, IP, customer…" value={search} onChange={e => setSearch(e.target.value)} />
           </div>
         </div>
-        {selected.size > 0 && (
-          <div style={{ padding: '10px 18px', background: 'var(--accent-soft)', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span className="fw-6 text-sm">{selected.size} selected</span>
-            <button className="btn sm" onClick={() => { toast('Suspend action not implemented', 'info'); setSelected(new Set()); }}>Suspend</button>
-            <button className="btn sm" onClick={() => { toast('Activate action not implemented', 'info'); setSelected(new Set()); }}>Activate</button>
-            <button className="btn sm" onClick={() => { toast('Renew action not implemented', 'info'); setSelected(new Set()); }}>Renew 1 year</button>
-            <button className="btn sm" onClick={() => { toast(`${selected.size} VMs exported to CSV`, 'info'); }}>Export selected</button>
-            <button className="btn sm danger" onClick={() => { toast('Terminate action not implemented', 'info'); setSelected(new Set()); }}>Terminate</button>
-            <div style={{ flex: 1 }}/>
-            <button className="btn ghost sm" onClick={() => setSelected(new Set())}>Clear</button>
-          </div>
-        )}
         <table className="tbl">
           <thead>
             <tr>
-              <th style={{ width: 30 }}><input type="checkbox" checked={filtered.length > 0 && filtered.every(v => selected.has(v.id))} onChange={e => setSelected(e.target.checked ? new Set(filtered.map(v => v.id)) : new Set())}/></th>
               <th>VM</th>
               <th>Customer</th>
               <th>Status</th>
-              <th>Type</th>
+              <th>Power State</th>
               <th>Spec</th>
               <th>Public IP / VLAN</th>
               <th>Expires</th>
+              <th>Start Date</th>
+              <th>End Date</th>
               <th style={{ width: 50 }}></th>
             </tr>
           </thead>
@@ -135,12 +184,8 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal }) => {
               const c = customers.find(c => c.id === v.customer_id)
               return (
                 <tr key={v.id} onClick={() => openVM(v.id)}>
-                  <td onClick={e => e.stopPropagation()}>
-                    <input type="checkbox" checked={selected.has(v.id)} onChange={() => toggle(v.id)}/>
-                  </td>
                   <td>
                     <div className="flex center gap-2">
-                      <span className="id-tag accent">{v.task_type || 'new'}</span>
                       <div>
                         <div className="fw-6">{v.hostname}</div>
                         <div className="text-xs text-mute mono">{v.legacy_id || v.id}</div>
@@ -152,8 +197,8 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal }) => {
                     <div className="fw-6 text-sm">{c?.org_name}</div>
                     <div className="text-xs text-mute">{c?.name}</div>
                   </td>
-                  <td><StatusPill status={v.status}/></td>
-                  <td><StatusPill status={v.task_type || 'new'}/></td>
+                  <td><StatusPill status={v.status} /></td>
+                  <td><span className="pill"><Icon name={v.power_state === 'Running' ? 'play' : 'pause'} size={10}/>{v.power_state || 'Unknown'}</span></td>
                   <td className="mono text-xs">
                     {v.vcpu}c · {v.ram_gb}GB · {v.storage_gb}GB
                   </td>
@@ -161,9 +206,11 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal }) => {
                     {v.public_ip || '—'}
                   </td>
                   <td><ExpiryCell date={v.expiry as any} /></td>
+                  <td className="text-sm mono">{(v as any).start_date ? new Date((v as any).start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}</td>
+                  <td className="text-sm mono">{(v as any).end_date ? new Date((v as any).end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}</td>
                   <td onClick={e => e.stopPropagation()} style={{ position: 'relative' }}>
                     <button className="icon-btn" onClick={(e) => { e.stopPropagation(); setMenu(menu === v.id ? null : v.id); }}>
-                      <Icon name="more"/>
+                      <Icon name="more" />
                     </button>
                     {menu === v.id && (
                       <div onClick={e => e.stopPropagation()} style={{
@@ -172,15 +219,17 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal }) => {
                         borderRadius: 8, boxShadow: 'var(--shadow)',
                         minWidth: 180, padding: 4,
                       }}>
-                        <button className="nav-item" onClick={() => { openVM(v.id); setMenu(null); }}><Icon name="eye" size={13}/>View details</button>
-                        <button className="nav-item" onClick={() => { openModal('renew', { vm: v }); setMenu(null); }}><Icon name="refresh" size={13}/>Renew</button>
-                        <button className="nav-item" onClick={() => { openModal('spec', { vm: v }); setMenu(null); }}><Icon name="sliders" size={13}/>Change spec</button>
-                        {v.status === 'Active'
-                          ? <button className="nav-item" onClick={() => { toast('Suspend action not implemented', 'info'); setMenu(null); }}><Icon name="pause" size={13}/>Suspend</button>
-                          : <button className="nav-item" onClick={() => { toast('Activate action not implemented', 'info'); setMenu(null); }}><Icon name="play" size={13}/>Activate</button>}
-                        <button className="nav-item" onClick={() => { toast('Restart action not implemented', 'info'); setMenu(null); }}><Icon name="refresh" size={13}/>Restart</button>
-                        <div style={{ height: 1, background: 'var(--line)', margin: '4px 0' }}/>
-                        <button className="nav-item" style={{ color: 'var(--bad)' }} onClick={() => { openModal('terminate', { vm: v }); setMenu(null); }}><Icon name="trash" size={13}/>Terminate</button>
+                        <button className="nav-item" onClick={() => { openVM(v.id); setMenu(null); }}><Icon name="eye" size={13} />View details</button>
+                        {v.status === 'Active' ? (
+                          <>
+                            <button className="nav-item" onClick={() => { updateVM(v.id, { status: 'Suspended' as any }); setMenu(null); toast(`VM ${v.hostname} suspended`, 'warn'); }}><Icon name="pause" size={13} />Suspend</button>
+                            <button className="nav-item" onClick={() => { openModal('terminate', { vm: v }); setMenu(null); }}><Icon name="trash" size={13} />Terminate</button>
+                          </>
+                        ) : (
+                          <button className="nav-item" onClick={() => { updateVM(v.id, { status: 'Active' as any }); setMenu(null); toast(`VM ${v.hostname} activated`, 'ok'); }}><Icon name="play" size={13} />Activate</button>
+                        )}
+                        <div style={{ height: 1, background: 'var(--line)', margin: '4px 0' }} />
+                        <button className="nav-item" style={{ color: 'var(--bad)' }} onClick={() => { openModal('delete', { vm: v }); setMenu(null); }}><Icon name="x" size={13} />Delete</button>
                       </div>
                     )}
                   </td>

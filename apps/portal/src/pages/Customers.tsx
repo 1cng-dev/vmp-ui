@@ -35,6 +35,29 @@ const CustomersView: React.FC<CustomersViewProps> = ({ openCust, openModal }) =>
     return [c.id, c.name, c.org_name, c.email, c.phone].join(' ').toLowerCase().includes(search.toLowerCase())
   })
 
+  const handleExport = () => {
+    const headers = ['Name', 'Company', 'Email', 'Phone', 'KYC Status', 'Status', 'Legacy ID', 'Created At']
+    const rows = filtered.map(c => [c.name, c.org_name, c.email, c.phone, c.kyc_status, c.status, c.legacy_id, c.created_at])
+    
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n')
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    
+    link.setAttribute('href', url)
+    link.setAttribute('download', `customers-${new Date().toISOString().split('T')[0]}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    toast(`Exported ${filtered.length} customers to CSV`, 'ok')
+  }
+
   useEffect(() => {
     const close = () => setMenu(null)
     if (menu) { window.addEventListener('click', close); return () => window.removeEventListener('click', close) }
@@ -55,8 +78,7 @@ const CustomersView: React.FC<CustomersViewProps> = ({ openCust, openModal }) =>
           <p className="page-subtitle">{customers.length} accounts · {customers.filter(c => c.kyc_status === 'Pending').length} pending KYC</p>
         </div>
         <div className="page-actions">
-          <button className="btn" onClick={() => toast('Customers CSV download started', 'info')}><Icon name="download" size={13} />Export</button>
-          <button className="btn primary" onClick={() => openModal('newcust')}><Icon name="plus" size={13} />New customer</button>
+          <button className="btn" onClick={handleExport}><Icon name="download" size={13} />Export</button>
         </div>
       </div>
 

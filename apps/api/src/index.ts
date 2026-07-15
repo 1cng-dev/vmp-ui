@@ -14,6 +14,7 @@ import authRouter     from './routes/auth.js';
 import vmRouter       from './routes/vms.js';
 import consoleRouter, { attachVNCProxy } from './routes/console.js';
 import customerRouter from './routes/customer.js';
+import invoicesRouter from './routes/invoices.js';
 import { initSocketServer } from './websocket/index.js';
 
 const app    = express();
@@ -41,6 +42,7 @@ app.use('/auth',    authRouter);
 app.use('/vms',     vmRouter);
 app.use('/console', consoleRouter);
 app.use('/customer', customerRouter);
+app.use('/invoices', invoicesRouter);
 
 // ── 404 catch-all ────────────────────────────────────────────────────────
 app.use((_req, res) => {

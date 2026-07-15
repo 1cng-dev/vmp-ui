@@ -59,9 +59,6 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ openModa
           <h1 className="page-title">Support tickets</h1>
           <p className="page-subtitle">{tickets.length} total · Manage customer support requests</p>
         </div>
-        <div className="page-actions">
-          <button className="btn primary" onClick={() => setShowNew(true)}><Icon name="plus" size={13}/>New ticket</button>
-        </div>
       </div>
 
       <div className="grid-4 mb-4">
@@ -129,7 +126,7 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ openModa
                   <th>Status</th>
                   <th>Replies</th>
                   <th>Updated</th>
-                  <th></th>
+                  <th style={{ width: 20 }}></th>
                 </tr>
               </thead>
               <tbody>
@@ -145,8 +142,8 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ openModa
                         <div className="fw-6">{t.subject}</div>
                       </td>
                       <td>
-                        <div className="fw-6 text-sm">{customer?.org_name || customer?.name || 'Unknown'}</div>
-                        <div className="text-xs text-mute">{customer?.name}</div>
+                        <div className="fw-6 text-sm">{customer?.org_name ? customer.org_name : customer?.name || 'Unknown'}</div>
+                        {customer?.org_name && <div className="text-xs text-mute">{customer?.name}</div>}
                       </td>
                       <td>
                         <span className={`pill ${t.priority === 'Urgent' ? 'bad' : t.priority === 'Low' ? 'subtle' : 'warn'}`} style={{ fontSize: 10 }}>
@@ -166,9 +163,7 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ openModa
                       </td>
                       <td className="tnum">{(t.replies || []).length}</td>
                       <td className="tnum text-xs text-mute">{new Date(t.updated_at).toLocaleDateString()}</td>
-                      <td className="right" onClick={e => e.stopPropagation()}>
-                        <button className="btn sm">View</button>
-                      </td>
+                      <td></td>
                     </tr>
                   )
                 })}

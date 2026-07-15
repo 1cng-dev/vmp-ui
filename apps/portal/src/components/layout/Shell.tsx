@@ -5,6 +5,8 @@ import { useAuth } from '../auth/Auth'
 import { useCustomerStore } from '../../store/customerStore'
 import { useVMRequestStore } from '../../store/vmRequestStore'
 import useTicketStore from '../../store/ticketStore'
+import { useAlertStore } from '../../store/alertStore'
+import useInvoiceStore from '../../store/invoiceStore'
 
 interface NavItem {
   section?: string
@@ -40,9 +42,37 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
   const { customers, loadCustomers, subscribeToCustomers } = useCustomerStore()
   const { vmRequests } = useVMRequestStore()
   const { tickets } = useTicketStore()
+  const { alerts } = useAlertStore()
+  const { invoices, loadInvoices } = useInvoiceStore()
   const pendingKycCount = customers.filter((c: any) => c.kyc_status === 'Pending').length
-  const pendingRequestsCount = vmRequests.filter((r: any) => r.status === 'Pending').length
   const openTicketsCount = tickets.filter((t: any) => t.status === 'Open').length
+  const unreadAlertsCount = alerts.filter((a: any) => !a.read).length
+  const customerTransferredInvoicesCount = invoices.filter((i: any) => i.status === 'Customer Transferred').length
+
+  React.useEffect(() => {
+    loadCustomers()
+    loadInvoices()
+  }, [loadCustomers, loadInvoices])
+
+  // Calculate request counts based on role and status
+  const getRequestCountForRole = () => {
+    if (role === 'Sales') {
+      // Sales sees pending requests
+      return vmRequests.filter((r: any) => r.status === 'Pending').length
+    } else if (role === 'Engineer') {
+      // Engineer sees Provisioning requests
+      return vmRequests.filter((r: any) => r.status === 'Provisioning').length
+    } else if (role === 'Finance') {
+      // Finance sees Approved requests
+      return vmRequests.filter((r: any) => r.status === 'Approved').length
+    } else if (role === 'Admin') {
+      // Admin sees all requests
+      return vmRequests.length
+    }
+    return 0
+  }
+
+  const pendingRequestsCount = getRequestCountForRole()
 
   React.useEffect(() => {
     loadCustomers()
@@ -51,7 +81,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
   const NAV: NavItem[] = [
     { section: 'Overview' },
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
-    { id: 'alerts', label: 'Notifications', icon: 'bell', badge: 3 },
+    { id: 'alerts', label: 'Notifications', icon: 'bell', badge: unreadAlertsCount > 0 ? unreadAlertsCount : undefined },
     { id: 'calendar', label: 'Calendar', icon: 'clock' },
     { id: 'activity', label: 'Activity log', icon: 'activity' },
     { section: 'Operations' },
@@ -70,7 +100,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
     { section: 'Customers' },
     { id: 'customers', label: 'Customers', icon: 'users' },
     { id: 'customer-accounts', label: 'Account management', icon: 'shield' },
-    { id: 'kyc', label: 'KYC review', icon: 'shield', badge: pendingKycCount ?? 0 },
+    { id: 'kyc', label: 'KYC review', icon: 'shield', badge: pendingKycCount > 0 ? pendingKycCount : undefined },
     { id: 'tickets', label: 'Support tickets', icon: 'mail', badge: openTicketsCount > 0 ? openTicketsCount : undefined },
     { section: 'Sales' },
     { id: 'pipeline', label: 'Pipeline', icon: 'tasks' },
@@ -79,12 +109,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
     { id: 'trials', label: 'Trial conversions', icon: 'box' },
     { section: 'Finance' },
     { id: 'quote-review', label: 'Quote Review', icon: 'file' },
-    { id: 'finance', label: 'Invoices', icon: 'invoice' },
+    { id: 'finance', label: 'Invoices', icon: 'invoice', badge: customerTransferredInvoicesCount > 0 ? customerTransferredInvoicesCount : undefined },
+    { id: 'receipts', label: 'Receipts', icon: 'check' },
     { id: 'reports', label: 'Reports', icon: 'box' },
     { id: 'aging', label: 'Aging receivables', icon: 'clock' },
-    { id: 'reconciliation', label: 'Reconciliation', icon: 'check' },
-    { id: 'recurring', label: 'Recurring billing', icon: 'refresh' },
-    { id: 'tax', label: 'Tax / VAT', icon: 'file' },
+    // { id: 'reconciliation', label: 'Reconciliation', icon: 'check' },
+    // { id: 'recurring', label: 'Recurring billing', icon: 'refresh' },
+    // { id: 'tax', label: 'Tax / VAT', icon: 'file' },
     { section: 'Admin' },
     { id: 'team', label: 'Team & roles', icon: 'lock' },
     { id: 'settings', label: 'System settings', icon: 'settings' },
@@ -95,11 +126,24 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
     { id: 'backups', label: 'Backup center', icon: 'database' },
   ]
 
-  React.useEffect(() => {
-    loadCustomers()
-    const unsubscribe = subscribeToCustomers()
-    return unsubscribe
-  }, [loadCustomers, subscribeToCustomers])
+  // Filter badges based on role - only show badges for items visible to the role
+  const getBadgeForRole = (itemId: string | undefined, badgeValue: number | undefined): number | undefined => {
+    if (!itemId || badgeValue === undefined) return undefined
+    
+    // Define which roles can see which badges
+    const badgeVisibility: Record<string, Set<string>> = {
+      'tasks': new Set(['Sales', 'Engineer', 'Finance', 'Admin']),
+      'kyc': new Set(['Sales', 'Admin']),
+      'tickets': new Set(['Sales', 'Engineer', 'Finance', 'Admin']),
+      'finance': new Set(['Finance', 'Admin']),
+    }
+    
+    const allowedRoles = badgeVisibility[itemId]
+    if (!allowedRoles || allowedRoles.has(role)) {
+      return badgeValue
+    }
+    return undefined
+  }
 
 
   const auth = useAuth()
@@ -113,9 +157,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
   ] : NAV).filter(it => it.section || (it.id && !HIDDEN.has(it.id)))
 
   const allowedFor: Record<string, Set<string> | null> = {
-    'Sales': new Set(['dashboard', 'alerts', 'calendar', 'activity', 'vms', 'tasks', 'addons', 'customers', 'customer-accounts', 'kyc', 'quotes']),
+    'Sales': new Set(['dashboard', 'alerts', 'calendar', 'activity', 'vms', 'tasks', 'addons', 'customers', 'customer-accounts', 'kyc', 'quotes', 'finance', 'receipts']),
     'Engineer': new Set(['dashboard', 'alerts', 'calendar', 'activity', 'vms', 'tasks', 'addons', 'network', 'console', 'nodes', 'topology', 'snapshots', 'maintenance', 'patches', 'firewall']),
-    'Finance': new Set(['dashboard', 'alerts', 'calendar', 'vms', 'tasks', 'finance', 'quote-review', 'reports', 'customers', 'customer-accounts', 'aging', 'reconciliation', 'recurring', 'tax']),
+    'Finance': new Set(['dashboard', 'alerts', 'calendar', 'vms', 'tasks', 'finance', 'receipts', 'quote-review', 'reports', 'customers', 'customer-accounts', 'aging']),
     'Admin': null,
   }
   const allow = allowedFor[role]
@@ -145,7 +189,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
               onClick={() => it.id && setView(it.id)}>
               <Icon name={it.icon || 'server'} className="nav-icon" />
               <span>{it.label}</span>
-              {it.badge !== undefined && <span className="nav-badge">{it.badge}</span>}            </button>
+              {getBadgeForRole(it.id, it.badge) !== undefined && <span className="nav-badge">{getBadgeForRole(it.id, it.badge)}</span>}            </button>
           )
         })}
       </nav>

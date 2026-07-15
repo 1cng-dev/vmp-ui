@@ -187,11 +187,14 @@ export const TicketProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         .eq('id', id)
       
       if (error) throw error
+      
+      // Reload tickets after deletion to update UI
+      await loadTickets()
     } catch (error) {
       console.error('Error deleting ticket:', error)
       throw error
     }
-  }, [])
+  }, [loadTickets])
 
   const value: TicketStoreValue = {
     tickets,

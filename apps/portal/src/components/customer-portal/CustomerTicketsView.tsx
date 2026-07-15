@@ -34,9 +34,26 @@ export const CustomerTicketsView: React.FC<CustomerTicketsViewProps> = ({ me, se
   }))
 
   let list = filter === 'all' ? myTickets : myTickets.filter((t: any) => t.status === filter)
-  list = [...list].sort((a: any, b: any) => sort === 'updated'
-    ? b.updated_at.localeCompare(a.updated_at)
-    : a.priority === 'Urgent' ? -1 : 1)
+  
+  // Priority order: Urgent > High > Normal > Low
+  const priorityOrder: Record<string, number> = {
+    'Urgent': 0,
+    'High': 1,
+    'Normal': 2,
+    'Low': 3
+  }
+  
+  list = [...list].sort((a: any, b: any) => {
+    if (sort === 'updated') {
+      const aDate = a.updated_at || a.created_at || ''
+      const bDate = b.updated_at || b.created_at || ''
+      return bDate.localeCompare(aDate)
+    } else {
+      const aPriority = priorityOrder[a.priority] ?? 2
+      const bPriority = priorityOrder[b.priority] ?? 2
+      return aPriority - bPriority
+    }
+  })
 
   return (
     <div className="content" style={{ animation: 'fadeIn 0.3s ease-out' }}>
@@ -50,41 +67,15 @@ export const CustomerTicketsView: React.FC<CustomerTicketsViewProps> = ({ me, se
         </div>
       </div>
 
-      {/* Stat cards — IaaS style */}
+      {/* Stat cards */}
       <div className="grid-4 mb-4">
-        {stats.map((s: any) => {
-          const active = filter === s.status
-          return (
-            <button
-              key={s.status}
-              onClick={() => setFilter(filter === s.status ? 'all' : s.status)}
-              style={{
-                textAlign: 'left',
-                padding: 16,
-                background: active ? s.bg : 'var(--surface)',
-                border: '1.5px solid',
-                borderColor: active ? s.color : 'var(--line)',
-                borderRadius: 12,
-                cursor: 'pointer',
-                fontFamily: 'inherit', color: 'var(--ink)',
-                transition: 'border-color 0.15s, background 0.15s, transform 0.1s',
-                boxShadow: active ? `0 0 0 3px ${s.bg}` : 'none',
-              }}
-            >
-              <div className="flex center between mb-2">
-                <div style={{
-                  width: 32, height: 32, borderRadius: 8,
-                  background: `${s.color}1a`, color: s.color,
-                  display: 'grid', placeItems: 'center',
-                }}><Icon name={s.icon} size={14}/></div>
-                {active && <Icon name="check" size={14} style={{ color: s.color }}/>}
-              </div>
-              <div className="tnum fw-7" style={{ fontSize: 24, lineHeight: 1.1 }}>{s.count}</div>
-              <div className="fw-6 text-sm mt-1" style={{ color: s.color }}>{s.status}</div>
-              <div className="text-xs text-mute mt-1">{s.desc}</div>
-            </button>
-          )
-        })}
+        {stats.map((s: any) => (
+          <div key={s.status} className="metric">
+            <div className="label">{s.status}</div>
+            <div className="value tnum">{s.count}</div>
+            <div className="trend">{s.desc}</div>
+          </div>
+        ))}
       </div>
 
       {showNew && (
@@ -131,7 +122,7 @@ export const CustomerTicketsView: React.FC<CustomerTicketsViewProps> = ({ me, se
                   <th>Status</th>
                   <th>Replies</th>
                   <th>Updated</th>
-                  <th></th>
+                  <th style={{ width: 20 }}></th>
                 </tr>
               </thead>
               <tbody>
@@ -163,9 +154,7 @@ export const CustomerTicketsView: React.FC<CustomerTicketsViewProps> = ({ me, se
                       </td>
                       <td className="tnum">{(t.replies || []).length}</td>
                       <td className="tnum text-xs text-mute">{new Date(t.updated_at).toLocaleDateString()}</td>
-                      <td className="right" onClick={e => e.stopPropagation()}>
-                        <button className="btn sm">View</button>
-                      </td>
+                      <td className="right"><Icon name="chevron-right" size={12} className="text-mute"/></td>
                     </tr>
                   )
                 })}

@@ -18,13 +18,13 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => {
   const { customers } = useCustomerStore()
-  const { vms } = useVMStore()
-  const { invoices } = useInvoiceStore()
+  const { vms, loadVMs } = useVMStore()
+  const { invoices, loadInvoices } = useInvoiceStore()
   const { activity } = useActivityStore()
   const { tasks } = useTaskStore()
   const { tickets } = useTicketStore()
   const auth = useAuth()
-  const { team, loadTeam } = useTeamStore()
+  const { loadTeam } = useTeamStore()
   const TODAY = new Date()
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
@@ -35,23 +35,77 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
     const d = Math.ceil((new Date(v.expiry).getTime() - TODAY.getTime()) / 86400000)
     return d >= 0 && d <= 7
   })
+  const expiredVMs = vms.filter(v => {
+    if (!v.expiry || v.expiry === '—') return false
+    const d = Math.ceil((new Date(v.expiry).getTime() - TODAY.getTime()) / 86400000)
+    return d < 0
+  })
   const overdue = invoices.filter(i => i.status === 'Overdue').length
+  const paymentReceived = invoices.filter(i => i.status === 'Payment Received').length
   const pendingKYC = customers.filter(c => (c as any).kyc === 'Pending').length
-  const mrr = vms.filter(v => v.status === 'Active').reduce((a, v) => a + (v as any).priceMonth, 0)
-  const overdueValue = invoices.filter(i => i.status === 'Overdue').reduce((a, i) => a + i.amount, 0)
+  // Calculate MRR from invoices in current month
+  const currentMonth = TODAY.getMonth()
+  const currentYear = TODAY.getFullYear()
+  const mrr = invoices.filter(i => {
+    if (!i.invoice_date) return false
+    const invDate = new Date(i.invoice_date)
+    return invDate.getMonth() === currentMonth && invDate.getFullYear() === currentYear && i.status === 'Payment Received'
+  }).reduce((sum, i) => {
+    const grossAmount = typeof i.gross_amount === 'string' ? parseFloat(i.gross_amount) : (i.gross_amount || 0)
+    const amount = typeof i.amount === 'string' ? parseFloat(i.amount) : (i.amount || 0)
+    return sum + (grossAmount || amount || 0)
+  }, 0)
+  const overdueValue = invoices.filter(i => i.status === 'Overdue').reduce((a, i) => a + (typeof i.amount === 'string' ? parseFloat(i.amount) : (i.amount || 0)), 0)
   const pendingTasks = tasks.filter(t => t.status === 'Pending').length
   const openTickets = tickets.filter(t => t.status === 'Open').length
 
+  // Calculate weekly VM growth
+  const oneWeekAgo = new Date(TODAY.getTime() - 7 * 86400000)
+  const twoWeeksAgo = new Date(TODAY.getTime() - 14 * 86400000)
+  const vmsThisWeek = vms.filter(v => v.created_at && new Date(v.created_at) >= oneWeekAgo).length
+  const vmsLastWeek = vms.filter(v => v.created_at && new Date(v.created_at) >= twoWeeksAgo && new Date(v.created_at) < oneWeekAgo).length
+  const weeklyGrowth = vmsThisWeek - vmsLastWeek
+
+  // Calculate monthly MRR growth
+  const lastMonthDate = new Date(TODAY.getFullYear(), TODAY.getMonth() - 1, 1)
+  const mrrLastMonth = invoices.filter(i => {
+    if (!i.invoice_date) return false
+    const invDate = new Date(i.invoice_date)
+    return invDate.getMonth() === lastMonthDate.getMonth() && invDate.getFullYear() === lastMonthDate.getFullYear() && i.status === 'Payment Received'
+  }).reduce((sum, i) => {
+    const grossAmount = typeof i.gross_amount === 'string' ? parseFloat(i.gross_amount) : (i.gross_amount || 0)
+    const amount = typeof i.amount === 'string' ? parseFloat(i.amount) : (i.amount || 0)
+    return sum + (grossAmount || amount || 0)
+  }, 0)
+  const mrrGrowth = mrrLastMonth > 0 ? ((mrr - mrrLastMonth) / mrrLastMonth) * 100 : 0
+
   const statusDonut = [
     { label: 'Active', value: vms.filter(v => v.status === 'Active').length, color: 'oklch(0.62 0.13 155)' },
-    { label: 'Pending', value: vms.filter(v => v.status === 'Pending').length, color: 'oklch(0.72 0.14 75)' },
     { label: 'Suspended', value: vms.filter(v => v.status === 'Suspended').length, color: 'oklch(0.6 0.18 25)' },
-    { label: 'Expired', value: vms.filter(v => v.status === 'Expired').length, color: 'oklch(0.55 0.01 80)' },
+    { label: 'Terminated', value: vms.filter(v => v.status === 'Terminated').length, color: 'oklch(0.55 0.01 80)' },
   ]
 
   useEffect(() => {
     loadTeam()
-  }, [loadTeam])
+    loadVMs()
+    loadInvoices()
+  }, [loadTeam, loadVMs, loadInvoices])
+
+  // Check VM expiry and create notifications
+  useEffect(() => {
+    const checkVMExpiry = async () => {
+      for (const vm of vms) {
+        if (!vm.expiry || vm.expiry === '—' || vm.status !== 'Active') continue
+        
+        // Only create alerts for key expiry dates via vmExpiryService, not here
+        // This prevents duplicate alerts since vmExpiryService handles this
+      }
+    }
+    
+    if (vms.length > 0) {
+      checkVMExpiry()
+    }
+  }, [vms])
 
   return (
     <div className="content">
@@ -60,7 +114,6 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
           <h1 className="page-title">{greeting}, {auth?.user?.name || auth?.user?.email?.split('@')[0] || 'User'}</h1>
           <p className="page-subtitle">{new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} — here's what needs attention today.</p>        </div>
         <div className="page-actions">
-          <button className="btn"><Icon name="download" size={13} />Export</button>
           <button className="btn primary" onClick={() => openModal('newvm')}><Icon name="plus" size={13} />New VM</button>
         </div>
       </div>
@@ -69,7 +122,7 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
         <div className="metric">
           <div className="label"><Icon name="server" size={13} /> Active VMs</div>
           <div className="value tnum">{activeVMs}</div>
-          <div className="trend"><span className="up">+3</span> this week · {vms.length} total</div>
+          <div className="trend">{weeklyGrowth > 0 ? <span className="up">+{weeklyGrowth}</span> : weeklyGrowth < 0 ? <span className="down">{weeklyGrowth}</span> : '0'} this week · {vms.length} total</div>
         </div>
         <div className="metric">
           <div className="label"><Icon name="clock" size={13} /> Expiring ≤ 7 days</div>
@@ -84,7 +137,7 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
         <div className="metric">
           <div className="label"><Icon name="arrow-up" size={13} /> Monthly recurring</div>
           <div className="value tnum">MMK {formatMMK(mrr)}</div>
-          <div className="trend"><span className="up">+8.4%</span> vs last month</div>
+          <div className="trend">{mrrGrowth > 0 ? <span className="up">+{mrrGrowth.toFixed(1)}%</span> : mrrGrowth < 0 ? <span className="down">{mrrGrowth.toFixed(1)}%</span> : '0%'} vs last month</div>
         </div>
       </div>
 
@@ -106,15 +159,15 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
               </thead>
               <tbody>
                 {expiringSoon.slice(0, 6).map(v => {
-                  const c = customers.find(c => c.id === v.customer)
+                  const c = customers.find(c => c.id === (v as any).customer_id)
                   return (
                     <tr key={v.id} onClick={() => openVM(v.id)}>
                       <td>
-                        <div className="fw-6">{v.name}</div>
-                        <div className="text-xs text-mute mono">{v.id}</div>
+                        <div className="fw-6">{(v as any).hostname || v.id}</div>
+                        <div className="text-xs text-mute mono">{(v as any).legacy_id || v.id}</div>
                       </td>
-                      <td>{c?.company}</td>
-                      <td><ExpiryCell date={v.expiry} /></td>
+                      <td>{c?.name}{c?.org_name || c?.company ? ` (${c?.org_name || c?.company})` : ''}</td>
+                      <td><ExpiryCell date={v.expiry || ''} /></td>
                       <td><StatusPill status={v.status} /></td>
                       <td className="right" onClick={e => e.stopPropagation()}>
                         <button className="btn sm" onClick={() => openModal('renew', { vm: v })}>Renew</button>
@@ -135,15 +188,24 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
             </div>
             <div className="card-body">
               <div className="flex center gap-4">
-                <div style={{ position: 'relative' }}>
-                  <Donut segments={statusDonut} size={120} thickness={16} />
-                  <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', textAlign: 'center' }}>
-                    <div>
+                {vms.length > 0 ? (
+                  <div style={{ position: 'relative' }}>
+                    <Donut segments={statusDonut} size={120} thickness={16} />
+                    <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', textAlign: 'center' }}>
+                      <div>
+                        <div className="tnum" style={{ fontSize: 22, fontWeight: 700, lineHeight: 1 }}>{vms.length}</div>
+                        <div className="text-xs text-mute">total</div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ position: 'relative', width: 120, height: 120, display: 'grid', placeItems: 'center' }}>
+                    <div style={{ textAlign: 'center' }}>
                       <div className="tnum" style={{ fontSize: 22, fontWeight: 700, lineHeight: 1 }}>{vms.length}</div>
                       <div className="text-xs text-mute">total</div>
                     </div>
                   </div>
-                </div>
+                )}
                 <div className="flex col" style={{ gap: 8, flex: 1 }}>
                   {statusDonut.map(s => (
                     <div key={s.label} className="flex center between">
@@ -189,6 +251,16 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
                   <button className="btn sm" onClick={() => setView('finance')}>View</button>
                 </div>
               )}
+              {paymentReceived > 0 && (
+                <div className="feed-item" style={{ padding: '12px 18px' }}>
+                  <span className="dot ok" />
+                  <div className="body">
+                    <span className="fw-6">{paymentReceived} payment{paymentReceived > 1 ? 's' : ''} received</span>
+                    <div className="meta">Receipts pending to send</div>
+                  </div>
+                  <button className="btn sm" onClick={() => setView('finance')}>Send receipts</button>
+                </div>
+              )}
               {openTickets > 0 && (
                 <div className="feed-item" style={{ padding: '12px 18px' }}>
                   <span className="dot support" />
@@ -210,30 +282,40 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
         <div className="card">
           <div className="card-head">
             <div>
-              <h2 className="card-title">Revenue · last 12 months</h2>
-              <div className="card-sub">Monthly recurring + new sales · MMK millions</div>
+              <h2 className="card-title" style={{ color: 'var(--bad)' }}>Expired VMs</h2>
+              <div className="card-sub">VMs that have passed their expiry date</div>
             </div>
-            <div className="flex gap-2">
-              <span className="pill accent"><span className="dot"></span>MRR</span>
-              <span className="pill"><span className="dot"></span>New sales</span>
-            </div>
+            <button className="btn sm" onClick={() => setView('vms')}>View all<Icon name="chevron-right" size={12} /></button>
           </div>
-          <div className="card-body">
-            <div className="flex" style={{ alignItems: 'flex-end', gap: 6, height: 180 }}>
-              {[6.2, 6.8, 7.1, 7.4, 7.8, 8.2, 8.5, 9.1, 9.3, 9.8, 10.4, 11.2].map((mrrV, i) => {
-                const newSales = [1.2, 1.4, 0.8, 1.9, 1.1, 2.4, 1.6, 2.1, 1.8, 2.8, 1.5, 3.1][i]
-                const maxH = 12
-                return (
-                  <div key={i} className="flex col gap-1" style={{ flex: 1, alignItems: 'center' }}>
-                    <div className="flex" style={{ width: '100%', alignItems: 'flex-end', height: '100%', gap: 2 }}>
-                      <div style={{ flex: 1, height: `${(mrrV / maxH) * 100}%`, background: 'var(--accent)', borderRadius: '3px 3px 0 0' }} />
-                      <div style={{ flex: 1, height: `${(newSales / maxH) * 100}%`, background: 'var(--accent-soft)', borderRadius: '3px 3px 0 0' }} />
-                    </div>
-                    <div className="text-xs text-mute-2">{['J', 'J', 'A', 'S', 'O', 'N', 'D', 'J', 'F', 'M', 'A', 'M'][i]}</div>
-                  </div>
-                )
-              })}
-            </div>
+          <div className="card-body flush">
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th>VM</th><th>Customer</th><th>Expired</th><th>Status</th><th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {expiredVMs.slice(0, 6).map(v => {
+                  const c = customers.find(c => c.id === (v as any).customer_id)
+                  const daysExpired = v.expiry ? Math.ceil((new Date(v.expiry).getTime() - TODAY.getTime()) / 86400000) : 0
+                  return (
+                    <tr key={v.id} onClick={() => openVM(v.id)}>
+                      <td>
+                        <div className="fw-6">{(v as any).hostname || v.id}</div>
+                        <div className="text-xs text-mute mono">{(v as any).legacy_id || v.id}</div>
+                      </td>
+                      <td>{c?.name}{c?.org_name || c?.company ? ` (${c?.org_name || c?.company})` : ''}</td>
+                      <td><div className="text-sm" style={{ color: 'var(--bad)' }}>{Math.abs(daysExpired)} days ago</div></td>
+                      <td><StatusPill status={v.status} /></td>
+                      <td className="right" onClick={e => e.stopPropagation()}>
+                        <button className="btn sm" onClick={() => openModal('renew', { vm: v })}>Renew</button>
+                      </td>
+                    </tr>
+                  )
+                })}
+                {expiredVMs.length === 0 && <tr><td colSpan={5}><div className="empty"><div className="title">No expired VMs</div><div className="sub">All VMs are within their expiry period.</div></div></td></tr>}
+              </tbody>
+            </table>
           </div>
         </div>
         <div className="card">

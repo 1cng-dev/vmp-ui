@@ -1,6 +1,7 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import Icon from '../../lib/icons'
 import { StatusPill } from '../ui/ui'
+import { supabase } from '../../lib/supabase'
 
 interface CustomerAddonRequestDetailProps {
   request: any
@@ -9,6 +10,26 @@ interface CustomerAddonRequestDetailProps {
 
 export const CustomerAddonRequestDetail: React.FC<CustomerAddonRequestDetailProps> = ({ request, onClose }) => {
   const t = request
+  const [vmData, setVmData] = useState<any>(null)
+
+  useEffect(() => {
+    const fetchVmData = async () => {
+      if (t.vm_id) {
+        // Fetch VM to get legacy_id and hostname
+        const { data: vm } = await supabase
+          .from('vms')
+          .select('legacy_id, hostname, vm_request_id')
+          .eq('id', t.vm_id)
+          .single()
+
+        if (vm) {
+          setVmData(vm)
+        }
+      }
+    }
+
+    fetchVmData()
+  }, [t.vm_id])
 
   const timeline = [
     { ts: t.created_at, who: 'You', event: 'Add-on request submitted', kind: 'customer' },
@@ -52,8 +73,8 @@ export const CustomerAddonRequestDetail: React.FC<CustomerAddonRequestDetailProp
                     <dd className="mono">Cloud Container Image Service - {t.ccis_package || 'standard'}</dd>
                   </>
                 )}
-                <dt>Duration</dt><dd className="mono">{t.duration ? `${t.duration} month${t.duration > 1 ? 's' : ''}` : 'N/A'}</dd>
-                <dt>VM ID</dt><dd className="mono">{t.vm_id}</dd>
+                <dt>Billing Term</dt><dd className="mono">{t.duration ? (t.duration === 1 ? 'Monthly' : t.duration === 3 ? 'Quarterly' : t.duration === 6 ? 'Half Yearly' : t.duration === 12 ? 'Yearly' : `${t.duration} month${t.duration > 1 ? 's' : ''}`) : 'N/A'}</dd>
+                <dt>VM</dt><dd className="mono">{vmData ? `${vmData.legacy_id || vmData.id} · ${vmData.hostname}` : 'Loading...'}</dd>
                 <dt>Notes</dt><dd className="mono">{t.notes || 'No notes'}</dd>
               </dl>
             </div>

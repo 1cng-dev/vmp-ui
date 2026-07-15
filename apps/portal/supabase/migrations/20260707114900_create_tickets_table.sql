@@ -61,6 +61,11 @@ CREATE POLICY "Customers can update their own tickets"
   USING (customer_id = auth.uid())
   WITH CHECK (customer_id = auth.uid());
 
+CREATE POLICY "Customers can delete their own tickets"
+  ON public.tickets FOR DELETE
+  TO authenticated
+  USING (customer_id = auth.uid());
+
 -- Trigger for updated_at
 CREATE OR REPLACE FUNCTION update_tickets_updated_at()
 RETURNS TRIGGER AS $$

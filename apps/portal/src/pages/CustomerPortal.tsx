@@ -4,13 +4,17 @@
 // Components extracted to components/customer-portal folder
 
 import React, { useState, useEffect } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import useCustomerStore from '../store/customerStore'
 import useVMStore from '../store/vmStore'
 import useInvoiceStore from '../store/invoiceStore'
 import useTicketStore from '../store/ticketStore'
 import useTaskStore from '../store/taskStore'
 import useUIStore from '../store/uiStore'
+import { useVMRequestStore } from '../store/vmRequestStore'
+import { useAddonRequestStore } from '../store/addonRequestStore'
 import Icon from '../lib/icons'
+import { supabase } from '../lib/supabase'
 import { Avatar } from '../components/ui/ui'
 import { CustRenewModal } from '../components/modals/CustomerVMModals'
 import { useAuth } from '../components/auth/Auth'
@@ -28,8 +32,8 @@ import { CustomerAddonRequestDetail } from '../components/customer-portal/Custom
 import { CustomerAddonRequestsView } from '../components/customer-portal/CustomerAddonRequestsView'
 import { CustomerInvoiceDetail } from '../components/customer-portal/CustomerInvoiceDetail'
 import { AddonServicesView } from '../components/customer-portal/AddonServicesView'
+import { CustomerReceiptsView } from '../components/customer-portal/CustomerReceiptsView'
 import Toasts from '../components/common/Toasts'
-import { supabase } from '../lib/supabase'
 
 interface CustomerPortalProps {
   setRole?: (role: string) => void
@@ -39,15 +43,18 @@ interface CustomerPortalProps {
 export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRole, roleNames: _roleNames = {} }) => {
   const { customers, loadCustomers } = useCustomerStore()
   const { vms, loadVMs } = useVMStore()
-  const { invoices } = useInvoiceStore()
+  const { invoices, loadInvoices } = useInvoiceStore()
   const { tickets } = useTicketStore()
   const { addTask } = useTaskStore()
   const { toast } = useUIStore()
+  const { vmRequests } = useVMRequestStore()
+  const { addonRequests, loadAddonRequests } = useAddonRequestStore()
   const auth = useAuth()
-  const [view, setView] = useState(() => {
-  const saved = localStorage.getItem('customerPortalView')
-  return saved || 'dashboard'
-})
+  const location = useLocation()
+  const navigate = useNavigate()
+  
+  // Get view from URL parameter
+  const view = location.pathname === '/' ? 'dashboard' : location.pathname.slice(1)
 
   const [detailVm, setDetailVm] = useState<any>(null)
   const [openTicket, setOpenTicket] = useState<any>(null)
@@ -55,7 +62,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
   const [detailInvoice, setDetailInvoice] = useState<any>(null)
   const [renewVm, setRenewVm] = useState<any>(null)
 
-  // Load customers on mount and when auth changes
+  // Load data on mount and when auth changes
   useEffect(() => {
     loadCustomers()
   }, [loadCustomers])
@@ -64,14 +71,27 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
     if (auth?.user) {
       loadCustomers()
       loadVMs()
+      loadInvoices()
+      loadAddonRequests()
     }
-  }, [auth?.user, loadCustomers, loadVMs])
+  }, [auth?.user, loadCustomers, loadVMs, loadInvoices, loadAddonRequests])
 
+  // Realtime: refresh invoices automatically without manual refresh
   useEffect(() => {
-    if (view === 'vms') {
-      loadVMs()
+    const sub = supabase
+      .channel(`customer-invoices-${Date.now()}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, () => {
+        loadInvoices()
+      })
+      .subscribe()
+    return () => {
+      supabase.removeChannel(sub)
     }
-  }, [view, loadVMs])
+  }, [loadInvoices])
+
+  const handleSetView = (newView: string) => {
+    navigate(newView === 'dashboard' ? '/' : `/${newView}`)
+  }
 
   const authUserId = auth?.user?.id
   const meId = auth?.user?.customerId || authUserId
@@ -86,50 +106,32 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
   // Provide fallback object when me is null to avoid rendering errors
   const safeMe = me || { id: '', name: '', org_name: '', kyc_status: 'Pending', legacy_id: '' }
 
-  const [vmRequests, setVmRequests] = useState<any[]>([])
-  const [addonRequestsData, setAddonRequestsData] = useState<any[]>([])
-
-  useEffect(() => {
-    if (safeMe?.id) {
-      supabase
-        .from('vm_requests')
-        .select('*')
-        .eq('customer_id', safeMe.id)
-        .order('created_at', { ascending: false })
-        .then(({ data, error }) => {
-          if (error) {
-            console.error('Error fetching vm_requests:', error)
-          } else {
-            setVmRequests(data || [])
-          }
-        })
-    }
-  }, [safeMe?.id])
-
-  useEffect(() => {
-    if (safeMe?.id) {
-      supabase
-        .from('addon_requests')
-        .select('*')
-        .eq('customer_id', safeMe.id)
-        .order('created_at', { ascending: false })
-        .then(({ data, error }) => {
-          if (error) {
-            console.error('Error fetching addon_requests:', error)
-          } else {
-            setAddonRequestsData(data || [])
-          }
-        })
-    }
-  }, [safeMe?.id])
-
-  useEffect(() => {
-    localStorage.setItem('customerPortalView', view)
-  }, [view])
+  // Filter requests for current customer
+  console.log('Debug addon requests:', {
+    totalAddonRequests: addonRequests.length,
+    safeMeId: safeMe.id,
+    addonRequests: addonRequests.map(ar => ({
+      id: ar.id,
+      customer_id: ar.customer_id,
+      vm_id: ar.vm_id,
+      status: ar.status
+    }))
+  })
+  const myVMRequests = vmRequests.filter((r: any) => r.customer_id === safeMe.id)
+  const myAddonRequests = addonRequests.filter((r: any) => r.customer_id === safeMe.id)
+  console.log('Filtered addon requests:', {
+    myAddonRequestsCount: myAddonRequests.length,
+    myAddonRequests: myAddonRequests.map(ar => ({
+      id: ar.id,
+      customer_id: ar.customer_id,
+      vm_id: ar.vm_id,
+      status: ar.status
+    }))
+  })
 
   useEffect(() => {
     if (me && me.kyc_status !== 'Approved' && ['request', 'vms', 'requests', 'invoices'].includes(view)) {
-      setView('dashboard')
+      handleSetView('dashboard')
     }
   }, [me?.kyc_status, view, me])
 
@@ -149,17 +151,17 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
   }
   return true
 })
-  const myInvs = invoices.filter((i: any) => i.customer === safeMe.id)
+  const myInvs = invoices.filter((i: any) => i.customer === safeMe.id || i.customer_id === safeMe.id)
   const myTickets = tickets.filter((t: any) => t.customer_id === safeMe.id)
-  const myRequests = vmRequests
+  const myRequests = myVMRequests
 
   const expiringSoon = myVMs.filter((v: any) => {
     if (!v.expiry || v.expiry === '—') return false
     const d = (new Date(v.expiry).getTime() - new Date().getTime()) / 86400000
     return d >= 0 && d <= 14
   })
-  const openTickets = myTickets.filter((t: any) => t.status === 'Open' || t.status === 'In Progress')
-  const pendingInv = myInvs.filter((i: any) => i.status !== 'Payment Received')
+  const openTickets = myTickets.filter((t: any) => t.status === 'Pending')
+  const pendingInv = myInvs.filter((i: any) => i.status === 'Pending')
   const pendingRequests = myRequests.filter((r: any) => r.status === 'Pending')
 
   const items = [
@@ -170,6 +172,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
     { id: 'addon-requests', label: 'My add-on requests', icon: 'box', lockedByKyc: true },
     { id: 'addons', label: 'Add-on Services', icon: 'plus', lockedByKyc: true },
     { id: 'invoices', label: 'Invoices', icon: 'invoice', badge: pendingInv.length || null, lockedByKyc: true },
+    { id: 'receipts', label: 'Receipts', icon: 'check', lockedByKyc: true },
     { id: 'tickets', label: 'Support tickets', icon: 'mail', badge: openTickets.length || null },
   ]
 
@@ -205,7 +208,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
                 disabled={locked}
                 onClick={() => {
                   if (locked) return
-                  setView(it.id)
+                  handleSetView(it.id)
                   setDetailVm(null)
                   setOpenTicket(null)
                   setDetailRequest(null)
@@ -223,7 +226,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
             )
           })}
         </nav>
-        <div className="nav-user" style={{ cursor: 'pointer' }} onClick={() => setView('account')}>
+        <div className="nav-user" style={{ cursor: 'pointer' }} onClick={() => handleSetView('account')}>
           <Avatar name={safeMe.name} size={28} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="who">{safeMe.name}</div>
@@ -297,10 +300,8 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
           <div style={{ padding: '12px 28px', background: 'var(--warn-soft)', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 10 }}>
             <Icon name="alert" size={16} style={{ color: 'oklch(0.55 0.16 75)' }} />
             <div className="text-sm" style={{ color: 'oklch(0.4 0.13 75)' }}>
-              <span className="fw-6">{expiringSoon.length} VM{expiringSoon.length > 1 ? 's' : ''} expiring soon.</span> Renew now to avoid service interruption.
+              <span className="fw-6">{expiringSoon.map((v: any) => `${v.hostname}(${v.legacy_id})`).join(', ')} expiring soon.</span> Renew now to avoid service interruption.
             </div>
-            <div style={{ flex: 1 }} />
-            <button className="btn" onClick={() => setRenewVm(expiringSoon[0])}>Request renewal</button>
           </div>
         )}
 
@@ -316,12 +317,13 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
                 ? <CustomerInvoiceDetail invoice={detailInvoice} onClose={() => setDetailInvoice(null)} />
                 : (
                   <>
-                    {view === 'dashboard' && <CustomerDashboard me={safeMe} myVMs={myVMs} myInvs={myInvs} myTickets={myTickets} myRequests={myRequests} setView={setView} setDetailVm={setDetailVm} setOpenTicket={setOpenTicket} />}
-                    {view === 'request' && <CustomerRequestVMView me={safeMe} setView={setView} />}
+                    {view === 'dashboard' && <CustomerDashboard me={safeMe} myVMs={myVMs} myInvs={myInvs} myTickets={myTickets} myRequests={myRequests} setView={handleSetView} setDetailVm={setDetailVm} setOpenTicket={setOpenTicket} />}
+                    {view === 'request' && <CustomerRequestVMView me={safeMe} setView={handleSetView} />}
                     {view === 'vms' && <CustomerVMListView myVMs={myVMs} setDetailVm={setDetailVm} setRenewVm={setRenewVm} />}
                     {view === 'requests' && <CustomerRequestsView myRequests={myRequests} setDetailRequest={setDetailRequest} />}
-                    {view === 'addon-requests' && <CustomerAddonRequestsView myAddonRequests={addonRequestsData} setDetailRequest={(req) => { setDetailRequest({ ...req, requestType: 'addon' }) }} />}
+                    {view === 'addon-requests' && <CustomerAddonRequestsView myAddonRequests={myAddonRequests} setDetailRequest={(req) => { setDetailRequest({ ...req, requestType: 'addon' }) }} />}
                     {view === 'invoices' && <CustomerInvoicesView myInvs={myInvs} setDetailInvoice={setDetailInvoice} />}
+                    {view === 'receipts' && <CustomerReceiptsView me={safeMe} />}
                     {view === 'tickets' && <CustomerTicketsView me={safeMe} setOpenTicket={setOpenTicket} />}
                     {view === 'addons' && <AddonServicesView myVMs={myVMs} />}
                     {view === 'account' && <CustomerAccountView me={safeMe} />}

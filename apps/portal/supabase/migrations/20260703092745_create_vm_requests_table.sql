@@ -130,8 +130,30 @@ alter table public.vm_requests
 
 
 
--- Add billing_term field to vm_requests table
-ALTER TABLE public.vm_requests ADD COLUMN IF NOT EXISTS billing_term TEXT DEFAULT 'Monthly' CHECK (billing_term IN ('Monthly', 'Annual'));
+-- Remove monitoring and port_forwarding columns from vm_requests table
+-- These features are no longer needed for VM requests
 
--- Create index for billing_term queries
-CREATE INDEX IF NOT EXISTS idx_vm_requests_billing_term ON public.vm_requests(billing_term);
+-- Drop monitoring column
+ALTER TABLE public.vm_requests DROP COLUMN IF EXISTS monitoring;
+
+-- Drop port_forwarding column
+ALTER TABLE public.vm_requests DROP COLUMN IF EXISTS port_forwarding;
+
+
+-- Drop billing_term column from vm_requests table
+-- This column is no longer needed for VM requests
+ALTER TABLE public.vm_requests DROP COLUMN IF EXISTS billing_term;
+
+-- Drop index for billing_term queries
+DROP INDEX IF EXISTS idx_vm_requests_billing_term;
+
+-- Drop billing_term column from vms table
+-- This column is no longer needed for VMs
+ALTER TABLE public.vms DROP COLUMN IF EXISTS billing_term;
+
+-- Drop index for billing_term queries
+DROP INDEX IF EXISTS idx_vms_billing_term;
+
+
+ALTER TABLE vm_requests ADD COLUMN spec_changed BOOLEAN DEFAULT false;
+ALTER TABLE vm_requests ADD COLUMN backup_changed BOOLEAN DEFAULT false;

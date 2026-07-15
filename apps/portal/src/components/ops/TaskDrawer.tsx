@@ -24,9 +24,27 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
   const { createVMManually } = useTaskStore()
   const { addVM } = useVMStore()
   const { vmRequests, updateVMRequest } = useVMRequestStore()
-  const { updateAddonRequest } = useAddonRequestStore()
-  const [addonRequests, setAddonRequests] = useState<any[]>([])
+  const { addonRequests, updateAddonRequest } = useAddonRequestStore()
   const [showVMFormModal, setShowVMFormModal] = useState(false)
+  const [currentVMData, setCurrentVMData] = useState<any>(null)
+  const [addonVMData, setAddonVMData] = useState<any>(null)
+  const [salesData, setSalesData] = useState({
+    assignee: '—',
+    status: 'Pending',
+    salesNotes: '',
+    eta: '',
+    internalNotes: '',
+  })
+
+  // Computed variables - must be before useEffects
+  const t = vmRequests.find((x: any) => x.id === requestId)
+  const addonRequest = addonRequests.find((x: any) => x.id === requestId)
+  const request = t || addonRequest
+  const requestType = t ? 'vm' : 'addon'
+  const isUpgrade = requestType === 'vm' && (t?.task_type?.toLowerCase() === 'change-plan')
+  const isRenewal = requestType === 'vm' && (t?.task_type === 'Renewal' || t?.task_type === 'renewal')
+  const isSpecChange = t?.spec_changed || false
+  const isBackupChange = t?.backup_changed || false
 
   // Load customers if not loaded yet
   React.useEffect(() => {
@@ -35,31 +53,31 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
     }
   }, [customers.length, loadCustomers])
 
-  // Load addon requests
+
+
+  // Load current VM data for change-plan and renewal requests to show current backup status and VM legacy_id
   React.useEffect(() => {
-    const loadAddonRequests = async () => {
-      const { data, error } = await supabase.from('addon_requests').select('*')
-      if (!error && data) {
-        setAddonRequests(data)
+    const loadCurrentVMData = async () => {
+      if ((isUpgrade || isRenewal) && t) {
+        let vmId = (t as any).vm_id
+        // If no direct vm_id, try to find VM by hostname
+        if (!vmId && t.hostname) {
+          const { data: vmData } = await supabase.from('vms').select('*').eq('hostname', t.hostname).single()
+          if (vmData) {
+            setCurrentVMData(vmData)
+          }
+        } else if (vmId) {
+          const { data: vmData } = await supabase.from('vms').select('*').eq('id', vmId).single()
+          if (vmData) {
+            setCurrentVMData(vmData)
+          }
+        }
+      } else {
+        setCurrentVMData(null)
       }
     }
-    loadAddonRequests()
-  }, [])
-
-  const t = vmRequests.find((x: any) => x.id === requestId)
-  const addonRequest = addonRequests.find((x: any) => x.id === requestId)
-  const request = t || addonRequest
-  const requestType = t ? 'vm' : 'addon'
-  const isUpgrade = requestType === 'vm' && (t?.task_type?.toLowerCase() === 'change-plan')
-
-  // Initialize salesData with default values, will be updated after request is found
-  const [salesData, setSalesData] = useState({
-    assignee: '—',
-    status: 'Pending',
-    salesNotes: '',
-    eta: '',
-    internalNotes: '',
-  })
+    loadCurrentVMData()
+  }, [isUpgrade, isRenewal, t])
 
   // Update salesData when request is found
   React.useEffect(() => {
@@ -74,22 +92,28 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
     }
   }, [request, requestType, t])
 
+  // Load VM data for addon requests to show legacy_id and hostname
+  React.useEffect(() => {
+    const loadAddonVMData = async () => {
+      if (requestType === 'addon' && (request as any)?.vm_id) {
+        const { data: vmData } = await supabase
+          .from('vms')
+          .select('legacy_id, hostname, vm_request_id')
+          .eq('id', (request as any).vm_id)
+          .single()
+
+        if (vmData) {
+          setAddonVMData(vmData)
+        }
+      } else {
+        setAddonVMData(null)
+      }
+    }
+    loadAddonVMData()
+  }, [requestType, request])
+
   if (!request) return null
   const c = customers.find((cust: any) => cust.id === request.customer_id)
-
-  const save = () => {
-    if (requestType === 'vm') {
-      if (!t) return
-      updateVMRequest(t.id, {
-        status: salesData.status,
-        assigned_to: salesData.assignee !== '—' ? salesData.assignee : null,
-      })
-    } else {
-      const mapped = salesData.status === 'Provisioning' ? 'In Progress' : salesData.status
-      updateAddonRequest(request.id, { status: mapped as any })
-    }
-    toast(`${request.id} updated · customer notified`, 'ok')
-  }
 
   const WF_VM = [
     { label: 'Submitted', team: 'Customer', icon: 'mail', desc: 'Request received via portal' },
@@ -107,13 +131,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
   ]
 
   const WF_UPGRADE = WF_ADDON
-const isRenewal = requestType === 'vm' && (t?.task_type === 'Renewal' || t?.task_type === 'renewal')
   const isTrialConversion = t?.purpose?.includes('Convert trial to paid') || t?.notes?.includes('Trial to paid conversion')
-  
-  // Determine what was changed by checking notes
-  const specChanged = t?.notes?.includes('Change Plan from:')
-  const backupOnlyChange = t?.notes?.includes('Backup service') && !specChanged
-  const backupChanged = specChanged || backupOnlyChange
 
   const WF = isUpgrade || isRenewal ? WF_UPGRADE : (isTrialConversion ? WF_UPGRADE : (requestType === 'vm' ? WF_VM : WF_ADDON))
   const vmStatus = (t?.status as any) || 'Pending'
@@ -123,13 +141,27 @@ const isRenewal = requestType === 'vm' && (t?.task_type === 'Renewal' || t?.task
       ? (vmStatus === 'Pending' ? 0 : vmStatus === 'In Progress' ? 1 : vmStatus === 'Provisioning' ? 2 : vmStatus === 'Network' ? 3 : vmStatus === 'Testing' ? 4 : vmStatus === 'Completed' ? 5 : 0)
       : (request.status === 'Pending' ? 0 : request.status === 'In Progress' ? 2 : request.status === 'Completed' ? WF.length - 1 : 0))
 
-  
+
   const teamColor: Record<string, string> = {
     Customer: 'var(--info)',
     Sales: 'oklch(0.6 0.16 30)',
     'VPS Portal': 'var(--accent)',
     Engineering: 'var(--ok)',
     Network: 'oklch(0.55 0.17 285)'
+  }
+
+  const save = () => {
+    if (requestType === 'vm') {
+      if (!t) return
+      updateVMRequest(t.id, {
+        status: salesData.status,
+        assigned_to: salesData.assignee !== '—' ? salesData.assignee : null,
+      })
+    } else {
+      const mapped = salesData.status === 'Provisioning' ? 'In Progress' : salesData.status
+      updateAddonRequest(request.id, { status: mapped as any })
+    }
+    toast(`${request.id} updated · customer notified`, 'ok')
   }
 
   return (
@@ -142,7 +174,7 @@ const isRenewal = requestType === 'vm' && (t?.task_type === 'Renewal' || t?.task
             {requestType === 'addon' && <span className="pill warn">Add-on Service</span>}
           </div>
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em' }}>
-            {requestType === 'vm' ? (t?.hostname || 'VM') : `Add-on Request for VM ${request.vm_id}`}
+            {requestType === 'vm' ? (t?.hostname || 'VM') : `Add-on Request for VM ${(request as any)?.vm_id}`}
           </h2>
           <div className="flex gap-2 mt-2">
             <StatusPill status={salesData.status} />
@@ -187,7 +219,7 @@ const isRenewal = requestType === 'vm' && (t?.task_type === 'Renewal' || t?.task
                             {active && i === 2 && t && userRole !== 'Sales' && (
                               <button className="btn sm ok mt-2" onClick={async () => {
                                 // Apply upgrade changes to the VM when completed
-                                let vmId = t.vm_id
+                                let vmId = (t as any)?.vm_id
 
                                 // If no direct vm_id, try to find VM by hostname
                                 if (!vmId && t.hostname) {
@@ -219,57 +251,64 @@ const isRenewal = requestType === 'vm' && (t?.task_type === 'Renewal' || t?.task
                               </button>
                             )}
                           </>
-                        ) : (t.task_type === 'Renewal' || t.task_type === 'renewal') ? (
-                          <>
-                            {active && i === 0 && t && (
-                              <button className="btn sm accent mt-2" onClick={() => { updateVMRequest(t.id, { status: 'In Progress' }); toast('Renewal approved and sent to Engineering', 'info') }}>
-                                <Icon name="check" size={11} />Approve & send to Engineering
-                              </button>
-                            )}
-                            {active && i === 2 && t && userRole !== 'Sales' && (
-                              <button className="btn sm ok mt-2" onClick={async () => {
-                                // Apply renewal expiry extension to the VM when completed
-                                let vmId = (t as any).vm_id
+                        ) : (t && t.task_type === 'Renewal') ? (
+                        <>
+                          {active && i === 0 && t && (
+                            <button className="btn sm accent mt-2" onClick={() => { updateVMRequest(t.id, { status: 'In Progress' }); toast('Renewal approved and sent to Engineering', 'info') }}>
+                              <Icon name="check" size={11} />Approve & send to Engineering
+                            </button>
+                          )}
+                          {active && i === 2 && t && userRole !== 'Sales' && (
+                            <button className="btn sm ok mt-2" onClick={async () => {
+                              // Apply renewal expiry extension to the VM when completed
+                              let vmId = (t as any).vm_id
 
-                                // If no direct vm_id, try to find VM by hostname
-                                if (!vmId && t.hostname) {
-                                  const { data: vmData } = await supabase.from('vms').select('id, expiry, duration, vm_request_id').eq('hostname', t.hostname).single()
-                                  if (vmData) {
-                                    vmId = vmData.id
-                                    // Calculate new expiry date
-                                    const currentExpiry = vmData.expiry ? new Date(vmData.expiry) : new Date()
-                                    currentExpiry.setMonth(currentExpiry.getMonth() + (t.duration || 12))
-                                    const newExpiry = currentExpiry.toISOString()
+                              // If no direct vm_id, try to find VM by hostname
+                              if (!vmId && t.hostname) {
+                                const { data: vmData } = await supabase.from('vms').select('id, expiry, duration, vm_request_id, end_date, start_date, created_at').eq('hostname', t.hostname).single()
+                                if (vmData) {
+                                  vmId = vmData.id
+                                  // Calculate new expiry date
+                                  const currentExpiry = vmData.expiry ? new Date(vmData.expiry) : new Date()
+                                  currentExpiry.setMonth(currentExpiry.getMonth() + (t.duration || 12))
+                                  const newExpiry = currentExpiry.toISOString()
 
-                                    // Calculate new duration (existing duration + renewal duration)
-                                    const currentDuration = vmData.duration || 0
-                                    const renewalDuration = t.duration || 12
-                                    const newDuration = currentDuration + renewalDuration
+                                  // Calculate new duration (existing duration + renewal duration)
+                                  const currentDuration = vmData.duration || 0
+                                  const renewalDuration = t.duration || 12
+                                  const newDuration = currentDuration + renewalDuration
 
-                                    // Update VM expiry and duration
-                                    const { error } = await supabase.from('vms').update({
-                                      expiry: newExpiry,
-                                      duration: newDuration
-                                    }).eq('id', vmId)
-                                    if (error) {
-                                      toast('Failed to update VM expiry', 'error')
-                                      console.error('Error updating expiry:', error)
-                                    } else {
-                                      updateVMRequest(t.id, { status: 'Completed' })
-                                      toast('Renewal completed and VM expiry extended', 'ok')
-                                    }
+                                  // Calculate new end_date as created_at + 1 day + new total duration (same as expiry calculation)
+                                  const startDate = vmData.created_at ? new Date(vmData.created_at) : new Date()
+                                  const newEndDate = new Date(startDate)
+                                  newEndDate.setDate(newEndDate.getDate() + 1) // Add 1 day to match expiry calculation
+                                  newEndDate.setMonth(newEndDate.getMonth() + newDuration)
+
+                                  // Update VM expiry, end_date, and duration
+                                  const { error } = await supabase.from('vms').update({
+                                    expiry: newExpiry,
+                                    end_date: newEndDate.toISOString(),
+                                    duration: newDuration
+                                  }).eq('id', vmId)
+                                  if (error) {
+                                    toast('Failed to update VM expiry', 'error')
+                                    console.error('Error updating expiry:', error)
+                                  } else {
+                                    updateVMRequest(t.id, { status: 'Completed' })
+                                    toast('Renewal completed and VM expiry extended', 'ok')
                                   }
                                 }
+                              }
 
-                                if (!vmId) {
-                                  updateVMRequest(t.id, { status: 'Completed' })
-                                  toast('Renewal completed (could not find VM to extend expiry)', 'info')
-                                }
-                              }}>
-                                <Icon name="check" size={11} />Complete & Extend Expiry
-                              </button>
-                            )}
-                          </>
+                              if (!vmId) {
+                                updateVMRequest(t.id, { status: 'Completed' })
+                                toast('Renewal completed (could not find VM to extend expiry)', 'info')
+                              }
+                            }}>
+                              <Icon name="check" size={11} />Complete & Extend Expiry
+                            </button>
+                          )}
+                        </>
                         ) : isTrialConversion ? (
                           <>
                             {active && i === 0 && t && (
@@ -284,25 +323,24 @@ const isRenewal = requestType === 'vm' && (t?.task_type === 'Renewal' || t?.task
 
                                 // If no direct vm_id, try to find VM by hostname
                                 if (!vmId && t.hostname) {
-                                  const { data: vmData } = await supabase.from('vms').select('id, expiry, duration, vm_request_id').eq('hostname', t.hostname).single()
+                                  const { data: vmData } = await supabase.from('vms').select('id, expiry, duration, vm_request_id, created_at').eq('hostname', t.hostname).single()
                                   if (vmData) {
                                     vmId = vmData.id
-                                    // Calculate new expiry date from current date
-                                    const startDate = new Date()
-                                    startDate.setDate(startDate.getDate() + 1) // Start from next day
-                                    
+                                    // Calculate new expiry date from VM's created_at (consistent with new logic)
+                                    const startDate = vmData.created_at ? new Date(vmData.created_at) : new Date()
+                                    startDate.setDate(startDate.getDate() + 1) // Add 1 day
+
                                     const durationMonths = t.duration || 12
                                     const expiryDate = new Date(startDate)
                                     expiryDate.setMonth(expiryDate.getMonth() + durationMonths)
                                     const newExpiry = expiryDate.toISOString()
 
-                                    // Update VM expiry, duration, and billing_term
+                                    // Update VM expiry and duration
                                     const { error } = await supabase.from('vms').update({
                                       expiry: newExpiry,
-                                      duration: t.duration || 12,
-                                      billing_term: (t as any).billing_term
+                                      duration: t.duration || 12
                                     }).eq('id', vmId)
-                                    
+
                                     if (error) {
                                       toast('Failed to convert trial to paid', 'error')
                                       console.error('Error converting trial:', error)
@@ -313,7 +351,7 @@ const isRenewal = requestType === 'vm' && (t?.task_type === 'Renewal' || t?.task
                                           request_type: 'paid'
                                         }).eq('id', vmData.vm_request_id)
                                       }
-                                      
+
                                       updateVMRequest(t.id, { status: 'Completed' })
                                       toast('Trial converted to paid successfully', 'ok')
                                     }
@@ -344,7 +382,7 @@ const isRenewal = requestType === 'vm' && (t?.task_type === 'Renewal' || t?.task
                             {active && t && i > 0 && i !== 2 && (i !== WF.length - 1 && i !== 4 || t.status !== 'Completed') && (
                               <button
                                 className="btn sm accent mt-2"
-                                onClick={() => {
+                                onClick={async () => {
                                   const statusMap: Record<number, string> = {
                                     2: 'Network',
                                     3: 'Testing',
@@ -354,9 +392,46 @@ const isRenewal = requestType === 'vm' && (t?.task_type === 'Renewal' || t?.task
                                   const newStatus = statusMap[i] || 'In Progress'
                                   updateVMRequest(t.id, { status: newStatus })
                                   if (newStatus === 'Completed') {
+                                    try {
+                                      console.log('Provisioning completed for request:', t.id)
+                                      const vmData = await supabase.from('vms').select('id, duration, created_at').eq('vm_request_id', t.id)
+                                      console.log('VM Data result:', vmData)
+
+                                      if (vmData.data && vmData.data.length > 0) {
+                                        // Trigger handles start_date automatically, only update end_date here
+                                        const startDate = vmData.data[0].created_at ? new Date(vmData.data[0].created_at) : new Date()
+                                        const endDate = new Date(startDate)
+                                        endDate.setDate(endDate.getDate() + 1) // Add 1 day
+                                        endDate.setMonth(endDate.getMonth() + (t.duration || 12))
+
+                                        console.log('Setting end_date:', { end_date: endDate.toISOString() })
+
+                                        // Update all VMs associated with this request - only set end_date
+                                        const vmIds = vmData.data.map(vm => vm.id)
+                                        const { error } = await supabase.from('vms').update({
+                                          end_date: endDate.toISOString()
+                                        }).in('id', vmIds)
+
+                                        if (error) {
+                                          console.error('Error updating VM dates:', error)
+                                          toast('Failed to set billing dates: ' + error.message, 'error')
+                                        } else {
+                                          console.log('VM dates updated successfully for', vmIds.length, 'VM(s)')
+                                        }
+                                      } else {
+                                        console.log('No VMs found for request:', t.id)
+                                      }
+                                    } catch (error: any) {
+                                      console.error('Error in provisioning completion:', error)
+                                      toast('Error: ' + error.message, 'error')
+                                    }
                                     toast(`${t?.hostname || 'VM'} provisioning completed`, 'ok')
                                   }
+
+
                                 }}
+
+
                                 disabled={userRole === 'Sales' && i > 1}
                                 style={userRole === 'Sales' && i > 1 ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
                               >
@@ -404,7 +479,7 @@ const isRenewal = requestType === 'vm' && (t?.task_type === 'Renewal' || t?.task
                   <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Request type</div>
                   <dl className="dl">
                     <dt>Type</dt><dd>{requestType === 'vm' ? t?.task_type : 'Add-on Service'}</dd>
-                    <dt>Plan</dt><dd>{requestType === 'vm' ? (t?.request_type === 'trial' ? '14-day Trial' : 'Paid') : (request.duration ? `${request.duration} months` : '—')}</dd>
+                    <dt>Plan</dt><dd>{requestType === 'vm' ? (t?.request_type === 'trial' ? '14-day Trial' : 'Paid') : ((request as any)?.duration ? ((request as any)?.duration === 1 ? 'Monthly' : (request as any)?.duration === 3 ? 'Quarterly' : (request as any)?.duration === 6 ? 'Half Yearly' : (request as any)?.duration === 12 ? 'Yearly' : `${(request as any)?.duration} months`) : '—')}</dd>
                     <dt>Submitted</dt><dd className="tnum">{new Date(request.created_at).toLocaleDateString()}</dd>
                   </dl>
                 </div>
@@ -414,114 +489,86 @@ const isRenewal = requestType === 'vm' && (t?.task_type === 'Renewal' || t?.task
                 <>
                   <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>VM Configuration</div>
                   <dl className="dl">
+                    <dt>Request ID</dt><dd className="mono">{t?.legacy_id || t?.id}</dd>
+                    {(isUpgrade || isRenewal) && currentVMData && (
+                      <>
+                        <dt>VM ID</dt><dd className="mono">{currentVMData.legacy_id || currentVMData.id}</dd>
+                      </>
+                    )}
                     <dt>Hostname</dt><dd className="mono">{t?.hostname}</dd>
                     <dt>Purpose</dt><dd>{t?.purpose || '—'}</dd>
-                    {specChanged && (
+                    {!isUpgrade || isSpecChange ? (
                       <>
                         <dt>vCPU</dt><dd className="mono">{t?.vcpu} cores</dd>
                         <dt>Memory</dt><dd className="mono">{t?.ram_gb} GB</dd>
                         <dt>Storage</dt><dd className="mono">{t?.storage} GB</dd>
                       </>
-                    )}
+                    ) : null}
                     <dt>Quantity</dt><dd className="mono">{t?.qty}</dd>
                     <dt>Spec Type</dt><dd className="mono" style={{ color: t?.sizing === 'Standard' ? 'var(--ok)' : 'var(--accent-strong)' }}>{t?.sizing}</dd>
                     <dt>OS</dt><dd className="mono">{t?.os_name} {t?.os_version}</dd>
                     <dt>Zone</dt><dd className="mono">{t?.zone}</dd>
-                    {t?.duration && <><dt>Duration</dt><dd className="mono">{t?.duration} months</dd></>}
-                    {backupChanged && <><dt>Backup</dt><dd className="mono">{t?.backup_enabled ? `${t?.backup_type === 'daily' ? 'Daily' : 'Weekly'} Backup` : 'Disabled'}</dd></>}
+                    {t?.duration && <><dt>Billing Term</dt><dd className="mono">{t?.duration === 1 ? 'Monthly' : t?.duration === 3 ? 'Quarterly' : t?.duration === 6 ? 'Half Yearly' : t?.duration === 12 ? 'Yearly' : `${t?.duration} months`}</dd></>}
+                    {(!isUpgrade || isBackupChange) && (
+                      <>
+                        <dt>Backup</dt>
+                        <dd className="mono">
+                          {isUpgrade && currentVMData ? (
+                            <>
+                              {currentVMData.backup_enabled ? `${currentVMData.backup_type === 'daily' ? 'Daily' : 'Weekly'} Backup` : 'Disabled'}
+                              <span style={{ color: 'var(--accent-strong)', margin: '0 4px' }}>→</span>
+                              <span style={{ color: 'var(--accent-strong)', fontWeight: 600 }}>
+                                {t?.backup_enabled ? `${t?.backup_type === 'daily' ? 'Daily' : 'Weekly'} Backup` : 'Disabled'}
+                              </span>
+                            </>
+                          ) : (
+                            t?.backup_enabled ? `${t?.backup_type === 'daily' ? 'Daily' : 'Weekly'} Backup` : 'Disabled'
+                          )}
+                        </dd>
+                      </>
+                    )}
+                    {t?.notes && (
+                      <>
+                        <dt>Notes</dt><dd>{t?.notes}</dd>
+                      </>
+                    )}
                   </dl>
                 </>
               ) : (
                 <>
                   <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Add-on Services</div>
                   <dl className="dl">
-                    <dt>VM ID</dt><dd className="mono">{request.vm_id}</dd>
-                    {request.cpfs_enabled && (
+                    <dt>VM</dt><dd className="mono">{addonVMData ? `${addonVMData.legacy_id || addonVMData.id} · ${addonVMData.hostname}` : 'Loading...'}</dd>
+                    {(request as any)?.cpfs_enabled && (
                       <>
-                        <dt>CPFS</dt><dd className="mono">Cloud Parallel File System - {request.cpfs_package || 'standard'}</dd>
+                        <dt>CPFS</dt><dd className="mono">Cloud Parallel File System - {(request as any)?.cpfs_package || 'standard'}</dd>
                       </>
                     )}
-                    {request.ccis_enabled && (
+                    {(request as any)?.ccis_enabled && (
                       <>
-                        <dt>CCIS</dt><dd className="mono">Cloud Container Image Service - {request.ccis_package || 'standard'}</dd>
+                        <dt>CCIS</dt><dd className="mono">Cloud Container Image Service - {(request as any)?.ccis_package || 'standard'}</dd>
                       </>
                     )}
-                    {request.duration && <><dt>Duration</dt><dd className="mono">{request.duration} months</dd></>}
-                    {request.notes && <><dt>Notes</dt><dd>{request.notes}</dd></>}
+                    {(request as any)?.duration && <><dt>Duration</dt><dd className="mono">{(request as any)?.duration === 1 ? 'Monthly' : (request as any)?.duration === 3 ? 'Quarterly' : (request as any)?.duration === 6 ? 'Half Yearly' : (request as any)?.duration === 12 ? 'Yearly' : `${(request as any)?.duration} months`}</dd></>}
+                    {(request as any)?.notes && <><dt>Notes</dt><dd>{(request as any)?.notes}</dd></>}
                   </dl>
                 </>
               )}
             </div>
           </div>
 
-          {/* Sales workspace */}
-          <div className="card mb-4">
-            <div className="card-head">
-              <h3 className="card-title">Sales workspace</h3>
-              <button className="btn sm accent" onClick={save}><Icon name="check" size={11} />Save changes</button>
-            </div>
-            <div className="card-body">
-              <div className="flex col gap-3">
-                <div className="field">
-                  <label>Assigned person</label>
-                  <select value={salesData.assignee} onChange={e => setSalesData({ ...salesData, assignee: e.target.value })}>
-                    <option value="—">— Unassigned —</option>
-                    {team.map((m: any) => <option key={m.id} value={m.name}>{m.name} · {m.role}</option>)}
-                  </select>
-                </div>
-                <div className="field">
-                  <label>Status</label>
-                  <div className="flex gap-2 wrap">
-                    {['Pending', 'In Progress', 'Provisioning', 'Completed'].map(s => (
-                      <button key={s}
-                        className={`filter-chip ${salesData.status === s ? 'active' : ''}`}
-                        onClick={() => setSalesData({ ...salesData, status: s })}>{s}</button>
-                    ))}
-                  </div>
-                </div>
-                <div className="field">
-                  <label>Quote / ETA</label>
-                  <input value={salesData.eta} onChange={e => setSalesData({ ...salesData, eta: e.target.value })} placeholder="e.g. MMK 540,000 · ready by 31 May" />
-                </div>
-                <div className="field">
-                  <label>Customer-facing notes</label>
-                  <input value={salesData.salesNotes} onChange={e => setSalesData({ ...salesData, salesNotes: e.target.value })} placeholder="Will be shown to customer" />
-                </div>
-                <div className="field">
-                  <label>Internal notes (not visible to customer)</label>
-                  <textarea rows={3} value={salesData.internalNotes} onChange={e => setSalesData({ ...salesData, internalNotes: e.target.value })} placeholder="Migration risks, pricing context, engineering hand-off…" />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick actions - only for VM requests */}
-          {requestType === 'vm' && t && (
-            <div className="card">
-              <div className="card-head"><h3 className="card-title">Quick actions</h3></div>
-              <div className="card-body">
-                <div className="flex gap-2 wrap">
-                  <button className="btn" onClick={() => toast(`Email sent to ${c?.email}`, 'ok')}><Icon name="mail" size={12} />Email customer</button>
-                  <button className="btn" onClick={() => toast('Quote PDF generated', 'ok')}><Icon name="invoice" size={12} />Generate quote</button>
-                  <button className="btn" onClick={() => { setSalesData({ ...salesData, status: 'In Progress' }); updateVMRequest(t.id, { status: 'In Progress' }); toast('Request moved to In Progress', 'info'); }}><Icon name="play" size={12} />Start work</button>
-                  <button className="btn" onClick={() => toast('Customer notified — request needs more info', 'warn')}><Icon name="alert" size={12} />Request more info</button>
-                  <button className="btn accent" onClick={() => { updateVMRequest(t.id, { status: 'Completed' }); toast('Marked done · customer notified', 'ok'); }}><Icon name="check" size={12} />Mark done</button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
       {/* VM Details Modal */}
       {showVMFormModal && t && (
         <div className="modal-overlay" onClick={() => setShowVMFormModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 600 }}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 700 }}>
             <div className="modal-head">
               <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Add VM Details</h3>
               <button className="icon-btn" onClick={() => setShowVMFormModal(false)}><Icon name="x" size={14} /></button>
             </div>
-            <div className="modal-body">
+            <div className="modal-body" style={{ paddingRight: 16 }}>
               <EngineerVMCreateForm
                 task={t as any}
                 onSubmit={async (details) => {

@@ -148,11 +148,11 @@ export async function createVMRequest(customerId: string, spec: Record<string, u
   const { rows } = await pool.query(
     `INSERT INTO vm_requests
        (customer_id, hostname, purpose, vcpu, ram_gb, volumes, bandwidth,
-        os_name, os_version, zone, nics, firewall_ports, port_forwarding,
-        backup_enabled, backup_freq, backup_retention, monitoring,
+        os_name, os_version, zone, nics, firewall_ports,
+        backup_enabled, backup_freq, backup_retention,
         vm_protection, ddos_protection, ssl_certificate, load_balancer, notes)
      VALUES
-       ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
+       ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
      RETURNING id, hostname, status, created_at`,
     [
       customerId,
@@ -164,9 +164,7 @@ export async function createVMRequest(customerId: string, spec: Record<string, u
       spec.zone,
       JSON.stringify(spec.nics),
       spec.firewallPorts,
-      JSON.stringify(spec.portForwarding),
       spec.backupEnabled, spec.backupFrequency, spec.backupRetention,
-      spec.monitoring,
       spec.vmProtection, spec.ddosProtection, spec.sslCertificate, spec.loadBalancer,
       spec.additionalNotes,
     ],
@@ -190,13 +188,13 @@ export async function getCustomerVMRequests(customerId: string) {
 export async function getCustomerInvoices(customerId: string) {
   const { rows } = await pool.query(
     `SELECT i.id, i.legacy_id, i.amount, i.currency, i.status,
-            i.issued_at, i.due_at, i.paid_at, i.method, i.receipt,
+            i.issued, i.due, i.paid_date, i.method, i.receipt,
             COALESCE(json_agg(ii) FILTER (WHERE ii.id IS NOT NULL), '[]') AS items
      FROM invoices i
      LEFT JOIN invoice_items ii ON ii.invoice_id = i.id
      WHERE i.customer_id = $1
      GROUP BY i.id
-     ORDER BY i.issued_at DESC`,
+     ORDER BY i.issued DESC`,
     [customerId],
   );
   return rows;

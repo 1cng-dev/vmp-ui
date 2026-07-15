@@ -20,6 +20,7 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal 
   const c = customers.find((c: any) => c.id === v.customer_id)
   const [tab, setTab] = useState('overview')
   const [vmRequest, setVmRequest] = useState<any>(null)
+  const [addonRequests, setAddonRequests] = useState<any[]>([])
 
   // Fetch vm_request data for additional fields
   useEffect(() => {
@@ -38,6 +39,22 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal 
         })
     }
   }, [v.vm_request_id])
+
+  // Fetch addon requests for this VM
+  useEffect(() => {
+    supabase
+      .from('addon_requests')
+      .select('*')
+      .eq('vm_id', v.id)
+      .eq('status', 'Completed')
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('Error fetching addon requests:', error)
+        } else {
+          setAddonRequests(data || [])
+        }
+      })
+  }, [v.id])
 
   const creds = v.username && v.password ? [
     { type: 'SSH', user: v.username, pass: v.password }
@@ -70,20 +87,23 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal 
               </div>
             </div>
             <div className="flex gap-2">
-              <button className="btn" onClick={() => openModal('renew', { vm: v })}><Icon name="refresh" size={12}/>Renew</button>
-              <button className="btn" onClick={() => openModal('spec', { vm: v })}><Icon name="sliders" size={12}/>Spec</button>
-              {v.status === 'Active'
-                ? <button className="btn" onClick={() => updateVM(v.id, { status: 'Suspended' as any, power_state: 'Stopped' as any })}><Icon name="pause" size={12}/>Suspend</button>
-                : <button className="btn primary" onClick={() => updateVM(v.id, { status: 'Active' as any, power_state: 'Running' as any })}><Icon name="play" size={12}/>Activate</button>}
-              <button className="btn danger" onClick={() => openModal('terminate', { vm: v })}><Icon name="trash" size={12}/></button>
+              {v.status === 'Active' ? (
+                <>
+                  <button className="btn" onClick={() => updateVM(v.id, { status: 'Suspended' as any })}><Icon name="pause" size={12}/>Suspend</button>
+                  <button className="btn" onClick={() => openModal('terminate', { vm: v })}><Icon name="trash" size={12}/>Terminate</button>
+                </>
+              ) : (
+                <button className="btn primary" onClick={() => updateVM(v.id, { status: 'Active' as any })}><Icon name="play" size={12}/>Activate</button>
+              )}
+              <button className="btn danger" onClick={() => openModal('delete', { vm: v })}><Icon name="x" size={12}/>Delete</button>
             </div>
           </div>
         </div>
 
         <div className="tabs">
-          {['overview','specs','network','backups','credentials'].map(t => (
+          {['overview','specs','network','backups','credentials','addons'].map(t => (
             <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
-              {t === 'overview' ? 'Overview' : t === 'specs' ? 'Specs' : t === 'network' ? 'Network' : t === 'backups' ? 'Backups' : 'Credentials'}
+              {t === 'overview' ? 'Overview' : t === 'specs' ? 'Specs' : t === 'network' ? 'Network' : t === 'backups' ? 'Backups' : t === 'credentials' ? 'Credentials' : 'Add-ons'}
             </button>
           ))}
         </div>
@@ -114,8 +134,7 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal 
                         <dt>Request Type</dt><dd>{vmRequest?.request_type || 'paid'}</dd>
                         <dt>Task Type</dt><dd>{v.task_type || 'New'}</dd>
                         <dt>Quantity</dt><dd className="tnum">{vmRequest?.qty || 1}</dd>
-                        <dt>Duration</dt><dd className="tnum">{vmRequest?.duration ? `${vmRequest.duration} days` : '—'}</dd>
-                        <dt>Monitoring</dt><dd>{vmRequest?.monitoring ? 'Yes' : 'No'}</dd>
+                        <dt>Billing Term</dt><dd className="tnum">{vmRequest?.duration ? `${vmRequest.duration} days` : '—'}</dd>
                         <dt>Created</dt><dd className="tnum">{v.created_at ? new Date(v.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</dd>
                         <dt>Expiry</dt><dd><ExpiryCell date={v.expiry || '—'}/></dd>
                       </dl>
@@ -144,9 +163,6 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal 
                     : '—'}</dd>
                   <dt>Public IP Required</dt><dd>{vmRequest?.public_ip_required ? 'Yes' : 'No'}</dd>
                   <dt>Firewall policy</dt><dd className="mono">Default</dd>
-                  <dt>Port forwarding</dt><dd className="mono">{vmRequest?.port_forwarding?.length > 0 
-                    ? vmRequest.port_forwarding.map((pf: any) => `${pf.srcPort} → ${pf.dstPort} (${pf.protocol})`).join(', ')
-                    : '—'}</dd>
                 </dl>
               </div></div>
               <div className="card">
@@ -214,6 +230,42 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal 
             </div>
           )}
 
+          {tab === 'addons' && (
+            <div className="card">
+              <div className="card-body">
+                {addonRequests.length === 0 ? (
+                  <div className="empty"><div className="sub">No completed add-on services for this VM.</div></div>
+                ) : (
+                  <table className="tbl">
+                    <thead><tr><th>Request ID</th><th>Services</th><th>Package</th><th>Billing Term</th><th>Status</th><th>Completed Date</th></tr></thead>
+                    <tbody>
+                      {addonRequests.map((ar: any) => (
+                        <tr key={ar.id}>
+                          <td className="mono fw-6">{ar.legacy_id || ar.id}</td>
+                          <td>
+                            <div className="flex gap-1">
+                              {ar.cpfs_enabled && <span className="pill subtle">CPFS</span>}
+                              {ar.ccis_enabled && <span className="pill subtle">CCIS</span>}
+                            </div>
+                          </td>
+                          <td className="text-sm">
+                            {[
+                              ar.cpfs_enabled && ar.cpfs_package ? `CPFS ${ar.cpfs_package}` : null,
+                              ar.ccis_enabled && ar.ccis_package ? `CCIS ${ar.ccis_package}` : null
+                            ].filter(Boolean).join(', ') || '—'}
+                          </td>
+                          <td className="text-sm">{ar.duration ? (ar.duration === 1 ? 'Monthly' : ar.duration === 3 ? 'Quarterly' : ar.duration === 6 ? 'Half Yearly' : ar.duration === 12 ? 'Yearly' : `${ar.duration} month${ar.duration > 1 ? 's' : ''}`) : 'N/A'}</td>
+                          <td><StatusPill status={ar.status}/></td>
+                          <td className="tnum text-sm">{ar.updated_at ? new Date(ar.updated_at).toLocaleDateString() : '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          )}
+
           {tab === 'specs' && (
             <div className="card">
               <div className="card-body">
@@ -250,7 +302,7 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal 
                       <dt>Request Type</dt><dd>{vmRequest?.request_type || 'paid'}</dd>
                       <dt>Request Status</dt><dd>{vmRequest?.status || '—'}</dd>
                       <dt>Quantity</dt><dd className="tnum">{vmRequest?.qty || 1}</dd>
-                      <dt>Duration</dt><dd className="tnum">{vmRequest?.duration ? `${vmRequest.duration} days` : '—'}</dd>
+                      <dt>Billing Term</dt><dd className="tnum">{vmRequest?.duration ? `${vmRequest.duration} days` : '—'}</dd>
                       <dt>Request Created</dt><dd className="tnum">{vmRequest?.created_at ? new Date(vmRequest.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</dd>
                       <dt>Request Updated</dt><dd className="tnum">{vmRequest?.updated_at ? new Date(vmRequest.updated_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</dd>
                     </dl>
@@ -259,7 +311,6 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal 
                     <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Addons & Assignment</div>
                     <dl className="dl">
                       <dt>Backup Enabled</dt><dd>{vmRequest?.backup_enabled ? vmRequest.backup_type : 'No'}</dd>
-                      <dt>Monitoring</dt><dd>{vmRequest?.monitoring ? 'Yes' : 'No'}</dd>
                     </dl>
                   </div>
                 </div>

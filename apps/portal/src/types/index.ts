@@ -42,6 +42,7 @@ export interface Customer {
   totalSpend?: number
   company?: string
   since?: string
+  force_password_change?: boolean
 }
 
 export interface VM {
@@ -75,12 +76,14 @@ export interface VM {
   subscription: string
   priceMonth: number
   assigned_vmid?: number
+  start_date?: string
+  end_date?: string
+
   // Add-on services
   addonServices?: {
     backupEnabled?: boolean
     backupFreq?: string
     backupRetention?: number
-    monitoring?: boolean
     cpfsEnabled?: boolean
     cpfsPackage?: 'standard' | 'premium'
     ccisEnabled?: boolean
@@ -115,7 +118,7 @@ export interface Task {
 export interface Invoice {
   id: string
   customer: string
-  vms: string[]
+  vm_request_ids: string[]
   amount: number
   vat: number
   grossAmount: number
@@ -129,6 +132,7 @@ export interface Invoice {
   discount?: number
   quote_id?: string
   sales_person?: string
+  billing_term?: string
 }
 
 export interface Activity {
@@ -156,6 +160,11 @@ export interface Alert {
   ts: string
   read: boolean
   type: string
+  related_entity_id?: string
+  related_entity_type?: string
+  actor_id?: string
+  actor_name?: string
+  metadata?: any
 }
 
 export interface Ticket {
@@ -199,14 +208,21 @@ export type QuoteStatus = 'Draft' | 'Sent' | 'Accepted' | 'Rejected' | 'Expired'
 
 export interface DBQuote {
   id: string
-  vm_request_id: string
+  vm_request_id?: string
+  addon_request_id?: string
   customer_id: string
   legacy_id?: string
   status: QuoteStatus
   validity_date: string
-  subtotal_monthly: number
-  subtotal_annual: number
-  total_annual: number
+  instance_total: number
+  public_ip_total: number
+  backup_total: number
+  discount_amount: number
+  tax_amount: number
+  net_amount: number
+  grand_total: number
+  billing_term: string
+  discount_pct?: number
   currency: string
   line_items: any[]
   created_by?: string | null
@@ -220,9 +236,15 @@ export interface NewQuoteInput {
   addon_request_id?: string
   status: QuoteStatus
   validity_date?: string
-  subtotal_monthly: number
-  subtotal_annual: number
-  total_annual: number
+  instance_total: number
+  public_ip_total: number
+  backup_total: number
+  discount_amount: number
+  tax_amount: number
+  net_amount: number
+  grand_total: number
+  billing_term: string
+  discount_pct?: number
   currency?: 'MMK' | 'USD'
   line_items: any[]
   notes?: string | null
@@ -261,6 +283,102 @@ export interface NewVMInput {
   task_type?: string
   expiry?: string
   duration?: number
-  billing_term?: 'Monthly' | 'Annual'
   legacy_id?: string
 }
+
+
+export interface DBInvoice {
+  id: string
+  customer_id: string
+  legacy_id?: string
+  vm_request_ids: string[]
+  addon_request_ids: string[]
+  amount: number
+  vat: number
+  gross_amount: number
+  net_amount: number
+  discount: number
+  currency: string
+  issued: string
+  due: string
+  status: string
+  receipt: string | null
+  invoice_date: string | null
+  paid_date: string | null
+  quote_id: string | null
+  sales_person: string | null
+  billing_term: string | null
+  line_items: any[]
+  payment_proof?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface NewInvoiceInput {
+  customer_id: string
+  vm_request_ids?: string[]
+  addon_request_ids?: string[]
+  amount: number
+  vat: number
+  gross_amount: number
+  net_amount?: number
+  discount?: number
+  currency?: 'MMK' | 'USD'
+  issued?: string
+  due?: string
+  status?: string
+  receipt?: string
+  invoice_date?: string
+  paid_date?: string
+  quote_id?: string
+  sales_person?: string
+  billing_term?: string
+  line_items?: any[]
+}
+
+export interface DBReceipt {
+  id: string
+  invoice_id: string
+  customer_id: string
+  legacy_id: string
+  receipt_number: string
+  message: string
+  sent_at: string
+  sent_by: string | null
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+export interface NewReceiptInput {
+  invoice_id: string
+  customer_id: string
+  legacy_id: string
+  receipt_number: string
+  message: string
+  sent_by?: string
+  status?: string
+}
+
+export interface Invoice {
+  id: string
+  customer_id: string
+  vm_request_ids: string[]
+  addon_request_ids: string[]
+  amount: number
+  vat: number
+  gross_amount: number
+  net_amount?: number
+  currency: string
+  issued: string
+  due: string
+  status: string
+  receipt: string | null
+  invoice_date: string | null
+  paid_date?: string
+  discount?: number
+  quote_id?: string
+  sales_person?: string
+  billing_term?: string
+}
+

@@ -125,12 +125,10 @@ CREATE TABLE IF NOT EXISTS vm_requests (
   nics            JSONB DEFAULT '[]',
   -- Firewall
   firewall_ports  TEXT[],
-  port_forwarding JSONB DEFAULT '[]',
   -- Addons
   backup_enabled  BOOLEAN DEFAULT FALSE,
   backup_freq     VARCHAR(16),
   backup_retention INTEGER,
-  monitoring      BOOLEAN DEFAULT FALSE,
   vm_protection   VARCHAR(16) DEFAULT 'none',
   ddos_protection VARCHAR(16) DEFAULT 'none',
   ssl_certificate VARCHAR(16) DEFAULT 'none',

@@ -5,55 +5,164 @@ import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { formatMMK, ExpiryCell } from '../ui/ui'
 import useInvoiceStore from '../../store/invoiceStore'
+import * as XLSX from 'xlsx'
 
 export const ReportsView: React.FC = () => {
   const { customers } = useCustomerStore()
-  const { vms } = useVMStore()
+  const { vms, loadVMs } = useVMStore()
   const { toast } = useUIStore()
-
-  const { invoices } = useInvoiceStore()
+  const { invoices, loadInvoices } = useInvoiceStore()
   const [dateFilter, setDateFilter] = useState<'all' | 'custom'>('all')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
 
-  // Helper to get fiscal years for a customer
-  const getFiscalYears = (since: string) => {
-    const startYear = new Date(since).getFullYear()
-    const currentYear = new Date().getFullYear()
-    const years = []
-    for (let year = startYear; year <= currentYear; year++) {
-      years.push({
+  // Use real data from stores
+  const displayCustomers = customers
+  const displayInvoices = invoices
+  const displayVMs = vms
+
+  // All invoices for lifetime calculation (not filtered by date)
+  const allInvoices = invoices
+
+  React.useEffect(() => {
+    loadInvoices()
+    loadVMs()
+  }, [loadInvoices, loadVMs])
+
+  // Get the fiscal year to display based on filter
+  const getDisplayFiscalYear = () => {
+    if (dateFilter === 'custom' && startDate && endDate) {
+      // Determine fiscal year from the selected date range
+      const start = new Date(startDate)
+      const year = start.getMonth() >= 3 ? start.getFullYear() : start.getFullYear() - 1
+      return {
         label: `FY ${year}-${(year + 1).toString().slice(-2)}`,
         start: `${year}-04-01`,
         end: `${year + 1}-03-31`
-      })
+      }
+    } else {
+      // Default to current fiscal year
+      const now = new Date()
+      const year = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1
+      return {
+        label: `FY ${year}-${(year + 1).toString().slice(-2)}`,
+        start: `${year}-04-01`,
+        end: `${year + 1}-03-31`
+      }
     }
-    return years
+  }
+
+  const displayFiscalYear = getDisplayFiscalYear()
+
+  // Helper to export CSV
+  const exportCSV = () => {
+    const rows = [...displayCustomers]
+      .map(c => {
+        const lifetimeSpend = allInvoices
+          .filter(inv => inv.customer_id === c.id && inv.status === 'Payment Received')
+          .reduce((sum, inv) => sum + inv.amount, 0)
+
+        if (lifetimeSpend === 0) return null
+
+        const ytdRevenue = getFiscalYearRevenue(c.id, displayFiscalYear.start, displayFiscalYear.end)
+        const vmCount = displayVMs.filter(v => v.customer_id === c.id).length
+
+        return {
+          customer: c,
+          lifetimeSpend,
+          ytdRevenue,
+          vmCount
+        }
+      })
+      .filter(Boolean)
+      .sort((a: any, b: any) => b.lifetimeSpend - a.lifetimeSpend)
+
+    // Create CSV content
+    const headers = ['Customer', 'Customer ID', 'VMs', 'Lifetime (MMK)', `YTD ${displayFiscalYear.label} (MMK)`]
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((r: any) => [
+        `"${r.customer.company || r.customer.org_name || r.customer.name}"`,
+        `"${r.customer.legacy_id || r.customer.id}"`,
+        r.vmCount,
+        r.lifetimeSpend,
+        r.ytdRevenue
+      ].join(','))
+    ].join('\n')
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `revenue-report-${displayFiscalYear.label}-${new Date().toISOString().split('T')[0]}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    toast('CSV exported successfully', 'success')
+  }
+
+  // Helper to export Excel
+  const exportExcel = () => {
+    const rows = [...displayCustomers]
+      .map(c => {
+        const lifetimeSpend = allInvoices
+          .filter(inv => inv.customer_id === c.id && inv.status === 'Payment Received')
+          .reduce((sum, inv) => sum + inv.amount, 0)
+
+        if (lifetimeSpend === 0) return null
+
+        const ytdRevenue = getFiscalYearRevenue(c.id, displayFiscalYear.start, displayFiscalYear.end)
+        const vmCount = displayVMs.filter(v => v.customer_id === c.id).length
+
+        return {
+          customer: c,
+          lifetimeSpend,
+          ytdRevenue,
+          vmCount
+        }
+      })
+      .filter(Boolean)
+      .sort((a: any, b: any) => b.lifetimeSpend - a.lifetimeSpend)
+
+    // Create worksheet data
+    const worksheetData = [
+      ['Customer', 'Customer ID', 'VMs', 'Lifetime (MMK)', `YTD ${displayFiscalYear.label} (MMK)`],
+      ...rows.map((r: any) => [
+        r.customer.company || r.customer.org_name || r.customer.name,
+        r.customer.legacy_id || r.customer.id,
+        r.vmCount,
+        r.lifetimeSpend,
+        r.ytdRevenue
+      ])
+    ]
+
+    // Create workbook and worksheet
+    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Revenue Report')
+
+    // Download file
+    XLSX.writeFile(workbook, `revenue-report-${displayFiscalYear.label}-${new Date().toISOString().split('T')[0]}.xlsx`)
+
+    toast('Excel exported successfully', 'success')
   }
 
   // Helper to get revenue for a specific fiscal year
   const getFiscalYearRevenue = (customerId: string, startDate: string, endDate: string) => {
-    return invoices
+    return displayInvoices
       .filter(inv => {
-        if (inv.customer !== customerId || inv.status !== 'Payment Received') return false
-        if (!inv.invoiceDate) return false
-        const invoiceDate = new Date(inv.invoiceDate)
+        if (inv.customer_id !== customerId || inv.status !== 'Payment Received') return false
+        if (!inv.invoice_date) return false
+        const invoiceDate = new Date(inv.invoice_date)
         const fiscalStart = new Date(startDate)
         const fiscalEnd = new Date(endDate)
         return invoiceDate >= fiscalStart && invoiceDate <= fiscalEnd
       })
       .reduce((sum, inv) => sum + inv.amount, 0)
   }
-
-  const filteredInvoices = invoices.filter(inv => {
-    if (dateFilter === 'all') return true
-    if (dateFilter === 'custom' && (!startDate || !endDate)) return true
-    if (!inv.invoiceDate) return false
-    if (dateFilter === 'custom' && startDate && endDate) {
-      return inv.invoiceDate >= startDate && inv.invoiceDate <= endDate
-    }
-    return false
-  })
 
   return (
     <div className="content">
@@ -63,7 +172,8 @@ export const ReportsView: React.FC = () => {
           <p className="page-subtitle">Per-customer revenue · upcoming renewals · payment performance</p>
         </div>
         <div className="page-actions">
-          <button className="btn" onClick={() => toast('Report CSV download started', 'info')}><Icon name="download" size={13} />Export all (CSV)</button>
+          <button className="btn" onClick={exportCSV}><Icon name="download" size={13} />Export CSV</button>
+          <button className="btn" onClick={exportExcel}><Icon name="download" size={13} />Export Excel</button>
         </div>
       </div>
 
@@ -106,46 +216,44 @@ export const ReportsView: React.FC = () => {
                 <thead><tr><th>Customer</th><th className="right">VMs</th><th className="right">Lifetime</th><th>YTD</th></tr></thead>
                 <tbody style={{ height: '100%' }}>
                   {(() => {
-                    const rows = [...customers]
-                      .sort((a, b) => b.totalSpend - a.totalSpend)
+                    const rows = [...displayCustomers]
                       .map(c => {
-                        const customerRevenue = filteredInvoices
-                          .filter(inv => inv.customer === c.id && inv.status === 'Payment Received')
+                        const lifetimeSpend = allInvoices
+                          .filter(inv => inv.customer_id === c.id && inv.status === 'Payment Received')
                           .reduce((sum, inv) => sum + inv.amount, 0)
 
-                        if (customerRevenue === 0) return null
+                        if (lifetimeSpend === 0) return null
 
-                        const fiscalYears = getFiscalYears(c.since)
+                        return {
+                          customer: c,
+                          lifetimeSpend
+                        }
+                      })
+                      .filter(Boolean)
+                      .sort((a: any, b: any) => b.lifetimeSpend - a.lifetimeSpend)
 
+                    return rows.length ? (
+                      rows.map(({ customer: c, lifetimeSpend }: any) => {
+                        const ytdRevenue = getFiscalYearRevenue(c.id, displayFiscalYear.start, displayFiscalYear.end)
                         return (
                           <tr key={c.id}>
                             <td style={{ verticalAlign: 'top' }}>
-                              <div className="fw-6 text-sm">{c.company}</div>
-                              <div className="text-xs text-mute">{c.id}</div>
+                              <div className="fw-6 text-sm">{c.company || c.org_name || c.name}</div>
+                              <div className="text-xs text-mute">{c.legacy_id || c.id}</div>
                             </td>
                             <td className="right tnum" style={{ verticalAlign: 'top' }}>
-                              {vms.filter(v => v.customer === c.id).length}
+                              {displayVMs.filter(v => v.customer_id === c.id).length}
                             </td>
                             <td className="right tnum" style={{ verticalAlign: 'top' }}>
-                              {formatMMK(c.totalSpend)} MMK
+                              {formatMMK(lifetimeSpend)} MMK
                             </td>
                             <td style={{ verticalAlign: 'top' }}>
-                              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, border: 'none' }}>
-                                {fiscalYears.map(fy => (
-                                  <tr key={fy.label} style={{ border: 'none' }}>
-                                    <td style={{ padding: '2px 0', color: 'var(--text-2)', border: 'none', whiteSpace: 'nowrap' }}>{fy.label}</td>
-                                    <td style={{ padding: '2px 0', paddingLeft: 8, textAlign: 'right', border: 'none', whiteSpace: 'nowrap' }}> {formatMMK(getFiscalYearRevenue(c.id, fy.start, fy.end))} MMK</td>
-                                  </tr>
-                                ))}
-                              </table>
+                              <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{displayFiscalYear.label}</div>
+                              <div style={{ fontSize: 13, fontWeight: 600, marginTop: 2 }}>{formatMMK(ytdRevenue)} MMK</div>
                             </td>
                           </tr>
                         )
                       })
-                      .filter(Boolean)
-
-                    return rows.length ? (
-                      rows
                     ) : (
                       <tr style={{ height: '100%' }}>
                         <td colSpan={4} className="text-center text-mute" style={{ verticalAlign: 'middle' }}>
@@ -167,20 +275,21 @@ export const ReportsView: React.FC = () => {
               <tbody>
                 <tr style={{ background: 'var(--surface-2)' }}>
                   <td className="fw-7">Total</td>
-                  <td className="right tnum fw-7">{[...customers].sort((a, b) => b.totalSpend - a.totalSpend).reduce((sum, c) => {
-                    const customerRevenue = filteredInvoices.filter(inv => inv.customer === c.id && inv.status === 'Payment Received').reduce((s, inv) => s + inv.amount, 0)
-                    if (customerRevenue === 0) return sum
-                    return sum + vms.filter(v => v.customer === c.id).length
+                  <td className="right tnum fw-7">{[...displayCustomers].reduce((sum, c) => {
+                    const lifetimeSpend = allInvoices.filter(inv => inv.customer_id === c.id && inv.status === 'Payment Received').reduce((s, inv) => s + inv.amount, 0)
+                    if (lifetimeSpend === 0) return sum
+                    return sum + displayVMs.filter(v => v.customer_id === c.id).length
                   }, 0)}</td>
-                  <td className="right tnum fw-7">MMK {formatMMK([...customers].sort((a, b) => b.totalSpend - a.totalSpend).reduce((sum, c) => {
-                    const customerRevenue = filteredInvoices.filter(inv => inv.customer === c.id && inv.status === 'Payment Received').reduce((s, inv) => s + inv.amount, 0)
-                    if (customerRevenue === 0) return sum
-                    return sum + c.totalSpend
+                  <td className="right tnum fw-7">MMK {formatMMK([...displayCustomers].reduce((sum, c) => {
+                    const lifetimeSpend = allInvoices.filter(inv => inv.customer_id === c.id && inv.status === 'Payment Received').reduce((s, inv) => s + inv.amount, 0)
+                    return sum + lifetimeSpend
                   }, 0))}</td>
-                  <td className="right tnum fw-7">MMK {formatMMK([...customers].sort((a, b) => b.totalSpend - a.totalSpend).reduce((sum, c) => {
-                    const rev = filteredInvoices.filter(inv => inv.customer === c.id && inv.status === 'Payment Received').reduce((s, inv) => s + inv.amount, 0)
-                    return sum + rev
-                  }, 0))}</td>
+                  <td className="right tnum fw-7">
+                    <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{displayFiscalYear.label}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, marginTop: 2 }}>MMK {formatMMK([...displayCustomers].reduce((sum, c) => {
+                      return sum + getFiscalYearRevenue(c.id, displayFiscalYear.start, displayFiscalYear.end)
+                    }, 0))}</div>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -192,15 +301,15 @@ export const ReportsView: React.FC = () => {
             <table className="tbl">
               <thead><tr><th>VM</th><th>Customer</th><th>Expires</th><th className="right">Renewal</th></tr></thead>
               <tbody>
-                {vms.filter(v => v.expiry !== '—' && typeof v.expiry === 'string' && (new Date(v.expiry).getTime() - new Date().getTime()) / 86400000 <= 30 && (new Date(v.expiry).getTime() - new Date().getTime()) / 86400000 >= 0)
-                  .sort((a, b) => new Date(a.expiry).getTime() - new Date(b.expiry).getTime()).map(v => {
-                    const c = customers.find(c => c.id === v.customer)
+                {displayVMs.filter(v => v.expiry && v.expiry !== '—' && typeof v.expiry === 'string' && (new Date(v.expiry).getTime() - new Date().getTime()) / 86400000 <= 30 && (new Date(v.expiry).getTime() - new Date().getTime()) / 86400000 >= 0)
+                  .sort((a, b) => new Date(a.expiry || '').getTime() - new Date(b.expiry || '').getTime()).map(v => {
+                    const c = displayCustomers.find(c => c.id === v.customer_id)
                     return (
                       <tr key={v.id}>
-                        <td><div className="fw-6 text-sm">{v.name}</div><div className="text-xs text-mute mono">{v.id}</div></td>
-                        <td className="text-sm">{c?.company}</td>
-                        <td><ExpiryCell date={v.expiry} /></td>
-                        <td className="right tnum fw-6">MMK {formatMMK(v.priceMonth * 12)}</td>
+                        <td><div className="fw-6 text-sm">{v.hostname}</div><div className="text-xs text-mute mono">{v.legacy_id || v.id}</div></td>
+                        <td className="text-sm">{c?.company || c?.org_name || c?.name}</td>
+                        <td><ExpiryCell date={v.expiry || ''} /></td>
+                        <td className="right tnum fw-6">—</td>
                       </tr>
                     )
                   })}
@@ -210,27 +319,58 @@ export const ReportsView: React.FC = () => {
         </div>
       </div>
 
-      <div className="card mb-4">
+      {/* <div className="card mb-4">
         <div className="card-head"><h3 className="card-title">Payment performance · last 6 months</h3></div>
         <div className="card-body">
           <div className="flex" style={{ alignItems: 'flex-end', gap: 12, height: 160 }}>
-            {[['Dec', 92], ['Jan', 88], ['Feb', 94], ['Mar', 86], ['Apr', 91], ['May', 78]].map(([m, pct]) => {
-              const pctNum = Number(pct)
-              return (
-                <div key={m} className="flex col gap-1" style={{ flex: 1, alignItems: 'center' }}>
-                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'flex-end' }}>
-                    <div style={{ width: '100%', height: `${pctNum}%`, background: pctNum < 85 ? 'var(--warn)' : 'var(--ok)', borderRadius: '3px 3px 0 0', position: 'relative' }}>
-                      <div style={{ position: 'absolute', top: -18, left: 0, right: 0, textAlign: 'center', fontSize: 11, fontWeight: 600 }}>{pctNum}%</div>
+            {(() => {
+              // Calculate real payment performance for last 6 months
+              const months = []
+              const now = new Date()
+              for (let i = 5; i >= 0; i--) {
+                const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1)
+                const monthName = monthDate.toLocaleDateString('en-US', { month: 'short' })
+                const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1)
+                const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0)
+                
+                const monthInvoices = displayInvoices.filter(inv => {
+                  if (!inv.invoice_date || !inv.due) return false
+                  const invDate = new Date(inv.invoice_date)
+                  return invDate >= monthStart && invDate <= monthEnd
+                })
+                
+                const paidOnTime = monthInvoices.filter(inv => {
+                  if (!inv.paid_date || !inv.due) return false
+                  const paidDate = new Date(inv.paid_date)
+                  const dueDate = new Date(inv.due)
+                  return paidDate <= dueDate
+                }).length
+                
+                const totalInvoices = monthInvoices.length
+                const percentage = totalInvoices > 0 ? Math.round((paidOnTime / totalInvoices) * 100) : 0
+                
+                months.push([monthName, percentage])
+              }
+              
+              return months.map(([m, pct]) => {
+                const pctNum = Number(pct)
+                return (
+                  <div key={m} className="flex col gap-1" style={{ flex: 1, alignItems: 'center' }}>
+                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'flex-end' }}>
+                      <div style={{ width: '100%', height: `${pctNum}%`, background: pctNum < 85 ? 'var(--warn)' : 'var(--ok)', borderRadius: '3px 3px 0 0', position: 'relative' }}>
+                        <div style={{ position: 'absolute', top: -18, left: 0, right: 0, textAlign: 'center', fontSize: 11, fontWeight: 600 }}>{pctNum}%</div>
+                      </div>
                     </div>
+                    <div className="text-xs text-mute">{m}</div>
                   </div>
-                  <div className="text-xs text-mute">{m}</div>
-                </div>
-              )
-            })}
+                )
+              })
+            })()}
           </div>
           <div className="text-xs text-mute mt-3">% of invoices paid before due date · cumulative across all customers</div>
         </div>
-      </div>
+      </div> */}
+
     </div>
   )
 }

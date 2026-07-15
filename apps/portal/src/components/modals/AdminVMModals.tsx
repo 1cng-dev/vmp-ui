@@ -6,6 +6,7 @@ import useCustomerStore from '../../store/customerStore'
 import useTaskStore from '../../store/taskStore'
 import useInvoiceStore from '../../store/invoiceStore'
 import useTeamStore from '../../store/teamStore'
+import useVMRequestStore from '../../store/vmRequestStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { formatMMK, StatusPill, Avatar } from '../ui/ui'
@@ -430,7 +431,7 @@ const RenewModal: React.FC<RenewModalProps> = ({ vm, onClose }) => {
     const issuedDate = vm.start
     // Due date = VM expiry date
     const dueDate = vm.expiry
-    addInvoice({ customer: vm.customer, vms: [vm.id], amount: price, invoiceDate, due: dueDate, issued: issuedDate })
+    addInvoice({ customer_id: vm.customer, vm_request_ids: [vm.id], amount: price, vat: 0, gross_amount: price, invoice_date: invoiceDate, due: dueDate, issued: issuedDate })
     toast(`Renewed ${vm.name} for ${months} months`, 'ok')
     onClose()
   }
@@ -632,13 +633,17 @@ interface TerminateModalProps {
 }
 
 const TerminateModal: React.FC<TerminateModalProps> = ({ vm, onClose }) => {
-  const { deleteVM } = useVMStore()
+  const { updateVM } = useVMStore()
   const { toast } = useUIStore()
-  const [confirmed, setConfirmed] = useState(false)
+  const [inputValue, setInputValue] = useState('')
+
+  const vmName = (vm as any).hostname || vm.name
+  const isConfirmed = inputValue === vmName
 
   const submit = () => {
-    deleteVM(vm.id)
-    toast(`VM ${vm.name} terminated`, 'bad')
+    if (!isConfirmed) return
+    updateVM(vm.id, { status: 'Terminated' as any, power_state: 'Stopped' as any })
+    toast(`VM ${vmName} terminated`, 'warn')
     onClose()
   }
 
@@ -646,7 +651,61 @@ const TerminateModal: React.FC<TerminateModalProps> = ({ vm, onClose }) => {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
         <div className="modal-head">
-          <h3 style={{ margin: 0, fontSize: 16, color: 'var(--bad)' }}>Terminate {vm.name}</h3>
+          <h3 style={{ margin: 0, fontSize: 16, color: 'var(--bad)' }}>Terminate {vmName}</h3>
+          <button className="icon-btn" onClick={onClose}><Icon name="x" size={14} /></button>
+        </div>
+        <div className="modal-body">
+          <div style={{ padding: 14, background: 'var(--warn-soft)', borderRadius: 8, marginBottom: 16 }}>
+            <div className="flex gap-2">
+              <Icon name="alert" size={18} style={{ color: 'var(--bad)' }} />
+              <div>
+                <div className="fw-7 text-sm" style={{ color: 'var(--bad)' }}>VM will be terminated</div>
+                <div className="text-xs text-mute mt-1">VM status will be changed to Terminated. Data will be retained.</div>
+              </div>
+            </div>
+          </div>
+          <div className="field">
+            <label>Type the VM name to confirm</label>
+            <input value={inputValue} onChange={e => setInputValue(e.target.value)} placeholder={vmName} />
+          </div>
+        </div>
+        <div className="modal-foot">
+          <button className="btn ghost" onClick={onClose}>Cancel</button>
+          <button className="btn" disabled={!isConfirmed} onClick={submit}>
+            <Icon name="trash" size={12} />Terminate VM
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Delete Modal ───────────────────────────────────────────────────────
+interface DeleteModalProps {
+  vm: VM
+  onClose: () => void
+}
+
+const DeleteModal: React.FC<DeleteModalProps> = ({ vm, onClose }) => {
+  const { deleteVM } = useVMStore()
+  const { toast } = useUIStore()
+  const [inputValue, setInputValue] = useState('')
+
+  const vmName = (vm as any).hostname || vm.name
+  const isConfirmed = inputValue === vmName
+
+  const submit = () => {
+    if (!isConfirmed) return
+    deleteVM(vm.id)
+    toast(`VM ${vmName} permanently deleted`, 'bad')
+    onClose()
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+        <div className="modal-head">
+          <h3 style={{ margin: 0, fontSize: 16, color: 'var(--bad)' }}>Delete {vmName}</h3>
           <button className="icon-btn" onClick={onClose}><Icon name="x" size={14} /></button>
         </div>
         <div className="modal-body">
@@ -661,13 +720,13 @@ const TerminateModal: React.FC<TerminateModalProps> = ({ vm, onClose }) => {
           </div>
           <div className="field">
             <label>Type the VM name to confirm</label>
-            <input value={confirmed ? vm.name : ''} onChange={e => setConfirmed(e.target.value === vm.name)} placeholder={vm.name} />
+            <input value={inputValue} onChange={e => setInputValue(e.target.value)} placeholder={vmName} />
           </div>
         </div>
         <div className="modal-foot">
           <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <button className="btn danger" disabled={!confirmed} onClick={submit}>
-            <Icon name="trash" size={12} />Terminate VM
+          <button className="btn danger" disabled={!isConfirmed} onClick={submit}>
+            <Icon name="x" size={12} />Delete VM
           </button>
         </div>
       </div>
@@ -678,59 +737,265 @@ const TerminateModal: React.FC<TerminateModalProps> = ({ vm, onClose }) => {
 // ── New Customer Modal ───────────────────────────────────────────────────────
 interface NewCustomerModalProps {
   onClose: () => void
+  onPasswordGenerated?: (email: string, tempPassword: string, name: string) => void
 }
 
-const NewCustomerModal: React.FC<NewCustomerModalProps> = ({ onClose }) => {
-  const { addCustomer } = useCustomerStore()
-  const { team } = useTeamStore()
+const NewCustomerModal: React.FC<NewCustomerModalProps> = ({ onClose, onPasswordGenerated }) => {
+  const { addCustomerWithAuth } = useCustomerStore()
+  const { toast } = useUIStore()
   const [f, setF] = useState({
     name: '',
     company: '',
     email: '',
     phone: '',
-    salesperson: team.find((t: any) => t.role === 'Sales')?.name || 'Su Su'
+    altPhone: '',
+    accountType: 'Organization' as 'Individual' | 'Organization',
+    address: '',
+    city: 'Yangon',
+    state: 'Yangon Region',
+    postalCode: '11181',
+    country: 'Myanmar',
+    orgRegNo: '',
+    orgType: 'Private Limited',
+    orgIndustry: 'Technology',
+    orgRepTitle: '',
+    orgEmployees: '1-10',
+    orgWebsite: '',
+    paymentMethod: 'KBZ Pay',
+    payerName: '',
+    payerPhone: '',
   })
+  const [loading, setLoading] = useState(false)
   const set = (k: string, v: any) => setF(x => ({ ...x, [k]: v }))
 
-  const submit = () => {
-    addCustomer(f)
-    onClose()
+  const generateTempPassword = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*'
+    let password = ''
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    return password
+  }
+
+  const submit = async () => {
+    setLoading(true)
+    try {
+      const tempPassword = generateTempPassword()
+      await addCustomerWithAuth({
+        name: f.name,
+        org_name: f.company,
+        email: f.email,
+        phone: f.phone,
+        alt_phone: f.altPhone,
+        account_type: f.accountType,
+        address: f.address,
+        city: f.city,
+        state: f.state,
+        postal_code: f.postalCode,
+        country: f.country,
+        org_reg_no: f.orgRegNo,
+        org_type: f.orgType,
+        org_industry: f.orgIndustry,
+        org_rep_title: f.orgRepTitle,
+        org_employees: f.orgEmployees,
+        org_website: f.orgWebsite,
+        payment_method: f.paymentMethod as any,
+        payer_name: f.payerName,
+        payer_phone: f.payerPhone,
+        kyc_status: 'Approved',
+        status: 'Active',
+      }, tempPassword)
+      if (onPasswordGenerated) {
+        onPasswordGenerated(f.email, tempPassword, f.name)
+      } else {
+        toast(`Customer created. Temporary password: ${tempPassword}`, 'ok')
+      }
+      onClose()
+    } catch (error: any) {
+      toast(error.message || 'Failed to create customer', 'error')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 700 }}>
         <div className="modal-head">
           <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Add new customer</h3>
           <button className="icon-btn" onClick={onClose}><Icon name="x" size={14} /></button>
         </div>
         <div className="modal-body">
           <div className="flex col gap-3">
-            <div className="grid-2" style={{ gap: 12 }}>
-              <div className="field"><label>Contact name</label><input value={f.name} onChange={e => set('name', e.target.value)} placeholder="Aung Min Htet" /></div>
-              <div className="field"><label>Company</label><input value={f.company} onChange={e => set('company', e.target.value)} placeholder="Mandalay Logistics Co., Ltd" /></div>
-            </div>
-            <div className="grid-2" style={{ gap: 12 }}>
-              <div className="field"><label>Email</label><input type="email" value={f.email} onChange={e => set('email', e.target.value)} placeholder="contact@company.com" /></div>
-              <div className="field"><label>Phone</label><input value={f.phone} onChange={e => set('phone', e.target.value)} placeholder="+95 9 ..." /></div>
-            </div>
+            {/* Account Type */}
             <div className="field">
-              <label>Assigned salesperson</label>
-              <select value={f.salesperson} onChange={e => set('salesperson', e.target.value)}>
-                {team.filter((t: any) => t.role === 'Sales').map((t: any) => <option key={t.id}>{t.name}</option>)}
+              <label>Account type</label>
+              <select value={f.accountType} onChange={e => set('accountType', e.target.value)}>
+                <option value="Individual">Individual</option>
+                <option value="Organization">Organization</option>
               </select>
             </div>
+
+            {/* Contact Information */}
+            <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Contact Information</div>
+            <div className="grid-2" style={{ gap: 12 }}>
+              <div className="field"><label>Contact name</label><input value={f.name} onChange={e => set('name', e.target.value)} placeholder="Aung Min Htet" /></div>
+              <div className="field"><label>Email</label><input type="email" value={f.email} onChange={e => set('email', e.target.value)} placeholder="contact@company.com" /></div>
+            </div>
+            <div className="grid-2" style={{ gap: 12 }}>
+              <div className="field"><label>Phone</label><input value={f.phone} onChange={e => set('phone', e.target.value)} placeholder="+95 9 ..." /></div>
+              <div className="field"><label>Alternate phone</label><input value={f.altPhone} onChange={e => set('altPhone', e.target.value)} placeholder="+95 9 ..." /></div>
+            </div>
+
+            {/* Organization Details */}
+            {f.accountType === 'Organization' && (
+              <>
+                <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Organization Details</div>
+                <div className="grid-2" style={{ gap: 12 }}>
+                  <div className="field"><label>Company name</label><input value={f.company} onChange={e => set('company', e.target.value)} placeholder="Mandalay Logistics Co., Ltd" /></div>
+                  <div className="field"><label>Registration number</label><input value={f.orgRegNo} onChange={e => set('orgRegNo', e.target.value)} placeholder="12345678" /></div>
+                </div>
+                <div className="grid-2" style={{ gap: 12 }}>
+                  <div className="field"><label>Organization type</label>
+                    <select value={f.orgType} onChange={e => set('orgType', e.target.value)}>
+                      <option value="Private Limited">Private Limited</option>
+                      <option value="Public Limited">Public Limited</option>
+                      <option value="Partnership">Partnership</option>
+                      <option value="Sole Proprietorship">Sole Proprietorship</option>
+                      <option value="NGO">NGO</option>
+                      <option value="Government">Government</option>
+                    </select>
+                  </div>
+                  <div className="field"><label>Industry</label>
+                    <select value={f.orgIndustry} onChange={e => set('orgIndustry', e.target.value)}>
+                      <option value="Technology">Technology</option>
+                      <option value="Finance">Finance</option>
+                      <option value="Healthcare">Healthcare</option>
+                      <option value="Education">Education</option>
+                      <option value="Manufacturing">Manufacturing</option>
+                      <option value="Retail">Retail</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid-2" style={{ gap: 12 }}>
+                  <div className="field"><label>Representative title</label><input value={f.orgRepTitle} onChange={e => set('orgRepTitle', e.target.value)} placeholder="Managing Director" /></div>
+                  <div className="field"><label>Number of employees</label>
+                    <select value={f.orgEmployees} onChange={e => set('orgEmployees', e.target.value)}>
+                      <option value="1-10">1-10</option>
+                      <option value="11-50">11-50</option>
+                      <option value="51-200">51-200</option>
+                      <option value="201-500">201-500</option>
+                      <option value="500+">500+</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="field"><label>Website</label><input value={f.orgWebsite} onChange={e => set('orgWebsite', e.target.value)} placeholder="https://www.company.com" /></div>
+              </>
+            )}
+
+            {/* Address */}
+            <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Address</div>
+            <div className="field"><label>Street address</label><input value={f.address} onChange={e => set('address', e.target.value)} placeholder="Building, street, township" /></div>
+            <div className="grid-3" style={{ gap: 10 }}>
+              <div className="field"><label>City</label><input value={f.city} onChange={e => set('city', e.target.value)} /></div>
+              <div className="field"><label>State/Region</label><input value={f.state} onChange={e => set('state', e.target.value)} /></div>
+              <div className="field"><label>Postal code</label><input value={f.postalCode} onChange={e => set('postalCode', e.target.value)} /></div>
+            </div>
+            <div className="field"><label>Country</label><input value={f.country} onChange={e => set('country', e.target.value)} /></div>
+
+            {/* Payment Information */}
+            <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Payment Information</div>
+            <div className="field">
+              <label>Preferred payment method</label>
+              <select value={f.paymentMethod} onChange={e => set('paymentMethod', e.target.value)}>
+                <option value="KBZ Pay">KBZ Pay</option>
+                <option value="AYA Bank">AYA Bank</option>
+                <option value="CB Bank">CB Bank</option>
+                <option value="Yoma Bank">Yoma Bank</option>
+              </select>
+            </div>
+            <div className="grid-2" style={{ gap: 12 }}>
+              <div className="field"><label>Payer name</label><input value={f.payerName} onChange={e => set('payerName', e.target.value)} placeholder="Name on payment account" /></div>
+              <div className="field"><label>Payer phone</label><input value={f.payerPhone} onChange={e => set('payerPhone', e.target.value)} placeholder="+95 9 ..." /></div>
+            </div>
+
             <div style={{ padding: 12, background: 'var(--warn-soft)', borderRadius: 6, fontSize: 12, color: 'oklch(0.4 0.13 75)', display: 'flex', gap: 8 }}>
               <Icon name="alert" size={14} />
-              <div>Customer will be created with KYC status <strong>Pending</strong>. They'll receive an email link to upload identity documents.</div>
+              <div>Customer will be created with a temporary password. They'll need to change their password on first login. KYC status will be <strong>Auto-approved</strong>.</div>
             </div>
           </div>
         </div>
         <div className="modal-foot">
-          <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <button className="btn accent" disabled={!f.name || !f.email} onClick={submit}>
-            <Icon name="plus" size={12} />Add customer
+          <button className="btn ghost" onClick={onClose} disabled={loading}>Cancel</button>
+          <button className="btn accent" disabled={!f.name || !f.email || loading} onClick={submit}>
+            <Icon name="plus" size={12} />{loading ? 'Creating...' : 'Add customer'}
           </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Temp Password Modal ─────────────────────────────────────────────────────
+interface TempPasswordModalProps {
+  email: string
+  tempPassword: string
+  name: string
+  onClose: () => void
+}
+
+const TempPasswordModal: React.FC<TempPasswordModalProps> = ({ email, tempPassword, name, onClose }) => {
+  const [copied, setCopied] = useState(false)
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(tempPassword)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+        <div className="modal-head">
+          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Customer Created Successfully</h3>
+          <button className="icon-btn" onClick={onClose}><Icon name="x" size={14} /></button>
+        </div>
+        <div className="modal-body">
+          <div className="flex col gap-3">
+            <div style={{ textAlign: 'center', padding: 20 }}>
+              <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--ok-soft)', color: 'var(--ok)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                <Icon name="check" size={32} />
+              </div>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>{name}</h3>
+              <p className="text-sm text-mute mt-1">{email}</p>
+            </div>
+
+            <div style={{ background: 'var(--surface-2)', padding: 16, borderRadius: 8 }}>
+              <div className="text-sm fw-6 mb-2">Temporary Password</div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <div style={{ flex: 1, background: 'var(--surface-3)', padding: 12, borderRadius: 6, fontFamily: 'var(--mono)', fontSize: 16, fontWeight: 600, letterSpacing: 2, textAlign: 'center' }}>
+                  {tempPassword}
+                </div>
+                <button className="btn" onClick={copyToClipboard} style={{ padding: '12px' }}>
+                  <Icon name={copied ? "check" : "copy"} size={14} />
+                </button>
+              </div>
+              {copied && <div className="text-xs text-ok mt-2">Password copied to clipboard</div>}
+            </div>
+
+            <div style={{ padding: 12, background: 'var(--info-soft)', borderRadius: 6, fontSize: 12, color: 'var(--info)' }}>
+              <div className="flex gap-2">
+                <Icon name="alert" size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+                <div>
+                  <strong>Important:</strong> Share this temporary password with the customer. They will need to change their password on first login.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="modal-foot">
+          <button className="btn primary" onClick={onClose} style={{ width: '100%' }}>Done</button>
         </div>
       </div>
     </div>
@@ -750,6 +1015,7 @@ const EmailModal: React.FC<EmailModalProps> = ({ onClose, to, template }) => {
     welcome: { subject: 'Welcome to VPS Myanmar', body: `Hi,\n\nThank you for signing up. To activate your account, please complete the KYC verification by uploading your ID and company registration documents.\n\nThe link is in the portal.\n\n— VPS Myanmar Team` },
     renewal: { subject: 'Your VM subscription is expiring soon', body: `Hi,\n\nYour subscription is set to expire in 7 days. To avoid service interruption, please confirm your renewal.\n\nReply to this email or visit the portal.\n\n— VPS Myanmar Team` },
     invoice: { subject: 'Invoice attached', body: `Hi,\n\nPlease find your invoice attached.\n\nPayment is due within 10 days. We accept KBZ Pay, AYA Bank, and CB Bank transfers.\n\n— VPS Myanmar Team` },
+    receipt: { subject: 'Payment receipt', body: `Hi,\n\nThank you for your payment. Your receipt is attached for your records.\n\nIf you have any questions, please don't hesitate to contact us.\n\n— VPS Myanmar Team` },
     kyc_request: { subject: 'KYC document re-upload', body: `Hi,\n\nWe need to re-verify your identity documents. Please upload a clearer image of your NRC.\n\nLink: portal.vpsmm.co/kyc\n\n— VPS Myanmar Team` },
   }
   const [tmpl, setTmpl] = useState(template || 'renewal')
@@ -916,99 +1182,100 @@ interface NewInvoiceModalProps {
 const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({ onClose, presetCustomer, presetQuote }) => {
   const { addInvoice } = useInvoiceStore()
   const { customers } = useCustomerStore()
-  const { vms, loadVMs } = useVMStore()
-  
+  const { vmRequests } = useVMRequestStore()
+  const { toast } = useUIStore()
+
   const [f, setF] = useState({
     customer: presetCustomer || presetQuote?.customer_id || '',
-    vms: [] as string[],
+    vm_request_ids: [] as string[],
+    addon_request_ids: [] as string[],
     months: 6,
     invoiceDate: new Date().toISOString().slice(0, 10),
     vatRate: 5,
   })
-  
-  // Ensure VMs are loaded and auto-fill from quote
+
+  // Auto-fill from quote if provided
   React.useEffect(() => {
-    if (vms.length === 0) {
-      loadVMs()
-    }
-    
     if (presetQuote) {
-      let initialVms: string[] = []
-      
-      // First try to find VMs from quote line_items
-      if (presetQuote.line_items && presetQuote.line_items.length > 0) {
-        const vmIdsFromLineItems = presetQuote.line_items
-          .filter((item: any) => item.vm_id || item.id)
-          .map((item: any) => item.vm_id || item.id)
-        
-        // Find actual VM objects that match these IDs
-        initialVms = vms
-          .filter((v: any) => vmIdsFromLineItems.includes(v.id))
-          .map((v: any) => v.id)
-      }
-      
-      // If no VMs from line_items, try vm_request_id
-      if (initialVms.length === 0 && presetQuote.vm_request_id) {
-        const vmFromRequest = vms.find((v: any) => v.vm_request_id === presetQuote.vm_request_id)
-        if (vmFromRequest) {
-          initialVms = [vmFromRequest.id]
+      let initialVMRequestIds: string[] = []
+      let initialAddonRequestIds: string[] = []
+      let initialMonths = 6
+
+      // Use the quote's vm_request_id or addon_request_id
+      if (presetQuote.vm_request_id) {
+        initialVMRequestIds = [presetQuote.vm_request_id]
+
+        // Get duration from VM request
+        const vmRequest = vmRequests.find((r: any) => r.id === presetQuote.vm_request_id)
+        if (vmRequest && vmRequest.duration) {
+          initialMonths = vmRequest.duration
         }
+      } else if ((presetQuote as any).addon_request_id) {
+        initialAddonRequestIds = [(presetQuote as any).addon_request_id]
       }
-      
-      // If still no VMs, fallback to customer VMs
-      if (initialVms.length === 0 && presetQuote.customer_id) {
-        initialVms = vms
-          .filter((v: any) => v.customer_id === presetQuote.customer_id && v.status !== 'Expired')
-          .map((v: any) => v.id)
-      }
-      
+
       setF(prev => ({
         ...prev,
         customer: presetCustomer || presetQuote.customer_id || prev.customer,
-        vms: initialVms.length > 0 ? initialVms : prev.vms
+        vm_request_ids: initialVMRequestIds.length > 0 ? initialVMRequestIds : prev.vm_request_ids,
+        addon_request_ids: initialAddonRequestIds.length > 0 ? initialAddonRequestIds : prev.addon_request_ids,
+        months: initialMonths
       }))
     }
-  }, [presetQuote, vms, loadVMs, presetCustomer])
+  }, [presetQuote, presetCustomer, vmRequests])
+
   const set = (k: string, v: any) => setF(x => ({ ...x, [k]: v }))
-  const custVMs = vms.filter((v: any) => v.customer_id === f.customer && v.status !== 'Expired')
-  const amount = custVMs.filter((v: any) => f.vms.includes(v.id)).reduce((a: number, v: any) => a + v.priceMonth * f.months, 0)
-  const vat = amount * (f.vatRate / 100)
-  const grossAmount = amount + vat
 
-  // Invoice date = today (create invoice date)
-  const invoiceDate = f.invoiceDate
+  // Only show the specific VM request from the quote, not all customer requests
+  const selectedVMRequests = presetQuote?.vm_request_id
+    ? vmRequests.filter((r: any) => r.id === presetQuote.vm_request_id)
+    : vmRequests.filter((r: any) => r.customer_id === f.customer)
 
-  // Issued Date = from VM start date (customer request date)
-  const selectedVMs = vms.filter((v: any) => f.vms.includes(v.id))
-  const issuedDate = selectedVMs.length > 0
-    ? selectedVMs.reduce((min: string, v: any) => v.start < min ? v.start : min, selectedVMs[0].start)
-    : new Date().toISOString().slice(0, 10)
+  // Use quote totals if provided, otherwise calculate from VM request pricing
+  const amount = presetQuote
+    ? (presetQuote as any).instance_total + (presetQuote as any).public_ip_total + (presetQuote as any).backup_total
+    : selectedVMRequests
+      .filter((r: any) => f.vm_request_ids.includes(r.id))
+      .reduce((a: number, r: any) => {
+        const monthlyPrice = r.estimated_monthly_cost || 0
+        return a + (monthlyPrice * f.months)
+      }, 0)
 
-  // Due Date = from VM end date (expiry)
-  const dueDate = selectedVMs.length > 0
-    ? selectedVMs.reduce((max: string, v: any) => v.expiry > max ? v.expiry : max, selectedVMs[0].expiry)
-    : (() => {
-        const d = new Date(invoiceDate)
-        d.setDate(d.getDate() + 7)
-        return d.toISOString().slice(0, 10)
-      })()
+  const vat = presetQuote ? (presetQuote as any).tax_amount : amount * (f.vatRate / 100)
+  const grossAmount = presetQuote ? (presetQuote as any).grand_total : amount + vat
+  const discount = presetQuote ? (presetQuote as any).discount_amount : 0
+  const netAmount = presetQuote ? (presetQuote as any).net_amount : amount - discount
 
-  const toggle = (id: string) => set('vms', f.vms.includes(id) ? f.vms.filter((x: string) => x !== id) : [...f.vms, id])
+  const toggle = (id: string) => set('vm_request_ids', f.vm_request_ids.includes(id) ? f.vm_request_ids.filter((x: string) => x !== id) : [...f.vm_request_ids, id])
 
-  const submit = () => {
-    addInvoice({ 
-      customer: f.customer, 
-      vms: f.vms, 
-      amount, 
-      vat, 
-      grossAmount, 
-      due: dueDate, 
-      issued: issuedDate, 
-      invoiceDate: invoiceDate,
-      quote_id: presetQuote?.id,
-      sales_person: presetQuote?.created_by
-    })
-    onClose()
+  const issuedDate = new Date()
+  const dueDate = new Date(issuedDate)
+  dueDate.setDate(dueDate.getDate() + 7)
+
+  const submit = async () => {
+    try {
+      const id = await addInvoice({
+        customer_id: f.customer,
+        vm_request_ids: f.vm_request_ids,
+        addon_request_ids: f.addon_request_ids,
+        amount,
+        vat,
+        gross_amount: grossAmount,
+        net_amount: netAmount,
+        discount,
+        issued: issuedDate.toISOString(),
+        due: dueDate.toISOString(),
+        invoice_date: f.invoiceDate,
+        quote_id: presetQuote?.id,
+        sales_person: presetQuote?.created_by,
+        billing_term: presetQuote ? (presetQuote as any).billing_term : undefined,
+        line_items: presetQuote?.line_items || []
+      })
+      toast(`Invoice ${id} created successfully`, 'ok')
+      onClose()
+    } catch (error) {
+      toast('Failed to create invoice', 'error')
+    }
   }
 
   return (
@@ -1021,9 +1288,24 @@ const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({ onClose, presetCustom
         <div className="modal-body">
           <div className="flex col gap-3">
             <div className="field"><label>Customer</label>
-              <select value={f.customer} onChange={e => { set('customer', e.target.value); set('vms', []); }}>
-                {customers.map((c: any) => <option key={c.id} value={c.id}>{c.company}</option>)}
-              </select>
+              {presetQuote ? (
+                <div style={{ padding: '8px', background: 'var(--surface-2)', borderRadius: '4px', border: '1px solid var(--line)' }}>
+                  {(() => {
+                    const customer = customers.find((c: any) => c.id === f.customer)
+                    const customerName = customer?.name || customer?.company || customer?.legacy_id || f.customer
+                    const orgName = customer?.org_name
+                    return orgName ? `${customerName} (${orgName})` : customerName
+                  })()}
+                </div>
+              ) : (
+                <select value={f.customer} onChange={e => { set('customer', e.target.value); set('vm_request_ids', []); }}>
+                  {customers.map((c: any) => <option key={c.id} value={c.id}>{(() => {
+                    const customerName = c.name || c.company || c.legacy_id || c.id
+                    const orgName = c.org_name
+                    return orgName ? `${customerName} (${orgName})` : customerName
+                  })()}</option>)}
+                </select>
+              )}
             </div>
             <div className="field"><label>Billing period</label>
               <select value={f.months} onChange={e => set('months', parseInt(e.target.value))}>
@@ -1035,28 +1317,91 @@ const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({ onClose, presetCustom
             <div className="field"><label>VAT Rate (%)</label>
               <input type="number" value={f.vatRate} onChange={e => set('vatRate', parseFloat(e.target.value) || 0)} style={{ padding: '8px' }} />
             </div>
-            <div className="field"><label>Include these VMs</label>
-              <div className="card" style={{ borderColor: 'var(--line)' }}>
-                <div className="card-body flush" style={{ maxHeight: 240, overflowY: 'auto' }}>
-                  {custVMs.length === 0 && <div className="empty"><div className="sub">No billable VMs for this customer.</div></div>}
-                  {custVMs.map((v: any) => (
-                    <label key={v.id} style={{ display: 'flex', padding: '10px 14px', borderBottom: '1px solid var(--line)', cursor: 'pointer', alignItems: 'center', gap: 10 }}>
-                      <input type="checkbox" checked={f.vms.includes(v.id)} onChange={() => toggle(v.id)} />
-                      <div style={{ flex: 1 }}>
-                        <div className="fw-6 text-sm">{v.name}</div>
-                        <div className="text-xs text-mute mono">{v.legacy_id || v.id} · {v.vcpu}c · {v.ram}GB · {v.storage}GB</div>
-                      </div>
-                      <div className="tnum text-sm">MMK {formatMMK(v.priceMonth)}/mo</div>
-                    </label>
-                  ))}
+            {presetQuote ? (
+              <>
+                <div className="field"><label>Quote Line Items</label>
+                  <div className="card" style={{ borderColor: 'var(--line)' }}>
+                    <div className="card-body flush" style={{ maxHeight: 240, overflowY: 'auto' }}>
+                      {(presetQuote.line_items || []).length === 0 && <div className="empty"><div className="sub">No line items in quote.</div></div>}
+                      {(presetQuote.line_items || []).map((item: any, i: number) => (
+                        <div key={i} style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
+                          <div className="flex between">
+                            <div className="fw-6 text-sm">{item.spec || `Item ${i + 1}`}</div>
+                            <div className="tnum text-sm">MMK {formatMMK(item.unit || 0)}</div>
+                          </div>
+                          <div className="flex between text-xs text-mute mt-1">
+                            <div>
+                              {item.kind === 'instance' && (
+                                <>
+                                  {(item.spec?.startsWith('CPFS') || item.spec?.startsWith('CCIS')) ? (
+                                    <span>Qty: {item.qty || 1}</span>
+                                  ) : (
+                                    <>
+                                      <span>vCPU: {item.vcpu}</span>
+                                      {item.ram && <span> · RAM: {item.ram}GB</span>}
+                                      {item.storage && <span> · Storage: {item.storage}GB</span>}
+                                      <span> · Qty: {item.qty || 1}</span>
+                                    </>
+                                  )}
+                                </>
+                              )}
+                              {item.kind === 'backup' && (
+                                <>
+                                  <span>Storage: {item.storage}GB</span>
+                                  <span> · Type: {item.spec}</span>
+                                </>
+                              )}
+                              {item.kind === 'publicIP' && (
+                                <span>Public IP</span>
+                              )}
+                            </div>
+                            <div>Term: {item.term || '—'}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="card" style={{ background: 'var(--surface-2)' }}>
+                  <div className="card-body">
+                    <div className="flex between"><span className="text-mute">Instance Total</span><span className="tnum fw-6">MMK {formatMMK((presetQuote as any).instance_total || 0)}</span></div>
+                    <div className="flex between"><span className="text-mute">Public IP Total</span><span className="tnum fw-6">MMK {formatMMK((presetQuote as any).public_ip_total || 0)}</span></div>
+                    <div className="flex between"><span className="text-mute">Backup Total</span><span className="tnum fw-6">MMK {formatMMK((presetQuote as any).backup_total || 0)}</span></div>
+                    {discount > 0 && <div className="flex between"><span className="text-mute">Discount</span><span className="tnum fw-6">MMK {formatMMK(discount)}</span></div>}
+                    <div className="divider" />
+                    <div className="flex between"><span className="text-mute">Net Amount</span><span className="tnum fw-6">MMK {formatMMK(netAmount)}</span></div>
+                    <div className="flex between"><span className="text-mute">VAT</span><span className="tnum fw-6">MMK {formatMMK(vat)}</span></div>
+                    <div className="flex between"><span className="text-mute">Billing Term</span><span className="tnum fw-6">{(presetQuote as any).billing_term || '—'}</span></div>
+                    <div className="flex between"><span className="text-mute">Invoice Date</span><span className="tnum fw-6">{issuedDate.toISOString().slice(0, 10)}</span></div>
+                    <div className="flex between"><span className="text-mute">Due Date</span><span className="tnum fw-6">{dueDate.toISOString().slice(0, 10)}</span></div>
+                    <div className="divider" />
+                    <div className="flex between"><span className="fw-7">Grand Total</span><span className="tnum fw-7" style={{ fontSize: 16 }}>MMK {formatMMK(grossAmount)}</span></div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="field"><label>Include these VM Requests</label>
+                <div className="card" style={{ borderColor: 'var(--line)' }}>
+                  <div className="card-body flush" style={{ maxHeight: 240, overflowY: 'auto' }}>
+                    {selectedVMRequests.length === 0 && <div className="empty"><div className="sub">No VM requests for this customer.</div></div>}
+                    {selectedVMRequests.map((r: any) => (
+                      <label key={r.id} style={{ display: 'flex', padding: '10px 14px', borderBottom: '1px solid var(--line)', cursor: 'pointer', alignItems: 'center', gap: 10 }}>
+                        <input type="checkbox" checked={f.vm_request_ids.includes(r.id)} onChange={() => toggle(r.id)} />
+                        <div style={{ flex: 1 }}>
+                          <div className="fw-6 text-sm">{r.hostname || r.legacy_id || r.id}</div>
+                          <div className="text-xs text-mute mono">{r.legacy_id || r.id} · {r.task_type || 'new'} · Qty: {r.qty || 1}</div>
+                        </div>
+                        <div className="tnum text-sm">MMK {formatMMK(r.estimated_monthly_cost || 0)}/mo</div>
+                      </label>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
             <div className="card" style={{ background: 'var(--surface-2)' }}>
               <div className="card-body">
-                <div className="flex between"><span className="text-mute">Selected</span><span className="tnum fw-6">{f.vms.length} VM{f.vms.length !== 1 ? 's' : ''}</span></div>
-                <div className="flex between"><span className="text-mute">Period</span><span className="tnum fw-6">{f.months} month{f.months !== 1 ? 's' : ''}</span></div>
-                <div className="flex between"><span className="text-mute">Due date</span><span className="tnum fw-6">{dueDate}</span></div>
+                <div className="flex between"><span className="text-mute">Duration</span><span className="tnum fw-6">{f.months} month{f.months !== 1 ? 's' : ''}</span></div>
+                <div className="flex between"><span className="text-mute">Due date</span><span className="tnum fw-6">{new Date().toISOString().slice(0, 10)}</span></div>
                 <div className="divider" />
                 <div className="flex between"><span className="text-mute">Subtotal</span><span className="tnum fw-6">MMK {formatMMK(amount)}</span></div>
                 <div className="flex between"><span className="text-mute">VAT ({f.vatRate}%)</span><span className="tnum fw-6">MMK {formatMMK(vat)}</span></div>
@@ -1068,7 +1413,7 @@ const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({ onClose, presetCustom
         </div>
         <div className="modal-foot">
           <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <button className="btn accent" disabled={!f.vms.length} onClick={submit}><Icon name="plus" size={12} />Create invoice</button>
+          <button className="btn accent" disabled={!f.vm_request_ids.length && !f.addon_request_ids.length} onClick={submit}><Icon name="plus" size={12} />Create invoice</button>
         </div>
       </div>
     </div>
@@ -1151,12 +1496,12 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({ onClose, title = 'Confirm a
           <div className="text-sm">{message}</div>
         </div>
         <div className="modal-foot">
-         <button className="btn ghost" onClick={onClose}>Cancel</button>
-         <button className="btn accent" onClick={submit}>Confirm</button>
+          <button className="btn ghost" onClick={onClose}>Cancel</button>
+          <button className="btn accent" onClick={submit}>Confirm</button>
         </div>
       </div>
     </div>
   )
 }
 
-export { NewVMModal, RenewModal, SpecModal, TerminateModal, NewTaskModal, TaskDetailModal, NewCustomerModal, EmailModal, NewInvoiceModal, InviteMemberModal, ConfirmModal }
+export { NewVMModal, RenewModal, SpecModal, TerminateModal, DeleteModal, NewTaskModal, TaskDetailModal, NewCustomerModal, TempPasswordModal, EmailModal, NewInvoiceModal, InviteMemberModal, ConfirmModal }

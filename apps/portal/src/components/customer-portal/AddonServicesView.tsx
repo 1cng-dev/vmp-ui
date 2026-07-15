@@ -20,6 +20,16 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs }) =
   const [customDuration, setCustomDuration] = useState('')
   const [isCustomDuration, setIsCustomDuration] = useState(false)
 
+  const getDurationLabel = (months: number) => {
+    const labels: Record<number, string> = {
+      1: 'Monthly',
+      3: 'Quarterly',
+      6: 'Half Yearly',
+      12: 'Yearly'
+    }
+    return labels[months] || `${months} month${months > 1 ? 's' : ''}`
+  }
+
   const canSubmit = () => !!selectedVM && (cpfsEnabled || ccisEnabled)
 
   return (
@@ -55,10 +65,10 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs }) =
 
       {/* Duration Section */}
       <div className="card" style={{ marginBottom: 16 }}>
-        <div className="card-head"><h3 className="card-title">Duration</h3></div>
+        <div className="card-head"><h3 className="card-title">Billing Term</h3></div>
         <div className="card-body">
           <div>
-            <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, display: 'block' }}>Duration (months)</label>
+            <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, display: 'block' }}>Billing Term</label>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
               {[1, 3, 6, 12].map(months => (
                 <button
@@ -66,7 +76,7 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs }) =
                   className={`filter-chip ${!isCustomDuration && duration === months ? 'active' : ''}`}
                   onClick={() => { setDuration(months); setIsCustomDuration(false) }}
                 >
-                  {months} month{months > 1 ? 's' : ''}
+                  {getDurationLabel(months)}
                 </button>
               ))}
               <button

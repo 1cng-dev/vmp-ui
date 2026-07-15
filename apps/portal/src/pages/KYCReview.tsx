@@ -4,9 +4,11 @@ import React, { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import useCustomerStore from '../store/customerStore'
 import useUIStore from '../store/uiStore'
+import useActivityStore from '../store/activityStore'
 import Icon from '../lib/icons'
 import { Avatar, StatusPill, Spinner } from '../components/ui/ui'
 import { useAuth } from '../components/auth/Auth'
+import { createAlert } from '../services/notificationService'
 
 interface Doc {
   name: string
@@ -17,6 +19,7 @@ interface Doc {
 export const KYCReviewView: React.FC = () => {
   const { customers, customersLoading, updateCustomer, loadCustomers } = useCustomerStore()
   const { toast } = useUIStore()
+  const { logActivity } = useActivityStore()
   const [searchParams] = useSearchParams()
   const [tab, setTab] = useState('Pending')
   const [selected, setSelected] = useState<any>(null)
@@ -26,12 +29,10 @@ export const KYCReviewView: React.FC = () => {
   const auth = useAuth()
   const reviewerName = auth?.user?.name || auth?.user?.email || 'Unknown'
 
-  // Load customers
+  // Load customers on mount (real-time subscription is handled at provider level)
   useEffect(() => {
-    if (customers.length === 0) {
-      loadCustomers()
-    }
-  }, [loadCustomers, customers.length])
+    loadCustomers()
+  }, [loadCustomers])
   const pending = customers.filter((c: any) => c.kyc_status === 'Pending')
   const approved = customers.filter((c: any) => c.kyc_status === 'Approved')
   const rejected = customers.filter((c: any) => c.kyc_status === 'Rejected')
@@ -58,13 +59,102 @@ export const KYCReviewView: React.FC = () => {
 
   const sel = selected ? customers.find((c: any) => c.id === selected.id) : null
 
-  const decide = (id: string, decision: 'Pending' | 'Approved' | 'Rejected') => {
-    updateCustomer(id, {
+  const handleExport = () => {
+    const dataToExport = list.map((c: any) => ({
+      'Customer Name': c.name,
+      'Company': c.org_name || 'N/A',
+      'Email': c.email,
+      'Phone': c.phone || 'N/A',
+      'KYC Status': c.kyc_status,
+      'Account Type': c.account_type,
+      'Submitted Date': c.created_at ? new Date(c.created_at).toLocaleDateString() : 'N/A',
+      'Reviewer': c.kyc_reviewed_by || 'N/A',
+      'Review Date': c.kyc_reviewed_at ? new Date(c.kyc_reviewed_at).toLocaleDateString() : 'N/A',
+      'Reviewer Note': c.kyc_reviewer_note || 'N/A',
+    }))
+
+    const headers = Object.keys(dataToExport[0] || {})
+    const csvContent = [
+      headers.join(','),
+      ...dataToExport.map(row => headers.map(header => {
+        const value = row[header as keyof typeof row] || ''
+        return `"${String(value).replace(/"/g, '""')}"`
+      }).join(','))
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+
+    link.setAttribute('href', url)
+    link.setAttribute('download', `kyc-review-${tab.toLowerCase()}-${new Date().toISOString().split('T')[0]}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    toast(`Exported ${dataToExport.length} customers to CSV`, 'ok')
+  }
+
+  const decide = async (id: string, decision: 'Pending' | 'Approved' | 'Rejected') => {
+    const customer = customers.find((c: any) => c.id === id)
+    const previousStatus = customer?.kyc_status || 'Pending'
+    
+    await updateCustomer(id, {
       kyc_status: decision,
       kyc_reviewer_note: note,
       kyc_reviewed_by: decision !== 'Pending' ? reviewerName : undefined,
       kyc_reviewed_at: decision !== 'Pending' ? new Date().toISOString() : undefined
     })
+    
+    // Create notification and activity log for approval/rejection
+    if (decision === 'Approved' || decision === 'Rejected') {
+      // Get staff member from team_members table
+      const { supabase } = await import('../lib/supabase')
+      const { data: { user } } = await supabase.auth.getUser()
+      let actorName = reviewerName
+      let actorId = auth?.user?.id
+      if (user) {
+        const { data: staff } = await supabase
+          .from('team_members')
+          .select('name, staff_code')
+          .eq('user_id', user.id)
+          .single()
+        if (staff) {
+          actorName = `${staff.name} (${staff.staff_code})`
+          actorId = user.id
+        } else {
+          // Fallback to user's name or email if not in team_members
+          actorName = user.user_metadata?.name || user.email || reviewerName
+          actorId = user.id
+        }
+      }
+      
+      await logActivity(
+        `${decision} KYC for customer ${customer?.name || customer?.org_name}`,
+        'customer',
+        actorName,
+        { customerId: id, customerName: customer?.name || customer?.org_name, kycStatus: decision, previousStatus, reviewerNote: note }
+      )
+      
+      await createAlert({
+        sev: decision === 'Approved' ? 'info' : 'warn',
+        title: `KYC ${decision}`,
+        body: `Customer ${customer?.name || customer?.org_name} KYC has been ${decision.toLowerCase()}`,
+        type: 'kyc',
+        related_entity_id: id,
+        related_entity_type: 'customer',
+        actor_id: actorId,
+        actor_name: actorName,
+        metadata: { 
+          kyc_status: decision, 
+          previous_status: previousStatus,
+          customer_name: customer?.name || customer?.org_name,
+          reviewer_note: note
+        }
+      })
+    }
+    
     setNote('')
     toast(`KYC ${decision.toLowerCase()}`, decision === 'Approved' ? 'ok' : 'warn')
   }
@@ -84,7 +174,7 @@ export const KYCReviewView: React.FC = () => {
           <p className="page-subtitle">{pending.length} awaiting review · avg. response time 4.2 hours · {approved.length} approved this period</p>
         </div>
         <div className="page-actions">
-          <button className="btn" onClick={() => toast('KYC report exported', 'info')}><Icon name="download" size={13} />Export</button>
+          <button className="btn" onClick={handleExport}><Icon name="download" size={13} />Export</button>
         </div>
       </div>
 

@@ -17,7 +17,7 @@ export interface TaskStoreValue {
     password: string
   }, addVM: (vm: any) => Promise<string>) => Promise<void>
   setTasks: (tasks: Task[]) => void
-  updateVMExpiryForRequest: (vmRequestId: string, quotationDate: string, durationMonths?: number, updateVM?: (id: string, patch: any) => Promise<void>) => Promise<void>
+  updateVMExpiryForRequest: (vmRequestId: string, durationMonths?: number, updateVM?: (id: string, patch: any) => Promise<void>) => Promise<void>
 }
 
 const useTaskStore = (): TaskStoreValue => {
@@ -56,7 +56,7 @@ const useTaskStore = (): TaskStoreValue => {
 
 
     if (stage === 6 && t.createdVmId && updateVM) {
-      updateVM(t.createdVmId, { status: 'Active', powerState: 'Running' })
+      updateVM(t.createdVmId, { status: 'Active' })
     }
 
     setTasks(s => s.map(x => x.id === id ? { ...x, ...patch } : x))
@@ -77,25 +77,13 @@ const useTaskStore = (): TaskStoreValue => {
     }
     console.log('Processing task:', t)
     
-    // Calculate expiry using quote's created_at (if accepted) or vm_request's created_at
-    // Formula: quotation_date + 1 day + duration (in months)
+    // Calculate expiry using VM's created_at (service provision date)
+    // Formula: created_at + 1 day + duration (in months)
     let expiry: string | undefined
-    console.log('Checking for accepted quote for vm_request:', t.id)
     
-    // Try to get accepted quote for this vm_request
-    const { data: acceptedQuote } = await supabase
-      .from('quotes')
-      .select('created_at')
-      .eq('vm_request_id', t.id)
-      .eq('status', 'Accepted')
-      .single()
-    
-    const quotationDate = acceptedQuote?.created_at || t.created_at
-    console.log('Using quotation date:', quotationDate, 'from:', acceptedQuote ? 'accepted quote' : 'vm_request created_at')
-    
-    if (quotationDate && t.duration) {
-      const startDate = new Date(quotationDate)
-      startDate.setDate(startDate.getDate() + 1) // Add 1 day to start from next day
+    if (t.created_at && t.duration) {
+      const startDate = new Date(t.created_at)
+      startDate.setDate(startDate.getDate() + 1) // Add 1 day
       
       // Duration is in months (integer)
       const durationMonths = parseInt(String(t.duration)) || 3
@@ -106,14 +94,14 @@ const useTaskStore = (): TaskStoreValue => {
       expiry = expiryDate.toISOString()
       
       console.log('Expiry calculated:', {
-        quotationDate,
+        created_at: t.created_at,
         startDate,
         duration: t.duration,
         durationMonths,
         expiry
       })
     } else {
-      console.log('No quotation_date or duration found in task, expiry will be null')
+      console.log('No created_at or duration found in task, expiry will be null')
       console.log('Task object keys:', Object.keys(t))
     }
     
@@ -154,9 +142,10 @@ const useTaskStore = (): TaskStoreValue => {
         task_type: t.task_type,
         expiry: expiry,
         duration: t.duration,
-        billing_term: (t as any).billing_term,
         legacy_id: legacyId,
         assigned_vmid: vmDetails.assigned_vmids[i] || null,
+        backup_enabled: t.backup_enabled || false,
+        backup_type: t.backup_type || 'weekly',
       }
       console.log(`About to call addVM for VM ${i + 1}:`, vmData)
       try {
@@ -173,35 +162,34 @@ const useTaskStore = (): TaskStoreValue => {
   }, [])
 
   // Function to update VM expiry when quotation is created
-  const updateVMExpiryForRequest = useCallback(async (vmRequestId: string, quotationDate: string, durationMonths: number = 3, updateVM?: (id: string, patch: any) => Promise<void>) => {
-    console.log('updateVMExpiryForRequest called:', { vmRequestId, quotationDate, durationMonths })
+  const updateVMExpiryForRequest = useCallback(async (vmRequestId: string, durationMonths: number = 3, updateVM?: (id: string, patch: any) => Promise<void>) => {
+    console.log('updateVMExpiryForRequest called:', { vmRequestId, durationMonths })
     
-    // Calculate expiry: quotation_date + 1 day + duration
-    const startDate = new Date(quotationDate)
-    startDate.setDate(startDate.getDate() + 1)
-    const expiryDate = new Date(startDate)
-    expiryDate.setMonth(expiryDate.getMonth() + durationMonths)
-    const expiry = expiryDate.toISOString()
-    
-    console.log('Calculated expiry:', expiry)
-    
-    // Get all VMs for this request
+    // Get VMs for this request to get their created_at
     const { data: vms } = await supabase
       .from('vms')
-      .select('id')
+      .select('id, created_at')
       .eq('vm_request_id', vmRequestId)
     
     if (vms && vms.length > 0) {
       console.log(`Found ${vms.length} VMs to update expiry for`)
-      // Update each VM with the calculated expiry
+      // Update each VM with expiry calculated from its created_at
       for (const vm of vms) {
-        if (updateVM) {
-          await updateVM(vm.id, { expiry })
-        } else {
-          // Direct Supabase update if no updateVM function provided
-          await supabase.from('vms').update({ expiry }).eq('id', vm.id)
+        if (vm.created_at) {
+          // Calculate expiry: created_at + 1 day + duration
+          const startDate = new Date(vm.created_at)
+          startDate.setDate(startDate.getDate() + 1)
+          const expiryDate = new Date(startDate)
+          expiryDate.setMonth(expiryDate.getMonth() + durationMonths)
+          const expiry = expiryDate.toISOString()
+          
+          if (updateVM) {
+            await updateVM(vm.id, { expiry })
+          } else {
+            await supabase.from('vms').update({ expiry }).eq('id', vm.id)
+          }
+          console.log(`Updated VM ${vm.id} with expiry ${expiry}`)
         }
-        console.log(`Updated VM ${vm.id} with expiry ${expiry}`)
       }
     } else {
       console.log('No VMs found for this request')

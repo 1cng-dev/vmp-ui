@@ -93,14 +93,18 @@ ALTER TABLE public.vms ADD COLUMN IF NOT EXISTS duration INTEGER;
 CREATE INDEX IF NOT EXISTS idx_vms_duration ON public.vms(duration);
 
 
--- Add billing_term field to vms table
-ALTER TABLE public.vms ADD COLUMN IF NOT EXISTS billing_term TEXT CHECK (billing_term IN ('Monthly', 'Annual'));
-
--- Create index for billing_term queries
-CREATE INDEX IF NOT EXISTS idx_vms_billing_term ON public.vms(billing_term);
-
-
-
 -- Add backup columns to vms table
 ALTER TABLE public.vms ADD COLUMN IF NOT EXISTS backup_enabled BOOLEAN DEFAULT false;
 ALTER TABLE public.vms ADD COLUMN IF NOT EXISTS backup_type TEXT DEFAULT NULL CHECK (backup_type IN ('daily', 'weekly', NULL));
+
+
+
+-- Add start_date and end_date fields to vms table
+-- start_date: created_at + 1 day
+-- end_date: start_date + duration (in months)
+ALTER TABLE public.vms ADD COLUMN IF NOT EXISTS start_date TIMESTAMPTZ;
+ALTER TABLE public.vms ADD COLUMN IF NOT EXISTS end_date TIMESTAMPTZ;
+
+-- Create indexes for date queries
+CREATE INDEX IF NOT EXISTS idx_vms_start_date ON public.vms(start_date);
+CREATE INDEX IF NOT EXISTS idx_vms_end_date ON public.vms(end_date);

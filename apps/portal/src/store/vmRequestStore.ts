@@ -1,5 +1,7 @@
 import React, { useState, useCallback, createContext, useContext, type ReactNode, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { createAlert } from '../services/notificationService'
+import useActivityStore from './activityStore'
 
 export interface VMRequest {
   id: string
@@ -12,7 +14,6 @@ export interface VMRequest {
   storage: number
   qty: number
   duration: number | null
-  billing_term: 'Monthly' | 'Annual' | null
   sizing: string
   storage_partitions: string
   os_name: string
@@ -23,17 +24,17 @@ export interface VMRequest {
   nics: any[]
   public_ip_required: boolean
   firewall_ports: string[]
-  port_forwarding: any[]
   backup_enabled: boolean
   backup_type: string
-  monitoring: boolean
   notes: string
-  task_type: 'New' | 'Upgrade' | 'Renewal' | 'Terminate'
+  task_type: 'New' | 'Upgrade' | 'Renewal' | 'Terminate' | 'change-plan'
   status: string
   created_at: string
   updated_at: string
   legacy_id: string
   assigned_to: string | null
+  spec_changed?: boolean
+  backup_changed?: boolean
 }
 
 export interface VMRequestStoreValue {
@@ -50,13 +51,26 @@ export interface VMRequestStoreValue {
 const VMRequestContext = createContext<VMRequestStoreValue | null>(null)
 
 export const VMRequestProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [vmRequests, setVmRequests] = useState<VMRequest[]>([])
+  // Initialize with cached data from localStorage if available
+  const [vmRequests, setVmRequests] = useState<VMRequest[]>(() => {
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('vm-requests-cache')
+      return cached ? JSON.parse(cached) : []
+    }
+    return []
+  })
   const [vmRequestsLoading, setVmRequestsLoading] = useState(false)
+  const { logActivity } = useActivityStore()
+
+  // Save to localStorage whenever vmRequests changes
+  useEffect(() => {
+    if (typeof window !== 'undefined' && vmRequests.length > 0) {
+      localStorage.setItem('vm-requests-cache', JSON.stringify(vmRequests))
+    }
+  }, [vmRequests])
 
   const loadVMRequests = useCallback(async () => {
-    const shouldShowSpinner = vmRequests.length === 0
     try {
-      if (shouldShowSpinner) setVmRequestsLoading(true)
       const { data, error } = await supabase
         .from('vm_requests')
         .select('*')
@@ -68,9 +82,9 @@ export const VMRequestProvider: React.FC<{ children: ReactNode }> = ({ children 
         setVmRequests(data || [])
       }
     } finally {
-      if (shouldShowSpinner) setVmRequestsLoading(false)
+      setVmRequestsLoading(false)
     }
-  }, [vmRequests.length])
+  }, [])
 
   const subscribeToVMRequests = useCallback(() => {
     const channelName = `vm-requests-changes-${Date.now()}`
@@ -103,10 +117,58 @@ export const VMRequestProvider: React.FC<{ children: ReactNode }> = ({ children 
       throw error
     } else if (data) {
       await loadVMRequests()
+      
+      // Get current user (staff member) who created the request
+      const { data: { user } } = await supabase.auth.getUser()
+      let actorName = 'System'
+      let actorId = request.customer_id
+      if (user) {
+        const { data: staff } = await supabase
+          .from('team_members')
+          .select('name, staff_code')
+          .eq('user_id', user.id)
+          .single()
+        if (staff) {
+          actorName = `${staff.name} (${staff.staff_code})`
+          actorId = user.id
+        } else {
+          // Fallback to user's name or email if not in team_members
+          actorName = user.user_metadata?.name || user.email || 'System'
+          actorId = user.id
+        }
+      }
+      
+      // Create notification and activity log for new VM request
+      await logActivity(
+        `Created ${request.request_type} VM request for ${request.hostname} (${request.vcpu} vCPU, ${request.ram_gb}GB RAM)`,
+        'vm',
+        actorName,
+        { vmRequestId: data[0].id, hostname: request.hostname, requestType: request.request_type, vcpu: request.vcpu, ramGb: request.ram_gb, customerId: request.customer_id, taskType: request.task_type }
+      )
+      
+      await createAlert({
+        sev: 'info',
+        title: 'New VM Request',
+        body: `New ${request.request_type} VM request for ${request.hostname} (${request.vcpu} vCPU, ${request.ram_gb}GB RAM)`,
+        type: 'vm',
+        related_entity_id: data[0].id,
+        related_entity_type: 'vm_request',
+        actor_id: actorId,
+        actor_name: actorName,
+        metadata: {
+          hostname: request.hostname,
+          request_type: request.request_type,
+          vcpu: request.vcpu,
+          ram_gb: request.ram_gb,
+          customer_id: request.customer_id,
+          task_type: request.task_type
+        }
+      })
     }
-  }, [loadVMRequests])
+  }, [loadVMRequests, logActivity])
 
   const updateVMRequest = useCallback(async (id: string, patch: any) => {
+    const previousRequest = vmRequests.find(r => r.id === id)
     const { error } = await supabase
       .from('vm_requests')
       .update(patch)
@@ -114,11 +176,54 @@ export const VMRequestProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     if (!error) {
       await loadVMRequests()
+      
+      // Create notification for status change
+      if (patch.status && previousRequest && patch.status !== previousRequest.status) {
+        // Get current user (staff member) who made the change
+        const { data: { user } } = await supabase.auth.getUser()
+        let actorName = 'System'
+        let actorId = previousRequest.customer_id
+        if (user) {
+          const { data: staff } = await supabase
+            .from('team_members')
+            .select('name, staff_code')
+            .eq('user_id', user.id)
+            .single()
+          if (staff) {
+            actorName = `${staff.name} (${staff.staff_code})`
+            actorId = user.id
+          }
+        }
+        
+        await logActivity(
+          `Changed VM request ${previousRequest.hostname} status from ${previousRequest.status} to ${patch.status}`,
+          'vm',
+          actorName,
+          { vmRequestId: id, hostname: previousRequest.hostname, previousStatus: previousRequest.status, newStatus: patch.status, customerId: previousRequest.customer_id }
+        )
+        
+        await createAlert({
+          sev: 'info',
+          title: 'VM Request Status Changed',
+          body: `VM request for ${previousRequest.hostname} status changed from ${previousRequest.status} to ${patch.status}`,
+          type: 'vm',
+          related_entity_id: id,
+          related_entity_type: 'vm_request',
+          actor_id: actorId,
+          actor_name: actorName,
+          metadata: {
+            hostname: previousRequest.hostname,
+            previous_status: previousRequest.status,
+            new_status: patch.status,
+            customer_id: previousRequest.customer_id
+          }
+        })
+      }
     } else {
       console.error('Error updating vm_request:', error)
       throw error
     }
-  }, [loadVMRequests])
+  }, [loadVMRequests, vmRequests, logActivity])
 
   const deleteVMRequest = useCallback(async (id: string) => {
     const { error } = await supabase

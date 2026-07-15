@@ -5,9 +5,10 @@ import type { DBQuote } from '../../types'
 import useCustomerStore from '../../store/customerStore'
 import useVMRequestStore from '../../store/vmRequestStore'
 import useVMStore from '../../store/vmStore'
-import useQuoteStore from '../../store/quoteStore'
 import useAddonRequestStore from '../../store/addonRequestStore'
+import useQuoteStore from '../../store/quoteStore'
 import useUIStore from '../../store/uiStore'
+import useAuthStore from '../../store/authStore'
 
 interface QuoteDrawerProps {
   quote: DBQuote
@@ -21,6 +22,14 @@ const QuoteDrawer = ({ quote, onClose }: QuoteDrawerProps) => {
   const { addonRequests } = useAddonRequestStore()
   const { updateQuote } = useQuoteStore()
   const { toast } = useUIStore()
+  const { user, refreshUser } = useAuthStore()
+
+  // Ensure user data is loaded
+  React.useEffect(() => {
+    if (!user) {
+      refreshUser()
+    }
+  }, [user, refreshUser])
 
   // Load VMs if not loaded
   React.useEffect(() => {
@@ -49,6 +58,9 @@ const QuoteDrawer = ({ quote, onClose }: QuoteDrawerProps) => {
     toast(`Quote rejected`, 'warn')
     onClose()
   }
+
+  // Check if user is sales role - hide buttons for sales
+  const isSales = user?.role === 'Sales'
 
   return (
     <div className="drawer-overlay" onClick={onClose}>
@@ -138,16 +150,36 @@ const QuoteDrawer = ({ quote, onClose }: QuoteDrawerProps) => {
             <div className="card-body">
               <h3 className="fw-6 mb-2">Totals</h3>
               <div className="flex between text-sm mb-1">
-                <div>Subtotal (Monthly)</div>
-                <div className="tnum">MMK {formatMMK(quote.subtotal_monthly)}</div>
+                <div>Instance Total</div>
+                <div className="tnum">MMK {formatMMK((quote as any).instance_total)}</div>
               </div>
               <div className="flex between text-sm mb-1">
-                <div>Subtotal (Annual)</div>
-                <div className="tnum">MMK {formatMMK(quote.subtotal_annual)}</div>
+                <div>Public IP Total</div>
+                <div className="tnum">MMK {formatMMK((quote as any).public_ip_total)}</div>
+              </div>
+              <div className="flex between text-sm mb-1">
+                <div>Backup Total</div>
+                <div className="tnum">MMK {formatMMK((quote as any).backup_total)}</div>
+              </div>
+              <div className="flex between text-sm mb-1">
+                <div>Discount</div>
+                <div className="tnum">MMK {formatMMK((quote as any).discount_amount)}</div>
+              </div>
+              <div className="flex between text-sm mb-1">
+                <div>Net Amount</div>
+                <div className="tnum">MMK {formatMMK((quote as any).net_amount)}</div>
+              </div>
+              <div className="flex between text-sm mb-1">
+                <div>Tax</div>
+                <div className="tnum">MMK {formatMMK((quote as any).tax_amount)}</div>
+              </div>
+              <div className="flex between text-sm mb-1">
+                <div>Billing Term</div>
+                <div className="tnum">{(quote as any).billing_term || '—'}</div>
               </div>
               <div className="flex between fw-6">
-                <div>Total (Annual)</div>
-                <div className="tnum">MMK {formatMMK(quote.total_annual)}</div>
+                <div>Grand Total</div>
+                <div className="tnum">MMK {formatMMK((quote as any).grand_total)}</div>
               </div>
             </div>
           </div>
@@ -161,7 +193,7 @@ const QuoteDrawer = ({ quote, onClose }: QuoteDrawerProps) => {
             </div>
           )}
 
-          {quote.status === 'Sent' && (
+          {quote.status === 'Sent' && !isSales && (
             <div className="flex gap-2" style={{ marginTop: 16 }}>
               <button className="btn ok" onClick={handleApprove}>
                 <Icon name="check" size={12} /> Approve

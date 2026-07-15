@@ -20,12 +20,78 @@ export const TeamTicketDetail: React.FC<TeamTicketDetailProps> = ({ ticket: init
   const [reply, setReply] = useState('')
   const [replyFiles, setReplyFiles] = useState<File[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [previewImage, setPreviewImage] = useState<string | null>(null)
+  const [dragOver, setDragOver] = useState(false)
+
+  const isImageUrl = (url: string) => {
+    return /\.(jpg|jpeg|png|gif|webp|bmp|svg|ico|heic|heif)$/i.test(url)
+  }
+
+  const AttachmentThumbs = ({ urls }: { urls: string[] }) => (
+    <div className="flex gap-2 wrap" style={{ marginTop: 8 }}>
+      {urls.map((url: string, j: number) => (
+        isImageUrl(url) ? (
+          <img
+            key={j}
+            src={url}
+            alt={`Attachment ${j + 1}`}
+            onClick={() => setPreviewImage(url)}
+            style={{
+              width: 64,
+              height: 64,
+              objectFit: 'cover',
+              borderRadius: 8,
+              cursor: 'pointer',
+              border: '1px solid var(--line)',
+              transition: 'opacity 0.15s',
+            }}
+            onMouseEnter={e => (e.target as HTMLImageElement).style.opacity = '0.8'}
+            onMouseLeave={e => (e.target as HTMLImageElement).style.opacity = '1'}
+          />
+        ) : (
+          <button key={j} className="btn sm" onClick={() => window.open(url, '_blank')}>
+            <Icon name="attach" size={11}/> Attachment {j + 1}
+          </button>
+        )
+      ))}
+    </div>
+  )
 
   const customer = customers.find((c: any) => c.id === ticket.customer_id)
 
+  const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'application/pdf']
+  const MAX_FILE_SIZE = 10 * 1024 * 1024
+
+  const validateFiles = (files: File[]): File[] => {
+    const valid: File[] = []
+    for (const file of files) {
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        toast(`${file.name} is not allowed. Only PNG, JPG, and PDF files are accepted.`, 'bad')
+        continue
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        toast(`${file.name} is too large. Maximum file size is 10MB.`, 'bad')
+        continue
+      }
+      valid.push(file)
+    }
+    return valid
+  }
+
   const onReplyFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const list = Array.from(e.target.files || [])
-    setReplyFiles(list)
+    const validFiles = validateFiles(list)
+    setReplyFiles(prev => [...prev, ...validFiles])
+    e.target.value = ''
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOver(false)
+    const files = Array.from(e.dataTransfer.files)
+    const validFiles = validateFiles(files)
+    if (validFiles.length > 0) setReplyFiles(prev => [...prev, ...validFiles])
   }
 
   const sendReply = async () => {
@@ -100,7 +166,7 @@ export const TeamTicketDetail: React.FC<TeamTicketDetailProps> = ({ ticket: init
         </div>
       </div>
 
-      <div className="grid-asym">
+      <div>
         {/* Conversation */}
         <div className="card">
           <div className="card-head">
@@ -119,13 +185,7 @@ export const TeamTicketDetail: React.FC<TeamTicketDetailProps> = ({ ticket: init
                 <div style={{ background: 'var(--surface-2)', padding: '12px 16px', borderRadius: 12, borderBottomLeftRadius: 4 }}>
                   <div className="text-sm" style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{ticket.body}</div>
                   {ticket.attachments && ticket.attachments.length > 0 && (
-                    <div className="flex col gap-1" style={{ marginTop: 8, alignItems: 'flex-start' }}>
-                      {ticket.attachments.map((url: string, j: number) => (
-                        <button key={j} className="btn sm" onClick={() => window.open(url, '_blank')}>
-                          <Icon name="attach" size={11}/> Attachment {j + 1}
-                        </button>
-                      ))}
-                    </div>
+                    <AttachmentThumbs urls={ticket.attachments} />
                   )}
                 </div>
               </div>
@@ -152,13 +212,7 @@ export const TeamTicketDetail: React.FC<TeamTicketDetailProps> = ({ ticket: init
                   }}>
                     <div className="text-sm" style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{r.body || ''}</div>
                     {r.attachments && r.attachments.length > 0 && (
-                      <div className="flex col gap-1" style={{ marginTop: 8, alignItems: 'flex-start' }}>
-                        {r.attachments.map((url: string, j: number) => (
-                          <button key={j} className="btn sm" onClick={() => window.open(url, '_blank')}>
-                            <Icon name="attach" size={11}/> Attachment {j + 1}
-                          </button>
-                        ))}
-                      </div>
+                      <AttachmentThumbs urls={r.attachments} />
                     )}
                   </div>
                 </div>
@@ -178,19 +232,52 @@ export const TeamTicketDetail: React.FC<TeamTicketDetailProps> = ({ ticket: init
                     ))}
                   </div>
                 )}
-                <textarea
-                  value={reply}
-                  onChange={e => setReply(e.target.value)}
-                  placeholder="Type your reply…"
-                  rows={3}
-                  style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 6, fontSize: 12.5, resize: 'vertical', marginBottom: 8 }}
-                />
+                <div
+                  onDragOver={e => { e.preventDefault(); e.stopPropagation(); setDragOver(true) }}
+                  onDragLeave={e => { e.preventDefault(); e.stopPropagation(); setDragOver(false) }}
+                  onDrop={handleDrop}
+                  style={{ position: 'relative', marginBottom: 8 }}
+                >
+                  <textarea
+                    value={reply}
+                    onChange={e => setReply(e.target.value)}
+                    placeholder="Type your reply…"
+                    rows={3}
+                    style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 6, fontSize: 12.5, resize: 'vertical', background: 'var(--surface)', outline: 'none' }}
+                  />
+                  {dragOver && (
+                    <div style={{
+                      position: 'absolute', inset: 0,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      borderRadius: 6,
+                      background: 'rgba(255,255,255,0.85)',
+                      backdropFilter: 'blur(2px)',
+                      pointerEvents: 'none',
+                      animation: 'fadeIn 0.12s ease-out',
+                    }}>
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: 8,
+                        padding: '8px 16px',
+                        borderRadius: 999,
+                        background: 'var(--accent)',
+                        color: 'white',
+                        fontSize: 12.5,
+                        fontWeight: 600,
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                      }}>
+                        <Icon name="attach" size={14} />
+                        Drop to attach
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <div className="flex between">
                   <div className="flex gap-2">
                     <input ref={fileInputRef} type="file" multiple accept="image/png,image/jpeg,application/pdf" onChange={onReplyFileChange} style={{ display: 'none' }} />
                     <button className="btn sm" onClick={() => fileInputRef.current?.click()}>
                       <Icon name="attach" size={11}/> Attach files
                     </button>
+                    <span className="text-xs text-mute" style={{ alignSelf: 'center' }}>or drag & drop onto the text area (PNG, JPG, PDF — 10MB max)</span>
                   </div>
                   <button className="btn primary" disabled={!reply.trim()} onClick={sendReply}><Icon name="mail" size={12}/>Send reply</button>
                 </div>
@@ -199,53 +286,51 @@ export const TeamTicketDetail: React.FC<TeamTicketDetailProps> = ({ ticket: init
           </div>
         </div>
 
-        {/* Sidebar info */}
-        <div className="flex col" style={{ gap: 16 }}>
-          <div className="card">
-            <div className="card-head"><h3 className="card-title">Ticket info</h3></div>
-            <div className="card-body">
-              <dl className="dl">
-                <dt>Ticket ID</dt><dd className="mono">{ticket.legacy_id || ticket.id}</dd>
-                <dt>Customer</dt><dd>
-                  <div className="fw-6 text-sm">{customer?.org_name || customer?.name || 'Unknown'}</div>
-                  <div className="text-xs text-mute">{customer?.name}</div>
-                </dd>
-                <dt>Category</dt><dd>{ticket.category || <span className="text-mute">Not specified</span>}</dd>
-                <dt>Status</dt><dd><StatusPill status={ticket.status}/></dd>
-                <dt>Priority</dt><dd>
-                  <span className={`pill ${ticket.priority === 'Urgent' ? 'bad' : ticket.priority === 'Low' ? 'subtle' : 'warn'}`}><span className="dot"/>{ticket.priority}</span>
-                </dd>
-                <dt>Created</dt><dd className="tnum">{new Date(ticket.created_at).toLocaleString()}</dd>
-                {ticket.attachments && ticket.attachments.length > 0 && (
-                  <>
-                    <dt>Attachments</dt>
-                    <dd>
-                      <div className="flex col gap-1">
-                        {ticket.attachments.map((url: string, i: number) => (
-                          <button key={i} className="btn sm" onClick={() => window.open(url, '_blank')}>
-                            <Icon name="attach" size={11}/> Attachment {i + 1}
-                          </button>
-                        ))}
-                      </div>
-                    </dd>
-                  </>
-                )}
-              </dl>
-            </div>
-          </div>
-          <div className="card">
-            <div className="card-head"><h3 className="card-title">Actions</h3></div>
-            <div className="card-body">
-              <div className="flex col gap-2">
-                {ticket.status === 'Closed' && <button className="btn" onClick={handleReopen}>Reopen ticket</button>}
-                <div className="text-xs text-mute" style={{ marginTop: 8 }}>
-                  {ticket.status === 'Open' ? 'Reply to this ticket to respond to the customer.' : 'Ticket is closed.'}
-                </div>
-              </div>
-            </div>
+      </div>
+
+      {previewImage && (
+        <div
+          className="modal-overlay"
+          onClick={() => setPreviewImage(null)}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32 }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}
+          >
+            <button
+              onClick={() => setPreviewImage(null)}
+              style={{
+                position: 'absolute',
+                top: -14,
+                right: -14,
+                zIndex: 1,
+                width: 32,
+                height: 32,
+                borderRadius: '50%',
+                border: 'none',
+                background: 'var(--surface)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                cursor: 'pointer',
+                display: 'grid',
+                placeItems: 'center',
+                fontSize: 18,
+                lineHeight: 1,
+                color: 'var(--ink-2)',
+                fontFamily: 'inherit',
+              }}
+            >
+              ×
+            </button>
+            <img
+              src={previewImage}
+              alt="Attachment preview"
+              style={{ maxWidth: '90vw', maxHeight: '90vh', borderRadius: 8, objectFit: 'contain' }}
+            />
           </div>
         </div>
-      </div>
+      )}
+      <style>{`@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }`}</style>
     </div>
   )
 }

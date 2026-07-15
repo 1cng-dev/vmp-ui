@@ -1,9 +1,9 @@
 import React, { useState } from 'react'
 import useTaskStore from '../../store/taskStore'
 import useUIStore from '../../store/uiStore'
+import { useVMRequestStore } from '../../store/vmRequestStore'
 import Icon from '../../lib/icons'
 import { IaaSCard } from './VMHelperComponents'
-import { supabase } from '@/lib/supabase'
 
 interface CustomerRequestVMViewProps {
   me: any
@@ -13,11 +13,22 @@ interface CustomerRequestVMViewProps {
 export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me, setView }) => {
   const { toast } = useUIStore()
   const { addTask } = useTaskStore()
+  const { addVMRequest } = useVMRequestStore()
   const [showSummary, setShowSummary] = useState(false)
   const [customDuration, setCustomDuration] = useState('')
   const [isCustomDuration, setIsCustomDuration] = useState(false)
   const [customVlan, setCustomVlan] = useState('')
   const [isCustomVlan, setIsCustomVlan] = useState(false)
+
+  const getDurationLabel = (months: number) => {
+    const labels: Record<number, string> = {
+      1: 'Monthly',
+      3: 'Quarterly',
+      6: 'Half Yearly',
+      12: 'Yearly'
+    }
+    return labels[months] || `${months} month${months > 1 ? 's' : ''}`
+  }
 
   const [f, setF] = useState({
     requestType: 'paid',
@@ -33,7 +44,6 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
     storage: 200,
     qty: 1,
     duration: null,
-    billingTerm: 'Monthly',
     volumes: [{ size: 200 }],
     capacity: '',
     storagePartitions: '',
@@ -42,11 +52,9 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
     backupEnabled: false,
     backupTime: '02:00',
     backupType: 'daily',
-    monitoring: false,
     zone: 'yangon-dc1',
     nics: [{ id: 1, label: 'NIC 1', type: 'Public', vlan: 'Auto-assign' }],
     firewallPorts: ['22', '80', '443'],
-    portForwarding: [] as any[],
     additionalNotes: '',
   })
   const set = (k: string, v: any) => setF(x => ({ ...x, [k]: v }))
@@ -115,13 +123,6 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
     setCustomPort('')
   }
 
-  const [pfDraft, setPfDraft] = useState({ srcPort: '', dstPort: '', protocol: 'TCP' })
-  const addPfRule = () => {
-    if (!pfDraft.srcPort || !pfDraft.dstPort) return
-    set('portForwarding', [...f.portForwarding, { ...pfDraft, id: Date.now() }])
-    setPfDraft({ srcPort: '', dstPort: '', protocol: 'TCP' })
-  }
-  const removePfRule = (id: number) => set('portForwarding', f.portForwarding.filter((r: any) => r.id !== id))
 
   const addNic = () => {
     if (f.nics.length >= 3) return
@@ -136,7 +137,7 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
 
   const confirmSubmit = async () => {
     try {
-      const { error } = await supabase.from('vm_requests').insert({
+      await addVMRequest({
         customer_id: me.id,
         request_type: f.requestType,
         hostname: f.hostname,
@@ -146,7 +147,6 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
         storage: f.storage,
         qty: f.qty,
         duration: f.requestType === 'paid' ? f.duration : null,
-        billing_term: f.requestType === 'paid' ? f.billingTerm : null,
         sizing: f.sizing,
         storage_partitions: f.storagePartitions,
         os_name: f.os === 'custom' ? f.customOsName : selectedOS?.name,
@@ -157,14 +157,10 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
         nics: f.nics,
         public_ip_required: f.publicIpRequired,
         firewall_ports: f.firewallPorts,
-        port_forwarding: f.portForwarding,
         backup_enabled: f.backupEnabled,
         backup_type: f.backupType,
-        monitoring: f.monitoring,
         notes: f.additionalNotes,
       })
-
-      if (error) throw error
 
       addTask({
         title: `VM Request: ${f.hostname} (${f.requestType === 'trial' ? 'Trial' : 'Paid'})`,
@@ -394,7 +390,7 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
 
               {f.requestType === 'paid' && (
                 <div className="field">
-                  <label>Duration (months) <span style={{ color: 'var(--bad)' }}>*</span></label>
+                  <label>Billing Term <span style={{ color: 'var(--bad)' }}>*</span></label>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
                     {[1, 3, 6, 12].map(months => (
                       <button
@@ -402,7 +398,7 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
                         className={`filter-chip ${!isCustomDuration && f.duration === months ? 'active' : ''}`}
                         onClick={() => { set('duration', months); setIsCustomDuration(false) }}
                       >
-                        {months} month{months > 1 ? 's' : ''}
+                        {getDurationLabel(months)}
                       </button>
                     ))}
                     <button
@@ -428,19 +424,7 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
                 </div>
               )}
 
-              {f.requestType === 'paid' && (
-                <div className="field">
-                  <label>Billing Term <span style={{ color: 'var(--bad)' }}>*</span></label>
-                  <select
-                    value={f.billingTerm}
-                    onChange={e => set('billingTerm', e.target.value)}
-                    style={{ padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 6, width: '100%' }}
-                  >
-                    <option value="Monthly">Monthly</option>
-                    <option value="Annual">Annual</option>
-                  </select>
-                </div>
-              )}
+            
               {/* <div className="field">
                       <label>Capacity</label>
                       <input
@@ -520,17 +504,6 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
               </div>
             </div>
           )}
-        </div>
-
-        {/* Managed monitoring */}
-        <div className="card">
-          <div className="card-head">
-            <div>
-              <div className="card-title">Managed monitoring & alerts</div>
-              <div className="text-xs text-mute mt-1">CPU, RAM, disk, and uptime alerts via email/SMS</div>
-            </div>
-            <span className={`toggle ${f.monitoring ? 'on' : ''}`} onClick={() => set('monitoring', !f.monitoring)} />
-          </div>
         </div>
 
         {/* Zone & Network */}
@@ -675,50 +648,9 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
           </div>
         </div>
 
+        {/* Additional notes */}
         <div className="card">
-          <div className="card-head">
-            <h3 className="card-title">Port forwarding</h3>
-            <span className="text-xs text-mute">{f.portForwarding.length} rule{f.portForwarding.length !== 1 ? 's' : ''}</span>
-          </div>
-          <div className="card-body">
-            <div className="text-xs text-mute mb-3">Map incoming public ports to internal destination ports on this VM.</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 110px auto', gap: 8, marginBottom: 12, alignItems: 'end' }}>
-              <div>
-                <div className="text-xs text-mute fw-6 mb-1" style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>Source port</div>
-                <input value={pfDraft.srcPort} onChange={e => setPfDraft({ ...pfDraft, srcPort: e.target.value.replace(/[^0-9]/g, '') })} placeholder="e.g. 8080" style={{ fontFamily: 'var(--mono)', width: '100%' }} />
-              </div>
-              <div>
-                <div className="text-xs text-mute fw-6 mb-1" style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>Destination port</div>
-                <input value={pfDraft.dstPort} onChange={e => setPfDraft({ ...pfDraft, dstPort: e.target.value.replace(/[^0-9]/g, '') })} placeholder="e.g. 80" style={{ fontFamily: 'var(--mono)', width: '100%' }} />
-              </div>
-              <div>
-                <div className="text-xs text-mute fw-6 mb-1" style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>Protocol</div>
-                <select value={pfDraft.protocol} onChange={e => setPfDraft({ ...pfDraft, protocol: e.target.value })} style={{ width: '100%', padding: '7px 8px', border: '1px solid var(--line)', borderRadius: 6, fontSize: 12.5 }}>
-                  <option>TCP</option>
-                  <option>UDP</option>
-                </select>
-              </div>
-              <button className="btn primary" onClick={addPfRule} disabled={!pfDraft.srcPort || !pfDraft.dstPort}><Icon name="plus" size={12} />Add</button>
-            </div>
-
-            {f.portForwarding.length > 0 && (
-              <div style={{ display: 'grid', gap: 8 }}>
-                {f.portForwarding.map((pf: any, i: number) => (
-                  <div key={i} style={{ padding: 10, background: 'var(--surface-2)', borderRadius: 6, display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <span className="mono fw-6" style={{ minWidth: 60 }}>{pf.srcPort}</span>
-                    <Icon name="arrow-right" size={10} className="text-mute" />
-                    <span className="mono fw-6" style={{ minWidth: 60 }}>{pf.dstPort}</span>
-                    <span className="text-xs text-mute" style={{ minWidth: 40 }}>{pf.protocol}</span>
-                    <div style={{ flex: 1 }} />
-                    <button className="icon-btn" onClick={() => removePfRule(pf.id)}><Icon name="x" size={12} /></button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="card">
+          <div className="card-head"><h3 className="card-title">Additional notes</h3></div>
           <div className="card-body">
             <div className="field">
               <label>Anything else for our team? (optional)</label>
@@ -780,8 +712,8 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
                     </div>
                     {f.requestType === 'paid' && f.duration && (
                       <div className="flex center between">
-                        <span className="text-sm text-mute">Duration</span>
-                        <span className="fw-6 text-sm">{f.duration} month{f.duration > 1 ? 's' : ''}</span>
+                        <span className="text-sm text-mute">Billing Term</span>
+                        <span className="fw-6 text-sm">{getDurationLabel(f.duration)}</span>
                       </div>
                     )}
                     <div className="flex center between">
@@ -832,10 +764,6 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
                       <span className="text-sm text-mute">Backup</span>
                       <span className="fw-6 text-sm">{f.backupEnabled ? `${f.backupType === 'daily' ? 'Daily' : 'Weekly'}` : 'No'}</span>
                     </div>
-                    <div className="flex center between">
-                      <span className="text-sm text-mute">Monitoring</span>
-                      <span className={`fw-6 text-sm ${f.monitoring ? 'text-ok' : 'text-mute'}`}>{f.monitoring ? 'Yes' : 'No'}</span>
-                    </div>
                   </div>
                 </div>
 
@@ -867,12 +795,6 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
                     <div className="text-xs text-mute mb-1">Firewall ports</div>
                     <div className="fw-6 text-sm">{f.firewallPorts.join(', ') || 'none'}</div>
                   </div>
-                  {f.portForwarding.length > 0 && (
-                    <div>
-                      <div className="text-xs text-mute mb-1">Port forwarding</div>
-                      <div className="fw-6 text-sm">{f.portForwarding.map((r: any) => `${r.srcPort}→${r.dstPort}/${r.protocol}`).join(', ')}</div>
-                    </div>
-                  )}
                 </div>
               </div>
 

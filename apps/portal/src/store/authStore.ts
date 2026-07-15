@@ -2,6 +2,8 @@ import { useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { uploadKYCDocument } from '../lib/storage'
 import type { Customer } from '../types'
+import { createAlert } from '../services/notificationService'
+import useActivityStore from './activityStore'
 
 export interface AuthUser {
   id: string
@@ -35,6 +37,7 @@ export interface AuthStoreValue {
 const useAuthStore = (): AuthStoreValue => {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
+  const { logActivity } = useActivityStore()
 
   // Refresh user from Supabase session
   const refreshUser = useCallback(async () => {
@@ -146,6 +149,34 @@ const useAuthStore = (): AuthStoreValue => {
             customerLegacyId: customerData.legacy_id
           }
         })
+
+        // Create notification for new customer signup
+        // Note: Customer signup uses customer as actor since they perform the action themselves
+        await createAlert({
+          sev: 'info',
+          title: 'New Customer Signup',
+          body: `New customer ${data.name} (${data.email}) has signed up with ${data.type} account`,
+          type: 'kyc',
+          related_entity_id: customerData.id,
+          related_entity_type: 'customer',
+          actor_id: customerData.id,
+          actor_name: data.name,
+          metadata: {
+            customer_name: data.name,
+            customer_email: data.email,
+            account_type: data.type,
+            phone: data.phone,
+            kyc_status: 'Pending'
+          }
+        })
+
+        // Log activity for customer signup
+        await logActivity(
+          `New customer signup: ${data.name} (${data.email})`,
+          'customer',
+          data.name,
+          { customerId: customerData.id, customerName: data.name, email: data.email, accountType: data.type, kycStatus: 'Pending' }
+        )
 
         return { success: true, customerId: customerData.legacy_id || customerData.id }
       }

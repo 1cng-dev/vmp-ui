@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { supabase } from '../../lib/supabase'
@@ -12,6 +13,7 @@ interface LoginScreenProps {
 
 const LoginScreen: React.FC<LoginScreenProps> = ({ onSwitchToSignup, prefillEmail }) => {
   const { toast } = useUIStore()
+  const navigate = useNavigate()
   const [f, setF] = useState({ email: prefillEmail || '', password: '', remember: true })
   const [showPw, setShowPw] = useState(false)
   const [showForgotPassword, setShowForgotPassword] = useState(false)
@@ -36,7 +38,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onSwitchToSignup, prefillEmai
     if (authData.user) {
       const { data: customer, error: customerError } = await supabase
         .from('customers')
-        .select('status')
+        .select('status, force_password_change')
         .eq('id', authData.user.id)
         .single()
 
@@ -50,6 +52,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onSwitchToSignup, prefillEmai
       if (customer.status !== 'Active') {
         toast('Your account has been suspended. Please contact support.', 'bad')
         await supabase.auth.signOut()
+        setLoading(false)
+        return
+      }
+
+      // Check if user needs to change password
+      if (customer.force_password_change) {
+        navigate('/change-password')
         setLoading(false)
         return
       }
