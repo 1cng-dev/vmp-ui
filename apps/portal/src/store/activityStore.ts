@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, createContext, useContext, useEffect, type ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Activity } from '../types'
 
@@ -7,9 +7,13 @@ export interface ActivityStoreValue {
   activityLoading: boolean
   loadActivity: () => Promise<void>
   logActivity: (text: string, kind?: string, actor?: string, meta?: Record<string, unknown>) => Promise<void>
+  subscribeToActivity: () => () => void
 }
 
-const useActivityStore = (): ActivityStoreValue => {
+// ── Global Activity Context Store ─────────────────────────────────────────────
+const ActivityContext = createContext<ActivityStoreValue | null>(null)
+
+export const ActivityProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [activity, setActivity] = useState<Activity[]>([])
   const [activityLoading, setActivityLoading] = useState(false)
 
@@ -60,25 +64,43 @@ const useActivityStore = (): ActivityStoreValue => {
     }
   }, [loadActivity])
 
-  useEffect(() => {
-    loadActivity()
-
-    // Poll for new activity every 30 seconds
-    const interval = setInterval(() => {
-      loadActivity()
-    }, 30000)
+  const subscribeToActivity = useCallback(() => {
+    const channelName = 'activity-log-changes'
+    const channel = supabase.channel(channelName)
+    
+    channel
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'activity_log' }, () => {
+        loadActivity()
+      })
+      .subscribe()
 
     return () => {
-      clearInterval(interval)
+      supabase.removeChannel(channel)
     }
   }, [loadActivity])
 
-  return {
+  // Set up real-time subscription on mount
+  useEffect(() => {
+    loadActivity()
+    const unsubscribe = subscribeToActivity()
+    return () => unsubscribe()
+  }, [loadActivity, subscribeToActivity])
+
+  const value: ActivityStoreValue = {
     activity,
     activityLoading,
     loadActivity,
     logActivity,
+    subscribeToActivity,
   }
+
+  return React.createElement(ActivityContext.Provider, { value }, children as any)
+}
+
+export const useActivityStore = (): ActivityStoreValue => {
+  const ctx = useContext(ActivityContext)
+  if (!ctx) throw new Error('useActivityStore must be used within ActivityProvider')
+  return ctx
 }
 
 export default useActivityStore

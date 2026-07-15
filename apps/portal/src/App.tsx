@@ -39,6 +39,7 @@ import { QuoteProvider, useQuoteStore } from './store/quoteStore'
 import { VMProvider } from './store/vmStore'
 import { AddonRequestProvider } from './store/addonRequestStore'
 import { InvoiceProvider } from './store/invoiceStore'
+import { ActivityProvider } from './store/activityStore'
 
 
 const ACCENT_MAP: Record<string, number> = {
@@ -324,60 +325,62 @@ const App = () => {
   return (
     <>
       <Toasts />
-      <TicketProvider>
-        <TeamProvider>
-          <PrefetchTeam />
-          {/* Global customers provider to keep data cached across pages */}
-          <CustomerProvider>
-            <PrefetchCustomers />
-            {/* Global VM requests provider to keep data cached across pages */}
-            <VMRequestProvider>
-              <QuoteProvider>
-                <AddonRequestProvider>
-                  <AlertProvider>
-                    <InvoiceProvider>
-                    <PrefetchVMRequests />
-                    <PrefetchQuotes />
-                    <VMProvider>
-                <Router>
-                  <Routes>
-                    <Route path="/welcome" element={<Welcome />} />
-                    <Route path="/setup-password" element={<SetupPassword />} />
-                    <Route path="/change-password" element={<ChangePasswordPage />} />
-                    <Route path="/auth/reset-password" element={<ResetPasswordScreen />} />
-                    <Route path="/admin" element={
-                      <TeamAuthShell setRole={(role) => setTweak('role' as keyof TweakState, role)}>
-                        <AppInner tw={tw} setTweak={setTweak} />
-                      </TeamAuthShell>
-                    } />
-                    <Route path="/admin/:view" element={
-                      <TeamAuthShell setRole={(role) => setTweak('role' as keyof TweakState, role)}>
-                        <AppInner tw={tw} setTweak={setTweak} />
-                      </TeamAuthShell>
-                    } />
-                    <Route path="/" element={
-                      <AuthShell setRole={(role) => setTweak('role' as keyof TweakState, role)}>
-                        <AppInner tw={tw} setTweak={setTweak} />
-                      </AuthShell>
-                    } />
-                    <Route path="/:view" element={
-                      <AuthShell setRole={(role) => setTweak('role' as keyof TweakState, role)}>
-                        <AppInner tw={tw} setTweak={setTweak} />
-                      </AuthShell>
-                    } />
-                  </Routes>
-                </Router>
-                  </VMProvider>
-                  </InvoiceProvider>
-                </AlertProvider>
-              </AddonRequestProvider>
-            </QuoteProvider>
+      <ActivityProvider>
+        <TicketProvider>
+          <TeamProvider>
+            <PrefetchTeam />
+            {/* Global customers provider to keep data cached across pages */}
+            <CustomerProvider>
+              <PrefetchCustomers />
+              {/* Global VM requests provider to keep data cached across pages */}
+              <VMRequestProvider>
+                <QuoteProvider>
+                  <AddonRequestProvider>
+                    <AlertProvider>
+                      <InvoiceProvider>
+                      <PrefetchVMRequests />
+                      <PrefetchQuotes />
+                      <VMProvider>
+                  <Router>
+                    <Routes>
+                      <Route path="/welcome" element={<Welcome />} />
+                      <Route path="/setup-password" element={<SetupPassword />} />
+                      <Route path="/change-password" element={<ChangePasswordPage />} />
+                      <Route path="/auth/reset-password" element={<ResetPasswordScreen />} />
+                      <Route path="/admin" element={
+                        <TeamAuthShell setRole={(role) => setTweak('role' as keyof TweakState, role)}>
+                          <AppInner tw={tw} setTweak={setTweak} />
+                        </TeamAuthShell>
+                      } />
+                      <Route path="/admin/:view" element={
+                        <TeamAuthShell setRole={(role) => setTweak('role' as keyof TweakState, role)}>
+                          <AppInner tw={tw} setTweak={setTweak} />
+                        </TeamAuthShell>
+                      } />
+                      <Route path="/" element={
+                        <AuthShell setRole={(role) => setTweak('role' as keyof TweakState, role)}>
+                          <AppInner tw={tw} setTweak={setTweak} />
+                        </AuthShell>
+                      } />
+                      <Route path="/:view" element={
+                        <AuthShell setRole={(role) => setTweak('role' as keyof TweakState, role)}>
+                          <AppInner tw={tw} setTweak={setTweak} />
+                        </AuthShell>
+                      } />
+                    </Routes>
+                  </Router>
+                    </VMProvider>
+                    </InvoiceProvider>
+                  </AlertProvider>
+                </AddonRequestProvider>
+              </QuoteProvider>
 
 
-            </VMRequestProvider>
-          </CustomerProvider>
-        </TeamProvider>
-      </TicketProvider>
+              </VMRequestProvider>
+            </CustomerProvider>
+          </TeamProvider>
+        </TicketProvider>
+      </ActivityProvider>
     </>
   )
 }
