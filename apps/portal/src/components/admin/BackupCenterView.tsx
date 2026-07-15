@@ -1,10 +1,10 @@
 import React, { useState } from 'react'
-import useVMStore from '../../store/vmStore'
+import { useVMs } from '../../store/vmStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 
 export const BackupCenterView: React.FC = () => {
-  const { vms } = useVMStore()
+  const { vms } = useVMs()
   const { toast } = useUIStore()
   const [tab, setTab] = useState('snapshots')
   const allSnapshots = vms.filter((v: any) => v.backup && v.backup !== 'None').flatMap((v: any) =>

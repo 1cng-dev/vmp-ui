@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import useAlertStore from '../../store/alertStore'
-import useVMStore from '../../store/vmStore'
+import { useVMs } from '../../store/vmStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { supabase } from '../../lib/supabase'
@@ -8,7 +8,7 @@ import { createAlert } from '../../services/notificationService'
 
 export const AlertsView: React.FC = () => {
   const { alerts, markAlertRead, markAllAlertsRead } = useAlertStore()
-  const { vms, loadVMs } = useVMStore()
+  const { vms } = useVMs()
   const { toast } = useUIStore()
   const [filter, setFilter] = useState('All')
   const [sev, setSev] = useState('All')
@@ -27,7 +27,6 @@ export const AlertsView: React.FC = () => {
       }
       hasChecked.current = true
       
-      await loadVMs()
       const today = new Date()
       
       for (const vm of vms) {

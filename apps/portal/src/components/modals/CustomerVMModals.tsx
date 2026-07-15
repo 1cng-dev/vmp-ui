@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react'
 import useTaskStore from '../../store/taskStore'
-import useCustomerStore from '../../store/customerStore'
-import useTicketStore from '../../store/ticketStore'
+import { useCustomers } from '../../store/customerStore'
+import { useTickets } from '../../store/ticketStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { formatMMK } from '../ui/ui'
@@ -490,7 +490,7 @@ interface CustChangePlanModalProps {
 
 const CustChangePlanModal: React.FC<CustChangePlanModalProps> = ({ vm, onClose }) => {
   const { addTask } = useTaskStore()
-  const { customers } = useCustomerStore()
+  const { customers } = useCustomers()
   const { toast } = useUIStore()
   const me = customers.find((c: any) => c.id === vm.customer)
 
@@ -594,7 +594,7 @@ interface CustConvertToPaidModalProps {
 
 const CustConvertToPaidModal: React.FC<CustConvertToPaidModalProps> = ({ vm, onClose }) => {
   const { toast } = useUIStore()
-  const { customers } = useCustomerStore()
+  const { customers } = useCustomers()
   const { addTask } = useTaskStore()
   const me = customers.find((c: any) => c.id === (vm as any).customer_id)
 
@@ -749,8 +749,8 @@ interface SupportTicketModalProps {
 }
 
 const SupportTicketModal: React.FC<SupportTicketModalProps> = ({ onClose }) => {
-  const { addTicket } = useTicketStore()
-  const { customers } = useCustomerStore()
+  const { addTicket } = useTickets()
+  const { customers } = useCustomers()
   const me = customers.find(c => c.id === 'C-1043')
   const [f, setF] = useState({ subject: '', priority: 'Normal', body: '' })
   return (

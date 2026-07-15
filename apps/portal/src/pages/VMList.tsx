@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import useVMStore from '../store/vmStore'
-import useCustomerStore from '../store/customerStore'
+import { useVMs } from '../store/vmStore'
+import { useCustomers } from '../store/customerStore'
 import useUIStore from '../store/uiStore'
 import Icon from '../lib/icons'
 import { StatusPill, ExpiryCell } from '../components/ui/ui'
@@ -11,17 +11,12 @@ interface VMListProps {
 }
 
 const VMList: React.FC<VMListProps> = ({ openVM, openModal }) => {
-  const { vms, loadVMs, updateVM } = useVMStore()
-  const { customers } = useCustomerStore()
+  const { vms, updateVM } = useVMs()
+  const { customers } = useCustomers()
   const { toast } = useUIStore()
   const [filter, setFilter] = useState<Set<string>>(new Set(['all']))
   const [search, setSearch] = useState('')
   const [menu, setMenu] = useState<string | null>(null)
-
-  // Ensure VMs are loaded when this page is opened
-  useEffect(() => {
-    loadVMs()
-  }, [loadVMs])
 
   const filters = [
     { id: 'all', label: 'All', count: vms.length },

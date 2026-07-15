@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react'
-import useInvoiceStore from '../../store/invoiceStore'
-import useCustomerStore from '../../store/customerStore'
+import React, { useState } from 'react'
+import { useInvoices } from '../../store/invoiceStore'
+import { useCustomers } from '../../store/customerStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { StatusPill, formatMMK } from '../ui/ui'
@@ -9,13 +9,12 @@ import { exportInvoiceToPDF } from '../../lib/pdfExport'
 interface InvoiceDrawerProps {
   invoice: any
   onClose: () => void
-  openCust: (id: string) => void
   openModal: (kind: string, props?: any) => void
 }
 
-export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, openCust, openModal }) => {
-  const { invoices, markPaid, updateInvoice, loadInvoices } = useInvoiceStore()
-  const { customers } = useCustomerStore()
+export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, openModal }) => {
+  const { invoices, markPaid, updateInvoice } = useInvoices()
+  const { customers } = useCustomers()
   const { toast } = useUIStore()
   const c = customers.find(c => c.id === invoice.customer_id)
   if (!c) return null
@@ -23,15 +22,10 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
   const [showConfirm, setShowConfirm] = useState(false)
 
   const handleTransferReceived = async () => {
-    await updateInvoice(live.id, { status: 'Customer Transferred' })
+    await updateInvoice({ id: live.id, patch: { status: 'Customer Transferred' } })
     toast('Payment proof submitted', 'info')
     setShowConfirm(false)
   }
-
-
-  useEffect(() => {
-    loadInvoices()
-  }, [loadInvoices])
 
   return (
     <div className="content" style={{ animation: 'fadeIn 0.3s ease-out' }}>
@@ -52,7 +46,7 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
         <div className="page-actions">
           <button className="btn" onClick={async () => await exportInvoiceToPDF(live, c)}><Icon name="download" size={12}/>PDF</button>
           <button className="btn" onClick={() => openModal('email', { to: c.email, template: 'invoice' })}><Icon name="mail" size={12}/>Email</button>
-          {live.status !== 'Payment Received' && <button className="btn accent" onClick={() => markPaid(live.id, `RCT-${live.id.slice(0, 8)}`)}><Icon name="check" size={12}/>Mark paid</button>}
+          {live.status !== 'Payment Received' && <button className="btn accent" onClick={() => markPaid({ id: live.id, receipt: `RCT-${live.id.slice(0, 8)}` })}><Icon name="check" size={12}/>Mark paid</button>}
           {live.status === 'Pending' && <button className="btn" onClick={() => setShowConfirm(true)}>Transfer received</button>}
         </div>
       </div>
@@ -169,7 +163,7 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
                 <button 
                   className="btn primary" 
                   style={{ width: '100%', marginTop: 16 }}
-                  onClick={() => markPaid(live.id, `RCT-${live.id.slice(0, 8)}`)}
+                  onClick={() => markPaid({ id: live.id, receipt: `RCT-${live.id.slice(0, 8)}` })}
                 >
                   <Icon name="check" size={12}/>Mark as Payment Received
                 </button>

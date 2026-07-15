@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React from 'react'
 import { StatusPill, ExpiryCell, formatMMK } from '../ui/ui'
 import Icon from '../../lib/icons'
 import useReceiptStore from '../../store/receiptStore'
@@ -15,13 +15,7 @@ interface CustomerDashboardProps {
 }
 
 export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ me, myVMs, myInvs, myTickets, myRequests, setView, setDetailVm, setOpenTicket }) => {
-  const { receipts, loadReceiptsByCustomer } = useReceiptStore()
-  
-  useEffect(() => {
-    if (me?.id) {
-      loadReceiptsByCustomer(me.id)
-    }
-  }, [me?.id, loadReceiptsByCustomer])
+  const { receipts } = useReceiptStore()
   
   const kycLocked = me.kyc_status !== 'Approved'
   const activeVMs = myVMs.filter((v: any) => v.status === 'Active').length

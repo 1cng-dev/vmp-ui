@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import useInvoiceStore from '../../store/invoiceStore'
-import useCustomerStore from '../../store/customerStore'
-import useVMRequestStore from '../../store/vmRequestStore'
+import { useInvoices } from '../../store/invoiceStore'
+import { useCustomers } from '../../store/customerStore'
+import { useVMRequests } from '../../store/vmRequestStore'
 import useUIStore from '../../store/uiStore'
 import useReceiptStore from '../../store/receiptStore'
 import Icon from '../../lib/icons'
@@ -14,9 +14,9 @@ interface CustomerInvoiceDetailProps {
 }
 
 export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ invoice: initial, onClose }) => {
-  const { invoices, updateInvoice } = useInvoiceStore()
-  const { customers } = useCustomerStore()
-  const { vmRequests } = useVMRequestStore()
+  const { invoices, updateInvoice } = useInvoices()
+  const { customers } = useCustomers()
+  const { vmRequests } = useVMRequests()
   const { toast } = useUIStore()
   const { loadReceiptsByInvoice } = useReceiptStore()
   const [showPaymentQR, setShowPaymentQR] = useState(false)

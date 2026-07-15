@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import Icon from '../../lib/icons'
 import NewCustomerTicketModal from '../modals/NewCustomerTicketModal'
-import useTicketStore from '../../store/ticketStore'
+import { useTickets } from '../../store/ticketStore'
 
 interface CustomerTicketsViewProps {
   me: any
@@ -9,15 +9,10 @@ interface CustomerTicketsViewProps {
 }
 
 export const CustomerTicketsView: React.FC<CustomerTicketsViewProps> = ({ me, setOpenTicket }) => {
-  const { tickets, loadTickets } = useTicketStore()
+  const { tickets } = useTickets()
   const [showNew, setShowNew] = useState(false)
   const [filter, setFilter] = useState('all')
   const [sort, setSort] = useState('updated')
-
-  // Load tickets on mount
-  React.useEffect(() => {
-    loadTickets()
-  }, [loadTickets])
 
   // Filter tickets for current customer
   const myTickets = tickets.filter((t: any) => t.customer_id === me.id)

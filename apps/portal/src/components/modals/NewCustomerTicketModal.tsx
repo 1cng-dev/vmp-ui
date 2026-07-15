@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react'
 import Icon from '../../lib/icons'
-import useTicketStore from '../../store/ticketStore'
+import { useTickets } from '../../store/ticketStore'
 import useUIStore from '../../store/uiStore'
 import { uploadTicketAttachment } from '../../lib/storage'
 import { supabase } from '../../lib/supabase'
@@ -12,7 +12,7 @@ interface NewCustomerTicketModalProps {
 }
 
 const NewCustomerTicketModal: React.FC<NewCustomerTicketModalProps> = ({ me, onClose, onCreated }) => {
-  const { addTicket } = useTicketStore()
+  const { addTicket } = useTickets()
   const { toast } = useUIStore()
   const [category, setCategory] = useState('')
   const [subject, setSubject] = useState('')

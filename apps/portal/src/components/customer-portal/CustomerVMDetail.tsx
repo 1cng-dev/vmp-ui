@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import useVMStore from '../../store/vmStore'
+import { useVMs } from '../../store/vmStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { StatusPill } from '../ui/ui'
@@ -15,7 +15,7 @@ interface CustomerVMDetailProps {
 }
 
 export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialVm, onClose, onRenew, me }) => {
-  const { vms, startVM, stopVM, restartVM, snapshotVM, updateVMTags, updateVMNotes } = useVMStore()
+  const { vms, startVM, stopVM, restartVM, snapshotVM, updateVMTags, updateVMNotes } = useVMs()
   const { toast } = useUIStore()
   const vm = vms.find((v: any) => v.id === initialVm.id) || initialVm
   const [tab, setTab] = useState('overview')

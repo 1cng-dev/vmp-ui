@@ -1,46 +1,36 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Icon from '../lib/icons'
 import { formatMMK } from '../components/ui/ui'
-import useQuoteStore from '../store/quoteStore'
-import useCustomerStore from '../store/customerStore'
-import useVMRequestStore from '../store/vmRequestStore'
-import useVMStore from '../store/vmStore'
-import useAddonRequestStore from '../store/addonRequestStore'
+import { useQuotes } from '../store/quoteStore'
+import { useCustomers } from '../store/customerStore'
+import { useVMRequests } from '../store/vmRequestStore'
+import { useVMs } from '../store/vmStore'
+import { useAddonRequests } from '../store/addonRequestStore'
 import useUIStore from '../store/uiStore'
 import QuoteDrawer from '../components/quote/QuoteDrawer'
 import { NewInvoiceModal } from '../components/modals/AdminVMModals'
 import type { DBQuote } from '../types'
 
 const FinanceQuoteReviewView = () => {
-  const { quotes, updateQuote } = useQuoteStore()
-  const { customers } = useCustomerStore()
-  const { vmRequests } = useVMRequestStore()
-  const { vms, loadVMs } = useVMStore()
-  const { addonRequests, loadAddonRequests } = useAddonRequestStore()
+  const { quotes, updateQuote } = useQuotes()
+  const { customers } = useCustomers()
+  const { vmRequests } = useVMRequests()
+  const { vms } = useVMs()
+  const { addonRequests } = useAddonRequests()
   const { toast } = useUIStore()
   const [selectedQuote, setSelectedQuote] = useState<DBQuote | null>(null)
   const [quoteForInvoice, setQuoteForInvoice] = useState<DBQuote | null>(null)
-
-  // Ensure addon requests and VMs are loaded
-  useEffect(() => {
-    if (addonRequests.length === 0) {
-      loadAddonRequests()
-    }
-    if (vms.length === 0) {
-      loadVMs()
-    }
-  }, [addonRequests.length, vms.length, loadAddonRequests, loadVMs])
 
   // Filter quotes for finance to see history (Sent, Accepted, Rejected)
   const financeQuotes = quotes.filter(q => ['Sent', 'Accepted', 'Rejected'].includes(q.status))
 
   const handleApprove = async (id: string) => {
-    await updateQuote(id, { status: 'Accepted' })
+    await updateQuote({ id, patch: { status: 'Accepted' } })
     toast(`Quote approved`, 'ok')
   }
 
   const handleReject = async (id: string) => {
-    await updateQuote(id, { status: 'Rejected' })
+    await updateQuote({ id, patch: { status: 'Rejected' } })
     toast(`Quote rejected`, 'warn')
   }
 

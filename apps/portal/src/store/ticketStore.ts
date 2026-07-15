@@ -1,97 +1,53 @@
-import React, { useState, useCallback, createContext, useContext, type ReactNode, useEffect } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Ticket } from '../types'
 import { supabase } from '../lib/supabase'
 
-export interface TicketStoreValue {
-  tickets: Ticket[]
-  ticketsLoading: boolean
-  loadTickets: () => Promise<void>
-  addTicket: (t: any) => Promise<string>
-  updateTicket: (id: string, patch: any) => Promise<void>
-  setTicketStatus: (id: string, status: string) => Promise<void>
-  replyTicket: (id: string, who: string, body: string, attachments?: string[]) => Promise<void>
-  deleteTicket: (id: string) => Promise<void>
-  subscribeToTickets: () => () => void
+const fetchTickets = async (): Promise<Ticket[]> => {
+  const { data, error } = await supabase
+    .from('tickets')
+    .select('*, ticket_replies(*)')
+    .order('created_at', { ascending: false })
+  
+  if (error) throw error
+  
+  // Transform data to match Ticket interface
+  const transformedTickets = data?.map((t: any) => ({
+    id: t.id,
+    legacy_id: t.legacy_id,
+    customer_id: t.customer_id,
+    customer: '', // Will be populated by joining with customers
+    category: t.category,
+    subject: t.subject,
+    body: t.body,
+    priority: t.priority,
+    status: t.status,
+    created_at: t.created_at,
+    updated_at: t.updated_at,
+    assignee: t.assignee || '—',
+    attachments: t.attachments || [],
+    replies: t.ticket_replies?.map((r: any) => ({
+      id: r.id,
+      who: r.who,
+      when: r.created_at,
+      body: r.body,
+      attachments: r.attachments || []
+    })) || []
+  })) || []
+  
+  return transformedTickets
 }
 
-// ── Global Ticket Context Store ─────────────────────────────────────────────
-const TicketContext = createContext<TicketStoreValue | null>(null)
+export const useTickets = () => {
+  const queryClient = useQueryClient()
 
-export const TicketProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [tickets, setTickets] = useState<Ticket[]>([])
-  const [ticketsLoading, setTicketsLoading] = useState(false)
+  const { data: tickets = [], isLoading: ticketsLoading, error } = useQuery({
+    queryKey: ['tickets'],
+    queryFn: fetchTickets,
+    staleTime: 1000 * 60 * 5,
+  })
 
-  const loadTickets = useCallback(async () => {
-    const shouldShowSpinner = tickets.length === 0
-    try {
-      if (shouldShowSpinner) setTicketsLoading(true)
-      const { data, error } = await supabase
-        .from('tickets')
-        .select('*, ticket_replies(*)')
-        .order('created_at', { ascending: false })
-      
-      if (error) {
-        console.error('Error fetching tickets:', error)
-      } else {
-        // Transform data to match Ticket interface
-        const transformedTickets = data?.map((t: any) => ({
-          id: t.id,
-          legacy_id: t.legacy_id,
-          customer_id: t.customer_id,
-          customer: '', // Will be populated by joining with customers
-          category: t.category,
-          subject: t.subject,
-          body: t.body,
-          priority: t.priority,
-          status: t.status,
-          created_at: t.created_at,
-          updated_at: t.updated_at,
-          assignee: t.assignee || '—',
-          attachments: t.attachments || [],
-          replies: t.ticket_replies?.map((r: any) => ({
-            id: r.id,
-            who: r.who,
-            when: r.created_at,
-            body: r.body,
-            attachments: r.attachments || []
-          })) || []
-        })) || []
-        
-        setTickets(transformedTickets)
-      }
-    } catch (error) {
-      console.error('Error loading tickets:', error)
-    } finally {
-      if (shouldShowSpinner) setTicketsLoading(false)
-    }
-  }, [tickets.length])
-
-  const subscribeToTickets = useCallback(() => {
-    const channelName = `tickets-changes-${Date.now()}`
-    const subscription = supabase
-      .channel(channelName)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => {
-        loadTickets()
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ticket_replies' }, () => {
-        loadTickets()
-      })
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(subscription)
-    }
-  }, [loadTickets])
-
-  // Set up realtime subscription on mount
-  useEffect(() => {
-    const unsubscribe = subscribeToTickets()
-    loadTickets() // Initial load
-    return unsubscribe
-  }, [subscribeToTickets, loadTickets])
-
-  const addTicket = useCallback(async (t: any) => {
-    try {
+  const addTicket = useMutation({
+    mutationFn: async (t: any) => {
       // Generate legacy_id
       const { data: lastTicket } = await supabase
         .from('tickets')
@@ -126,41 +82,49 @@ export const TicketProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         .single()
       
       if (error) throw error
-      
       return data.id
-    } catch (error) {
-      console.error('Error adding ticket:', error)
-      throw error
-    }
-  }, [])
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tickets'] })
+    },
+  })
 
-  const updateTicket = useCallback(async (id: string, patch: any) => {
-    try {
+  const updateTicket = useMutation({
+    mutationFn: async ({ id, patch }: { id: string; patch: any }) => {
       const { error } = await supabase
         .from('tickets')
         .update(patch)
         .eq('id', id)
       
       if (error) throw error
-    } catch (error) {
-      console.error('Error updating ticket:', error)
-      throw error
-    }
-  }, [])
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tickets'] })
+    },
+  })
 
-  const setTicketStatus = useCallback(async (id: string, status: string) => {
-    await updateTicket(id, { status })
-  }, [updateTicket])
+  const setTicketStatus = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const { error } = await supabase
+        .from('tickets')
+        .update({ status })
+        .eq('id', id)
+      
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tickets'] })
+    },
+  })
 
-  const replyTicket = useCallback(async (id: string, who: string, body: string, attachments: string[] = []) => {
-    try {
+  const replyTicket = useMutation({
+    mutationFn: async ({ id, who, body, attachments }: { id: string; who: string; body: string; attachments?: string[] }) => {
       const dataToInsert: any = {
         ticket_id: id,
         who: who,
         body: body
       }
       
-      // Only include attachments if it has items
       if (attachments && attachments.length > 0) {
         dataToInsert.attachments = attachments
       }
@@ -170,51 +134,36 @@ export const TicketProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         .insert(dataToInsert)
       
       if (error) throw error
-      
-      // Reload tickets to get the new reply
-      await loadTickets()
-    } catch (error) {
-      console.error('Error replying to ticket:', error)
-      throw error
-    }
-  }, [loadTickets])
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tickets'] })
+    },
+  })
 
-  const deleteTicket = useCallback(async (id: string) => {
-    try {
+  const deleteTicket = useMutation({
+    mutationFn: async (id: string) => {
       const { error } = await supabase
         .from('tickets')
         .delete()
         .eq('id', id)
       
       if (error) throw error
-      
-      // Reload tickets after deletion to update UI
-      await loadTickets()
-    } catch (error) {
-      console.error('Error deleting ticket:', error)
-      throw error
-    }
-  }, [loadTickets])
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tickets'] })
+    },
+  })
 
-  const value: TicketStoreValue = {
+  return {
     tickets,
     ticketsLoading,
-    loadTickets,
-    addTicket,
-    updateTicket,
-    setTicketStatus,
-    replyTicket,
-    deleteTicket,
-    subscribeToTickets,
+    error,
+    addTicket: addTicket.mutateAsync,
+    updateTicket: updateTicket.mutateAsync,
+    setTicketStatus: setTicketStatus.mutateAsync,
+    replyTicket: replyTicket.mutateAsync,
+    deleteTicket: deleteTicket.mutateAsync,
   }
-
-  return React.createElement(TicketContext.Provider, { value }, children as any)
 }
 
-export const useTicketStore = (): TicketStoreValue => {
-  const ctx = useContext(TicketContext)
-  if (!ctx) throw new Error('useTicketStore must be used within TicketProvider')
-  return ctx
-}
-
-export default useTicketStore
+export default useTickets

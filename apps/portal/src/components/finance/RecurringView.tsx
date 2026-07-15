@@ -1,6 +1,6 @@
 import React from 'react'
-import useInvoiceStore from '../../store/invoiceStore'
-import useCustomerStore from '../../store/customerStore'
+import { useInvoices } from '../../store/invoiceStore'
+import { useCustomers } from '../../store/customerStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { formatMMK } from '../ui/ui'
@@ -10,14 +10,9 @@ interface RecurringViewProps {
 }
 
 export const RecurringView: React.FC<RecurringViewProps> = ({ openModal }) => {
-  const { invoices, loadInvoices } = useInvoiceStore()
-  const { customers, loadCustomers } = useCustomerStore()
+  const { invoices } = useInvoices()
+  const { customers } = useCustomers()
   const { toast } = useUIStore()
-
-  React.useEffect(() => {
-    loadInvoices()
-    loadCustomers()
-  }, [loadInvoices, loadCustomers])
 
   // Calculate next billing date based on billing term
   const getNextBillDate = (dueDate: string, billingTerm: string) => {

@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import useTaskStore from '../../store/taskStore'
 import useUIStore from '../../store/uiStore'
-import { useVMRequestStore } from '../../store/vmRequestStore'
+import { useVMRequests } from '../../store/vmRequestStore'
 import Icon from '../../lib/icons'
 import { IaaSCard } from './VMHelperComponents'
 
@@ -13,7 +13,7 @@ interface CustomerRequestVMViewProps {
 export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me, setView }) => {
   const { toast } = useUIStore()
   const { addTask } = useTaskStore()
-  const { addVMRequest } = useVMRequestStore()
+  const { addVMRequest } = useVMRequests()
   const [showSummary, setShowSummary] = useState(false)
   const [customDuration, setCustomDuration] = useState('')
   const [isCustomDuration, setIsCustomDuration] = useState(false)

@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useRef } from 'react'
 import Icon from '../../lib/icons'
-import useTicketStore from '../../store/ticketStore'
-import useCustomerStore from '../../store/customerStore'
+import { useTickets } from '../../store/ticketStore'
+import { useCustomers } from '../../store/customerStore'
 import useUIStore from '../../store/uiStore'
 import useActivityStore from '../../store/activityStore'
 import { uploadTicketAttachment } from '../../lib/storage'
@@ -13,8 +13,8 @@ interface NewTicketModalProps {
 }
 
 const NewTicketModal: React.FC<NewTicketModalProps> = ({ onClose, onCreated }) => {
-  const { addTicket } = useTicketStore()
-  const { customers } = useCustomerStore()
+  const { addTicket } = useTickets()
+  const { customers } = useCustomers()
   const { toast } = useUIStore()
   const { logActivity } = useActivityStore()
   const [query, setQuery] = useState('')

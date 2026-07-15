@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import useTicketStore from '../store/ticketStore'
-import useCustomerStore from '../store/customerStore'
+import { useCustomers } from '../store/customerStore'
 import Icon from '../lib/icons'
 import { TeamTicketDetail } from '../components/ops/TeamTicketDetail'
 import NewTicketModal from '../components/modals/NewTicketModal'
@@ -11,7 +11,7 @@ interface SupportTicketsViewProps {
 
 export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ openModal }) => {
   const { tickets } = useTicketStore()
-  const { customers } = useCustomerStore()
+  const { customers } = useCustomers()
   const [filter, setFilter] = useState('all')
   const [selectedTicket, setSelectedTicket] = useState<any>(null)
   const [showNew, setShowNew] = useState(false)

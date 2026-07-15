@@ -1,14 +1,14 @@
 import React, { useState } from 'react'
-import useCustomerStore from '../../store/customerStore'
+import { useCustomers } from '../../store/customerStore'
 import useTeamStore from '../../store/teamStore'
 import useUIStore from '../../store/uiStore'
-import useVMRequestStore from '../../store/vmRequestStore'
+import { useVMRequests } from '../../store/vmRequestStore'
 import Icon from '../../lib/icons'
 import { StatusPill } from '../ui/ui'
 import EngineerVMCreateForm from '../engineer/EngineerVMCreateForm'
 import useTaskStore from '../../store/taskStore'
-import useVMStore from '../../store/vmStore'
-import useAddonRequestStore from '../../store/addonRequestStore'
+import { useVMs } from '../../store/vmStore'
+import { useAddonRequests } from '../../store/addonRequestStore'
 import { supabase } from '../../lib/supabase'
 
 interface TaskDrawerProps {
@@ -18,13 +18,13 @@ interface TaskDrawerProps {
 }
 
 export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, userRole }) => {
-  const { customers, loadCustomers } = useCustomerStore()
+  const { customers } = useCustomers()
   const { team } = useTeamStore()
   const { toast } = useUIStore()
   const { createVMManually } = useTaskStore()
-  const { addVM } = useVMStore()
-  const { vmRequests, updateVMRequest } = useVMRequestStore()
-  const { addonRequests, updateAddonRequest } = useAddonRequestStore()
+  const { addVM } = useVMs()
+  const { vmRequests, updateVMRequest } = useVMRequests()
+  const { addonRequests, updateAddonRequest } = useAddonRequests()
   const [showVMFormModal, setShowVMFormModal] = useState(false)
   const [currentVMData, setCurrentVMData] = useState<any>(null)
   const [addonVMData, setAddonVMData] = useState<any>(null)
@@ -46,13 +46,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
   const isSpecChange = t?.spec_changed || false
   const isBackupChange = t?.backup_changed || false
 
-  // Load customers if not loaded yet
-  React.useEffect(() => {
-    if (customers.length === 0) {
-      loadCustomers()
-    }
-  }, [customers.length, loadCustomers])
-
+  
 
 
   // Load current VM data for change-plan and renewal requests to show current backup status and VM legacy_id
@@ -153,13 +147,13 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
   const save = () => {
     if (requestType === 'vm') {
       if (!t) return
-      updateVMRequest(t.id, {
+      updateVMRequest({ id: t.id, patch: {
         status: salesData.status,
         assigned_to: salesData.assignee !== '—' ? salesData.assignee : null,
-      })
+      }})
     } else {
       const mapped = salesData.status === 'Provisioning' ? 'In Progress' : salesData.status
-      updateAddonRequest(request.id, { status: mapped as any })
+      updateAddonRequest({ id: request.id, patch: { status: mapped as any } })
     }
     toast(`${request.id} updated · customer notified`, 'ok')
   }
@@ -212,7 +206,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                         {isUpgrade ? (
                           <>
                             {active && i === 0 && t && (
-                              <button className="btn sm accent mt-2" onClick={() => { updateVMRequest(t.id, { status: 'In Progress' }); toast('Upgrade approved and sent to Engineering', 'info') }}>
+                              <button className="btn sm accent mt-2" onClick={() => { updateVMRequest({ id: t.id, patch: { status: 'In Progress' } }); toast('Upgrade approved and sent to Engineering', 'info') }}>
                                 <Icon name="check" size={11} />Approve & send to Engineering
                               </button>
                             )}
@@ -239,11 +233,11 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                     toast('Failed to apply upgrade changes to VM', 'error')
                                     console.error('Error applying upgrade:', error)
                                   } else {
-                                    updateVMRequest(t.id, { status: 'Completed' })
+                                    updateVMRequest({ id: t.id, patch: { status: 'Completed' } })
                                     toast('Upgrade completed and changes applied', 'ok')
                                   }
                                 } else {
-                                  updateVMRequest(t.id, { status: 'Completed' })
+                                  updateVMRequest({ id: t.id, patch: { status: 'Completed' } })
                                   toast('Upgrade completed (could not find VM to apply changes)', 'info')
                                 }
                               }}>
@@ -254,7 +248,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                         ) : (t && t.task_type === 'Renewal') ? (
                         <>
                           {active && i === 0 && t && (
-                            <button className="btn sm accent mt-2" onClick={() => { updateVMRequest(t.id, { status: 'In Progress' }); toast('Renewal approved and sent to Engineering', 'info') }}>
+                            <button className="btn sm accent mt-2" onClick={() => { updateVMRequest({ id: t.id, patch: { status: 'In Progress' } }); toast('Renewal approved and sent to Engineering', 'info') }}>
                               <Icon name="check" size={11} />Approve & send to Engineering
                             </button>
                           )}
@@ -294,14 +288,14 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                     toast('Failed to update VM expiry', 'error')
                                     console.error('Error updating expiry:', error)
                                   } else {
-                                    updateVMRequest(t.id, { status: 'Completed' })
+                                    updateVMRequest({ id: t.id, patch: { status: 'Completed' } })
                                     toast('Renewal completed and VM expiry extended', 'ok')
                                   }
                                 }
                               }
 
                               if (!vmId) {
-                                updateVMRequest(t.id, { status: 'Completed' })
+                                updateVMRequest({ id: t.id, patch: { status: 'Completed' } })
                                 toast('Renewal completed (could not find VM to extend expiry)', 'info')
                               }
                             }}>
@@ -312,7 +306,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                         ) : isTrialConversion ? (
                           <>
                             {active && i === 0 && t && (
-                              <button className="btn sm accent mt-2" onClick={() => { updateVMRequest(t.id, { status: 'In Progress' }); toast('Trial conversion approved and sent to Engineering', 'info') }}>
+                              <button className="btn sm accent mt-2" onClick={() => { updateVMRequest({ id: t.id, patch: { status: 'In Progress' } }); toast('Trial conversion approved and sent to Engineering', 'info') }}>
                                 <Icon name="check" size={11} />Approve & send to Engineering
                               </button>
                             )}
@@ -352,14 +346,14 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                         }).eq('id', vmData.vm_request_id)
                                       }
 
-                                      updateVMRequest(t.id, { status: 'Completed' })
+                                      updateVMRequest({ id: t.id, patch: { status: 'Completed' } })
                                       toast('Trial converted to paid successfully', 'ok')
                                     }
                                   }
                                 }
 
                                 if (!vmId) {
-                                  updateVMRequest(t.id, { status: 'Completed' })
+                                  updateVMRequest({ id: t.id, patch: { status: 'Completed' } })
                                   toast('Conversion completed (could not find VM to update)', 'info')
                                 }
                               }}>
@@ -370,7 +364,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                         ) : requestType === 'vm' ? (
                           <>
                             {active && i === 0 && t && (
-                              <button className="btn sm accent mt-2" onClick={() => updateVMRequest(t.id, { status: 'Provisioning' })}>
+                              <button className="btn sm accent mt-2" onClick={() => updateVMRequest({ id: t.id, patch: { status: 'Provisioning' } })}>
                                 <Icon name="check" size={11} />Approve & send to Engineering
                               </button>
                             )}
@@ -390,7 +384,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                     5: 'Completed'
                                   }
                                   const newStatus = statusMap[i] || 'In Progress'
-                                  updateVMRequest(t.id, { status: newStatus })
+                                  updateVMRequest({ id: t.id, patch: { status: newStatus } })
                                   if (newStatus === 'Completed') {
                                     try {
                                       console.log('Provisioning completed for request:', t.id)
@@ -443,12 +437,12 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                         ) : (
                           <>
                             {active && i === 0 && (
-                              <button className="btn sm accent mt-2" onClick={() => { updateAddonRequest(request.id, { status: 'In Progress' }); toast('Add-on provisioning started', 'info') }}>
+                              <button className="btn sm accent mt-2" onClick={() => { updateAddonRequest({ id: request.id, patch: { status: 'In Progress' } }); toast('Add-on provisioning started', 'info') }}>
                                 <Icon name="play" size={11} />Start provisioning
                               </button>
                             )}
                             {active && i === 2 && (
-                              <button className="btn sm ok mt-2" onClick={() => { updateAddonRequest(request.id, { status: 'Completed' }); toast('Add-on provisioning completed', 'ok') }}>
+                              <button className="btn sm ok mt-2" onClick={() => { updateAddonRequest({ id: request.id, patch: { status: 'Completed' } }); toast('Add-on provisioning completed', 'ok') }}>
                                 <Icon name="check" size={11} />Complete
                               </button>
                             )}
@@ -577,7 +571,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                     console.log('Calling createVMManually for task:', t)
                     await createVMManually(t as any, details, addVM)
                     console.log('createVMManually completed successfully')
-                    updateVMRequest(t.id, { status: 'Network' })
+                    updateVMRequest({ id: t.id, patch: { status: 'Network' } })
                     setShowVMFormModal(false)
                     toast('VM records created successfully', 'ok')
                   } catch (error: any) {

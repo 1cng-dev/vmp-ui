@@ -1,17 +1,17 @@
 import React, { useState } from 'react'
-import useCustomerStore from '../../store/customerStore'
-import useVMStore from '../../store/vmStore'
+import { useCustomers } from '../../store/customerStore'
+import { useVMs } from '../../store/vmStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { formatMMK, ExpiryCell } from '../ui/ui'
-import useInvoiceStore from '../../store/invoiceStore'
+import { useInvoices } from '../../store/invoiceStore'
 import * as XLSX from 'xlsx'
 
 export const ReportsView: React.FC = () => {
-  const { customers } = useCustomerStore()
-  const { vms, loadVMs } = useVMStore()
+  const { customers } = useCustomers()
+  const { vms } = useVMs()
   const { toast } = useUIStore()
-  const { invoices, loadInvoices } = useInvoiceStore()
+  const { invoices } = useInvoices()
   const [dateFilter, setDateFilter] = useState<'all' | 'custom'>('all')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
@@ -23,11 +23,6 @@ export const ReportsView: React.FC = () => {
 
   // All invoices for lifetime calculation (not filtered by date)
   const allInvoices = invoices
-
-  React.useEffect(() => {
-    loadInvoices()
-    loadVMs()
-  }, [loadInvoices, loadVMs])
 
   // Get the fiscal year to display based on filter
   const getDisplayFiscalYear = () => {

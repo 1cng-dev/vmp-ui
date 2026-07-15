@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import useVMStore from '../../store/vmStore'
-import useCustomerStore from '../../store/customerStore'
+import { useVMs } from '../../store/vmStore'
+import { useCustomers } from '../../store/customerStore'
 import Icon from '../../lib/icons'
 import { StatusPill, ExpiryCell } from '../ui/ui'
 import { supabase } from '../../lib/supabase'
@@ -13,8 +13,8 @@ interface VMDrawerProps {
 }
 
 const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal }) => {
-  const { vms, updateVM } = useVMStore()
-  const { customers } = useCustomerStore()
+  const { vms, updateVM } = useVMs()
+  const { customers } = useCustomers()
   const v = vms.find((x: any) => x.id === vmId)
   if (!v) return null
   const c = customers.find((c: any) => c.id === v.customer_id)

@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react'
-import useCustomerStore from '../../store/customerStore'
-import useVMStore from '../../store/vmStore'
-import useInvoiceStore from '../../store/invoiceStore'
-import useTicketStore from '../../store/ticketStore'
-import useVMRequestStore from '../../store/vmRequestStore'
+import React, { useState } from 'react'
+import { useCustomers } from '../../store/customerStore'
+import { useVMs } from '../../store/vmStore'
+import { useInvoices } from '../../store/invoiceStore'
+import { useTickets } from '../../store/ticketStore'
+import { useVMRequests } from '../../store/vmRequestStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { Avatar, StatusPill, formatMMK } from '../ui/ui'
@@ -18,23 +18,16 @@ interface Customer360Props {
 }
 
 export const Customer360: React.FC<Customer360Props> = ({ customer, onClose, openCust, openModal, setView, role }) => {
-  const { customers, updateCustomer, setKYC, deleteCustomer, resetPassword } = useCustomerStore()
-  const { vms, loadVMs } = useVMStore()
-  const { invoices } = useInvoiceStore()
-  const { tickets, loadTickets } = useTicketStore()
-  const { vmRequests, loadVMRequests } = useVMRequestStore()
+  const { customers, updateCustomer, setKYC, deleteCustomer, resetPassword } = useCustomers()
+  const { vms } = useVMs()
+  const { invoices } = useInvoices()
+  const { tickets } = useTickets()
+  const { vmRequests } = useVMRequests()
   const { toast } = useUIStore()
   const [resetPasswordUser, setResetPasswordUser] = useState<any>(null)
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [resetLoading, setResetLoading] = useState(false)
-
-  // Load VMs, VM requests, and tickets on mount
-  useEffect(() => {
-    loadVMs()
-    loadVMRequests()
-    loadTickets()
-  }, [loadVMs, loadVMRequests, loadTickets])
 
   // Role-based permissions for views
   const hasVMsAccess = ['Admin', 'Staff', 'Engineer', 'Sales'].includes(role || '')

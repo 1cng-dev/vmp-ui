@@ -1,10 +1,10 @@
 import React, { useEffect } from 'react'
-import useCustomerStore from '../store/customerStore'
-import useVMStore from '../store/vmStore'
-import useInvoiceStore from '../store/invoiceStore'
+import { useCustomers } from '../store/customerStore'
+import { useVMs } from '../store/vmStore'
+import { useInvoices } from '../store/invoiceStore'
 import useActivityStore from '../store/activityStore'
 import useTaskStore from '../store/taskStore'
-import useTicketStore from '../store/ticketStore'
+import { useTickets } from '../store/ticketStore'
 import { useAuth } from '../components/auth/Auth'
 import useTeamStore from '../store/teamStore'
 import Icon from '../lib/icons'
@@ -17,14 +17,14 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => {
-  const { customers } = useCustomerStore()
-  const { vms, loadVMs } = useVMStore()
-  const { invoices, loadInvoices } = useInvoiceStore()
+  const { customers } = useCustomers()
+  const { vms } = useVMs()
+  const { invoices } = useInvoices()
   const { activity } = useActivityStore()
   const { tasks } = useTaskStore()
-  const { tickets } = useTicketStore()
+  const { tickets } = useTickets()
   const auth = useAuth()
-  const { loadTeam } = useTeamStore()
+  const { team } = useTeamStore()
   const TODAY = new Date()
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
@@ -84,12 +84,6 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
     { label: 'Suspended', value: vms.filter(v => v.status === 'Suspended').length, color: 'oklch(0.6 0.18 25)' },
     { label: 'Terminated', value: vms.filter(v => v.status === 'Terminated').length, color: 'oklch(0.55 0.01 80)' },
   ]
-
-  useEffect(() => {
-    loadTeam()
-    loadVMs()
-    loadInvoices()
-  }, [loadTeam, loadVMs, loadInvoices])
 
   // Check VM expiry and create notifications
   useEffect(() => {

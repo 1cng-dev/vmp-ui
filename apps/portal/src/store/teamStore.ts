@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase, supabaseAdmin } from '../lib/supabase'
 import type { TeamMember } from '../types'
 
@@ -18,150 +18,138 @@ const formatDate = (dateString: string): string => {
   return date.toLocaleDateString()
 }
 
-export interface TeamStoreValue {
-  team: TeamMember[]
-  loadTeam: () => Promise<void>
-  addMember: (member: Omit<TeamMember, 'id' | 'last' | 'status'>) => Promise<void>
-  updateMember: (id: string, patch: any) => Promise<void>
-  removeMember: (id: string) => Promise<void>
+const fetchTeam = async (): Promise<TeamMember[]> => {
+  const { data, error } = await supabase
+    .from('team_members')
+    .select('*')
+    .order('created_at', { ascending: false })
+  
+  if (error) throw error
+  
+  // Map database fields to interface fields and format last_login_at
+  const mappedData = (data || []).map(member => ({
+    ...member,
+    id: member.user_id,
+    last: member.last_login_at ? formatDate(member.last_login_at) : '-'
+  }))
+  
+  return mappedData
 }
 
-const useTeamStore = (): TeamStoreValue => {
-  const [team, setTeam] = useState<TeamMember[]>([])
+const useTeamStore = () => {
+  const queryClient = useQueryClient()
 
-  const loadTeam = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('team_members')
-      .select('*')
-      .order('created_at', { ascending: false })
-    
-    if (error) {
-      console.error('Failed to load team:', error)
-      return
-    }
-    
-    // Map database fields to interface fields and format last_login_at
-    const mappedData = (data || []).map(member => ({
-      ...member,
-      id: member.user_id,
-      last: member.last_login_at ? formatDate(member.last_login_at) : '-'
-    }))
-    
-    setTeam(mappedData)
-  }, [])
+  const { data: team = [], isLoading: teamLoading, error } = useQuery({
+    queryKey: ['team'],
+    queryFn: fetchTeam,
+    staleTime: 1000 * 60 * 5,
+  })
 
-  const addMember = useCallback(async (member: any) => {
-    const authUser = await supabase.auth.getUser()
-    const invitedBy = authUser.data.user?.id
-    
-    // Generate temporary password (user never sees this)
-    const tempPassword = Math.random().toString(36).slice(-12)
-    
-    // Create Supabase auth user first
-    const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
-      email: member.email,
-      password: tempPassword,
-      email_confirm: true,
-      user_metadata: {
-        role: member.role,
-        team: member.team,
-        name: member.name
-      }
-    })
-    
-    if (userError) {
-      console.error('Failed to create auth user:', userError)
-      throw userError
-    }
-    
-    const userId = userData.user.id
-    
-    // Generate invite token
-    const inviteToken = crypto.randomUUID()
-    
-    // Create team_members record with the user_id
-    const { data, error } = await supabase
-      .from('team_members')
-      .insert({
-        user_id: userId,
+  const addMember = useMutation({
+    mutationFn: async (member: any) => {
+      const authUser = await supabase.auth.getUser()
+      const invitedBy = authUser.data.user?.id
+      
+      // Generate temporary password (user never sees this)
+      const tempPassword = Math.random().toString(36).slice(-12)
+      
+      // Create Supabase auth user first
+      const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
         email: member.email,
-        name: member.name,
-        role: member.role,
-        team: member.team,
-        status: 'Inactive', // Set to Inactive until they accept the invite
-        invited_by: invitedBy,
-        invite_token: inviteToken,
-        invite_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: {
+          role: member.role,
+          team: member.team,
+          name: member.name
+        }
       })
-      .select()
-      .single()
-    
-    if (error) {
-      console.error('Failed to add member:', error)
-      throw error
-    }
-    
-    // Generate invite token and direct link
-    const inviteLink = `${window.location.origin}/setup-password?token=${inviteToken}`
-    console.log('Invite token generated:', inviteToken)
-    console.log('Direct invite link:', inviteLink)
-    console.log('About to save to database with user_id:', userId, 'and invite_token:', inviteToken)
-    
-    // Call Edge Function to send Resend email with direct link
-    const { error: emailError } = await supabase.functions.invoke('send-invite', {
-      body: {
-        email: member.email,
-        name: member.name,
-        role: member.role,
-        team: member.team,
-        inviteToken: inviteToken,
-        inviteLink: inviteLink // Send direct link to edge function
-      }
-    })
-    
-    if (emailError) {
-      console.error('Failed to send invite email:', emailError)
-      throw emailError
-    }
-    
-    await loadTeam()
-    console.log('Team reloaded after invite')
-  }, [loadTeam])
+      
+      if (userError) throw userError
+      
+      const userId = userData.user.id
+      
+      // Generate invite token
+      const inviteToken = crypto.randomUUID()
+      
+      // Create team_members record with the user_id
+      const { data, error } = await supabase
+        .from('team_members')
+        .insert({
+          user_id: userId,
+          email: member.email,
+          name: member.name,
+          role: member.role,
+          team: member.team,
+          status: 'Inactive',
+          invited_by: invitedBy,
+          invite_token: inviteToken,
+          invite_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+        })
+        .select()
+        .single()
+      
+      if (error) throw error
+      
+      // Generate invite token and direct link
+      const inviteLink = `${window.location.origin}/setup-password?token=${inviteToken}`
+      
+      // Call Edge Function to send Resend email with direct link
+      const { error: emailError } = await supabase.functions.invoke('send-invite', {
+        body: {
+          email: member.email,
+          name: member.name,
+          role: member.role,
+          team: member.team,
+          inviteToken: inviteToken,
+          inviteLink: inviteLink
+        }
+      })
+      
+      if (emailError) throw emailError
+      
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['team'] })
+    },
+  })
 
-  const updateMember = useCallback(async (id: string, patch: any) => {
-    const { error } = await supabase
-      .from('team_members')
-      .update(patch)
-      .eq('user_id', id)
-    
-    if (error) {
-      console.error('Failed to update member:', error)
-      throw error
-    }
-    
-    await loadTeam()
-  }, [loadTeam])
+  const updateMember = useMutation({
+    mutationFn: async ({ id, patch }: { id: string; patch: any }) => {
+      const { error } = await supabase
+        .from('team_members')
+        .update(patch)
+        .eq('user_id', id)
+      
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['team'] })
+    },
+  })
 
-  const removeMember = useCallback(async (id: string) => {
-    const { error } = await supabase
-      .from('team_members')
-      .delete()
-      .eq('user_id', id)
-    
-    if (error) {
-      console.error('Failed to remove member:', error)
-      throw error
-    }
-    
-    await loadTeam()
-  }, [loadTeam])
+  const removeMember = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('team_members')
+        .delete()
+        .eq('user_id', id)
+      
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['team'] })
+    },
+  })
 
   return {
     team,
-    loadTeam,
-    addMember,
-    updateMember,
-    removeMember,
+    teamLoading,
+    error,
+    addMember: addMember.mutateAsync,
+    updateMember: updateMember.mutateAsync,
+    removeMember: removeMember.mutateAsync,
   }
 }
 

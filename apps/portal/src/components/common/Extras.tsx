@@ -1,9 +1,9 @@
 // Command palette (⌘K), keyboard shortcuts overlay, calendar of expiries
 
 import React, { useState, useEffect, useRef } from 'react'
-import useVMStore from '../../store/vmStore'
-import useCustomerStore from '../../store/customerStore'
-import useInvoiceStore from '../../store/invoiceStore'
+import { useVMs } from '../../store/vmStore'
+import { useCustomers } from '../../store/customerStore'
+import { useInvoices } from '../../store/invoiceStore'
 import Icon from '../../lib/icons'
 import { formatMMK, StatusPill } from '../ui/ui'
 
@@ -24,14 +24,11 @@ interface CommandItem {
 }
 
 const CommandPalette: React.FC<CommandPaletteProps> = ({ onClose, setView, openVM, openCust, openModal }) => {
-  const { vms } = useVMStore()
-  const { customers, loadCustomers } = useCustomerStore()
-  const { invoices } = useInvoiceStore()
+  const { vms } = useVMs()
+  const { customers } = useCustomers()
+  const { invoices } = useInvoices()
   const [q, setQ] = useState('')
 
-  useEffect(() => {
-    loadCustomers()
-  }, [loadCustomers])
   const inputRef = useRef<HTMLInputElement>(null)
   
   useEffect(() => { inputRef.current?.focus() }, [])
@@ -179,16 +176,13 @@ interface CalendarViewProps {
 }
 
 const CalendarView: React.FC<CalendarViewProps> = ({ openVM }) => {
-  const { vms } = useVMStore()
-  const { customers, loadCustomers } = useCustomerStore()
+  const { vms } = useVMs()
+  const { customers } = useCustomers()
   const today: Date = new Date()
   const [monthOffset, setMonthOffset] = useState(0)
   const base = new Date(today)
   base.setDate(1)
 
-  useEffect(() => {
-    loadCustomers()
-  }, [loadCustomers])
   base.setMonth(base.getMonth() + monthOffset)
 
   const monthName = base.toLocaleString('en', { month: 'long', year: 'numeric' })

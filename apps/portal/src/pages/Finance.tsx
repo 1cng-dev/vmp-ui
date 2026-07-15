@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react'
-import useInvoiceStore from '../store/invoiceStore'
-import useCustomerStore from '../store/customerStore'
-import useVMRequestStore from '../store/vmRequestStore'
-import useAddonRequestStore from '../store/addonRequestStore'
-import useQuoteStore from '../store/quoteStore'
-import useVMStore from '../store/vmStore'
+import React, { useState, useRef } from 'react'
+import { useInvoices } from '../store/invoiceStore'
+import { useCustomers } from '../store/customerStore'
+import { useVMRequests } from '../store/vmRequestStore'
+import { useAddonRequests } from '../store/addonRequestStore'
+import { useQuotes } from '../store/quoteStore'
+import { useVMs } from '../store/vmStore'
 import useUIStore from '../store/uiStore'
 import useReceiptStore from '../store/receiptStore'
 import Icon from '../lib/icons'
@@ -20,24 +20,17 @@ interface FinanceViewProps {
 }
 
 const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal }) => {
-  const { invoices, markPaid, loadInvoices } = useInvoiceStore()
-  const { customers } = useCustomerStore()
-  const { vmRequests } = useVMRequestStore()
-  const { addonRequests, loadAddonRequests } = useAddonRequestStore()
-  const { quotes, loadQuotes } = useQuoteStore()
-  const { vms, loadVMs } = useVMStore()
+  const { invoices, markPaid } = useInvoices()
+  const { customers } = useCustomers()
+  const { vmRequests } = useVMRequests()
+  const { addonRequests } = useAddonRequests()
+  const { quotes } = useQuotes()
+  const { vms } = useVMs()
   const { toast } = useUIStore()
   const { addReceipt } = useReceiptStore()
   const [filter, setFilter] = useState('all')
   const [view, setView] = useState<'list' | 'detail'>('list')
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
-
-  useEffect(() => {
-    loadInvoices()
-    loadAddonRequests()
-    loadQuotes()
-    loadVMs()
-  }, [loadInvoices, loadAddonRequests, loadQuotes, loadVMs])
   const [showDateFilter, setShowDateFilter] = useState(false)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')

@@ -2,12 +2,11 @@ import React from 'react'
 import { StatusPill, formatMMK } from '../ui/ui'
 import Icon from '../../lib/icons'
 import useUIStore from '../../store/uiStore'
-import useVMRequestStore from '../../store/vmRequestStore'
-import useAddonRequestStore from '../../store/addonRequestStore'
-import useQuoteStore from '../../store/quoteStore'
-import useVMStore from '../../store/vmStore'
-import useCustomerStore from '../../store/customerStore'
-import { useEffect } from 'react'
+import { useVMRequests } from '../../store/vmRequestStore'
+import { useAddonRequests } from '../../store/addonRequestStore'
+import { useQuotes } from '../../store/quoteStore'
+import { useVMs } from '../../store/vmStore'
+import { useCustomers } from '../../store/customerStore'
 import { exportInvoiceToPDF } from '../../lib/pdfExport'
 
 interface CustomerInvoicesViewProps {
@@ -17,17 +16,11 @@ interface CustomerInvoicesViewProps {
 
 export const CustomerInvoicesView: React.FC<CustomerInvoicesViewProps> = ({ myInvs, setDetailInvoice }) => {
   const { toast } = useUIStore()
-  const { vmRequests } = useVMRequestStore()
-  const { addonRequests, loadAddonRequests } = useAddonRequestStore()
-  const { quotes, loadQuotes } = useQuoteStore()
-  const { vms, loadVMs } = useVMStore()
-  const { customers } = useCustomerStore()
-
-  useEffect(() => {
-    loadAddonRequests()
-    loadQuotes()
-    loadVMs()
-  }, [loadAddonRequests, loadQuotes, loadVMs])
+  const { vmRequests } = useVMRequests()
+  const { addonRequests } = useAddonRequests()
+  const { quotes } = useQuotes()
+  const { vms } = useVMs()
+  const { customers } = useCustomers()
 
   return (
     <div className="content">

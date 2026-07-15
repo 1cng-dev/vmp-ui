@@ -1,6 +1,6 @@
 import React from 'react'
-import useVMStore from '../../store/vmStore'
-import useCustomerStore from '../../store/customerStore'
+import { useVMs } from '../../store/vmStore'
+import { useCustomers } from '../../store/customerStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { StatusPill } from '../ui/ui'
@@ -11,8 +11,8 @@ interface NetworkViewProps {
 }
 
 export const NetworkView: React.FC<NetworkViewProps> = ({ openVM, openModal }) => {
-  const { vms } = useVMStore()
-  const { customers } = useCustomerStore()
+  const { vms } = useVMs()
+  const { customers } = useCustomers()
   const { toast } = useUIStore()
   const withIp = vms.filter(v => v.publicIp && v.publicIp !== '—' && v.publicIp !== 'pending')
   const ranges = [

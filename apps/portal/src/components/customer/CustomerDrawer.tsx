@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import useCustomerStore from '../../store/customerStore'
-import useVMStore from '../../store/vmStore'
-import useInvoiceStore from '../../store/invoiceStore'
+import { useCustomers } from '../../store/customerStore'
+import { useVMs } from '../../store/vmStore'
+import { useInvoices } from '../../store/invoiceStore'
 import useTeamStore from '../../store/teamStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
@@ -18,9 +18,9 @@ interface CustomerDrawerProps {
 
 const CustomerDrawer: React.FC<CustomerDrawerProps> = ({ custId, onClose, openVM, openModal }) => {
   const navigate = useNavigate()
-  const { customers, updateCustomer, loadCustomers } = useCustomerStore()
-  const { vms, loadVMs } = useVMStore()
-  const { invoices } = useInvoiceStore()
+  const { customers, updateCustomer } = useCustomers()
+  const { vms } = useVMs()
+  const { invoices } = useInvoices()
   const { team } = useTeamStore()
   const { toast } = useUIStore()
   const [isLoading, setIsLoading] = useState(() => customers.length === 0)
@@ -34,22 +34,6 @@ const CustomerDrawer: React.FC<CustomerDrawerProps> = ({ custId, onClose, openVM
   const [draft, setDraft] = useState<Customer | undefined>(c)
 
   useEffect(() => { setDraft(c) }, [custId])
-
-  useEffect(() => {
-    // Only fetch if we have no customers cached and no selected customer yet
-    if (!c && customers.length === 0) {
-      setIsLoading(true)
-      loadCustomers()
-        .finally(() => setIsLoading(false))
-    } else {
-      setIsLoading(false)
-    }
-  }, [custId, customers.length, c, loadCustomers])
-
-  // Load VMs on mount
-  useEffect(() => {
-    loadVMs()
-  }, [loadVMs])
 
   if (isLoading) {
     return (

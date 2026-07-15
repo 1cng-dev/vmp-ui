@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
 import Icon from '../lib/icons'
 import { formatMMK } from '../components/ui/ui'
-import useQuoteStore from '../store/quoteStore'
+import { useQuotes } from '../store/quoteStore'
 import useUIStore from '../store/uiStore'
-import useCustomerStore from '../store/customerStore'
-import useVMRequestStore from '../store/vmRequestStore'
+import { useCustomers } from '../store/customerStore'
+import { useVMRequests } from '../store/vmRequestStore'
 import useAuthStore from '../store/authStore'
-import useVMStore from '../store/vmStore'
+import { useVMs } from '../store/vmStore'
 import { supabase } from '../lib/supabase'
 import { exportQuoteToPDF } from '../lib/pdfExport'
 import QuoteDrawer from '../components/quote/QuoteDrawer'
@@ -21,10 +21,10 @@ interface QuotesViewProps {
 }
 
 const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, prefillRequestId, prefillRequestType }: QuotesViewProps) => {
-  const { quotes, addQuote } = useQuoteStore()
+  const { quotes, addQuote } = useQuotes()
   const { toast } = useUIStore()
   const { user, refreshUser } = useAuthStore()
-  const { vms, loadVMs } = useVMStore()
+  const { vms } = useVMs()
   const [building, setBuilding] = useState(false)
   const [addonRequests, setAddonRequests] = useState<any[]>([])
   const [requestType, setRequestType] = useState<'vm' | 'addon'>('vm')
@@ -36,8 +36,8 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
   type BackupLine = { spec: string; storage: number; unit: number; term: string }
   type PublicIPLine = { spec: string; unit: number; term: string }
 
-  const { customers } = useCustomerStore()
-  const { vmRequests } = useVMRequestStore()
+  const { customers } = useCustomers()
+  const { vmRequests } = useVMRequests()
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>(undefined)
   const [selectedRequestId, setSelectedRequestId] = useState<string | undefined>(undefined)
@@ -61,8 +61,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
       }
     }
     loadAddonRequests()
-    loadVMs()
-  }, [loadVMs])
+  }, [])
 
   // Helper function to parse billing term string to number of months
   const parseBillingTermToMonths = (term: string): number => {

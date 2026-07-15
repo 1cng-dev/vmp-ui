@@ -1,11 +1,11 @@
 import React from 'react'
-import useInvoiceStore from '../../store/invoiceStore'
+import { useInvoices } from '../../store/invoiceStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { formatMMK } from '../ui/ui'
 
 export const TaxView: React.FC = () => {
-  const { invoices } = useInvoiceStore()
+  const { invoices } = useInvoices()
   const { toast } = useUIStore()
   const totalRev = invoices.filter((i: any) => i.status === 'Payment Received').reduce((a: number, i: any) => a + i.amount, 0)
   const vatRate = 5

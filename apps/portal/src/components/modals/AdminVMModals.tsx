@@ -1,12 +1,12 @@
 // Admin VM action modals — New VM, Renew, Change Spec (matching original UI)
 
 import React, { useState } from 'react'
-import useVMStore from '../../store/vmStore'
-import useCustomerStore from '../../store/customerStore'
+import { useVMs } from '../../store/vmStore'
+import { useCustomers } from '../../store/customerStore'
 import useTaskStore from '../../store/taskStore'
-import useInvoiceStore from '../../store/invoiceStore'
+import { useInvoices } from '../../store/invoiceStore'
 import useTeamStore from '../../store/teamStore'
-import useVMRequestStore from '../../store/vmRequestStore'
+import { useVMRequests } from '../../store/vmRequestStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { formatMMK, StatusPill, Avatar } from '../ui/ui'
@@ -34,8 +34,8 @@ interface NewVMModalProps {
 }
 
 const NewVMModal: React.FC<NewVMModalProps> = ({ onClose }) => {
-  const { addVM } = useVMStore()
-  const { customers } = useCustomerStore()
+  const { addVM } = useVMs()
+  const { customers } = useCustomers()
   const { toast } = useUIStore()
   const [step, setStep] = useState(1)
   const [f, setF] = useState({
@@ -415,9 +415,9 @@ interface RenewModalProps {
 }
 
 const RenewModal: React.FC<RenewModalProps> = ({ vm, onClose }) => {
-  const { renew } = useVMStore()
-  const { addInvoice } = useInvoiceStore()
-  const { customers } = useCustomerStore()
+  const { renew } = useVMs()
+  const { addInvoice } = useInvoices()
+  const { customers } = useCustomers()
   const { toast } = useUIStore()
   const [months, setMonths] = useState(12)
   const monthOpts = [3, 6, 12, 24]
@@ -491,7 +491,7 @@ interface SpecModalProps {
 }
 
 const SpecModal: React.FC<SpecModalProps> = ({ vm, onClose }) => {
-  const { updateVM } = useVMStore()
+  const { updateVM } = useVMs()
   const { addTask } = useTaskStore()
   const { toast } = useUIStore()
   const [f, setF] = useState({ vcpu: vm.vcpu, ram: vm.ram, storage: vm.storage })
@@ -554,9 +554,9 @@ interface NewTaskModalProps {
 
 const NewTaskModal: React.FC<NewTaskModalProps> = ({ onClose, presetStatus }) => {
   const { addTask } = useTaskStore()
-  const { customers } = useCustomerStore()
+  const { customers } = useCustomers()
   const { team } = useTeamStore()
-  const { vms } = useVMStore()
+  const { vms } = useVMs()
   const [f, setF] = useState({
     title: '',
     customer: customers[0]?.id || '',
@@ -633,7 +633,7 @@ interface TerminateModalProps {
 }
 
 const TerminateModal: React.FC<TerminateModalProps> = ({ vm, onClose }) => {
-  const { updateVM } = useVMStore()
+  const { updateVM } = useVMs()
   const { toast } = useUIStore()
   const [inputValue, setInputValue] = useState('')
 
@@ -687,7 +687,7 @@ interface DeleteModalProps {
 }
 
 const DeleteModal: React.FC<DeleteModalProps> = ({ vm, onClose }) => {
-  const { deleteVM } = useVMStore()
+  const { deleteVM } = useVMs()
   const { toast } = useUIStore()
   const [inputValue, setInputValue] = useState('')
 
@@ -741,7 +741,7 @@ interface NewCustomerModalProps {
 }
 
 const NewCustomerModal: React.FC<NewCustomerModalProps> = ({ onClose, onPasswordGenerated }) => {
-  const { addCustomerWithAuth } = useCustomerStore()
+  const { addCustomerWithAuth } = useCustomers()
   const { toast } = useUIStore()
   const [f, setF] = useState({
     name: '',
@@ -1066,7 +1066,7 @@ interface TaskDetailModalProps {
 const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ taskId, onClose }) => {
   const { updateTask } = useTaskStore()
   const { tasks } = useTaskStore()
-  const { customers } = useCustomerStore()
+  const { customers } = useCustomers()
   const { toast } = useUIStore()
   const t = tasks.find((x: any) => x.id === taskId)
   if (!t) return null
@@ -1180,9 +1180,9 @@ interface NewInvoiceModalProps {
 }
 
 const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({ onClose, presetCustomer, presetQuote }) => {
-  const { addInvoice } = useInvoiceStore()
-  const { customers } = useCustomerStore()
-  const { vmRequests } = useVMRequestStore()
+  const { addInvoice } = useInvoices()
+  const { customers } = useCustomers()
+  const { vmRequests } = useVMRequests()
   const { toast } = useUIStore()
 
   const [f, setF] = useState({

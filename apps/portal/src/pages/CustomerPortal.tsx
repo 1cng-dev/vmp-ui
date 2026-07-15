@@ -5,14 +5,14 @@
 
 import React, { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import useCustomerStore from '../store/customerStore'
-import useVMStore from '../store/vmStore'
-import useInvoiceStore from '../store/invoiceStore'
-import useTicketStore from '../store/ticketStore'
+import { useCustomers } from '../store/customerStore'
+import { useVMs } from '../store/vmStore'
+import { useInvoices } from '../store/invoiceStore'
+import { useTickets } from '../store/ticketStore'
 import useTaskStore from '../store/taskStore'
 import useUIStore from '../store/uiStore'
-import { useVMRequestStore } from '../store/vmRequestStore'
-import { useAddonRequestStore } from '../store/addonRequestStore'
+import { useVMRequests } from '../store/vmRequestStore'
+import { useAddonRequests } from '../store/addonRequestStore'
 import Icon from '../lib/icons'
 import { supabase } from '../lib/supabase'
 import { Avatar } from '../components/ui/ui'
@@ -41,14 +41,14 @@ interface CustomerPortalProps {
 }
 
 export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRole, roleNames: _roleNames = {} }) => {
-  const { customers, loadCustomers } = useCustomerStore()
-  const { vms, loadVMs } = useVMStore()
-  const { invoices, loadInvoices } = useInvoiceStore()
-  const { tickets } = useTicketStore()
+  const { customers } = useCustomers()
+  const { vms } = useVMs()
+  const { invoices } = useInvoices()
+  const { tickets } = useTickets()
   const { addTask } = useTaskStore()
   const { toast } = useUIStore()
-  const { vmRequests } = useVMRequestStore()
-  const { addonRequests, loadAddonRequests } = useAddonRequestStore()
+  const { vmRequests } = useVMRequests()
+  const { addonRequests } = useAddonRequests()
   const auth = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
@@ -62,32 +62,18 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
   const [detailInvoice, setDetailInvoice] = useState<any>(null)
   const [renewVm, setRenewVm] = useState<any>(null)
 
-  // Load data on mount and when auth changes
-  useEffect(() => {
-    loadCustomers()
-  }, [loadCustomers])
-
-  useEffect(() => {
-    if (auth?.user) {
-      loadCustomers()
-      loadVMs()
-      loadInvoices()
-      loadAddonRequests()
-    }
-  }, [auth?.user, loadCustomers, loadVMs, loadInvoices, loadAddonRequests])
-
   // Realtime: refresh invoices automatically without manual refresh
   useEffect(() => {
     const sub = supabase
       .channel(`customer-invoices-${Date.now()}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, () => {
-        loadInvoices()
+        // React Query will automatically refetch
       })
       .subscribe()
     return () => {
       supabase.removeChannel(sub)
     }
-  }, [loadInvoices])
+  }, [])
 
   const handleSetView = (newView: string) => {
     navigate(newView === 'dashboard' ? '/' : `/${newView}`)

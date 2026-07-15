@@ -1,22 +1,17 @@
 import React from 'react'
-import useInvoiceStore from '../../store/invoiceStore'
-import useCustomerStore from '../../store/customerStore'
+import { useInvoices } from '../../store/invoiceStore'
+import { useCustomers } from '../../store/customerStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { StatusPill, formatMMK } from '../ui/ui'
 
 export const AgingView: React.FC = () => {
-  const { invoices, loadInvoices } = useInvoiceStore()
-  const { customers, loadCustomers } = useCustomerStore()
+  const { invoices } = useInvoices()
+  const { customers } = useCustomers()
   const { toast } = useUIStore()
   const TODAY = new Date()
   const [ageFilter, setAgeFilter] = React.useState<string>('all')
 
-  React.useEffect(() => {
-    loadInvoices()
-    loadCustomers()
-  }, [loadInvoices, loadCustomers])
-  
   const buckets: Record<string, any[]> = { current: [], '0-30': [], '31-60': [], '61-90': [], '90+': [] }
   invoices.filter((i: any) => i.status !== 'Payment Received').forEach((i: any) => {
     const days = Math.ceil((TODAY.getTime() - new Date(i.due).getTime()) / 86400000)

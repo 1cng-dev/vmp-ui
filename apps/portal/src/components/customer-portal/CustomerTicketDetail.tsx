@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
-import useTicketStore from '../../store/ticketStore'
-import useCustomerStore from '../../store/customerStore'
+import { useTickets } from '../../store/ticketStore'
+import { useCustomers } from '../../store/customerStore'
 import Icon from '../../lib/icons'
 import { Avatar, StatusPill } from '../ui/ui'
 import { supabase } from '../../lib/supabase'
@@ -12,8 +12,8 @@ interface CustomerTicketDetailProps {
 }
 
 export const CustomerTicketDetail: React.FC<CustomerTicketDetailProps> = ({ ticket: initial, onClose, openModal }) => {
-  const { tickets, deleteTicket, setTicketStatus, replyTicket } = useTicketStore()
-  const { customers } = useCustomerStore()
+  const { tickets, deleteTicket, setTicketStatus, replyTicket } = useTickets()
+  const { customers } = useCustomers()
   const ticket = tickets.find((t: any) => t.id === initial.id) || initial
   const [replyBody, setReplyBody] = useState('')
   const [replyAttachments, setReplyAttachments] = useState<string[]>([])
@@ -62,7 +62,7 @@ export const CustomerTicketDetail: React.FC<CustomerTicketDetailProps> = ({ tick
       openModal('confirm', {
         title: 'Close ticket',
         message: 'Are you sure you want to close this ticket? You can create a new ticket if you need more help.',
-        onConfirm: () => setTicketStatus(ticket.id, 'Closed')
+        onConfirm: () => setTicketStatus({ id: ticket.id, status: 'Closed' })
       })
     } else {
       setShowCloseConfirm(true)
@@ -147,7 +147,7 @@ export const CustomerTicketDetail: React.FC<CustomerTicketDetailProps> = ({ tick
   const handleReply = async () => {
     if (!replyBody.trim() && replyAttachments.length === 0) return
     try {
-      await replyTicket(ticket.id, 'Customer', replyBody, replyAttachments)
+      await replyTicket({ id: ticket.id, who: 'Customer', body: replyBody, attachments: replyAttachments })
       setReplyBody('')
       setReplyAttachments([])
     } catch (error) {
@@ -356,7 +356,7 @@ export const CustomerTicketDetail: React.FC<CustomerTicketDetailProps> = ({ tick
             <div className="modal-foot">
               <button className="btn ghost" onClick={() => setShowCloseConfirm(false)}>Cancel</button>
               <button className="btn accent" onClick={() => {
-                setTicketStatus(ticket.id, 'Closed')
+                setTicketStatus({ id: ticket.id, status: 'Closed' })
                 setShowCloseConfirm(false)
               }}>Confirm</button>
             </div>

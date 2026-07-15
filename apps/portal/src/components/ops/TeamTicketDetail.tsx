@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react'
-import useTicketStore from '../../store/ticketStore'
-import useCustomerStore from '../../store/customerStore'
+import { useTickets } from '../../store/ticketStore'
+import { useCustomers } from '../../store/customerStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { Avatar, StatusPill } from '../ui/ui'
@@ -13,8 +13,8 @@ interface TeamTicketDetailProps {
 }
 
 export const TeamTicketDetail: React.FC<TeamTicketDetailProps> = ({ ticket: initial, onClose, openModal }) => {
-  const { tickets, setTicketStatus, replyTicket } = useTicketStore()
-  const { customers } = useCustomerStore()
+  const { tickets, setTicketStatus, replyTicket } = useTickets()
+  const { customers } = useCustomers()
   const { toast } = useUIStore()
   const ticket = tickets.find((t: any) => t.id === initial.id) || initial
   const [reply, setReply] = useState('')
@@ -113,7 +113,7 @@ export const TeamTicketDetail: React.FC<TeamTicketDetailProps> = ({ ticket: init
         }
       }
 
-      await replyTicket(ticket.id, 'Support Team', reply, attachmentUrls)
+      await replyTicket({ id: ticket.id, who: 'Support Team', body: reply, attachments: attachmentUrls })
       toast('Reply sent', 'ok')
       setReply('')
       setReplyFiles([])
@@ -124,7 +124,7 @@ export const TeamTicketDetail: React.FC<TeamTicketDetailProps> = ({ ticket: init
 
   const handleStatusChange = async (status: string) => {
     try {
-      await setTicketStatus(ticket.id, status)
+      await setTicketStatus({ id: ticket.id, status })
       toast(`Ticket marked as ${status}`, 'ok')
     } catch (error) {
       toast('Error updating status', 'bad')

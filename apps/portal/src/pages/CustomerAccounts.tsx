@@ -7,8 +7,8 @@
 // Customer360 component extracted to components/customer folder
 
 import React, { useState, useEffect } from 'react'
-import useCustomerStore from '../store/customerStore'
-import useVMStore from '../store/vmStore'
+import { useCustomers } from '../store/customerStore'
+import { useVMs } from '../store/vmStore'
 import useUIStore from '../store/uiStore'
 import Icon from '../lib/icons'
 import { Avatar, StatusPill, formatMMK } from '../components/ui/ui'
@@ -22,17 +22,12 @@ interface CustomerAccountManagementViewProps {
 }
 
 export const CustomerAccountManagementView: React.FC<CustomerAccountManagementViewProps> = ({ openCust, openModal, setView, role }) => {
-  const { customers } = useCustomerStore()
-  const { vms, loadVMs } = useVMStore()
+  const { customers } = useCustomers()
+  const { vms } = useVMs()
   const { toast } = useUIStore()
   const [segment, setSegment] = useState('all')
   const [search, setSearch] = useState('')
   const [view360, setView360] = useState<any>(null)
-
-  // Load VMs on mount
-  useEffect(() => {
-    loadVMs()
-  }, [loadVMs])
 
   // Feature 5: Saved segments
   const segments = [

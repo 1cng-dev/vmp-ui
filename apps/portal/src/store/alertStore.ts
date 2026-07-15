@@ -1,112 +1,92 @@
-import React, { useState, useCallback, createContext, useContext, useEffect, type ReactNode } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import type { Alert } from '../types'
 
-export interface AlertStoreValue {
-  alerts: Alert[]
-  alertsLoading: boolean
-  loadAlerts: () => Promise<void>
-  markAlertRead: (id: string) => Promise<void>
-  markAllAlertsRead: () => Promise<void>
+const fetchAlerts = async (): Promise<Alert[]> => {
+  const { data: { user } } = await supabase.auth.getUser()
+  const userId = user?.id
+
+  const { data, error } = await supabase
+    .from('alerts')
+    .select('*')
+    .order('created_at', { ascending: false })
+  
+  if (error) throw error
+
+  // Get alert reads for current user
+  let readAlertIds: Set<string> = new Set()
+  if (userId) {
+    const { data: readData } = await supabase
+      .from('alert_reads')
+      .select('alert_id')
+      .eq('user_id', userId)
+    readAlertIds = new Set(readData?.map(r => r.alert_id) || [])
+  }
+  
+  const transformedAlerts = (data || []).map((a: any) => ({
+    id: a.id,
+    sev: a.sev,
+    title: a.title,
+    body: a.body,
+    ts: new Date(a.created_at).toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }),
+    read: readAlertIds.has(a.id),
+    type: a.type,
+    related_entity_id: a.related_entity_id,
+    related_entity_type: a.related_entity_type,
+    actor_id: a.actor_id,
+    actor_name: a.actor_name,
+    metadata: a.metadata
+  }))
+  
+  return transformedAlerts
 }
 
-// ── Global Alert Context Store ─────────────────────────────────────────────
-const AlertContext = createContext<AlertStoreValue | null>(null)
+export const useAlertStore = () => {
+  const queryClient = useQueryClient()
 
-export const AlertProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [alerts, setAlerts] = useState<Alert[]>([])
-  const [alertsLoading, setAlertsLoading] = useState(false)
+  const { data: alerts = [], isLoading: alertsLoading, error } = useQuery({
+    queryKey: ['alerts'],
+    queryFn: fetchAlerts,
+    staleTime: 1000 * 30, // 30 seconds since alerts change frequently
+    refetchInterval: 30000, // Poll every 30 seconds
+  })
 
-  const loadAlerts = useCallback(async () => {
-    setAlertsLoading(true)
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      const userId = user?.id
-
-      const { data, error } = await supabase
-        .from('alerts')
-        .select('*')
-        .order('created_at', { ascending: false })
-      
-      if (error) throw error
-
-      // Get alert reads for current user
-      let readAlertIds: Set<string> = new Set()
-      if (userId) {
-        const { data: readData } = await supabase
-          .from('alert_reads')
-          .select('alert_id')
-          .eq('user_id', userId)
-        readAlertIds = new Set(readData?.map(r => r.alert_id) || [])
-      }
-      
-      const transformedAlerts = (data || []).map((a: any) => ({
-        id: a.id,
-        sev: a.sev,
-        title: a.title,
-        body: a.body,
-        ts: new Date(a.created_at).toLocaleDateString('en-US', { 
-          month: 'short', 
-          day: 'numeric', 
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        }),
-        read: readAlertIds.has(a.id),
-        type: a.type,
-        related_entity_id: a.related_entity_id,
-        related_entity_type: a.related_entity_type,
-        actor_id: a.actor_id,
-        actor_name: a.actor_name,
-        metadata: a.metadata
-      }))
-      
-      setAlerts(transformedAlerts)
-    } catch (error) {
-      console.error('Error loading alerts:', error)
-    } finally {
-      setAlertsLoading(false)
-    }
-  }, [])
-
-  const markAlertRead = useCallback(async (id: string) => {
-    try {
+  const markAlertRead = useMutation({
+    mutationFn: async (id: string) => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user?.id) {
-        console.error('No user found')
-        return
+        throw new Error('No user found')
       }
 
-      // Insert into alert_reads table for current user
       const { error } = await supabase
         .from('alert_reads')
         .insert({ alert_id: id, user_id: user.id })
       
-      if (error) {
-        // Ignore duplicate key errors (already read)
-        if (error.code !== '23505') {
-          throw error
-        }
+      if (error && error.code !== '23505') {
+        throw error
       }
-      
-      setAlerts(s => s.map(a => a.id === id ? { ...a, read: true } : a))
-    } catch (error) {
-      console.error('Error marking alert as read:', error)
-    }
-  }, [])
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['alerts'] })
+    },
+  })
 
-  const markAllAlertsRead = useCallback(async () => {
-    try {
+  const markAllAlertsRead = useMutation({
+    mutationFn: async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user?.id) {
-        console.error('No user found')
-        return
+        throw new Error('No user found')
       }
 
       // Get all unread alerts for current user
       const readAlertIds = new Set(alerts.filter(a => !a.read).map(a => a.id))
       
-      // Insert all unread alerts into alert_reads for current user
       if (readAlertIds.size > 0) {
         const inserts = Array.from(readAlertIds).map(alertId => ({
           alert_id: alertId,
@@ -117,58 +97,23 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           .from('alert_reads')
           .insert(inserts)
         
-        if (error) {
-          // Ignore duplicate key errors (already read)
-          if (error.code !== '23505') {
-            throw error
-          }
+        if (error && error.code !== '23505') {
+          throw error
         }
       }
-      
-      setAlerts(s => s.map(a => ({ ...a, read: true })))
-    } catch (error) {
-      console.error('Error marking all alerts as read:', error)
-    }
-  }, [alerts])
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['alerts'] })
+    },
+  })
 
-  const subscribeToAlerts = useCallback(() => {
-    const channelName = `alerts-changes-${Date.now()}`
-    const subscription = supabase
-      .channel(channelName)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'alerts' }, () => {
-        loadAlerts()
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'alert_reads' }, () => {
-        loadAlerts()
-      })
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(subscription)
-    }
-  }, [loadAlerts])
-
-  useEffect(() => {
-    const unsubscribe = subscribeToAlerts()
-    loadAlerts() // Initial load
-    return unsubscribe
-  }, [subscribeToAlerts, loadAlerts])
-
-  const value: AlertStoreValue = {
+  return {
     alerts,
     alertsLoading,
-    loadAlerts,
-    markAlertRead,
-    markAllAlertsRead,
+    error,
+    markAlertRead: markAlertRead.mutateAsync,
+    markAllAlertsRead: markAllAlertsRead.mutateAsync,
   }
-
-  return React.createElement(AlertContext.Provider, { value }, children as any)
-}
-
-export const useAlertStore = (): AlertStoreValue => {
-  const ctx = useContext(AlertContext)
-  if (!ctx) throw new Error('useAlertStore must be used within AlertProvider')
-  return ctx
 }
 
 export default useAlertStore

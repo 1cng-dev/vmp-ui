@@ -1,9 +1,9 @@
 import React from 'react'
 import Icon from '../lib/icons'
 import { StatusPill } from '../components/ui/ui'
-import useAddonRequestStore from '../store/addonRequestStore'
-import useCustomerStore from '../store/customerStore'
-import useVMStore from '../store/vmStore'
+import { useAddonRequests } from '../store/addonRequestStore'
+import { useCustomers } from '../store/customerStore'
+import { useVMs } from '../store/vmStore'
 
 interface AddonServicesViewProps {
   openModal?: (kind: string, props?: any) => void
@@ -16,12 +16,10 @@ interface AddonServicesViewProps {
 }
 
 const AddonServicesView: React.FC<AddonServicesViewProps> = ({ openTask, setView, setAutoOpenQuote, setPrefillCustomerId, setPrefillRequestId, setPrefillRequestType }) => {
-  const { addonRequests, loadAddonRequests } = useAddonRequestStore()
-  const { customers } = useCustomerStore()
-  const { vms } = useVMStore()
+  const { addonRequests } = useAddonRequests()
+  const { customers } = useCustomers()
+  const { vms } = useVMs()
   const [filter, setFilter] = React.useState<'all' | 'Pending' | 'In Progress' | 'Completed' | 'Rejected'>('all')
-
-  React.useEffect(() => { loadAddonRequests() }, [loadAddonRequests])
 
   // Create a map of VM data for quick lookup
   const vmData = React.useMemo(() => {

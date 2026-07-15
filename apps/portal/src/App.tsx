@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Sidebar, Topbar } from './components/layout/Shell'
 import { AuthShell, TeamAuthShell, useAuth } from './components/auth/Auth'
 import Dashboard from './pages/Dashboard'
@@ -26,19 +27,12 @@ import Toasts from './components/common/Toasts'
 import { CommandPalette, ShortcutsModal, CalendarView } from './components/common/Extras'
 import { NotifPanel, PlaceholderView, TweaksUI } from './components/common'
 import { useTweaks, TweakState } from './components/common/useTweaks'
-import { AlertProvider, useAlertStore } from './store/alertStore'
+import { useAlertStore } from './store/alertStore'
 import Welcome from './pages/Welcome'
 import SetupPassword from './pages/SetupPassword'
 import ChangePasswordPage from './pages/ChangePassword'
-import { TicketProvider } from './store/ticketStore'
-import { TeamProvider, useTeamStore } from './store/TeamContext'
-import useCustomerStore, { CustomerProvider } from './store/customerStore'
-import { VMRequestProvider, useVMRequestStore } from './store/vmRequestStore'
 import { ResetPasswordScreen } from './components/auth/ResetPasswordScreen'
-import { QuoteProvider, useQuoteStore } from './store/quoteStore'
-import { VMProvider } from './store/vmStore'
-import { AddonRequestProvider } from './store/addonRequestStore'
-import { InvoiceProvider } from './store/invoiceStore'
+import { useTeamStore } from './store/TeamContext'
 
 
 const ACCENT_MAP: Record<string, number> = {
@@ -47,39 +41,6 @@ const ACCENT_MAP: Record<string, number> = {
   '#C25A4B': 25,
   '#8060D4': 285,
   '#C9883A': 75,
-}
-
-// Prefetch customers once at app startup so pages render without initial spinners
-const PrefetchCustomers: React.FC = () => {
-  const { loadCustomers } = useCustomerStore()
-  React.useEffect(() => {
-    loadCustomers()
-  }, [loadCustomers])
-  return null
-}
-
-// Prefetch team once at app startup so pages render without initial spinners
-const PrefetchTeam: React.FC = () => {
-  const { loadTeam } = useTeamStore()
-  React.useEffect(() => {
-    loadTeam()
-  }, [loadTeam])
-  return null
-}
-
-// Prefetch VM requests once at app startup so pages render without initial spinners
-const PrefetchVMRequests: React.FC = () => {
-  const { loadVMRequests } = useVMRequestStore()
-  React.useEffect(() => {
-    loadVMRequests()
-  }, [loadVMRequests])
-  return null
-}
-
-const PrefetchQuotes: React.FC = () => {
-  const { loadQuotes } = useQuoteStore()
-  React.useEffect(() => { loadQuotes() }, [loadQuotes])
-  return null
 }
 
 const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: keyof TweakState | Partial<TweakState>, value?: any) => void }) => {
@@ -320,27 +281,26 @@ const App = () => {
       "Customer": "Customer"
     }
   })
+  
+  // Create QueryClient for React Query
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 1000 * 60 * 5, // 5 minutes
+        gcTime: 1000 * 60 * 10, // 10 minutes
+        refetchOnWindowFocus: true,
+        refetchOnMount: true,
+        retry: 1,
+      },
+    },
+  })
 
   return (
-    <>
+    <QueryClientProvider client={queryClient}>
+      <>
       <Toasts />
-      <TicketProvider>
-        <TeamProvider>
-          <PrefetchTeam />
-          {/* Global customers provider to keep data cached across pages */}
-          <CustomerProvider>
-            <PrefetchCustomers />
-            {/* Global VM requests provider to keep data cached across pages */}
-            <VMRequestProvider>
-              <QuoteProvider>
-                <AddonRequestProvider>
-                  <AlertProvider>
-                    <InvoiceProvider>
-                    <PrefetchVMRequests />
-                    <PrefetchQuotes />
-                    <VMProvider>
-                <Router>
-                  <Routes>
+      <Router>
+        <Routes>
                     <Route path="/welcome" element={<Welcome />} />
                     <Route path="/setup-password" element={<SetupPassword />} />
                     <Route path="/change-password" element={<ChangePasswordPage />} />
@@ -366,19 +326,9 @@ const App = () => {
                       </AuthShell>
                     } />
                   </Routes>
-                </Router>
-                  </VMProvider>
-                  </InvoiceProvider>
-                </AlertProvider>
-              </AddonRequestProvider>
-            </QuoteProvider>
-
-
-            </VMRequestProvider>
-          </CustomerProvider>
-        </TeamProvider>
-      </TicketProvider>
-    </>
+        </Router>
+      </>
+    </QueryClientProvider>
   )
 }
 

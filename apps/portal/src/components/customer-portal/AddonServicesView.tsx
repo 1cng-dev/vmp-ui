@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import Icon from '../../lib/icons'
 import { IaaSCard } from './VMHelperComponents'
-import { useAddonRequestStore } from '../../store/addonRequestStore'
+import { useAddonRequests } from '../../store/addonRequestStore'
 import useUIStore from '../../store/uiStore'
 
 interface AddonServicesViewProps {
@@ -9,7 +9,7 @@ interface AddonServicesViewProps {
 }
 
 export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs }) => {
-  const { createAddonRequest } = useAddonRequestStore()
+  const { createAddonRequest } = useAddonRequests()
   const { toast } = useUIStore()
   const [selectedVM, setSelectedVM] = useState<string>('')
   const [cpfsEnabled, setCpfsEnabled] = useState(false)

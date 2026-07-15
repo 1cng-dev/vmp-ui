@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import useCustomerStore from '../store/customerStore'
+import { useCustomers } from '../store/customerStore'
 import useUIStore from '../store/uiStore'
 import useActivityStore from '../store/activityStore'
 import Icon from '../lib/icons'
@@ -17,7 +17,7 @@ interface Doc {
 }
 
 export const KYCReviewView: React.FC = () => {
-  const { customers, customersLoading, updateCustomer, loadCustomers } = useCustomerStore()
+  const { customers, customersLoading, updateCustomer } = useCustomers()
   const { toast } = useUIStore()
   const { logActivity } = useActivityStore()
   const [searchParams] = useSearchParams()
@@ -29,10 +29,6 @@ export const KYCReviewView: React.FC = () => {
   const auth = useAuth()
   const reviewerName = auth?.user?.name || auth?.user?.email || 'Unknown'
 
-  // Load customers on mount (real-time subscription is handled at provider level)
-  useEffect(() => {
-    loadCustomers()
-  }, [loadCustomers])
   const pending = customers.filter((c: any) => c.kyc_status === 'Pending')
   const approved = customers.filter((c: any) => c.kyc_status === 'Approved')
   const rejected = customers.filter((c: any) => c.kyc_status === 'Rejected')

@@ -1,21 +1,16 @@
-import React, { useEffect } from 'react'
+import React from 'react'
 import useReceiptStore from '../store/receiptStore'
-import useCustomerStore from '../store/customerStore'
-import useInvoiceStore from '../store/invoiceStore'
+import { useCustomers } from '../store/customerStore'
+import { useInvoices } from '../store/invoiceStore'
 
 interface ReceiptsViewProps {
   openCust: (id: string) => void
 }
 
 export const ReceiptsView: React.FC<ReceiptsViewProps> = ({ openCust }) => {
-  const { receipts, receiptsLoading, loadReceipts } = useReceiptStore()
-  const { customers } = useCustomerStore()
-  const { invoices, loadInvoices } = useInvoiceStore()
-
-  useEffect(() => {
-    loadReceipts()
-    loadInvoices()
-  }, [loadReceipts, loadInvoices])
+  const { receipts, receiptsLoading } = useReceiptStore()
+  const { customers } = useCustomers()
+  const { invoices } = useInvoices()
 
   return (
     <div className="content">

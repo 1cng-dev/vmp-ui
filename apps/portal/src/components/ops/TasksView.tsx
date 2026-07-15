@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
-import useCustomerStore from '../../store/customerStore'
-import useVMRequestStore from '../../store/vmRequestStore'
-import useQuoteStore from '../../store/quoteStore'
+import { useCustomers } from '../../store/customerStore'
+import { useVMRequests } from '../../store/vmRequestStore'
+import { useQuotes } from '../../store/quoteStore'
 import Icon from '../../lib/icons'
 import { Avatar, StatusPill } from '../ui/ui'
 
@@ -16,17 +16,10 @@ interface TasksViewProps {
 }
 
 export const TasksView: React.FC<TasksViewProps> = ({ openTask, setView, setAutoOpenQuote, setPrefillCustomerId, setPrefillRequestId, setPrefillRequestType, userRole }) => {
-  const { customers, loadCustomers } = useCustomerStore()
-  const { vmRequests } = useVMRequestStore()
-  const { quotes } = useQuoteStore()
+  const { customers } = useCustomers()
+  const { vmRequests } = useVMRequests()
+  const { quotes } = useQuotes()
   const [filter, setFilter] = useState('all')
-
-  // Load customers if not loaded yet
-  React.useEffect(() => {
-    if (customers.length === 0) {
-      loadCustomers()
-    }
-  }, [customers.length, loadCustomers])
 
   // Only show VM requests in Customer Requests - addon requests have their own dedicated page
   const allRequests = vmRequests.map((r: any) => ({ ...r, requestType: 'vm' }))

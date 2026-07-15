@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react'
-import useCustomerStore from '../../store/customerStore'
-import useVMStore from '../../store/vmStore'
-import useTicketStore from '../../store/ticketStore'
+import React, { useState } from 'react'
+import { useCustomers } from '../../store/customerStore'
+import { useVMs } from '../../store/vmStore'
+import { useTickets } from '../../store/ticketStore'
 import useUIStore from '../../store/uiStore'
 import { Avatar, formatMMK } from '../ui/ui'
 import Icon from '../../lib/icons'
@@ -13,17 +13,11 @@ interface CustomerAccountViewProps {
 }
 
 export const CustomerAccountView: React.FC<CustomerAccountViewProps> = ({ me }) => {
-  const { updateCustomer } = useCustomerStore()
-  const { vms, loadVMs } = useVMStore()
-  const { tickets, loadTickets } = useTicketStore()
+  const { updateCustomer } = useCustomers()
+  const { vms } = useVMs()
+  const { tickets } = useTickets()
   const { toast } = useUIStore()
   const { signout } = useAuth() || { signout: () => { } }
-
-  // Load VMs and tickets on mount
-  useEffect(() => {
-    loadVMs()
-    loadTickets()
-  }, [loadVMs, loadTickets])
 
   // Calculate MRR from active VMs
   const customerVMs = vms.filter((v: any) => v.customer_id === me.id)

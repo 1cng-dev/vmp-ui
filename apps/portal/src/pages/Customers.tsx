@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import useCustomerStore from '../store/customerStore'
-import useVMStore from '../store/vmStore'
+import { useCustomers } from '../store/customerStore'
+import { useVMs } from '../store/vmStore'
 import useUIStore from '../store/uiStore'
 import Icon from '../lib/icons'
 import { StatusPill, Avatar, formatMMK, Spinner } from '../components/ui/ui'
@@ -11,8 +11,8 @@ interface CustomersViewProps {
 }
 
 const CustomersView: React.FC<CustomersViewProps> = ({ openCust, openModal }) => {
-  const { customers, customersLoading, updateCustomer, loadCustomers, deleteCustomer } = useCustomerStore()
-  const { vms } = useVMStore()
+  const { customers, customersLoading, updateCustomer, deleteCustomer } = useCustomers()
+  const { vms } = useVMs()
   const { toast } = useUIStore()
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
@@ -62,13 +62,6 @@ const CustomersView: React.FC<CustomersViewProps> = ({ openCust, openModal }) =>
     const close = () => setMenu(null)
     if (menu) { window.addEventListener('click', close); return () => window.removeEventListener('click', close) }
   }, [menu])
-
-
-  useEffect(() => {
-    if (customers.length === 0) {
-      loadCustomers()
-    }
-  }, [loadCustomers, customers.length])
 
   return (
     <div className="content">
@@ -144,14 +137,14 @@ const CustomersView: React.FC<CustomersViewProps> = ({ openCust, openModal }) =>
                               openModal('confirm', {
                                 title: 'Deactivate Customer',
                                 message: `Deactivate customer ${c.name}?`,
-                                onConfirm: () => { updateCustomer(c.id, { status: 'Inactive' }); setMenu(null) }
+                                onConfirm: () => { updateCustomer({ id: c.id, patch: { status: 'Inactive' } }); setMenu(null) }
                               })
                             }}><Icon name="pause" size={13} />Deactivate</button>
                             : <button className="nav-item" onClick={() => {
                               openModal('confirm', {
                                 title: 'Activate Customer',
                                 message: `Activate customer ${c.name}?`,
-                                onConfirm: () => { updateCustomer(c.id, { status: 'Active' }); setMenu(null) }
+                                onConfirm: () => { updateCustomer({ id: c.id, patch: { status: 'Active' } }); setMenu(null) }
                               })
                             }}><Icon name="play" size={13} />Activate</button>
                           }

@@ -2,11 +2,11 @@ import React from 'react'
 import Icon from '../../lib/icons'
 import { formatMMK } from '../ui/ui'
 import type { DBQuote } from '../../types'
-import useCustomerStore from '../../store/customerStore'
-import useVMRequestStore from '../../store/vmRequestStore'
-import useVMStore from '../../store/vmStore'
-import useAddonRequestStore from '../../store/addonRequestStore'
-import useQuoteStore from '../../store/quoteStore'
+import { useCustomers } from '../../store/customerStore'
+import { useVMRequests } from '../../store/vmRequestStore'
+import { useVMs } from '../../store/vmStore'
+import { useAddonRequests } from '../../store/addonRequestStore'
+import { useQuotes } from '../../store/quoteStore'
 import useUIStore from '../../store/uiStore'
 import useAuthStore from '../../store/authStore'
 
@@ -16,11 +16,11 @@ interface QuoteDrawerProps {
 }
 
 const QuoteDrawer = ({ quote, onClose }: QuoteDrawerProps) => {
-  const { customers } = useCustomerStore()
-  const { vmRequests } = useVMRequestStore()
-  const { vms, loadVMs } = useVMStore()
-  const { addonRequests } = useAddonRequestStore()
-  const { updateQuote } = useQuoteStore()
+  const { customers } = useCustomers()
+  const { vmRequests } = useVMRequests()
+  const { vms } = useVMs()
+  const { addonRequests } = useAddonRequests()
+  const { updateQuote } = useQuotes()
   const { toast } = useUIStore()
   const { user, refreshUser } = useAuthStore()
 
@@ -30,13 +30,6 @@ const QuoteDrawer = ({ quote, onClose }: QuoteDrawerProps) => {
       refreshUser()
     }
   }, [user, refreshUser])
-
-  // Load VMs if not loaded
-  React.useEffect(() => {
-    if (vms.length === 0) {
-      loadVMs()
-    }
-  }, [vms.length, loadVMs])
 
   const cust = customers.find(c => c.id === quote.customer_id)
   const vmReq = vmRequests.find(r => r.id === quote.vm_request_id)
@@ -48,13 +41,13 @@ const QuoteDrawer = ({ quote, onClose }: QuoteDrawerProps) => {
     : vms.find(v => v.vm_request_id === quote.vm_request_id)
 
   const handleApprove = async () => {
-    await updateQuote(quote.id, { status: 'Accepted' })
+    await updateQuote({ id: quote.id, patch: { status: 'Accepted' } })
     toast(`Quote approved`, 'ok')
     onClose()
   }
 
   const handleReject = async () => {
-    await updateQuote(quote.id, { status: 'Rejected' })
+    await updateQuote({ id: quote.id, patch: { status: 'Rejected' } })
     toast(`Quote rejected`, 'warn')
     onClose()
   }

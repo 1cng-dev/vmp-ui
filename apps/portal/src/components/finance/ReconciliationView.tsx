@@ -1,13 +1,13 @@
 import React, { useState } from 'react'
-import useInvoiceStore from '../../store/invoiceStore'
-import useCustomerStore from '../../store/customerStore'
+import { useInvoices } from '../../store/invoiceStore'
+import { useCustomers } from '../../store/customerStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { formatMMK } from '../ui/ui'
 
 export const ReconciliationView: React.FC = () => {
-  const { invoices, markPaid } = useInvoiceStore()
-  const { customers } = useCustomerStore()
+  const { invoices, markPaid } = useInvoices()
+  const { customers } = useCustomers()
   const { toast } = useUIStore()
   const [matches, setMatches] = useState<Record<string, string>>({})
   const txns: any[] = []
@@ -15,7 +15,7 @@ export const ReconciliationView: React.FC = () => {
 
   const match = (txId: string, invId: string) => {
     setMatches({ ...matches, [txId]: invId })
-    markPaid(invId)
+    markPaid({ id: invId, receipt: txId })
     toast(`Matched ${txId} → ${invId}`, 'ok')
   }
 

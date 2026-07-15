@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react'
 import useReceiptStore from '../../store/receiptStore'
-import useInvoiceStore from '../../store/invoiceStore'
+import { useInvoices } from '../../store/invoiceStore'
 
 interface CustomerReceiptsViewProps {
   me: any
@@ -8,14 +8,13 @@ interface CustomerReceiptsViewProps {
 
 export const CustomerReceiptsView: React.FC<CustomerReceiptsViewProps> = ({ me }) => {
   const { receipts, receiptsLoading, loadReceiptsByCustomer } = useReceiptStore()
-  const { invoices, loadInvoices } = useInvoiceStore()
+  const { invoices } = useInvoices()
 
   useEffect(() => {
     if (me?.id) {
       loadReceiptsByCustomer(me.id)
-      loadInvoices()
     }
-  }, [me?.id, loadReceiptsByCustomer, loadInvoices])
+  }, [me?.id, loadReceiptsByCustomer])
 
   return (
     <div className="content">

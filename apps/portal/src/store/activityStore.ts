@@ -1,83 +1,60 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import type { Activity } from '../types'
 
-export interface ActivityStoreValue {
-  activity: Activity[]
-  activityLoading: boolean
-  loadActivity: () => Promise<void>
-  logActivity: (text: string, kind?: string, actor?: string, meta?: Record<string, unknown>) => Promise<void>
+const fetchActivity = async (): Promise<Activity[]> => {
+  const { data, error } = await supabase
+    .from('activity_log')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(100)
+  
+  if (error) throw error
+  
+  const transformedActivity = (data || []).map((a: any) => ({
+    ts: new Date(a.created_at).toLocaleString(),
+    actor: a.actor || 'System',
+    kind: a.kind || 'system',
+    text: a.text,
+  }))
+  
+  return transformedActivity
 }
 
-const useActivityStore = (): ActivityStoreValue => {
-  const [activity, setActivity] = useState<Activity[]>([])
-  const [activityLoading, setActivityLoading] = useState(false)
+const useActivityStore = () => {
+  const queryClient = useQueryClient()
 
-  const loadActivity = useCallback(async () => {
-    setActivityLoading(true)
-    try {
-      const { data, error } = await supabase
-        .from('activity_log')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(100)
-      
-      if (error) throw error
-      
-      const transformedActivity = (data || []).map((a: any) => ({
-        ts: new Date(a.created_at).toLocaleString(),
-        actor: a.actor || 'System',
-        kind: a.kind || 'system',
-        text: a.text,
-      }))
-      
-      setActivity(transformedActivity)
-    } catch (error) {
-      console.error('Error loading activity:', error)
-    } finally {
-      setActivityLoading(false)
-    }
-  }, [])
+  const { data: activity = [], isLoading: activityLoading, error } = useQuery({
+    queryKey: ['activity'],
+    queryFn: fetchActivity,
+    staleTime: 1000 * 30, // 30 seconds since activity changes frequently
+    refetchInterval: 30000, // Poll every 30 seconds
+  })
 
-  const logActivity = useCallback(async (text: string, kind = 'vm', actor = 'You', meta?: Record<string, unknown>) => {
-    try {
+  const logActivity = useMutation({
+    mutationFn: async ({ text, kind, actor, meta }: { text: string; kind?: string; actor?: string; meta?: Record<string, unknown> }) => {
       const { error } = await supabase
         .from('activity_log')
         .insert({
-          actor,
+          actor: actor || 'You',
           actor_role: 'staff',
-          kind,
+          kind: kind || 'vm',
           text,
           meta: meta || {},
         })
       
       if (error) throw error
-      
-      // Refresh to get the latest activity
-      await loadActivity()
-    } catch (error) {
-      console.error('Error logging activity:', error)
-    }
-  }, [loadActivity])
-
-  useEffect(() => {
-    loadActivity()
-
-    // Poll for new activity every 30 seconds
-    const interval = setInterval(() => {
-      loadActivity()
-    }, 30000)
-
-    return () => {
-      clearInterval(interval)
-    }
-  }, [loadActivity])
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['activity'] })
+    },
+  })
 
   return {
     activity,
     activityLoading,
-    loadActivity,
-    logActivity,
+    error,
+    logActivity: logActivity.mutateAsync,
   }
 }
 

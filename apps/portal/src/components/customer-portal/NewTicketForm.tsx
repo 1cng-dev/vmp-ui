@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import useTicketStore from '../../store/ticketStore'
+import { useTickets } from '../../store/ticketStore'
 import Icon from '../../lib/icons'
 import { IaaSCard } from './VMHelperComponents'
 
@@ -10,7 +10,7 @@ interface NewTicketFormProps {
 }
 
 export const NewTicketForm: React.FC<NewTicketFormProps> = ({ me, onClose, onCreated }) => {
-  const { addTicket } = useTicketStore()
+  const { addTicket } = useTickets()
   const [f, setF] = useState({ subject: '', priority: 'Normal', body: '', category: 'general' })
   const [submitting, setSubmitting] = useState(false)
   const submit = async () => {

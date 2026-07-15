@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useTeamStore } from '../store/TeamContext'
+import useTeamStore from '../store/teamStore'
 import useUIStore from '../store/uiStore'
 import Icon from '../lib/icons'
 import { Avatar, Spinner } from '../components/ui/ui'
@@ -12,39 +12,16 @@ interface TeamViewProps {
 }
 
 const TeamView: React.FC<TeamViewProps> = () => {
-  const { team, teamLoading, loadTeam, removeMember, resetPassword, updateMember, subscribeToTeam } = useTeamStore()
+  const { team, teamLoading, removeMember, updateMember } = useTeamStore()
   const { toast } = useUIStore()
   const [menu, setMenu] = useState<string | null>(null)
   const [inviteModalOpen, setInviteModalOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<{ id: string, name: string } | null>(null)
-  const [resetPasswordUser, setResetPasswordUser] = useState<{ id: string, name: string, email: string } | null>(null)
-  const [newPassword, setNewPassword] = useState('')
-  const [resetLoading, setResetLoading] = useState(false)
-  const [confirmPassword, setConfirmPassword] = useState('')
-
-  // Load team and subscribe to real-time changes
-  useEffect(() => {
-    if (team.length === 0) {
-      loadTeam()
-    }
-    const unsubscribe = subscribeToTeam()
-    return unsubscribe
-  }, [loadTeam, subscribeToTeam, team.length])
 
   useEffect(() => {
     const close = () => setMenu(null)
     if (menu) { window.addEventListener('click', close); return () => window.removeEventListener('click', close) }
   }, [menu])
-
-  // Reload team data when window regains focus (after returning from setup password)
-  useEffect(() => {
-    const handleFocus = () => {
-      console.log('Window gained focus, reloading team data')
-      loadTeam()
-    }
-    window.addEventListener('focus', handleFocus)
-    return () => window.removeEventListener('focus', handleFocus)
-  }, [loadTeam])
 
   const ROLES = {
     Admin: { label: 'Admin', perms: ['Full system access', 'KYC approval', 'User management', 'All financial data', 'Manual VM ops', 'System settings'] },
@@ -107,8 +84,6 @@ const TeamView: React.FC<TeamViewProps> = () => {
                             background: 'var(--surface)', border: '1px solid var(--line)',
                             borderRadius: 8, boxShadow: 'var(--shadow)', minWidth: 160, padding: 4,
                           }}>
-                            <button className="nav-item" onClick={() => { setResetPasswordUser({ id: u.id, name: u.name, email: u.email }); setMenu(null); }}><Icon name="key" size={13} />Reset password</button>                          {/* <button className="nav-item" onClick={() => { toast('2FA reset', 'info'); setMenu(null); }}><Icon name="shield" size={13} />Reset 2FA</button> */}
-                            <div style={{ height: 1, background: 'var(--line)', margin: '4px 0' }} />
                             <button className="nav-item" style={{ color: 'var(--bad)' }} onClick={() => { setConfirmDelete({ id: u.id, name: u.name }); setMenu(null); }}><Icon name="trash" size={13} />Remove user</button>                        </div>
                           )}
                       </td>
@@ -166,7 +141,7 @@ const TeamView: React.FC<TeamViewProps> = () => {
         </div>
 
       {inviteModalOpen && (
-        <InviteTeamMemberModal onClose={() => setInviteModalOpen(false)} onSuccess={() => loadTeam()} />
+        <InviteTeamMemberModal onClose={() => setInviteModalOpen(false)} onSuccess={() => {}} />
       )}
 
 
@@ -185,85 +160,6 @@ const TeamView: React.FC<TeamViewProps> = () => {
             <div className="modal-foot">
               <button className="btn ghost" onClick={() => setConfirmDelete(null)}>Cancel</button>
               <button className="btn danger" onClick={() => { removeMember(confirmDelete.id); setConfirmDelete(null); }}><Icon name="trash" size={12} />Remove</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-
-      {resetPasswordUser && (
-        <div className="modal-overlay" onClick={() => setResetPasswordUser(null)}>
-          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
-            <div className="modal-head">
-              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Reset password</h3>
-              <button className="icon-btn" onClick={() => setResetPasswordUser(null)}><Icon name="x" size={14} /></button>
-            </div>
-            <div className="modal-body">
-              <div className="flex col gap-3">
-                <p style={{ margin: 0, color: 'var(--text-mute)' }}>
-                  Reset password for <strong>{resetPasswordUser.name}</strong> ({resetPasswordUser.email})?
-                </p>
-                <div className="field">
-                  <label>New password</label>
-                  <input
-                    type="text"
-                    value={newPassword}
-                    onChange={e => setNewPassword(e.target.value)}
-                    placeholder="Enter new password"
-                    style={{ fontFamily: 'var(--mono)' }}
-                  />
-                </div>
-
-                <div className="field">
-                  <label>Confirm new password</label>
-                  <input
-                    type="text"
-                    value={confirmPassword}
-                    onChange={e => setConfirmPassword(e.target.value)}
-                    placeholder="Re-enter new password"
-                    style={{ fontFamily: 'var(--mono)' }}
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="modal-foot">
-              <button className="btn ghost" onClick={() => { setResetPasswordUser(null); setNewPassword(''); setConfirmPassword(''); }}>Cancel</button>
-              <button
-                className="btn accent"
-                onClick={async () => {
-                  if (!newPassword || newPassword.length < 8) {
-                    toast('Password must be at least 8 characters', 'warn')
-                    return
-                  }
-                  if (!/[A-Z]/.test(newPassword)) {
-                    toast('Password must contain at least one uppercase letter', 'warn')
-                    return
-                  }
-                  if (!/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)) {
-                    toast('Password must contain at least one special character', 'warn')
-                    return
-                  }
-                  if (newPassword !== confirmPassword) {
-                    toast('Passwords do not match', 'warn')
-                    return
-                  }
-                  setResetLoading(true)
-                  try {
-                    await resetPassword(resetPasswordUser.id, newPassword)
-                    toast(`Password reset for ${resetPasswordUser.name}`, 'ok')
-                    setResetPasswordUser(null)
-                    setNewPassword('')
-                    setConfirmPassword('')
-                  } catch (error) {
-                    toast('Failed to reset password', 'bad')
-                  } finally {
-                    setResetLoading(false)
-                  }
-                }}
-                disabled={resetLoading || !newPassword || !confirmPassword}
-              >
-                <Icon name="key" size={12} />{resetLoading ? 'Resetting...' : 'Reset password'}
-              </button>
             </div>
           </div>
         </div>

@@ -2,11 +2,11 @@ import React from 'react'
 import Icon from '../../lib/icons'
 import { Avatar } from '../ui/ui'
 import { useAuth } from '../auth/Auth'
-import { useCustomerStore } from '../../store/customerStore'
-import { useVMRequestStore } from '../../store/vmRequestStore'
-import useTicketStore from '../../store/ticketStore'
+import { useCustomers } from '../../store/customerStore'
+import { useVMRequests } from '../../store/vmRequestStore'
+import { useTickets } from '../../store/ticketStore'
 import { useAlertStore } from '../../store/alertStore'
-import useInvoiceStore from '../../store/invoiceStore'
+import { useInvoices } from '../../store/invoiceStore'
 
 interface NavItem {
   section?: string
@@ -39,20 +39,15 @@ interface TopbarProps {
 
 
 export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames = {}, onAccountClick, onLogout }) => {
-  const { customers, loadCustomers, subscribeToCustomers } = useCustomerStore()
-  const { vmRequests } = useVMRequestStore()
-  const { tickets } = useTicketStore()
+  const { customers } = useCustomers()
+  const { vmRequests } = useVMRequests()
+  const { tickets } = useTickets()
   const { alerts } = useAlertStore()
-  const { invoices, loadInvoices } = useInvoiceStore()
+  const { invoices } = useInvoices()
   const pendingKycCount = customers.filter((c: any) => c.kyc_status === 'Pending').length
   const openTicketsCount = tickets.filter((t: any) => t.status === 'Open').length
   const unreadAlertsCount = alerts.filter((a: any) => !a.read).length
   const customerTransferredInvoicesCount = invoices.filter((i: any) => i.status === 'Customer Transferred').length
-
-  React.useEffect(() => {
-    loadCustomers()
-    loadInvoices()
-  }, [loadCustomers, loadInvoices])
 
   // Calculate request counts based on role and status
   const getRequestCountForRole = () => {
@@ -73,10 +68,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
   }
 
   const pendingRequestsCount = getRequestCountForRole()
-
-  React.useEffect(() => {
-    loadCustomers()
-  }, [loadCustomers])
 
   const NAV: NavItem[] = [
     { section: 'Overview' },
