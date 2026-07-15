@@ -44,7 +44,6 @@ export interface VMRequestStoreValue {
   addVMRequest: (request: any) => Promise<void>
   updateVMRequest: (id: string, patch: any) => Promise<void>
   deleteVMRequest: (id: string) => Promise<void>
-  subscribeToVMRequests: () => () => void
 }
 
 // ── Global VM Request Context Store ─────────────────────────────────────────────
@@ -86,9 +85,10 @@ export const VMRequestProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   }, [])
 
-  const subscribeToVMRequests = useCallback(() => {
-    const channelName = `vm-requests-changes-${Date.now()}`
-    const subscription = supabase
+  // Set up realtime subscription on mount
+  useEffect(() => {
+    const channelName = 'vm-requests-changes'
+    const channel = supabase
       .channel(channelName)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'vm_requests' }, () => {
         loadVMRequests()
@@ -96,15 +96,9 @@ export const VMRequestProvider: React.FC<{ children: ReactNode }> = ({ children 
       .subscribe()
 
     return () => {
-      supabase.removeChannel(subscription)
+      supabase.removeChannel(channel)
     }
   }, [loadVMRequests])
-
-  // Set up realtime subscription on mount
-  useEffect(() => {
-    const unsubscribe = subscribeToVMRequests()
-    return unsubscribe
-  }, [subscribeToVMRequests])
 
   const addVMRequest = useCallback(async (request: any) => {
     const { data, error } = await supabase
@@ -246,7 +240,6 @@ export const VMRequestProvider: React.FC<{ children: ReactNode }> = ({ children 
     addVMRequest,
     updateVMRequest,
     deleteVMRequest,
-    subscribeToVMRequests,
   }
 
   return React.createElement(VMRequestContext.Provider, { value }, children as any)

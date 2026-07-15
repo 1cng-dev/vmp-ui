@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import useVMStore from '../../store/vmStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { StatusPill } from '../ui/ui'
 import { InfoCard, UsageCard, UsageDetailCard } from './VMHelperComponents'
 import { CustUpgradeModal, CustConvertToPaidModal } from '../modals/CustomerVMModals'
-import { supabase } from '../../lib/supabase'
 
 interface CustomerVMDetailProps {
   vm: any
@@ -15,7 +14,7 @@ interface CustomerVMDetailProps {
 }
 
 export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialVm, onClose, onRenew, me }) => {
-  const { vms, startVM, stopVM, restartVM, snapshotVM, updateVMTags, updateVMNotes } = useVMStore()
+  const { vms, startVM, stopVM, restartVM, snapshotVM, updateVMTags, updateVMNotes, getVMRequest, getAddonRequestsForVM } = useVMStore()
   const { toast } = useUIStore()
   const vm = vms.find((v: any) => v.id === initialVm.id) || initialVm
   const [tab, setTab] = useState('overview')
@@ -25,42 +24,10 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
   const [snapName, setSnapName] = useState('')
   const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [convertToPaidOpen, setConvertToPaidOpen] = useState(false)
-  const [vmRequest, setVmRequest] = useState<any>(null)
-  const [addonRequests, setAddonRequests] = useState<any[]>([])
-
-  // Fetch vm_request data
-  useEffect(() => {
-    if (vm.vm_request_id) {
-      supabase
-        .from('vm_requests')
-        .select('*')
-        .eq('id', vm.vm_request_id)
-        .single()
-        .then(({ data, error }) => {
-          if (error) {
-            console.error('Error fetching vm_request:', error)
-          } else {
-            setVmRequest(data)
-          }
-        })
-    }
-  }, [vm.vm_request_id])
-
-  // Fetch addon requests for this VM
-  useEffect(() => {
-    supabase
-      .from('addon_requests')
-      .select('*')
-      .eq('vm_id', vm.id)
-      .eq('status', 'Completed')
-      .then(({ data, error }) => {
-        if (error) {
-          console.error('Error fetching addon requests:', error)
-        } else {
-          setAddonRequests(data || [])
-        }
-      })
-  }, [vm.id])
+  
+  // Get data from store instead of fetching directly
+  const vmRequest = vm.vm_request_id ? getVMRequest(vm.vm_request_id) : null
+  const addonRequests = getAddonRequestsForVM(vm.id)
 
   const tags = vm.tags || []
   const isRunning = vm.power_state === 'Running'

@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import useVMStore from '../../store/vmStore'
 import useCustomerStore from '../../store/customerStore'
 import Icon from '../../lib/icons'
 import { StatusPill, ExpiryCell } from '../ui/ui'
-import { supabase } from '../../lib/supabase'
 
 interface VMDrawerProps {
   vmId: string
@@ -13,48 +12,16 @@ interface VMDrawerProps {
 }
 
 const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal }) => {
-  const { vms, updateVM } = useVMStore()
+  const { vms, updateVM, getVMRequest, getAddonRequestsForVM } = useVMStore()
   const { customers } = useCustomerStore()
   const v = vms.find((x: any) => x.id === vmId)
   if (!v) return null
   const c = customers.find((c: any) => c.id === v.customer_id)
   const [tab, setTab] = useState('overview')
-  const [vmRequest, setVmRequest] = useState<any>(null)
-  const [addonRequests, setAddonRequests] = useState<any[]>([])
 
-  // Fetch vm_request data for additional fields
-  useEffect(() => {
-    if (v.vm_request_id) {
-      supabase
-        .from('vm_requests')
-        .select('*')
-        .eq('id', v.vm_request_id)
-        .single()
-        .then(({ data, error }) => {
-          if (error) {
-            console.error('Error fetching vm_request:', error)
-          } else {
-            setVmRequest(data)
-          }
-        })
-    }
-  }, [v.vm_request_id])
-
-  // Fetch addon requests for this VM
-  useEffect(() => {
-    supabase
-      .from('addon_requests')
-      .select('*')
-      .eq('vm_id', v.id)
-      .eq('status', 'Completed')
-      .then(({ data, error }) => {
-        if (error) {
-          console.error('Error fetching addon requests:', error)
-        } else {
-          setAddonRequests(data || [])
-        }
-      })
-  }, [v.id])
+  // Get data from store instead of fetching directly
+  const vmRequest = v.vm_request_id ? getVMRequest(v.vm_request_id) : null
+  const addonRequests = getAddonRequestsForVM(v.id)
 
   const creds = v.username && v.password ? [
     { type: 'SSH', user: v.username, pass: v.password }

@@ -42,9 +42,10 @@ export const AddonRequestProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   }, [])
 
-  const subscribeToAddonRequests = useCallback(() => {
-    const channelName = `addon-requests-changes-${Date.now()}`
-    const subscription = supabase
+  // Set up realtime subscription on mount
+  useEffect(() => {
+    const channelName = 'addon-requests-changes'
+    const channel = supabase
       .channel(channelName)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'addon_requests' }, () => {
         loadAddonRequests()
@@ -52,15 +53,9 @@ export const AddonRequestProvider: React.FC<{ children: React.ReactNode }> = ({ 
       .subscribe()
 
     return () => {
-      supabase.removeChannel(subscription)
+      supabase.removeChannel(channel)
     }
   }, [loadAddonRequests])
-
-  // Set up realtime subscription on mount
-  useEffect(() => {
-    const unsubscribe = subscribeToAddonRequests()
-    return unsubscribe
-  }, [subscribeToAddonRequests])
 
   const createAddonRequest = useCallback(async (request: Omit<AddonRequest, 'id' | 'legacy_id' | 'created_at' | 'updated_at'>) => {
     const { error, data } = await supabase.from('addon_requests').insert(request).select()

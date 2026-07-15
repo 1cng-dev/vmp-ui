@@ -32,10 +32,63 @@ export interface VM {
   backup_type?: string
 }
 
+export interface VMRequest {
+  id: string
+  customer_id: string
+  request_type: 'trial' | 'paid'
+  hostname: string
+  purpose?: string
+  vcpu: number
+  ram_gb: number
+  storage: number
+  qty: number
+  duration?: number
+  sizing?: string
+  storage_partitions?: string
+  os_name?: string
+  os_version?: string
+  custom_os_name?: string
+  custom_os_version?: string
+  zone?: string
+  nics?: any[]
+  public_ip_required?: boolean
+  firewall_ports?: string[]
+  backup_enabled?: boolean
+  backup_type?: string
+  notes?: string
+  status?: string
+  legacy_id?: string
+  assigned_vmid?: number
+  created_at: string
+  updated_at: string
+}
+
+export interface AddonRequest {
+  id: string
+  vm_id: string
+  cpfs_enabled?: boolean
+  cpfs_package?: string
+  ccis_enabled?: boolean
+  ccis_package?: string
+  duration?: number
+  status: string
+  legacy_id?: string
+  created_at: string
+  updated_at: string
+}
+
 export interface VMStoreValue {
   vms: VM[]
   vmsLoading: boolean
+  vmRequests: VMRequest[]
+  addonRequests: AddonRequest[]
   loadVMs: () => Promise<void>
+  loadVMRequests: () => Promise<void>
+  loadAddonRequests: () => Promise<void>
+  getVMRequest: (vmRequestId: string) => VMRequest | undefined
+  getAddonRequestsForVM: (vmId: string) => AddonRequest[]
+  getVMById: (vmId: string) => VM | undefined
+  getVMByHostname: (hostname: string) => VM | undefined
   addVM: (vm: NewVMInput) => Promise<string>
   updateVM: (id: string, patch: Partial<VM>) => Promise<void>
   deleteVM: (id: string) => Promise<void>
@@ -52,31 +105,58 @@ const VMContext = createContext<VMStoreValue | null>(null)
 export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [vms, setVms] = useState<VM[]>([])
   const [vmsLoading, setVmsLoading] = useState(false)
+  const [vmRequests, setVmRequests] = useState<VMRequest[]>([])
+  const [addonRequests, setAddonRequests] = useState<AddonRequest[]>([])
   const { logActivity } = useActivityStore()
 
 
   const loadVMs = useCallback(async () => {
     setVmsLoading(true)
-    
-    const MIN_LOADING_TIME = 400 // 400ms minimum loading time
-    const startTime = Date.now()
-    
+
     try {
       const { data, error } = await supabase.from('vms').select('*').order('created_at', { ascending: false })
       if (error) throw error
       setVms((data as VM[]) || [])
     } finally {
-      // Ensure minimum loading time
-      const elapsedTime = Date.now() - startTime
-      const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime)
-      
-      if (remainingTime > 0) {
-        await new Promise(resolve => setTimeout(resolve, remainingTime))
-      }
-      
       setVmsLoading(false)
     }
   }, [])
+
+  const loadVMRequests = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.from('vm_requests').select('*').order('created_at', { ascending: false })
+      if (error) throw error
+      setVmRequests((data as VMRequest[]) || [])
+    } catch (err) {
+      console.error('Error loading VM requests:', err)
+    }
+  }, [])
+
+  const loadAddonRequests = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.from('addon_requests').select('*').order('created_at', { ascending: false })
+      if (error) throw error
+      setAddonRequests((data as AddonRequest[]) || [])
+    } catch (err) {
+      console.error('Error loading addon requests:', err)
+    }
+  }, [])
+
+  const getVMRequest = useCallback((vmRequestId: string): VMRequest | undefined => {
+    return vmRequests.find(req => req.id === vmRequestId)
+  }, [vmRequests])
+
+  const getAddonRequestsForVM = useCallback((vmId: string): AddonRequest[] => {
+    return addonRequests.filter(req => req.vm_id === vmId && req.status === 'Completed')
+  }, [addonRequests])
+
+  const getVMById = useCallback((vmId: string): VM | undefined => {
+    return vms.find(vm => vm.id === vmId)
+  }, [vms])
+
+  const getVMByHostname = useCallback((hostname: string): VM | undefined => {
+    return vms.find(vm => vm.hostname === hostname)
+  }, [vms])
 
   // Real-time subscription for VM changes
   useEffect(() => {
@@ -101,10 +181,56 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     }
   }, [loadVMs])
 
+  // Real-time subscription for VM requests
+  useEffect(() => {
+    const channel = supabase
+      .channel(`vm-requests-changes-${Date.now()}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'vm_requests'
+        },
+        () => {
+          loadVMRequests()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [loadVMRequests])
+
+  // Real-time subscription for addon requests
+  useEffect(() => {
+    const channel = supabase
+      .channel(`addon-requests-changes-${Date.now()}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'addon_requests'
+        },
+        () => {
+          loadAddonRequests()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [loadAddonRequests])
+
   // Initial load
   useEffect(() => {
     loadVMs()
-  }, [loadVMs])
+    loadVMRequests()
+    loadAddonRequests()
+  }, [loadVMs, loadVMRequests, loadAddonRequests])
 
   const addVM = useCallback(async (vm: NewVMInput) => {
     const id = crypto.randomUUID()
@@ -349,7 +475,7 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     await loadVMs()
   }, [loadVMs])
 
-  const value: VMStoreValue = { vms, vmsLoading, loadVMs, addVM, updateVM, deleteVM, startVM, stopVM, restartVM, snapshotVM, updateVMTags, updateVMNotes }
+  const value: VMStoreValue = { vms, vmsLoading, vmRequests, addonRequests, loadVMs, loadVMRequests, loadAddonRequests, getVMRequest, getAddonRequestsForVM, getVMById, getVMByHostname, addVM, updateVM, deleteVM, startVM, stopVM, restartVM, snapshotVM, updateVMTags, updateVMNotes }
   return React.createElement(VMContext.Provider, { value }, children as any)
 }
 

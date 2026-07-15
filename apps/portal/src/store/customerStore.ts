@@ -28,9 +28,6 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
   const loadCustomers = useCallback(async () => {
     setCustomersLoading(true)
     
-    const MIN_LOADING_TIME = 400 // 400ms minimum loading time
-    const startTime = Date.now()
-    
     try {
       const { data: userRes } = await supabase.auth.getUser()
       const role = userRes?.user?.user_metadata?.role || userRes?.user?.role
@@ -76,14 +73,6 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
         setCustomers(enriched)
       }
     } finally {
-      // Ensure minimum loading time
-      const elapsedTime = Date.now() - startTime
-      const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime)
-      
-      if (remainingTime > 0) {
-        await new Promise(resolve => setTimeout(resolve, remainingTime))
-      }
-      
       setCustomersLoading(false)
     }
   }, [])

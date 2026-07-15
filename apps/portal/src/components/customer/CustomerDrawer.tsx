@@ -3,10 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import useCustomerStore from '../../store/customerStore'
 import useVMStore from '../../store/vmStore'
 import useInvoiceStore from '../../store/invoiceStore'
-import useTeamStore from '../../store/teamStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
-import { StatusPill, formatMMK, Avatar, Spinner, ExpiryCell } from '../ui/ui'
+import { StatusPill, formatMMK, Avatar, ExpiryCell } from '../ui/ui'
 import type { Customer } from '../../types'
 
 interface CustomerDrawerProps {
@@ -18,12 +17,10 @@ interface CustomerDrawerProps {
 
 const CustomerDrawer: React.FC<CustomerDrawerProps> = ({ custId, onClose, openVM, openModal }) => {
   const navigate = useNavigate()
-  const { customers, updateCustomer, loadCustomers } = useCustomerStore()
-  const { vms, loadVMs } = useVMStore()
+  const { customers, updateCustomer } = useCustomerStore()
+  const { vms } = useVMStore()
   const { invoices } = useInvoiceStore()
-  const { team } = useTeamStore()
   const { toast } = useUIStore()
-  const [isLoading, setIsLoading] = useState(() => customers.length === 0)
 
   const c = customers.find((cust: any) => cust.id === custId)
 
@@ -35,34 +32,8 @@ const CustomerDrawer: React.FC<CustomerDrawerProps> = ({ custId, onClose, openVM
 
   useEffect(() => { setDraft(c) }, [custId])
 
-  useEffect(() => {
-    // Only fetch if we have no customers cached and no selected customer yet
-    if (!c && customers.length === 0) {
-      setIsLoading(true)
-      loadCustomers()
-        .finally(() => setIsLoading(false))
-    } else {
-      setIsLoading(false)
-    }
-  }, [custId, customers.length, c, loadCustomers])
-
-  // Load VMs on mount
-  useEffect(() => {
-    loadVMs()
-  }, [loadVMs])
-
-  if (isLoading) {
-    return (
-      <div className="drawer-overlay" onClick={onClose}>
-        <div className="drawer" onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-          <Spinner />
-        </div>
-      </div>
-    )
-  }
-
   if (!c) {
-    console.log('Customer not found after loading')
+    console.log('Customer not found')
     return (
       <div className="drawer-overlay" onClick={onClose}>
         <div className="drawer" onClick={e => e.stopPropagation()}>

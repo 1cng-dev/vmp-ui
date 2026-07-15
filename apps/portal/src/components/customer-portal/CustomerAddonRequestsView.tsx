@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import React, { useMemo } from 'react'
 import { StatusPill } from '../ui/ui'
 import Icon from '../../lib/icons'
-import { supabase } from '../../lib/supabase'
+import useVMStore from '../../store/vmStore'
 
 interface CustomerAddonRequestsViewProps {
   myAddonRequests: any[]
@@ -9,41 +9,30 @@ interface CustomerAddonRequestsViewProps {
 }
 
 export const CustomerAddonRequestsView: React.FC<CustomerAddonRequestsViewProps> = ({ myAddonRequests, setDetailRequest }) => {
-  const [vmRequestLegacyIds, setVmRequestLegacyIds] = useState<Record<string, string>>({})
+  const { getVMById, getVMRequest } = useVMStore()
 
-  useEffect(() => {
-    const fetchVmRequestLegacyIds = async () => {
-      const legacyIds: Record<string, string> = {}
-      
-      for (const request of myAddonRequests) {
-        if (request.vm_id) {
-          // Fetch VM to get vm_request_id
-          const { data: vmData } = await supabase
-            .from('vms')
-            .select('vm_request_id')
-            .eq('id', request.vm_id)
-            .single()
+  // Get VM request legacy IDs from store
+  const vmRequestLegacyIds = useMemo(() => {
+    const legacyIds: Record<string, string> = {}
+    
+    for (const request of myAddonRequests) {
+      if (request.vm_id) {
+        // Get VM from store
+        const vm = getVMById(request.vm_id)
+        
+        if (vm?.vm_request_id) {
+          // Get VM request from store
+          const vmRequest = getVMRequest(vm.vm_request_id)
           
-          if (vmData?.vm_request_id) {
-            // Fetch VM request to get legacy_id
-            const { data: vmRequestData } = await supabase
-              .from('vm_requests')
-              .select('legacy_id')
-              .eq('id', vmData.vm_request_id)
-              .single()
-            
-            if (vmRequestData?.legacy_id) {
-              legacyIds[request.id] = vmRequestData.legacy_id
-            }
+          if (vmRequest?.legacy_id) {
+            legacyIds[request.id] = vmRequest.legacy_id
           }
         }
       }
-      
-      setVmRequestLegacyIds(legacyIds)
     }
-
-    fetchVmRequestLegacyIds()
-  }, [myAddonRequests])
+    
+    return legacyIds
+  }, [myAddonRequests, getVMById, getVMRequest])
 
   return (
     <div className="content">

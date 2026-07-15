@@ -22,12 +22,10 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
   const { team } = useTeamStore()
   const { toast } = useUIStore()
   const { createVMManually } = useTaskStore()
-  const { addVM } = useVMStore()
+  const { addVM, vms, getVMById, getVMByHostname, updateVM, getVMRequest } = useVMStore()
   const { vmRequests, updateVMRequest } = useVMRequestStore()
   const { addonRequests, updateAddonRequest } = useAddonRequestStore()
   const [showVMFormModal, setShowVMFormModal] = useState(false)
-  const [currentVMData, setCurrentVMData] = useState<any>(null)
-  const [addonVMData, setAddonVMData] = useState<any>(null)
   const [salesData, setSalesData] = useState({
     assignee: '—',
     status: 'Pending',
@@ -53,31 +51,19 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
     }
   }, [customers.length, loadCustomers])
 
-
-
-  // Load current VM data for change-plan and renewal requests to show current backup status and VM legacy_id
-  React.useEffect(() => {
-    const loadCurrentVMData = async () => {
-      if ((isUpgrade || isRenewal) && t) {
-        let vmId = (t as any).vm_id
-        // If no direct vm_id, try to find VM by hostname
-        if (!vmId && t.hostname) {
-          const { data: vmData } = await supabase.from('vms').select('*').eq('hostname', t.hostname).single()
-          if (vmData) {
-            setCurrentVMData(vmData)
-          }
-        } else if (vmId) {
-          const { data: vmData } = await supabase.from('vms').select('*').eq('id', vmId).single()
-          if (vmData) {
-            setCurrentVMData(vmData)
-          }
-        }
-      } else {
-        setCurrentVMData(null)
+  // Get current VM data from store for change-plan and renewal requests
+  const currentVMData = React.useMemo(() => {
+    if ((isUpgrade || isRenewal) && t) {
+      let vmId = (t as any).vm_id
+      // If no direct vm_id, try to find VM by hostname
+      if (!vmId && t.hostname) {
+        return getVMByHostname(t.hostname)
+      } else if (vmId) {
+        return getVMById(vmId)
       }
     }
-    loadCurrentVMData()
-  }, [isUpgrade, isRenewal, t])
+    return null
+  }, [isUpgrade, isRenewal, t, getVMById, getVMByHostname])
 
   // Update salesData when request is found
   React.useEffect(() => {
@@ -92,25 +78,13 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
     }
   }, [request, requestType, t])
 
-  // Load VM data for addon requests to show legacy_id and hostname
-  React.useEffect(() => {
-    const loadAddonVMData = async () => {
-      if (requestType === 'addon' && (request as any)?.vm_id) {
-        const { data: vmData } = await supabase
-          .from('vms')
-          .select('legacy_id, hostname, vm_request_id')
-          .eq('id', (request as any).vm_id)
-          .single()
-
-        if (vmData) {
-          setAddonVMData(vmData)
-        }
-      } else {
-        setAddonVMData(null)
-      }
+  // Get VM data for addon requests from store
+  const addonVMData = React.useMemo(() => {
+    if (requestType === 'addon' && (request as any)?.vm_id) {
+      return getVMById((request as any).vm_id)
     }
-    loadAddonVMData()
-  }, [requestType, request])
+    return null
+  }, [requestType, request, getVMById])
 
   if (!request) return null
   const c = customers.find((cust: any) => cust.id === request.customer_id)
@@ -221,26 +195,26 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                 // Apply upgrade changes to the VM when completed
                                 let vmId = (t as any)?.vm_id
 
-                                // If no direct vm_id, try to find VM by hostname
+                                // If no direct vm_id, try to find VM by hostname using store
                                 if (!vmId && t.hostname) {
-                                  const { data: vmData } = await supabase.from('vms').select('id').eq('hostname', t.hostname).single()
+                                  const vmData = getVMByHostname(t.hostname)
                                   if (vmData) {
                                     vmId = vmData.id
                                   }
                                 }
 
                                 if (vmId) {
-                                  const { error } = await supabase.from('vms').update({
-                                    vcpu: t.vcpu,
-                                    ram_gb: t.ram_gb,
-                                    storage_gb: t.storage
-                                  }).eq('id', vmId)
-                                  if (error) {
-                                    toast('Failed to apply upgrade changes to VM', 'error')
-                                    console.error('Error applying upgrade:', error)
-                                  } else {
+                                  try {
+                                    await updateVM(vmId, {
+                                      vcpu: t.vcpu,
+                                      ram_gb: t.ram_gb,
+                                      storage_gb: t.storage
+                                    })
                                     updateVMRequest(t.id, { status: 'Completed' })
                                     toast('Upgrade completed and changes applied', 'ok')
+                                  } catch (error) {
+                                    toast('Failed to apply upgrade changes to VM', 'error')
+                                    console.error('Error applying upgrade:', error)
                                   }
                                 } else {
                                   updateVMRequest(t.id, { status: 'Completed' })
@@ -263,9 +237,9 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                               // Apply renewal expiry extension to the VM when completed
                               let vmId = (t as any).vm_id
 
-                              // If no direct vm_id, try to find VM by hostname
+                              // If no direct vm_id, try to find VM by hostname using store
                               if (!vmId && t.hostname) {
-                                const { data: vmData } = await supabase.from('vms').select('id, expiry, duration, vm_request_id, end_date, start_date, created_at').eq('hostname', t.hostname).single()
+                                const vmData = getVMByHostname(t.hostname)
                                 if (vmData) {
                                   vmId = vmData.id
                                   // Calculate new expiry date
@@ -284,18 +258,18 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                   newEndDate.setDate(newEndDate.getDate() + 1) // Add 1 day to match expiry calculation
                                   newEndDate.setMonth(newEndDate.getMonth() + newDuration)
 
-                                  // Update VM expiry, end_date, and duration
-                                  const { error } = await supabase.from('vms').update({
-                                    expiry: newExpiry,
-                                    end_date: newEndDate.toISOString(),
-                                    duration: newDuration
-                                  }).eq('id', vmId)
-                                  if (error) {
-                                    toast('Failed to update VM expiry', 'error')
-                                    console.error('Error updating expiry:', error)
-                                  } else {
+                                  // Update VM expiry, end_date, and duration using store
+                                  try {
+                                    await updateVM(vmId, {
+                                      expiry: newExpiry,
+                                      end_date: newEndDate.toISOString(),
+                                      duration: newDuration
+                                    })
                                     updateVMRequest(t.id, { status: 'Completed' })
                                     toast('Renewal completed and VM expiry extended', 'ok')
+                                  } catch (error) {
+                                    toast('Failed to update VM expiry', 'error')
+                                    console.error('Error updating expiry:', error)
                                   }
                                 }
                               }
@@ -321,9 +295,9 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                 // Apply trial to paid conversion - update VM expiry
                                 let vmId = (t as any).vm_id
 
-                                // If no direct vm_id, try to find VM by hostname
+                                // If no direct vm_id, try to find VM by hostname using store
                                 if (!vmId && t.hostname) {
-                                  const { data: vmData } = await supabase.from('vms').select('id, expiry, duration, vm_request_id, created_at').eq('hostname', t.hostname).single()
+                                  const vmData = getVMByHostname(t.hostname)
                                   if (vmData) {
                                     vmId = vmData.id
                                     // Calculate new expiry date from VM's created_at (consistent with new logic)
@@ -335,25 +309,28 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                     expiryDate.setMonth(expiryDate.getMonth() + durationMonths)
                                     const newExpiry = expiryDate.toISOString()
 
-                                    // Update VM expiry and duration
-                                    const { error } = await supabase.from('vms').update({
-                                      expiry: newExpiry,
-                                      duration: t.duration || 12
-                                    }).eq('id', vmId)
+                                    // Update VM expiry and duration using store
+                                    try {
+                                      await updateVM(vmId, {
+                                        expiry: newExpiry,
+                                        duration: t.duration || 12
+                                      })
 
-                                    if (error) {
-                                      toast('Failed to convert trial to paid', 'error')
-                                      console.error('Error converting trial:', error)
-                                    } else {
                                       // Update the original VM request from trial to paid
                                       if (vmData.vm_request_id) {
-                                        await supabase.from('vm_requests').update({
-                                          request_type: 'paid'
-                                        }).eq('id', vmData.vm_request_id)
+                                        const vmRequest = getVMRequest(vmData.vm_request_id)
+                                        if (vmRequest) {
+                                          await supabase.from('vm_requests').update({
+                                            request_type: 'paid'
+                                          }).eq('id', vmData.vm_request_id)
+                                        }
                                       }
 
                                       updateVMRequest(t.id, { status: 'Completed' })
                                       toast('Trial converted to paid successfully', 'ok')
+                                    } catch (error) {
+                                      toast('Failed to convert trial to paid', 'error')
+                                      console.error('Error converting trial:', error)
                                     }
                                   }
                                 }
@@ -394,12 +371,13 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                   if (newStatus === 'Completed') {
                                     try {
                                       console.log('Provisioning completed for request:', t.id)
-                                      const vmData = await supabase.from('vms').select('id, duration, created_at').eq('vm_request_id', t.id)
-                                      console.log('VM Data result:', vmData)
+                                      // Get VMs from store that match this request
+                                      const matchingVMs = vms.filter(vm => vm.vm_request_id === t.id)
+                                      console.log('VM Data result:', matchingVMs)
 
-                                      if (vmData.data && vmData.data.length > 0) {
+                                      if (matchingVMs.length > 0) {
                                         // Trigger handles start_date automatically, only update end_date here
-                                        const startDate = vmData.data[0].created_at ? new Date(vmData.data[0].created_at) : new Date()
+                                        const startDate = matchingVMs[0].created_at ? new Date(matchingVMs[0].created_at) : new Date()
                                         const endDate = new Date(startDate)
                                         endDate.setDate(endDate.getDate() + 1) // Add 1 day
                                         endDate.setMonth(endDate.getMonth() + (t.duration || 12))
@@ -407,17 +385,12 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                         console.log('Setting end_date:', { end_date: endDate.toISOString() })
 
                                         // Update all VMs associated with this request - only set end_date
-                                        const vmIds = vmData.data.map(vm => vm.id)
-                                        const { error } = await supabase.from('vms').update({
-                                          end_date: endDate.toISOString()
-                                        }).in('id', vmIds)
-
-                                        if (error) {
-                                          console.error('Error updating VM dates:', error)
-                                          toast('Failed to set billing dates: ' + error.message, 'error')
-                                        } else {
-                                          console.log('VM dates updated successfully for', vmIds.length, 'VM(s)')
+                                        for (const vm of matchingVMs) {
+                                          await updateVM(vm.id, {
+                                            end_date: endDate.toISOString()
+                                          })
                                         }
+                                        console.log('VM dates updated successfully for', matchingVMs.length, 'VM(s)')
                                       } else {
                                         console.log('No VMs found for request:', t.id)
                                       }

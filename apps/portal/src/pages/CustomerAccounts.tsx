@@ -6,12 +6,12 @@
 // 5. Customer segments / saved views
 // Customer360 component extracted to components/customer folder
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import useCustomerStore from '../store/customerStore'
 import useVMStore from '../store/vmStore'
 import useUIStore from '../store/uiStore'
 import Icon from '../lib/icons'
-import { Avatar, StatusPill, formatMMK, Spinner } from '../components/ui/ui'
+import { Avatar, StatusPill, formatMMK } from '../components/ui/ui'
 import { Customer360 } from '../components/customer/Customer360'
 
 interface CustomerAccountManagementViewProps {
@@ -23,18 +23,11 @@ interface CustomerAccountManagementViewProps {
 
 export const CustomerAccountManagementView: React.FC<CustomerAccountManagementViewProps> = ({ openCust, openModal, setView, role }) => {
   const { customers } = useCustomerStore()
-  const { vms, vmsLoading, loadVMs } = useVMStore()
+  const { vms } = useVMStore()
   const { toast } = useUIStore()
   const [segment, setSegment] = useState('all')
   const [search, setSearch] = useState('')
   const [view360, setView360] = useState<any>(null)
-
-  // Load VMs on mount
-  useEffect(() => {
-    if (vms.length === 0) {
-      loadVMs()
-    }
-  }, [loadVMs, vms.length])
 
   // Feature 5: Saved segments
   const segments = [
@@ -144,11 +137,7 @@ export const CustomerAccountManagementView: React.FC<CustomerAccountManagementVi
             <th style={{ width: 80 }}></th>
           </tr></thead>
           <tbody>
-            {vmsLoading ? (
-              <tr><td colSpan={8}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div></td></tr>
-            ) : (
-              <>
-                {filtered.map((c: any) => {
+            {filtered.map((c: any) => {
                   const vmCount = vms.filter((v: any) => v.customer_id === c.id && v.status === 'Active').length
                   return (
                     <tr key={c.id} onClick={() => setView360(c)}>
@@ -171,8 +160,6 @@ export const CustomerAccountManagementView: React.FC<CustomerAccountManagementVi
                   )
                 })}
                 {filtered.length === 0 && <tr><td colSpan={8}><div className="empty"><div className="title">No customers in this segment</div></div></td></tr>}
-              </>
-            )}
           </tbody>
         </table>
       </div>
