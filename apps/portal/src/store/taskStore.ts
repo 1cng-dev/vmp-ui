@@ -80,28 +80,50 @@ const useTaskStore = (): TaskStoreValue => {
     // Calculate expiry using VM's created_at (service provision date)
     // Formula: created_at + 1 day + duration (in months)
     let expiry: string | undefined
+    let durationValue: number | undefined
     
-    if (t.created_at && t.duration) {
-      const startDate = new Date(t.created_at)
-      startDate.setDate(startDate.getDate() + 1) // Add 1 day
+    // Handle trial requests - set expiry but no duration
+    if (t.request_type === 'trial') {
+      // Trial defaults to 14 days
+      if (t.created_at) {
+        const startDate = new Date(t.created_at)
+        startDate.setDate(startDate.getDate() + 1) // Add 1 day
+        
+        const expiryDate = new Date(startDate)
+        expiryDate.setDate(expiryDate.getDate() + 14) // Add 14 days for trial
+        
+        expiry = expiryDate.toISOString()
+        
+        console.log('Trial expiry calculated:', {
+          created_at: t.created_at,
+          startDate,
+          trialDays: 14,
+          expiry
+        })
+      }
+    } else if (t.duration) {
+      // Paid requests use duration from request
+      durationValue = parseInt(String(t.duration)) || 3
       
-      // Duration is in months (integer)
-      const durationMonths = parseInt(String(t.duration)) || 3
-      
-      const expiryDate = new Date(startDate)
-      expiryDate.setMonth(expiryDate.getMonth() + durationMonths)
-      
-      expiry = expiryDate.toISOString()
-      
-      console.log('Expiry calculated:', {
-        created_at: t.created_at,
-        startDate,
-        duration: t.duration,
-        durationMonths,
-        expiry
-      })
+      if (t.created_at) {
+        const startDate = new Date(t.created_at)
+        startDate.setDate(startDate.getDate() + 1) // Add 1 day
+        
+        const expiryDate = new Date(startDate)
+        expiryDate.setMonth(expiryDate.getMonth() + durationValue)
+        
+        expiry = expiryDate.toISOString()
+        
+        console.log('Paid expiry calculated:', {
+          created_at: t.created_at,
+          startDate,
+          duration: t.duration,
+          durationValue,
+          expiry
+        })
+      }
     } else {
-      console.log('No created_at or duration found in task, expiry will be null')
+      console.log('No duration found in task, expiry will be null')
       console.log('Task object keys:', Object.keys(t))
     }
     
@@ -141,7 +163,8 @@ const useTaskStore = (): TaskStoreValue => {
         vm_request_id: t.id,
         task_type: t.task_type,
         expiry: expiry,
-        duration: t.duration,
+        duration: durationValue,
+        end_date: t.request_type === 'trial' ? expiry : undefined, // For trials, end_date should match expiry
         legacy_id: legacyId,
         assigned_vmid: vmDetails.assigned_vmids[i] || null,
         backup_enabled: t.backup_enabled || false,

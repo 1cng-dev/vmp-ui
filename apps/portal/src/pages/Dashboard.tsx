@@ -3,8 +3,6 @@ import useCustomerStore from '../store/customerStore'
 import useVMStore from '../store/vmStore'
 import useInvoiceStore from '../store/invoiceStore'
 import useActivityStore from '../store/activityStore'
-import useTaskStore from '../store/taskStore'
-import useTicketStore from '../store/ticketStore'
 import { useAuth } from '../components/auth/Auth'
 import useTeamStore from '../store/teamStore'
 import Icon from '../lib/icons'
@@ -21,8 +19,6 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
   const { vms, vmsLoading, loadVMs } = useVMStore()
   const { invoices, loadInvoices } = useInvoiceStore()
   const { activity } = useActivityStore()
-  const { tasks } = useTaskStore()
-  const { tickets } = useTicketStore()
   const auth = useAuth()
   const { loadTeam } = useTeamStore()
   const TODAY = new Date()
@@ -43,8 +39,6 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
     return d <= 0 && (v.status === 'Active' || v.status === 'Suspended')
   })
   const overdue = invoices.filter(i => i.status === 'Overdue').length
-  const paymentReceived = invoices.filter(i => i.status === 'Payment Received').length
-  const pendingKYC = customers.filter(c => (c as any).kyc === 'Pending').length
   // Calculate MRR from invoices in current month
   const currentMonth = TODAY.getMonth()
   const currentYear = TODAY.getFullYear()
@@ -58,8 +52,6 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
     return sum + (grossAmount || amount || 0)
   }, 0)
   const overdueValue = invoices.filter(i => i.status === 'Overdue').reduce((a, i) => a + (typeof i.amount === 'string' ? parseFloat(i.amount) : (i.amount || 0)), 0)
-  const pendingTasks = tasks.filter(t => t.status === 'Pending').length
-  const openTickets = tickets.filter(t => t.status === 'Open').length
 
   // Calculate weekly VM growth
   const oneWeekAgo = new Date(TODAY.getTime() - 7 * 86400000)
@@ -228,61 +220,6 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
                   ))}
                 </div>
               </div>
-            </div>
-          </div>
-          <div className="card">
-            <div className="card-head"><h2 className="card-title">Pending actions</h2></div>
-            <div className="card-body" style={{ padding: '0' }}>
-              {pendingKYC > 0 && (
-                <div className="feed-item" style={{ padding: '12px 18px' }}>
-                  <span className="dot alert" />
-                  <div className="body">
-                    <span className="fw-6">{pendingKYC} KYC submission{pendingKYC > 1 ? 's' : ''}</span> awaiting review
-                  </div>
-                  <button className="btn sm" onClick={() => setView('kyc')}>Review</button>
-                </div>
-              )}
-              {pendingTasks > 0 && (
-                <div className="feed-item" style={{ padding: '12px 18px' }}>
-                  <span className="dot task" />
-                  <div className="body">
-                    <span className="fw-6">{pendingTasks} provisioning task{pendingTasks > 1 ? 's' : ''}</span> waiting to start
-                  </div>
-                  <button className="btn sm" onClick={() => setView('tasks')}>Open</button>
-                </div>
-              )}
-              {overdue > 0 && (
-                <div className="feed-item" style={{ padding: '12px 18px' }}>
-                  <span className="dot finance" />
-                  <div className="body">
-                    <span className="fw-6">{overdue} invoice{overdue > 1 ? 's' : ''}</span> overdue
-                    <div className="meta">MMK {formatMMK(overdueValue)} outstanding</div>
-                  </div>
-                  <button className="btn sm" onClick={() => setView('finance')}>View</button>
-                </div>
-              )}
-              {paymentReceived > 0 && (
-                <div className="feed-item" style={{ padding: '12px 18px' }}>
-                  <span className="dot ok" />
-                  <div className="body">
-                    <span className="fw-6">{paymentReceived} payment{paymentReceived > 1 ? 's' : ''} received</span>
-                    <div className="meta">Receipts pending to send</div>
-                  </div>
-                  <button className="btn sm" onClick={() => setView('finance')}>Send receipts</button>
-                </div>
-              )}
-              {openTickets > 0 && (
-                <div className="feed-item" style={{ padding: '12px 18px' }}>
-                  <span className="dot support" />
-                  <div className="body">
-                    <span className="fw-6">{openTickets} open ticket{openTickets > 1 ? 's' : ''}</span> awaiting response
-                  </div>
-                  <button className="btn sm" onClick={() => setView('tickets')}>View</button>
-                </div>
-              )}
-              {pendingKYC === 0 && pendingTasks === 0 && overdue === 0 && openTickets === 0 && (
-                <div className="empty"><div className="title">All caught up</div><div className="sub">No actions needed right now.</div></div>
-              )}
             </div>
           </div>
         </div>

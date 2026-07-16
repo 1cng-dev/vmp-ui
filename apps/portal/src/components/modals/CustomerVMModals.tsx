@@ -5,6 +5,7 @@ import useTaskStore from '../../store/taskStore'
 import useCustomerStore from '../../store/customerStore'
 import useTicketStore from '../../store/ticketStore'
 import useUIStore from '../../store/uiStore'
+import { createAlert } from '../../services/notificationService'
 import Icon from '../../lib/icons'
 import { formatMMK } from '../ui/ui'
 import { supabase } from '@/lib/supabase'
@@ -114,7 +115,7 @@ const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, onSubmit, 
 
     try {
       // Create VM request with task_type='renewal'
-      const { error } = await supabase.from('vm_requests').insert({
+      const { data: insertedData, error } = await supabase.from('vm_requests').insert({
         customer_id: me.id,
         task_type: 'Renewal',
         request_type: 'paid',
@@ -138,9 +139,30 @@ const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, onSubmit, 
         backup_enabled: (vm as any).backup_enabled || false,
         backup_type: (vm as any).backup_type || 'weekly',
         notes: `Renewal request for ${months} month${months > 1 ? 's' : ''}. Current expiry: ${vm.expiry}, New expiry: ${newExpiry}`,
-      })
+      }).select().single()
 
       if (error) throw error
+
+      // Create alert for team roles (customer_id = NULL so customer doesn't see it)
+      await createAlert({
+        sev: 'info',
+        title: 'Renewal Request',
+        body: `Renewal Request for ${(vm as any).hostname || vm.name} (${months} month${months > 1 ? 's' : ''})`,
+        type: 'vm',
+        related_entity_id: insertedData.id,
+        related_entity_type: 'vm_request',
+        actor_id: me.id,
+        actor_name: me.name || 'Customer',
+        customer_id: null, // NULL so team roles see it, customer doesn't
+        metadata: {
+          hostname: (vm as any).hostname || vm.name,
+          request_type: 'renewal',
+          vcpu: vm.vcpu,
+          ram_gb: (vm as any).ram_gb || vm.ram,
+          customer_id: me.id,
+          task_type: 'Renewal'
+        }
+      })
 
       // Also create task for ops visibility
       addTask({
@@ -350,9 +372,30 @@ const CustUpgradeModal: React.FC<CustUpgradeModalProps> = ({ vm, onClose, me }) 
           }`,
       }
 
-      const { error } = await supabase.from('vm_requests').insert(requestData)
+      const { data: insertedData, error } = await supabase.from('vm_requests').insert(requestData).select().single()
 
       if (error) throw error
+
+      // Create alert for team roles (customer_id = NULL so customer doesn't see it)
+      await createAlert({
+        sev: 'info',
+        title: 'Change Plan Request',
+        body: `Change Plan Request for ${currentHostname} (${spec.vcpu} vCPU, ${spec.ram}GB RAM)`,
+        type: 'vm',
+        related_entity_id: insertedData.id,
+        related_entity_type: 'vm_request',
+        actor_id: me.id,
+        actor_name: me.name || 'Customer',
+        customer_id: null, // NULL so team roles see it, customer doesn't
+        metadata: {
+          hostname: currentHostname,
+          request_type: 'change-plan',
+          vcpu: spec.vcpu,
+          ram_gb: spec.ram,
+          customer_id: me.id,
+          task_type: 'change-plan'
+        }
+      })
 
       // Also create task for ops visibility
       addTask({
@@ -635,7 +678,7 @@ const CustConvertToPaidModal: React.FC<CustConvertToPaidModalProps> = ({ vm, onC
 
     try {
       // Create VM request for conversion with task_type='New' and request_type='paid'
-      const { error } = await supabase.from('vm_requests').insert({
+      const { data: insertedData, error } = await supabase.from('vm_requests').insert({
         customer_id: me.id,
         task_type: 'New',
         request_type: 'paid',
@@ -656,9 +699,31 @@ const CustConvertToPaidModal: React.FC<CustConvertToPaidModalProps> = ({ vm, onC
         firewall_ports: (vm as any).firewall_ports || [],
         backup_enabled: (vm as any).backup_enabled || false,
         notes: `Trial to paid conversion for VM: ${vm.id}`,
-      })
+      }).select().single()
 
       if (error) throw error
+
+      // Create alert for team roles (customer_id = NULL so customer doesn't see it)
+      await createAlert({
+        sev: 'info',
+        title: 'Trial to Paid Conversion',
+        body: `Trial to Paid Conversion for ${(vm as any).hostname || vm.name} (${getDurationLabel(duration)})`,
+        type: 'vm',
+        related_entity_id: insertedData.id,
+        related_entity_type: 'vm_request',
+        actor_id: me.id,
+        actor_name: me.name || 'Customer',
+        customer_id: null, // NULL so team roles see it, customer doesn't
+        metadata: {
+          hostname: (vm as any).hostname || vm.name,
+          request_type: 'trial-to-paid',
+          vcpu: vm.vcpu,
+          ram_gb: (vm as any).ram_gb || vm.ram,
+          customer_id: me.id,
+          task_type: 'New',
+          duration: duration
+        }
+      })
 
       // Create task for ops visibility
       addTask({

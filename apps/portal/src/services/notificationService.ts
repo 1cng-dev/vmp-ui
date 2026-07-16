@@ -9,6 +9,7 @@ export interface CreateAlertInput {
   related_entity_type?: string
   actor_id?: string
   actor_name?: string
+  customer_id?: string | null
   metadata?: any
 }
 
@@ -23,6 +24,7 @@ export const createAlert = async (input: CreateAlertInput) => {
       related_entity_type: input.related_entity_type,
       actor_id: input.actor_id,
       actor_name: input.actor_name,
+      customer_id: input.customer_id,
       metadata: input.metadata || {}
     })
     

@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import type { AddonRequest } from '../types'
 import useActivityStore from './activityStore'
+import { createAlert } from '../services/notificationService'
 
 export interface AddonRequestStoreValue {
   addonRequests: AddonRequest[]
@@ -65,6 +66,7 @@ export const AddonRequestProvider: React.FC<{ children: React.ReactNode }> = ({ 
     // Get current user for activity logging
     const { data: { user } } = await supabase.auth.getUser()
     let actorName = 'System'
+    let actorId = request.customer_id
     if (user) {
       const { data: staff } = await supabase
         .from('team_members')
@@ -73,6 +75,7 @@ export const AddonRequestProvider: React.FC<{ children: React.ReactNode }> = ({ 
         .single()
       if (staff) {
         actorName = `${staff.name} (${staff.staff_code})`
+        actorId = user.id
       } else {
         // Fallback to user's name or email if not in team_members
         actorName = user.user_metadata?.name || user.email || 'System'
@@ -85,6 +88,32 @@ export const AddonRequestProvider: React.FC<{ children: React.ReactNode }> = ({ 
       actorName,
       { addonRequestId: data[0].id, vmId: request.vm_id, customerId: request.customer_id, status: request.status }
     )
+    
+    // Create alert for team roles (customer_id = NULL so customer doesn't see it)
+    const services = []
+    if (request.cpfs_enabled) services.push(`CPFS (${request.cpfs_package})`)
+    if (request.ccis_enabled) services.push(`CCIS (${request.ccis_package})`)
+    
+    await createAlert({
+      sev: 'info',
+      title: 'Add-on Service Request',
+      body: `Add-on Service Request for VM ${request.vm_id}: ${services.join(', ')}`,
+      type: 'vm',
+      related_entity_id: data[0].id,
+      related_entity_type: 'addon_request',
+      actor_id: actorId,
+      actor_name: actorName,
+      customer_id: null, // NULL so team roles see it, customer doesn't
+      metadata: {
+        vm_id: request.vm_id,
+        customer_id: request.customer_id,
+        cpfs_enabled: request.cpfs_enabled,
+        cpfs_package: request.cpfs_package,
+        ccis_enabled: request.ccis_enabled,
+        ccis_package: request.ccis_package,
+        duration: request.duration
+      }
+    })
     
     return data[0].id
   }, [loadAddonRequests, logActivity])
@@ -99,6 +128,7 @@ export const AddonRequestProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (patch.status && previousRequest && patch.status !== previousRequest.status) {
       const { data: { user } } = await supabase.auth.getUser()
       let actorName = 'System'
+      let actorId = previousRequest.customer_id
       if (user) {
         const { data: staff } = await supabase
           .from('team_members')
@@ -107,6 +137,7 @@ export const AddonRequestProvider: React.FC<{ children: React.ReactNode }> = ({ 
           .single()
         if (staff) {
           actorName = `${staff.name} (${staff.staff_code})`
+          actorId = user.id
         } else {
           // Fallback to user's name or email if not in team_members
           actorName = user.user_metadata?.name || user.email || 'System'
@@ -115,10 +146,29 @@ export const AddonRequestProvider: React.FC<{ children: React.ReactNode }> = ({ 
       
       await logActivity(
         `Changed addon request status from ${previousRequest.status} to ${patch.status}`,
-        'vm',
+        'task',
         actorName,
         { addonRequestId: id, vmId: previousRequest.vm_id, previousStatus: previousRequest.status, newStatus: patch.status }
       )
+      
+      // Create alert for customer (customer_id set so customer sees it)
+      await createAlert({
+        sev: 'info',
+        title: 'Add-on Request Status Changed',
+        body: `Add-on request for VM ${previousRequest.vm_id} status changed from ${previousRequest.status} to ${patch.status}`,
+        type: 'vm',
+        related_entity_id: id,
+        related_entity_type: 'addon_request',
+        actor_id: actorId,
+        actor_name: actorName,
+        customer_id: previousRequest.customer_id,
+        metadata: {
+          vm_id: previousRequest.vm_id,
+          previous_status: previousRequest.status,
+          new_status: patch.status,
+          customer_id: previousRequest.customer_id
+        }
+      })
     }
   }, [loadAddonRequests, addonRequests, logActivity])
 

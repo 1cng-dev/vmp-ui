@@ -9,7 +9,7 @@ interface AddonServicesViewProps {
 }
 
 export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs }) => {
-  const { createAddonRequest } = useAddonRequestStore()
+  const { createAddonRequest, addonRequests } = useAddonRequestStore()
   const { toast } = useUIStore()
   const [selectedVM, setSelectedVM] = useState<string>('')
   const [cpfsEnabled, setCpfsEnabled] = useState(false)
@@ -19,6 +19,39 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs }) =
   const [duration, setDuration] = useState<number>(12)
   const [customDuration, setCustomDuration] = useState('')
   const [isCustomDuration, setIsCustomDuration] = useState(false)
+
+  // Get existing addon requests for selected VM (Completed status means active)
+  const existingAddons = addonRequests.filter(a => a.vm_id === selectedVM && a.status === 'Completed')
+
+  // When VM is selected, pre-populate form with existing add-ons (only on VM change)
+  React.useEffect(() => {
+    if (selectedVM && existingAddons.length > 0) {
+      const latestAddon = existingAddons[0] // Get the most recent active add-on
+      setCpfsEnabled(latestAddon.cpfs_enabled || false)
+      if (latestAddon.cpfs_enabled) {
+        setCpfsPackage(latestAddon.cpfs_package || 'standard')
+      }
+      setCcisEnabled(latestAddon.ccis_enabled || false)
+      if (latestAddon.ccis_enabled) {
+        setCcisPlan(latestAddon.ccis_package as 'basic' | 'standard' | 'professional' | 'enterprise')
+      }
+      setDuration(latestAddon.duration || 12)
+      // Check if duration is a standard option
+      if (![1, 3, 6, 12].includes(latestAddon.duration || 12)) {
+        setCustomDuration(String(latestAddon.duration))
+        setIsCustomDuration(true)
+      } else {
+        setIsCustomDuration(false)
+      }
+    } else {
+      // Reset form when no VM selected or VM has no existing add-ons
+      setCpfsEnabled(false)
+      setCcisEnabled(false)
+      setDuration(12)
+      setCustomDuration('')
+      setIsCustomDuration(false)
+    }
+  }, [selectedVM]) // Only depend on selectedVM, not existingAddons
 
   const getDurationLabel = (months: number) => {
     const labels: Record<number, string> = {
@@ -30,7 +63,23 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs }) =
     return labels[months] || `${months} month${months > 1 ? 's' : ''}`
   }
 
-  const canSubmit = () => !!selectedVM && (cpfsEnabled || ccisEnabled)
+  const canSubmit = () => {
+    if (!selectedVM || (!cpfsEnabled && !ccisEnabled)) return false
+    
+    // If no existing add-ons, allow submission
+    if (existingAddons.length === 0) return true
+    
+    // Compare with existing add-ons to detect changes
+    const latestAddon = existingAddons[0]
+    const hasChanges = 
+      cpfsEnabled !== latestAddon.cpfs_enabled ||
+      (cpfsEnabled && cpfsPackage !== latestAddon.cpfs_package) ||
+      ccisEnabled !== latestAddon.ccis_enabled ||
+      (ccisEnabled && ccisPlan !== latestAddon.ccis_package) ||
+      duration !== latestAddon.duration
+    
+    return hasChanges
+  }
 
   return (
     <div className="content">

@@ -255,8 +255,8 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       assigned_vmid: (vm as any).assigned_vmid,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-      start_date: null,
-      end_date: null,
+      start_date: (vm as any).start_date || null,
+      end_date: (vm as any).end_date || null,
       backup_enabled: (vm as any).backup_enabled || false,
       backup_type: (vm as any).backup_type || 'weekly',
     }
@@ -338,6 +338,7 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         related_entity_type: 'vm',
         actor_id: actorId,
         actor_name: actorName,
+        customer_id: previousVM.customer_id,
         metadata: {
           vm_id: previousVM.legacy_id || previousVM.id,
           hostname: previousVM.hostname,

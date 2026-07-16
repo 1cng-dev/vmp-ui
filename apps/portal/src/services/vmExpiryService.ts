@@ -53,10 +53,10 @@ export async function checkVMExpiry(): Promise<VMExpiryCheckResult> {
       }
 
       // Create alerts based on days until expiry
-      if (daysUntilExpiry === 30) {
-        await createExpiryAlert(vm, 30, '30 days before expiry')
+      if (daysUntilExpiry === 14) {
+        await createExpiryAlert(vm, 14, '14 days before expiry')
         result.alertsCreated++
-        result.details.push(`Created 30-day alert for VM ${vm.hostname}`)
+        result.details.push(`Created 14-day alert for VM ${vm.hostname}`)
       } else if (daysUntilExpiry === 7) {
         await createExpiryAlert(vm, 7, '7 days before expiry')
         result.alertsCreated++
@@ -134,8 +134,10 @@ async function createExpiryAlert(vm: any, daysUntilExpiry: number, timeframe: st
   let severity: 'info' | 'warn' | 'urgent' = 'info'
   if (daysUntilExpiry <= 1 && daysUntilExpiry >= 0) {
     severity = 'urgent'
-  } else if (daysUntilExpiry <= 7 && daysUntilExpiry >= 0) {
+  } else if (daysUntilExpiry <= 7 && daysUntilExpiry > 1) {
     severity = 'warn'
+  } else if (daysUntilExpiry === 14) {
+    severity = 'info'
   } else if (daysUntilExpiry < 0) {
     severity = 'urgent'
   }
@@ -157,6 +159,7 @@ async function createExpiryAlert(vm: any, daysUntilExpiry: number, timeframe: st
     related_entity_type: 'vm',
     actor_id: 'system',
     actor_name: 'System',
+    customer_id: vm.customer_id,
     metadata: {
       vm_id: vm.legacy_id || vm.id,
       hostname: vm.hostname,

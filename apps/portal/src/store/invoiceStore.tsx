@@ -143,6 +143,7 @@ export const InvoiceProvider: React.FC<{ children: ReactNode }> = ({ children })
       related_entity_type: 'invoice',
       actor_id: actorId,
       actor_name: actorName,
+      customer_id: invoice.customer_id,
       metadata: {
         invoice_id: invoice.legacy_id || invoice.id,
         amount: invoice.gross_amount,
@@ -207,6 +208,7 @@ export const InvoiceProvider: React.FC<{ children: ReactNode }> = ({ children })
         related_entity_type: 'invoice',
         actor_id: actorId,
         actor_name: actorName,
+        customer_id: previousInvoice.customer_id,
         metadata: {
           invoice_id: previousInvoice.legacy_id || previousInvoice.id,
           previous_status: previousInvoice.status,
@@ -259,6 +261,7 @@ export const InvoiceProvider: React.FC<{ children: ReactNode }> = ({ children })
         related_entity_type: 'invoice',
         actor_id: actorId,
         actor_name: actorName,
+        customer_id: invoice.customer_id,
         metadata: { 
           amount: invoice.gross_amount, 
           invoice_id: invoice.legacy_id || invoice.id,

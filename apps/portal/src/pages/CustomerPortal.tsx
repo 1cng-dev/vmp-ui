@@ -11,6 +11,7 @@ import useInvoiceStore from '../store/invoiceStore'
 import useTicketStore from '../store/ticketStore'
 import useTaskStore from '../store/taskStore'
 import useUIStore from '../store/uiStore'
+import useAlertStore from '../store/alertStore'
 import Spinner from '../components/ui/Spinner'
 import { useVMRequestStore } from '../store/vmRequestStore'
 import { useAddonRequestStore } from '../store/addonRequestStore'
@@ -34,6 +35,7 @@ import { CustomerAddonRequestsView } from '../components/customer-portal/Custome
 import { CustomerInvoiceDetail } from '../components/customer-portal/CustomerInvoiceDetail'
 import { AddonServicesView } from '../components/customer-portal/AddonServicesView'
 import { CustomerReceiptsView } from '../components/customer-portal/CustomerReceiptsView'
+import { CustomerNotificationsView } from '../components/customer-portal/CustomerNotificationsView'
 import Toasts from '../components/common/Toasts'
 
 interface CustomerPortalProps {
@@ -48,6 +50,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
   const { tickets } = useTicketStore()
   const { addTask } = useTaskStore()
   const { toast } = useUIStore()
+  const { alerts } = useAlertStore()
   const { vmRequests } = useVMRequestStore()
   const { addonRequests, loadAddonRequests } = useAddonRequestStore()
   const auth = useAuth()
@@ -160,6 +163,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
   const openTickets = myTickets.filter((t: any) => t.status === 'Pending')
   const pendingInv = myInvs.filter((i: any) => i.status === 'Pending')
   const pendingRequests = myRequests.filter((r: any) => r.status === 'Pending')
+  const unreadAlerts = alerts.filter((a: any) => !a.read).length
 
   const items = [
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
@@ -170,6 +174,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
     { id: 'addons', label: 'Add-on Services', icon: 'plus', lockedByKyc: true },
     { id: 'invoices', label: 'Invoices', icon: 'invoice', badge: pendingInv.length || null, lockedByKyc: true },
     { id: 'receipts', label: 'Receipts', icon: 'check', lockedByKyc: true },
+    { id: 'notifications', label: 'Notifications', icon: 'bell', badge: unreadAlerts || null },
     { id: 'tickets', label: 'Support tickets', icon: 'mail', badge: openTickets.length || null },
   ]
 
@@ -257,7 +262,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
           </div>
           <div className="topbar-spacer" />
           <div className="text-sm text-mute">{safeMe.org_name} · <span className="mono">{safeMe.legacy_id || safeMe.id}</span></div>
-          <button className="icon-btn" title="Notifications"><Icon name="bell" size={15} /></button>
+          <button className="icon-btn" title="Notifications" onClick={() => handleSetView('notifications')}><Icon name="bell" size={15} /></button>
         </div>
 
         {safeMe.kyc_status !== 'Approved' && !detailVm && !openTicket && !detailRequest && !detailInvoice && (
@@ -330,6 +335,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
                     {view === 'addon-requests' && <CustomerAddonRequestsView myAddonRequests={myAddonRequests} setDetailRequest={(req) => { setDetailRequest({ ...req, requestType: 'addon' }) }} />}
                     {view === 'invoices' && <CustomerInvoicesView myInvs={myInvs} setDetailInvoice={setDetailInvoice} />}
                     {view === 'receipts' && <CustomerReceiptsView me={safeMe} />}
+                    {view === 'notifications' && <CustomerNotificationsView />}
                     {view === 'tickets' && <CustomerTicketsView me={safeMe} setOpenTicket={setOpenTicket} />}
                     {view === 'addons' && <AddonServicesView myVMs={myVMs} />}
                     {view === 'account' && <CustomerAccountView me={safeMe} />}

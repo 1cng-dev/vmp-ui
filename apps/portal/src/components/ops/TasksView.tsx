@@ -62,7 +62,7 @@ export const TasksView: React.FC<TasksViewProps> = ({ openTask, setView, setAuto
       <div className="card">
         <div className="card-body flush">
           <table className="tbl">
-            <thead><tr><th>Request</th><th>Customer</th><th>Service type</th><th>Type</th><th>Provision Status</th><th>Quote</th><th></th></tr></thead>
+            <thead><tr><th>Request</th><th>Customer</th><th>Service type</th><th>Request Type</th><th>Provision Status</th><th>Quote</th><th></th></tr></thead>
             <tbody>
               {customersLoading || vmRequestsLoading ? (
                 <tr><td colSpan={7}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
@@ -99,7 +99,7 @@ export const TasksView: React.FC<TasksViewProps> = ({ openTask, setView, setAuto
                     </td>
                     <td>
                       {t.requestType === 'vm' ? (
-                        <span className="pill subtle">{t.task_type || 'New'}</span>
+                        <span className="pill subtle">{t.request_type === 'trial' ? 'Trial' : t.task_type || 'New'}</span>
                       ) : (
                         <span className="pill accent">Add-on</span>
                       )}
@@ -116,9 +116,13 @@ export const TasksView: React.FC<TasksViewProps> = ({ openTask, setView, setAuto
                     </td>
                     <td className="right">
                       <div className="flex center gap-1">
-                        <button className="btn" style={{ padding: '4px 10px', fontSize: 11 }} onClick={e => { e.stopPropagation(); setPrefillCustomerId && setPrefillCustomerId(t.customer_id); setPrefillRequestId && setPrefillRequestId(t.id); setPrefillRequestType && setPrefillRequestType(t.requestType); setAutoOpenQuote && setAutoOpenQuote(true); setView && setView('quotes'); }}>
-                          {quote ? 'New Quote' : 'Quotation'}
-                        </button>
+                        {t.request_type !== 'trial' ? (
+                          <button className="btn" style={{ padding: '4px 10px', fontSize: 11, width: '80px' }} onClick={e => { e.stopPropagation(); setPrefillCustomerId && setPrefillCustomerId(t.customer_id); setPrefillRequestId && setPrefillRequestId(t.id); setPrefillRequestType && setPrefillRequestType(t.requestType); setAutoOpenQuote && setAutoOpenQuote(true); setView && setView('quotes'); }}>
+                            {quote ? 'New Quote' : 'Quotation'}
+                          </button>
+                        ) : (
+                          <div style={{ width: '80px' }}></div>
+                        )}
                         <Icon name="chevron-right" size={12} className="text-mute"/>
                       </div>
                     </td>

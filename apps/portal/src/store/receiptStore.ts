@@ -163,6 +163,7 @@ export const ReceiptProvider: React.FC<{ children: ReactNode }> = ({ children })
       related_entity_type: 'receipt',
       actor_id: actorId,
       actor_name: actorName,
+      customer_id: receipt.customer_id,
       metadata: {
         receipt_id: receipt.legacy_id || receipt.id,
         invoice_id: invoiceDisplayId,

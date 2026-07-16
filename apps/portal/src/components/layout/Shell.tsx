@@ -67,10 +67,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
       // Sales sees pending requests
       return vmRequests.filter((r: any) => r.status === 'Pending').length
     } else if (role === 'Engineer') {
-      // Engineer sees in-progress requests for change-plan and renewal
+      // Engineer sees in-progress requests for new, change-plan, renewal, and trial
       return vmRequests.filter((r: any) => 
         ['In Progress', 'Provisioning', 'Network', 'Testing'].includes(r.status) &&
-        (r.task_type === 'change-plan' || r.task_type === 'Renewal')
+        (r.task_type === 'New' || r.task_type === 'change-plan' || r.task_type === 'Renewal' || r.request_type === 'trial')
       ).length
     } else if (role === 'Finance') {
       // Finance sees Approved requests

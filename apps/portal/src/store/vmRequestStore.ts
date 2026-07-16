@@ -135,20 +135,29 @@ export const VMRequestProvider: React.FC<{ children: ReactNode }> = ({ children 
       // Create notification and activity log for new VM request
       await logActivity(
         `Created ${request.request_type} VM request for ${request.hostname} (${request.vcpu} vCPU, ${request.ram_gb}GB RAM)`,
-        'vm',
+        'task',
         actorName,
         { vmRequestId: data[0].id, hostname: request.hostname, requestType: request.request_type, vcpu: request.vcpu, ramGb: request.ram_gb, customerId: request.customer_id, taskType: request.task_type }
       )
       
+      // Create alert for team roles (customer_id = NULL so customer doesn't see it)
+      // Include task_type in title for change-plan and renewal requests
+      const title = request.task_type === 'change-plan' 
+        ? 'Change Plan Request'
+        : request.task_type === 'Renewal' || request.task_type === 'renewal'
+        ? 'Renewal Request'
+        : 'New VM Request'
+      
       await createAlert({
         sev: 'info',
-        title: 'New VM Request',
-        body: `New ${request.request_type} VM request for ${request.hostname} (${request.vcpu} vCPU, ${request.ram_gb}GB RAM)`,
+        title: title,
+        body: `${title} for ${request.hostname} (${request.vcpu} vCPU, ${request.ram_gb}GB RAM)`,
         type: 'vm',
         related_entity_id: data[0].id,
         related_entity_type: 'vm_request',
         actor_id: actorId,
         actor_name: actorName,
+        customer_id: null, // NULL so team roles see it, customer doesn't
         metadata: {
           hostname: request.hostname,
           request_type: request.request_type,
@@ -191,7 +200,7 @@ export const VMRequestProvider: React.FC<{ children: ReactNode }> = ({ children 
         
         await logActivity(
           `Changed VM request ${previousRequest.hostname} status from ${previousRequest.status} to ${patch.status}`,
-          'vm',
+          'task',
           actorName,
           { vmRequestId: id, hostname: previousRequest.hostname, previousStatus: previousRequest.status, newStatus: patch.status, customerId: previousRequest.customer_id }
         )
@@ -205,6 +214,7 @@ export const VMRequestProvider: React.FC<{ children: ReactNode }> = ({ children 
           related_entity_type: 'vm_request',
           actor_id: actorId,
           actor_name: actorName,
+          customer_id: previousRequest.customer_id,
           metadata: {
             hostname: previousRequest.hostname,
             previous_status: previousRequest.status,

@@ -23,10 +23,36 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       const { data: { user } } = await supabase.auth.getUser()
       const userId = user?.id
 
-      const { data, error } = await supabase
+      // Get user's role and customer_id
+      let customerId: string | null = null
+      let isCustomer = false
+      
+      try {
+        const { data: userData } = await supabase
+          .from('customers')
+          .select('id')
+          .eq('id', userId)
+          .single()
+        
+        customerId = userData?.id || null
+        isCustomer = !!customerId
+      } catch (customerError) {
+        // If user can't query customers table, they're not a customer (they're a team member)
+        isCustomer = false
+        customerId = null
+      }
+
+      let query = supabase
         .from('alerts')
         .select('*')
         .order('created_at', { ascending: false })
+      
+      // Filter by customer_id for customer role
+      if (isCustomer && customerId) {
+        query = query.eq('customer_id', customerId)
+      }
+      
+      const { data, error } = await query
       
       if (error) throw error
 
@@ -58,6 +84,7 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         related_entity_type: a.related_entity_type,
         actor_id: a.actor_id,
         actor_name: a.actor_name,
+        customer_id: a.customer_id,
         metadata: a.metadata
       }))
       

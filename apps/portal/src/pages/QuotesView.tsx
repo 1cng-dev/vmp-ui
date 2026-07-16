@@ -26,6 +26,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
   const { user, refreshUser } = useAuthStore()
   const { vms, loadVMs } = useVMStore()
   const [building, setBuilding] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [addonRequests, setAddonRequests] = useState<any[]>([])
   const [requestType, setRequestType] = useState<'vm' | 'addon'>('vm')
   const [currentVMData, setCurrentVMData] = useState<any>(null)
@@ -916,76 +917,96 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
             <div className="flex gap-2 mt-2">
               <button
                 className="btn"
+                disabled={submitting}
                 onClick={async () => {
                   if (!selectedCustomerId) { toast('Select a customer first', 'warn'); return }
                   if (!selectedRequestId) { toast('Select a request first', 'warn'); return }
-                  const id = await addQuote({
-                    vm_request_id: requestType === 'vm' ? selectedRequestId : undefined,
-                    addon_request_id: requestType === 'addon' ? selectedRequestId : undefined,
-                    status: 'Draft',
-                    validity_date: new Date(Date.now() + 7 * 86400000).toISOString(),
-                    instance_total: instanceSub,
-                    public_ip_total: publicIPSub,
-                    backup_total: backupSub,
-                    discount_amount: discountAmount,
-                    tax_amount: tax,
-                    net_amount: netAmount,
-                    grand_total: grand,
-                    billing_term: sheet.instance[0]?.term || 'Monthly',
-                    discount_pct: sheet.discountPct,
-                    currency: 'MMK',
-                    created_by: user?.id,
-                    line_items: [
-                      ...sheet.instance.map(l => ({ kind: 'instance', ...l })),
-                      ...sheet.backup.map(l => ({ kind: 'backup', ...l })),
-                      ...sheet.publicIP.map(l => ({ kind: 'publicIP', ...l })),
-                    ],
-                    notes: null,
-                  })
-                  toast(`Quote ${id} saved`, 'ok')
-                  setBuilding(false)
+                  setSubmitting(true)
+                  try {
+                    const id = await addQuote({
+                      vm_request_id: requestType === 'vm' ? selectedRequestId : undefined,
+                      addon_request_id: requestType === 'addon' ? selectedRequestId : undefined,
+                      status: 'Draft',
+                      validity_date: new Date(Date.now() + 7 * 86400000).toISOString(),
+                      instance_total: instanceSub,
+                      public_ip_total: publicIPSub,
+                      backup_total: backupSub,
+                      discount_amount: discountAmount,
+                      tax_amount: tax,
+                      net_amount: netAmount,
+                      grand_total: grand,
+                      billing_term: sheet.instance[0]?.term || 'Monthly',
+                      discount_pct: sheet.discountPct,
+                      currency: 'MMK',
+                      created_by: user?.id,
+                      line_items: [
+                        ...sheet.instance.map(l => ({ kind: 'instance', ...l })),
+                        ...sheet.backup.map(l => ({ kind: 'backup', ...l })),
+                        ...sheet.publicIP.map(l => ({ kind: 'publicIP', ...l })),
+                      ],
+                      notes: null,
+                    })
+                    toast(`Quote ${id} saved`, 'ok')
+                    // Clear form inputs
+                    setSelectedCustomerId(undefined)
+                    setSelectedRequestId(undefined)
+                    setSheet({ instance: [], backup: [], publicIP: [], taxPct: 5, discountPct: 0 })
+                    setBuilding(false)
+                  } finally {
+                    setSubmitting(false)
+                  }
                 }}
               >
-                Save draft
+                {submitting ? 'Saving...' : 'Save draft'}
               </button>
 
               <button
                 className="btn accent"
+                disabled={submitting}
                 onClick={async () => {
                   if (!selectedCustomerId) { toast('Select a customer first', 'warn'); return }
                   if (!selectedRequestId) { toast('Select a request first', 'warn'); return }
-                  const id = await addQuote({
-                    vm_request_id: requestType === 'vm' ? selectedRequestId : undefined,
-                    addon_request_id: requestType === 'addon' ? selectedRequestId : undefined,
-                    status: 'Sent',
-                    validity_date: new Date(Date.now() + 7 * 86400000).toISOString(),
-                    instance_total: instanceSub,
-                    public_ip_total: publicIPSub,
-                    backup_total: backupSub,
-                    discount_amount: discountAmount,
-                    tax_amount: tax,
-                    net_amount: netAmount,
-                    grand_total: grand,
-                    billing_term: sheet.instance[0]?.term || 'Monthly',
-                    discount_pct: sheet.discountPct,
-                    currency: 'MMK',
-                    created_by: user?.id,
-                    line_items: [
-                      ...sheet.instance.map(l => ({ kind: 'instance', ...l })),
-                      ...sheet.backup.map(l => ({ kind: 'backup', ...l })),
-                      ...sheet.publicIP.map(l => ({ kind: 'publicIP', ...l })),
-                    ],
-                    notes: null,
-                  })
+                  setSubmitting(true)
+                  try {
+                    const id = await addQuote({
+                      vm_request_id: requestType === 'vm' ? selectedRequestId : undefined,
+                      addon_request_id: requestType === 'addon' ? selectedRequestId : undefined,
+                      status: 'Sent',
+                      validity_date: new Date(Date.now() + 7 * 86400000).toISOString(),
+                      instance_total: instanceSub,
+                      public_ip_total: publicIPSub,
+                      backup_total: backupSub,
+                      discount_amount: discountAmount,
+                      tax_amount: tax,
+                      net_amount: netAmount,
+                      grand_total: grand,
+                      billing_term: sheet.instance[0]?.term || 'Monthly',
+                      discount_pct: sheet.discountPct,
+                      currency: 'MMK',
+                      created_by: user?.id,
+                      line_items: [
+                        ...sheet.instance.map(l => ({ kind: 'instance', ...l })),
+                        ...sheet.backup.map(l => ({ kind: 'backup', ...l })),
+                        ...sheet.publicIP.map(l => ({ kind: 'publicIP', ...l })),
+                      ],
+                      notes: null,
+                    })
 
-                  toast(`Quote ${id} prepared for Finance`, 'ok')
-                  setBuilding(false)
+                    toast(`Quote ${id} prepared for Finance`, 'ok')
+                    // Clear form inputs
+                    setSelectedCustomerId(undefined)
+                    setSelectedRequestId(undefined)
+                    setSheet({ instance: [], backup: [], publicIP: [], taxPct: 5, discountPct: 0 })
+                    setBuilding(false)
+                  } finally {
+                    setSubmitting(false)
+                  }
                 }}
               >
-                <Icon name="mail" size={12} />Send to Finance
+                {submitting ? 'Sending...' : <><Icon name="mail" size={12} />Send to Finance</>}
               </button>
               <div style={{ flex: 1 }} />
-              <button className="btn ghost" onClick={() => setBuilding(false)}>Cancel</button>
+              <button className="btn ghost" onClick={() => setBuilding(false)} disabled={submitting}>Cancel</button>
             </div>
           </div>
         </div>

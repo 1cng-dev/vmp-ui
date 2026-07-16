@@ -44,14 +44,16 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
   const isUpgrade = requestType === 'vm' && (t?.task_type?.toLowerCase() === 'change-plan')
   const isRenewal = requestType === 'vm' && (t?.task_type === 'Renewal' || t?.task_type === 'renewal')
   const isSpecChange = t?.spec_changed || false
+  const isTrial = requestType === 'vm' && t?.request_type === 'trial'
   
   // Check if payment is received for this request (via invoice)
+  // Skip payment validation for trial requests
   const invoice = invoices.find((i: any) => 
     requestType === 'vm' 
       ? i.vm_request_ids?.includes(requestId)
       : i.addon_request_ids?.includes(requestId)
   )
-  const isPaymentReceived = invoice && invoice.status === 'Payment Received'
+  const isPaymentReceived = isTrial ? true : (invoice && invoice.status === 'Payment Received')
   const isBackupChange = t?.backup_changed || false
 
   // Load customers if not loaded yet
@@ -346,20 +348,20 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                   const vmData = getVMByHostname(t.hostname)
                                   if (vmData) {
                                     vmId = vmData.id
-                                    // Calculate new expiry date from VM's created_at (consistent with new logic)
+                                    // Calculate new expiry date using same logic as other flows
                                     const startDate = vmData.created_at ? new Date(vmData.created_at) : new Date()
                                     startDate.setDate(startDate.getDate() + 1) // Add 1 day
 
-                                    const durationMonths = t.duration || 12
-                                    const expiryDate = new Date(startDate)
-                                    expiryDate.setMonth(expiryDate.getMonth() + durationMonths)
-                                    const newExpiry = expiryDate.toISOString()
+                                    const endDate = new Date(startDate)
+                                    endDate.setMonth(endDate.getMonth() + (t.duration || 12))
+                                    const newExpiry = endDate.toISOString()
 
-                                    // Update VM expiry and duration using store
+                                    // Update VM expiry, duration, and end_date using store
                                     try {
                                       await updateVM(vmId, {
                                         expiry: newExpiry,
-                                        duration: t.duration || 12
+                                        duration: t.duration || 12,
+                                        end_date: newExpiry // For paid requests, end_date should match expiry
                                       })
 
                                       // Update the original VM request from trial to paid
@@ -441,21 +443,21 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                       console.log('VM Data result:', matchingVMs)
 
                                       if (matchingVMs.length > 0) {
-                                        // Trigger handles start_date automatically, only update end_date here
-                                        const startDate = matchingVMs[0].created_at ? new Date(matchingVMs[0].created_at) : new Date()
-                                        const endDate = new Date(startDate)
-                                        endDate.setDate(endDate.getDate() + 1) // Add 1 day
-                                        endDate.setMonth(endDate.getMonth() + (t.duration || 12))
+                                        // Skip end_date update for trial requests (already set correctly in taskStore)
+                                        if (t.request_type !== 'trial') {
+                                          // Trigger handles start_date automatically, only update end_date here
+                                          const startDate = matchingVMs[0].created_at ? new Date(matchingVMs[0].created_at) : new Date()
+                                          const endDate = new Date(startDate)
+                                          endDate.setDate(endDate.getDate() + 1) // Add 1 day
+                                          endDate.setMonth(endDate.getMonth() + (t.duration || 12))
 
-                                        console.log('Setting end_date:', { end_date: endDate.toISOString() })
-
-                                        // Update all VMs associated with this request - only set end_date
-                                        for (const vm of matchingVMs) {
-                                          await updateVM(vm.id, {
-                                            end_date: endDate.toISOString()
-                                          })
+                                          // Update all VMs associated with this request - only set end_date
+                                          for (const vm of matchingVMs) {
+                                            await updateVM(vm.id, {
+                                              end_date: endDate.toISOString()
+                                            })
+                                          }
                                         }
-                                        console.log('VM dates updated successfully for', matchingVMs.length, 'VM(s)')
                                       } else {
                                         console.log('No VMs found for request:', t.id)
                                       }
