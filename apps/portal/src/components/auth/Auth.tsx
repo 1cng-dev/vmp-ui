@@ -45,15 +45,19 @@ export const AuthShell: React.FC<AuthShellProps> = ({ children, setRole }) => {
   const [signupEmail, setSignupEmail] = useState('')
   const [loading, setLoading] = useState(true)
   const [shouldRedirect, setShouldRedirect] = useState(false)
+  const [justSignedUp, setJustSignedUp] = useState(false)
   const initialRoleSetRef = React.useRef(false)
-  const loadingStartTimeRef = React.useRef<number>(Date.now())
-
-  const MIN_LOADING_TIME = 400
 
   useEffect(() => {
     // Check current session
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
+        // Don't set user if in signup mode - let completeSignup handle it
+        if (mode === 'signup') {
+          setLoading(false)
+          return
+        }
+
         const userData = session.user.user_metadata
         const userRole = userData.role || 'Customer'
 
@@ -62,11 +66,6 @@ export const AuthShell: React.FC<AuthShellProps> = ({ children, setRole }) => {
         if (teamRoles.includes(userRole)) {
           if (window.location.pathname !== '/admin') {
             setShouldRedirect(true)
-          }
-          const elapsedTime = Date.now() - loadingStartTimeRef.current
-          const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime)
-          if (remainingTime > 0) {
-            await new Promise(resolve => setTimeout(resolve, remainingTime))
           }
           setLoading(false)
           return
@@ -85,17 +84,18 @@ export const AuthShell: React.FC<AuthShellProps> = ({ children, setRole }) => {
           initialRoleSetRef.current = true
         }
       }
-      const elapsedTime = Date.now() - loadingStartTimeRef.current
-      const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime)
-      if (remainingTime > 0) {
-        await new Promise(resolve => setTimeout(resolve, remainingTime))
-      }
       setLoading(false)
     })
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
+        // Don't set user if in signup mode - let completeSignup handle it
+        if (mode === 'signup') {
+          setLoading(false)
+          return
+        }
+
         const userData = session.user.user_metadata
         const userRole = userData.role || 'Customer'
 
@@ -104,11 +104,6 @@ export const AuthShell: React.FC<AuthShellProps> = ({ children, setRole }) => {
         if (teamRoles.includes(userRole)) {
           if (window.location.pathname !== '/admin') {
             setShouldRedirect(true)
-          }
-          const elapsedTime = Date.now() - loadingStartTimeRef.current
-          const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime)
-          if (remainingTime > 0) {
-            await new Promise(resolve => setTimeout(resolve, remainingTime))
           }
           setLoading(false)
           return
@@ -130,16 +125,11 @@ export const AuthShell: React.FC<AuthShellProps> = ({ children, setRole }) => {
       } else {
         setUser(null)
       }
-      const elapsedTime = Date.now() - loadingStartTimeRef.current
-      const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime)
-      if (remainingTime > 0) {
-        await new Promise(resolve => setTimeout(resolve, remainingTime))
-      }
       setLoading(false)
     })
 
     return () => subscription.unsubscribe()
-  }, [setRole])
+  }, [setRole, mode])
 
 
   const handleSignout = async () => {
@@ -150,7 +140,13 @@ export const AuthShell: React.FC<AuthShellProps> = ({ children, setRole }) => {
 
   const completeSignup = (email: string) => {
     setSignupEmail(email)
-    setSignupComplete(true)
+    setJustSignedUp(true)
+    setUser(null) // Clear user to prevent dashboard from showing
+    // Show loading spinner for a moment, then show success page
+    setTimeout(() => {
+      setSignupComplete(true)
+      setJustSignedUp(false)
+    }, 800)
   }
 
   if (shouldRedirect) {
@@ -159,6 +155,14 @@ export const AuthShell: React.FC<AuthShellProps> = ({ children, setRole }) => {
 
   if (signupComplete) {
     return <SignupSuccess email={signupEmail} onContinue={() => { setSignupComplete(false); setMode('login') }} />
+  }
+
+  if (justSignedUp) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg)' }}>
+        <Spinner size={40} />
+      </div>
+    )
   }
 
   if (loading) {
@@ -188,9 +192,6 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const initialRoleSetRef = React.useRef(false)
-  const loadingStartTimeRef = React.useRef<number>(Date.now())
-
-  const MIN_LOADING_TIME = 400
 
   const updateTeamMemberLogin = async (userId: string, userData: any, email: string) => {
     try {
@@ -259,11 +260,6 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
         const allowedRoles = ['Admin', 'Sales', 'Engineer', 'Finance']
         if (!allowedRoles.includes(userRole)) {
           await supabase.auth.signOut()
-          const elapsedTime = Date.now() - loadingStartTimeRef.current
-          const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime)
-          if (remainingTime > 0) {
-            await new Promise(resolve => setTimeout(resolve, remainingTime))
-          }
           setLoading(false)
           return
         }
@@ -285,11 +281,6 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
           initialRoleSetRef.current = true
         }
       }
-      const elapsedTime = Date.now() - loadingStartTimeRef.current
-      const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime)
-      if (remainingTime > 0) {
-        await new Promise(resolve => setTimeout(resolve, remainingTime))
-      }
       setLoading(false)
     })
 
@@ -303,11 +294,6 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
         const allowedRoles = ['Admin', 'Sales', 'Engineer', 'Finance']
         if (!allowedRoles.includes(userRole)) {
           await supabase.auth.signOut()
-          const elapsedTime = Date.now() - loadingStartTimeRef.current
-          const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime)
-          if (remainingTime > 0) {
-            await new Promise(resolve => setTimeout(resolve, remainingTime))
-          }
           setLoading(false)
           return
         }
@@ -331,11 +317,6 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
         }
       } else {
         setUser(null)
-      }
-      const elapsedTime = Date.now() - loadingStartTimeRef.current
-      const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime)
-      if (remainingTime > 0) {
-        await new Promise(resolve => setTimeout(resolve, remainingTime))
       }
       setLoading(false)
     })

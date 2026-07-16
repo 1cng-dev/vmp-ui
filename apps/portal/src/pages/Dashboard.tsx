@@ -33,12 +33,14 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
   const expiringSoon = vms.filter(v => {
     if (!v.expiry || v.expiry === '—') return false
     const d = Math.ceil((new Date(v.expiry).getTime() - TODAY.getTime()) / 86400000)
-    return d >= 0 && d <= 7
+    // Only VMs expiring in the future (1-14 days), not today or already expired, with Active or Suspended status only
+    return d > 0 && d <= 14 && (v.status === 'Active' || v.status === 'Suspended')
   })
   const expiredVMs = vms.filter(v => {
     if (!v.expiry || v.expiry === '—') return false
     const d = Math.ceil((new Date(v.expiry).getTime() - TODAY.getTime()) / 86400000)
-    return d < 0
+    // VMs that have already expired or expire today, with Active or Suspended status only
+    return d <= 0 && (v.status === 'Active' || v.status === 'Suspended')
   })
   const overdue = invoices.filter(i => i.status === 'Overdue').length
   const paymentReceived = invoices.filter(i => i.status === 'Payment Received').length
@@ -130,7 +132,7 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
           <div className="trend">{weeklyGrowth > 0 ? <span className="up">+{weeklyGrowth}</span> : weeklyGrowth < 0 ? <span className="down">{weeklyGrowth}</span> : '0'} this week · {vms.length} total</div>
         </div>
         <div className="metric">
-          <div className="label"><Icon name="clock" size={13} /> Expiring ≤ 7 days</div>
+          <div className="label"><Icon name="clock" size={13} /> Expiring ≤ 14 days</div>
           <div className="value tnum" style={{ color: 'oklch(0.55 0.16 75)' }}>{expiringSoon.length}</div>
           <div className="trend">{expiringSoon.length > 0 ? `${expiringSoon.length} need follow-up` : 'all clear'}</div>
         </div>
@@ -151,7 +153,7 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
           <div className="card-head">
             <div>
               <h2 className="card-title">Expiring soon</h2>
-              <div className="card-sub">VMs needing renewal action in the next 7 days</div>
+              <div className="card-sub">VMs needing renewal action in the next 14 days</div>
             </div>
             <button className="btn sm" onClick={() => setView('vms')}>View all<Icon name="chevron-right" size={12} /></button>
           </div>
@@ -313,6 +315,10 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
                     {expiredVMs.slice(0, 6).map(v => {
                       const c = customers.find(c => c.id === (v as any).customer_id)
                       const daysExpired = v.expiry ? Math.ceil((new Date(v.expiry).getTime() - TODAY.getTime()) / 86400000) : 0
+                      const expiryDate = v.expiry ? new Date(v.expiry) : null
+                      const isSameDay = expiryDate && expiryDate.toDateString() === TODAY.toDateString()
+                      // Show "expired today" if days expired is 0 or -1 (handles timezone edge cases)
+                      const showExpiredToday = isSameDay || Math.abs(daysExpired) <= 1
                       return (
                         <tr key={v.id} onClick={() => openVM(v.id)}>
                           <td>
@@ -320,7 +326,7 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
                             <div className="text-xs text-mute mono">{(v as any).legacy_id || v.id}</div>
                           </td>
                           <td>{c?.name}{c?.org_name || c?.company ? ` (${c?.org_name || c?.company})` : ''}</td>
-                          <td><div className="text-sm" style={{ color: 'var(--bad)' }}>{Math.abs(daysExpired)} days ago</div></td>
+                          <td><div className="text-sm" style={{ color: 'var(--bad)' }}>{showExpiredToday ? 'expired today' : `${Math.abs(daysExpired)} days ago`}</div></td>
                           <td><StatusPill status={v.status} /></td>
                           <td className="right" onClick={e => e.stopPropagation()}>
                             <button className="btn sm" onClick={() => openModal('renew', { vm: v })}>Renew</button>

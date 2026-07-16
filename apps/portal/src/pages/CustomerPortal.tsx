@@ -11,6 +11,7 @@ import useInvoiceStore from '../store/invoiceStore'
 import useTicketStore from '../store/ticketStore'
 import useTaskStore from '../store/taskStore'
 import useUIStore from '../store/uiStore'
+import Spinner from '../components/ui/Spinner'
 import { useVMRequestStore } from '../store/vmRequestStore'
 import { useAddonRequestStore } from '../store/addonRequestStore'
 import Icon from '../lib/icons'
@@ -107,27 +108,8 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
   const safeMe = me || { id: '', name: '', org_name: '', kyc_status: 'Pending', legacy_id: '' }
 
   // Filter requests for current customer
-  console.log('Debug addon requests:', {
-    totalAddonRequests: addonRequests.length,
-    safeMeId: safeMe.id,
-    addonRequests: addonRequests.map(ar => ({
-      id: ar.id,
-      customer_id: ar.customer_id,
-      vm_id: ar.vm_id,
-      status: ar.status
-    }))
-  })
   const myVMRequests = vmRequests.filter((r: any) => r.customer_id === safeMe.id)
   const myAddonRequests = addonRequests.filter((r: any) => r.customer_id === safeMe.id)
-  console.log('Filtered addon requests:', {
-    myAddonRequestsCount: myAddonRequests.length,
-    myAddonRequests: myAddonRequests.map(ar => ({
-      id: ar.id,
-      customer_id: ar.customer_id,
-      vm_id: ar.vm_id,
-      status: ar.status
-    }))
-  })
 
   useEffect(() => {
     if (me && me.kyc_status !== 'Approved' && ['request', 'vms', 'requests', 'invoices'].includes(view)) {
@@ -136,13 +118,25 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
   }, [me?.kyc_status, view, me])
 
   if (!auth?.user) {
-    return <div className="content"><div className="empty"><div className="title">Signing you in…</div></div></div>
+    return (
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', zIndex: 9999 }}>
+        <Spinner size={40} />
+      </div>
+    )
   }
   if (customers.length === 0) {
-    return null // Don't render anything while loading
+    return (
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', zIndex: 9999 }}>
+        <Spinner size={40} />
+      </div>
+    )
   }
   if (!me) {
-    return <div className="content"><div className="empty"><div className="title">Account not found</div><div className="sub">Try signing out and back in.</div></div></div>
+    return (
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', zIndex: 9999 }}>
+        <Spinner size={40} />
+      </div>
+    )
   }
   const myVMs = vms.filter((v: any) => {
   // Only show VMs where the customer_id matches
@@ -155,10 +149,18 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
   const myTickets = tickets.filter((t: any) => t.customer_id === safeMe.id)
   const myRequests = myVMRequests
 
-  const expiringSoon = myVMs.filter((v: any) => {
+  const expiredVMs = myVMs.filter((v: any) => {
     if (!v.expiry || v.expiry === '—') return false
     const d = (new Date(v.expiry).getTime() - new Date().getTime()) / 86400000
-    return d >= 0 && d <= 14
+    // VMs that have already expired, with Active or Suspended status only
+    return d < 0 && (v.status === 'Active' || v.status === 'Suspended')
+  })
+
+  const expiringSoonVMs = myVMs.filter((v: any) => {
+    if (!v.expiry || v.expiry === '—') return false
+    const d = (new Date(v.expiry).getTime() - new Date().getTime()) / 86400000
+    // VMs expiring within the next 14 days, with Active or Suspended status only
+    return d >= 0 && d <= 14 && (v.status === 'Active' || v.status === 'Suspended')
   })
   const openTickets = myTickets.filter((t: any) => t.status === 'Pending')
   const pendingInv = myInvs.filter((i: any) => i.status === 'Pending')
@@ -296,11 +298,20 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
 
         <style>{`@keyframes slideDown { from { transform: translateY(-6px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }`}</style>
 
-        {expiringSoon.length > 0 && !detailVm && view !== 'request' && safeMe.kyc_status === 'Approved' && (
+        {expiredVMs.length > 0 && !detailVm && view !== 'request' && safeMe.kyc_status === 'Approved' && (
+          <div style={{ padding: '12px 28px', background: 'var(--bad-soft)', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Icon name="alert" size={16} style={{ color: 'var(--bad)' }} />
+            <div className="text-sm" style={{ color: 'var(--bad)' }}>
+              <span className="fw-6">{expiredVMs.map((v: any) => `${v.hostname}(${v.legacy_id})`).join(', ')} expired.</span> Renew immediately to restore service.
+            </div>
+          </div>
+        )}
+
+        {expiringSoonVMs.length > 0 && !detailVm && view !== 'request' && safeMe.kyc_status === 'Approved' && (
           <div style={{ padding: '12px 28px', background: 'var(--warn-soft)', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 10 }}>
             <Icon name="alert" size={16} style={{ color: 'oklch(0.55 0.16 75)' }} />
             <div className="text-sm" style={{ color: 'oklch(0.4 0.13 75)' }}>
-              <span className="fw-6">{expiringSoon.map((v: any) => `${v.hostname}(${v.legacy_id})`).join(', ')} expiring soon.</span> Renew now to avoid service interruption.
+              <span className="fw-6">{expiringSoonVMs.map((v: any) => `${v.hostname}(${v.legacy_id})`).join(', ')} expiring soon.</span> Renew now to avoid service interruption.
             </div>
           </div>
         )}

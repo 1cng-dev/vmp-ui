@@ -36,20 +36,16 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onSwitchToSignup, prefillEmai
 
     // Check customer status after successful auth
     if (authData.user) {
-      const { data: customer, error: customerError } = await supabase
+      const { data: customer } = await supabase
         .from('customers')
         .select('status, force_password_change')
         .eq('id', authData.user.id)
         .single()
 
-      if (customerError || !customer) {
-        toast('Account not found', 'bad')
-        await supabase.auth.signOut()
-        setLoading(false)
-        return
-      }
+      // Note: Customer availability check removed to prevent race condition after signup
+      // CustomerPortal handles loading states when customer data is not immediately available
 
-      if (customer.status !== 'Active') {
+      if (customer && customer.status !== 'Active') {
         toast('Your account has been suspended. Please contact support.', 'bad')
         await supabase.auth.signOut()
         setLoading(false)
@@ -57,7 +53,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onSwitchToSignup, prefillEmai
       }
 
       // Check if user needs to change password
-      if (customer.force_password_change) {
+      if (customer?.force_password_change) {
         navigate('/change-password')
         setLoading(false)
         return

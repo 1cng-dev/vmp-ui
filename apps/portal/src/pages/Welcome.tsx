@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import Spinner from '../components/ui/Spinner'
 
 const Welcome = () => {
   const navigate = useNavigate()
@@ -63,11 +64,8 @@ const Welcome = () => {
 
   if (loading) {
     return (
-      <div className="content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-        <div className="card" style={{ maxWidth: 400, textAlign: 'center' }}>
-          <h2 className="card-title">Processing invite...</h2>
-          <p className="text-mute">Please wait</p>
-        </div>
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', zIndex: 9999 }}>
+        <Spinner size={40} />
       </div>
     )
   }
