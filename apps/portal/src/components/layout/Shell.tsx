@@ -7,6 +7,8 @@ import { useVMRequestStore } from '../../store/vmRequestStore'
 import useTicketStore from '../../store/ticketStore'
 import { useAlertStore } from '../../store/alertStore'
 import useInvoiceStore from '../../store/invoiceStore'
+import { useQuoteStore } from '../../store/quoteStore'
+import { useAddonRequestStore } from '../../store/addonRequestStore'
 
 interface NavItem {
   section?: string
@@ -39,15 +41,20 @@ interface TopbarProps {
 
 
 export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames = {}, onAccountClick, onLogout }) => {
-  const { customers, loadCustomers, subscribeToCustomers } = useCustomerStore()
+  const { customers, loadCustomers } = useCustomerStore()
   const { vmRequests } = useVMRequestStore()
   const { tickets } = useTicketStore()
   const { alerts } = useAlertStore()
   const { invoices, loadInvoices } = useInvoiceStore()
+  const { quotes } = useQuoteStore()
+  const { addonRequests } = useAddonRequestStore()
   const pendingKycCount = customers.filter((c: any) => c.kyc_status === 'Pending').length
   const openTicketsCount = tickets.filter((t: any) => t.status === 'Open').length
   const unreadAlertsCount = alerts.filter((a: any) => !a.read).length
   const customerTransferredInvoicesCount = invoices.filter((i: any) => i.status === 'Customer Transferred').length
+  const sentQuotesCount = quotes.filter((q: any) => q.status === 'Sent').length
+  const pendingAddonRequestsCount = addonRequests.filter((a: any) => a.status === 'Pending').length
+  const inProgressAddonRequestsCount = addonRequests.filter((a: any) => ['In Progress', 'Network', 'Testing'].includes(a.status)).length
 
   React.useEffect(() => {
     loadCustomers()
@@ -60,8 +67,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
       // Sales sees pending requests
       return vmRequests.filter((r: any) => r.status === 'Pending').length
     } else if (role === 'Engineer') {
-      // Engineer sees Provisioning requests
-      return vmRequests.filter((r: any) => r.status === 'Provisioning').length
+      // Engineer sees in-progress requests for change-plan and renewal
+      return vmRequests.filter((r: any) => 
+        ['In Progress', 'Provisioning', 'Network', 'Testing'].includes(r.status) &&
+        (r.task_type === 'change-plan' || r.task_type === 'Renewal')
+      ).length
     } else if (role === 'Finance') {
       // Finance sees Approved requests
       return vmRequests.filter((r: any) => r.status === 'Approved').length
@@ -87,7 +97,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
     { section: 'Operations' },
     { id: 'vms', label: 'VM records', icon: 'server' },
     { id: 'tasks', label: 'Customer Requests', icon: 'tasks', badge: pendingRequestsCount > 0 ? pendingRequestsCount : undefined },
-    { id: 'addons', label: 'Add-on Services', icon: 'box' },
+    { id: 'addons', label: 'Add-on Services', icon: 'box', badge: (role === 'Sales' ? pendingAddonRequestsCount : inProgressAddonRequestsCount) > 0 ? (role === 'Sales' ? pendingAddonRequestsCount : inProgressAddonRequestsCount) : undefined },
     { id: 'network', label: 'Network & IPs', icon: 'network' },
     { section: 'Engineering' },
     { id: 'console', label: 'Web console', icon: 'cpu' },
@@ -108,7 +118,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
     { id: 'followups', label: 'Follow-ups', icon: 'clock' },
     { id: 'trials', label: 'Trial conversions', icon: 'box' },
     { section: 'Finance' },
-    { id: 'quote-review', label: 'Quote Review', icon: 'file' },
+    { id: 'quote-review', label: 'Quote Review', icon: 'file', badge: sentQuotesCount > 0 ? sentQuotesCount : undefined },
     { id: 'finance', label: 'Invoices', icon: 'invoice', badge: customerTransferredInvoicesCount > 0 ? customerTransferredInvoicesCount : undefined },
     { id: 'receipts', label: 'Receipts', icon: 'check' },
     { id: 'reports', label: 'Reports', icon: 'box' },
@@ -132,10 +142,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
     
     // Define which roles can see which badges
     const badgeVisibility: Record<string, Set<string>> = {
-      'tasks': new Set(['Sales', 'Engineer', 'Finance', 'Admin']),
+      'tasks': new Set(['Sales', 'Engineer']),
+      'addons': new Set(['Sales', 'Engineer', 'Finance']),
       'kyc': new Set(['Sales', 'Admin']),
       'tickets': new Set(['Sales', 'Engineer', 'Finance', 'Admin']),
       'finance': new Set(['Finance', 'Admin']),
+      'quote-review': new Set(['Finance', 'Admin']),
     }
     
     const allowedRoles = badgeVisibility[itemId]

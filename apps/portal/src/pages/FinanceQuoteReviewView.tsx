@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import Icon from '../lib/icons'
-import { formatMMK, Spinner } from '../components/ui/ui'
+import { formatMMK, CircularSpinner } from '../components/ui/ui'
 import useQuoteStore from '../store/quoteStore'
 import useCustomerStore from '../store/customerStore'
 import useVMRequestStore from '../store/vmRequestStore'
@@ -75,7 +75,7 @@ const FinanceQuoteReviewView = () => {
             </thead>
             <tbody>
               {quotesLoading ? (
-                <tr><td colSpan={9}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div></td></tr>
+                <tr><td colSpan={9}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
               ) : financeQuotes.length === 0 ? (
                 <tr><td colSpan={9}><div className="empty"><div className="title">No quotes yet</div><div className="sub">Quotes will appear here when customers request pricing.</div></div></td></tr>
               ) : (

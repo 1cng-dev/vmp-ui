@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { StatusPill, formatMMK, Spinner } from '../ui/ui'
+import { StatusPill, formatMMK, CircularSpinner } from '../ui/ui'
 import Icon from '../../lib/icons'
 import useUIStore from '../../store/uiStore'
 import useVMRequestStore from '../../store/vmRequestStore'
@@ -60,7 +60,7 @@ export const CustomerInvoicesView: React.FC<CustomerInvoicesViewProps> = ({ myIn
             </thead>
             <tbody>
               {invoicesLoading ? (
-                <tr><td colSpan={13}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div></td></tr>
+                <tr><td colSpan={13}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
               ) : (
                 <>
                   {myInvs.length === 0 && <tr><td colSpan={13}><div className="empty"><div className="title">No invoices yet</div><div className="sub">Invoices will appear here once they're generated for your VMs.</div></div></td></tr>}

@@ -8,7 +8,7 @@ import useTicketStore from '../store/ticketStore'
 import { useAuth } from '../components/auth/Auth'
 import useTeamStore from '../store/teamStore'
 import Icon from '../lib/icons'
-import { StatusPill, formatMMK, ExpiryCell, Donut, Spinner } from '../components/ui/ui'
+import { StatusPill, formatMMK, ExpiryCell, Donut, CircularSpinner } from '../components/ui/ui'
 
 interface DashboardProps {
   openVM: (id: string) => void
@@ -161,12 +161,12 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
             <table className="tbl">
               <thead>
                 <tr>
-                  <th>VM</th><th>Customer</th><th>Expires</th><th>Status</th><th></th>
+                  <th>VM</th><th>Customer</th><th>Expires</th><th>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {vmsLoading ? (
-                  <tr><td colSpan={5}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div></td></tr>
+                  <tr><td colSpan={4}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
                 ) : (
                   <>
                     {expiringSoon.slice(0, 6).map(v => {
@@ -180,13 +180,10 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
                           <td>{c?.name}{c?.org_name || c?.company ? ` (${c?.org_name || c?.company})` : ''}</td>
                           <td><ExpiryCell date={v.expiry || ''} /></td>
                           <td><StatusPill status={v.status} /></td>
-                          <td className="right" onClick={e => e.stopPropagation()}>
-                            <button className="btn sm" onClick={() => openModal('renew', { vm: v })}>Renew</button>
-                          </td>
                         </tr>
                       )
                     })}
-                    {expiringSoon.length === 0 && <tr><td colSpan={5}><div className="empty"><div className="title">Nothing expiring soon</div><div className="sub">No VMs need renewal in the next 7 days.</div></div></td></tr>}
+                    {expiringSoon.length === 0 && <tr><td colSpan={4}><div className="empty"><div className="title">Nothing expiring soon</div><div className="sub">No VMs need renewal in the next 7 days.</div></div></td></tr>}
                   </>
                 )}
               </tbody>
@@ -304,12 +301,12 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
             <table className="tbl">
               <thead>
                 <tr>
-                  <th>VM</th><th>Customer</th><th>Expired</th><th>Status</th><th></th>
+                  <th>VM</th><th>Customer</th><th>Expired</th><th>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {vmsLoading ? (
-                  <tr><td colSpan={5}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div></td></tr>
+                  <tr><td colSpan={4}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
                 ) : (
                   <>
                     {expiredVMs.slice(0, 6).map(v => {
@@ -328,13 +325,10 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
                           <td>{c?.name}{c?.org_name || c?.company ? ` (${c?.org_name || c?.company})` : ''}</td>
                           <td><div className="text-sm" style={{ color: 'var(--bad)' }}>{showExpiredToday ? 'expired today' : `${Math.abs(daysExpired)} days ago`}</div></td>
                           <td><StatusPill status={v.status} /></td>
-                          <td className="right" onClick={e => e.stopPropagation()}>
-                            <button className="btn sm" onClick={() => openModal('renew', { vm: v })}>Renew</button>
-                          </td>
                         </tr>
                       )
                     })}
-                {expiredVMs.length === 0 && <tr><td colSpan={5}><div className="empty"><div className="title">No expired VMs</div><div className="sub">All VMs are within their expiry period.</div></div></td></tr>}
+                {expiredVMs.length === 0 && <tr><td colSpan={4}><div className="empty"><div className="title">No expired VMs</div><div className="sub">All VMs are within their expiry period.</div></div></td></tr>}
                   </>
                 )}
               </tbody>

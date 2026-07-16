@@ -123,7 +123,7 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ openModa
               </thead>
               <tbody>
                 {ticketsLoading ? (
-                  <tr><td colSpan={8}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div></td></tr>
+                  <tr><td colSpan={8}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
                 ) : list.length === 0 ? (
                   <tr><td colSpan={8}><div className="empty"><div className="title">No tickets {filter !== 'all' ? `in ${filter}` : 'yet'}</div><div className="sub">Tickets will appear here when customers submit support requests.</div></div></td></tr>
                 ) : (

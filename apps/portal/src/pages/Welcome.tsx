@@ -6,10 +6,16 @@ import Spinner from '../components/ui/Spinner'
 const Welcome = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const [loading, setLoading] = useState(true)
+  const [dataLoaded, setDataLoaded] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [minDisplayTimeElapsed, setMinDisplayTimeElapsed] = useState(false)
 
   useEffect(() => {
+    // Set minimum display time
+    const minDisplayTimer = setTimeout(() => {
+      setMinDisplayTimeElapsed(true)
+    }, 1000)
+
     const validateInvite = async () => {
       const token = searchParams.get('token')
       console.log('Welcome page - token:', token)
@@ -17,7 +23,7 @@ const Welcome = () => {
       if (!token) {
         console.log('No token found')
         setError('Invalid invite link')
-        setLoading(false)
+        setDataLoaded(true)
         return
       }
 
@@ -33,7 +39,7 @@ const Welcome = () => {
       if (memberError || !member) {
         console.log('Invalid or expired invite')
         setError('Invalid or expired invite link')
-        setLoading(false)
+        setDataLoaded(true)
         return
       }
 
@@ -41,7 +47,7 @@ const Welcome = () => {
       if (member.invite_expires_at && new Date(member.invite_expires_at) < new Date()) {
         console.log('Invite expired')
         setError('Invite link has expired')
-        setLoading(false)
+        setDataLoaded(true)
         return
       }
 
@@ -49,23 +55,28 @@ const Welcome = () => {
       if (member.accepted_at) {
         console.log('Invite already accepted')
         setError('This invite has already been accepted')
-        setLoading(false)
+        setDataLoaded(true)
         return
       }
 
       // Redirect directly to setup password page with the token
       console.log('Redirecting to setup password with token:', token)
-      setLoading(false)
+      setDataLoaded(true)
       navigate(`/setup-password?token=${token}`)
     }
 
     validateInvite()
+
+    return () => clearTimeout(minDisplayTimer)
   }, [searchParams, navigate])
 
-  if (loading) {
+  // Only hide loading when both conditions are met
+  const shouldShowLoading = !dataLoaded || !minDisplayTimeElapsed
+
+  if (shouldShowLoading) {
     return (
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', zIndex: 9999 }}>
-        <Spinner size={40} />
+        <Spinner />
       </div>
     )
   }

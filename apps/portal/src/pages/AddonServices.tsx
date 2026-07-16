@@ -1,6 +1,6 @@
 import React from 'react'
 import Icon from '../lib/icons'
-import { StatusPill, Spinner } from '../components/ui/ui'
+import { StatusPill, CircularSpinner } from '../components/ui/ui'
 import useAddonRequestStore from '../store/addonRequestStore'
 import useCustomerStore from '../store/customerStore'
 import useVMStore from '../store/vmStore'
@@ -13,9 +13,10 @@ interface AddonServicesViewProps {
   setPrefillCustomerId: (id: string) => void
   setPrefillRequestId: (id: string) => void
   setPrefillRequestType: (type: 'vm' | 'addon') => void
+  userRole?: string
 }
 
-const AddonServicesView: React.FC<AddonServicesViewProps> = ({ openTask, setView, setAutoOpenQuote, setPrefillCustomerId, setPrefillRequestId, setPrefillRequestType }) => {
+const AddonServicesView: React.FC<AddonServicesViewProps> = ({ openTask, setView, setAutoOpenQuote, setPrefillCustomerId, setPrefillRequestId, setPrefillRequestType, userRole }) => {
   const { addonRequests, addonRequestsLoading, loadAddonRequests } = useAddonRequestStore()
   const { customers, customersLoading } = useCustomerStore()
   const { vms } = useVMStore()
@@ -44,7 +45,13 @@ const AddonServicesView: React.FC<AddonServicesViewProps> = ({ openTask, setView
     { id: 'Rejected', label: 'Rejected' },
   ] as const
 
-  const list = addonRequests
+  // Sales sees all requests, Engineer sees only approved requests (not Pending)
+  let filteredByRole = addonRequests
+  if (userRole !== 'Sales') {
+    filteredByRole = filteredByRole.filter(r => ['In Progress', 'Network', 'Testing', 'Completed'].includes(r.status))
+  }
+
+  const list = filteredByRole
     .filter(r => filter === 'all' ? true : r.status === filter)
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
@@ -82,7 +89,7 @@ const AddonServicesView: React.FC<AddonServicesViewProps> = ({ openTask, setView
             </thead>
             <tbody>
               {addonRequestsLoading || customersLoading ? (
-                <tr><td colSpan={7}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div></td></tr>
+                <tr><td colSpan={7}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
               ) : (
                 <>
                   {list.length === 0 && (

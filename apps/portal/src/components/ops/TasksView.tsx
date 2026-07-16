@@ -3,7 +3,7 @@ import useCustomerStore from '../../store/customerStore'
 import useVMRequestStore from '../../store/vmRequestStore'
 import useQuoteStore from '../../store/quoteStore'
 import Icon from '../../lib/icons'
-import { Avatar, StatusPill, Spinner } from '../ui/ui'
+import { Avatar, StatusPill, CircularSpinner } from '../ui/ui'
 
 interface TasksViewProps {
   openTask: (id: string) => void
@@ -62,10 +62,10 @@ export const TasksView: React.FC<TasksViewProps> = ({ openTask, setView, setAuto
       <div className="card">
         <div className="card-body flush">
           <table className="tbl">
-            <thead><tr><th>Request</th><th>Customer</th><th>Service type</th><th>Type</th><th>Status</th><th>Quote</th><th></th></tr></thead>
+            <thead><tr><th>Request</th><th>Customer</th><th>Service type</th><th>Type</th><th>Provision Status</th><th>Quote</th><th></th></tr></thead>
             <tbody>
               {customersLoading || vmRequestsLoading ? (
-                <tr><td colSpan={7}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div></td></tr>
+                <tr><td colSpan={7}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
               ) : (
                 <>
                   {filteredTasks.length === 0 && <tr><td colSpan={7}><div className="empty"><div className="title">No requests yet</div><div className="sub">Waiting for customer VM requests.</div></div></td></tr>}

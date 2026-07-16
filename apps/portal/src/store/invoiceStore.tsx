@@ -86,27 +86,10 @@ export const InvoiceProvider: React.FC<{ children: ReactNode }> = ({ children })
   }, [loadInvoices])
 
   const addInvoice = useCallback(async (i: NewInvoiceInput) => {
-    const { data, error } = await supabase.from('invoices').insert(i).select().single()
-    if (error) throw error
-    await loadInvoices()
-    
-    const invoice = data as DBInvoice
-    
-    // Get customer name for notification
-    const { data: customer } = await supabase
-      .from('customers')
-      .select('name, org_name, account_type')
-      .eq('id', invoice.customer_id)
-      .single()
-    
-    const customerName = customer?.account_type === 'Organization' && customer?.org_name
-      ? `${customer.name} (${customer.org_name})`
-      : (customer?.name || 'Unknown')
-    
     // Get current user (staff member) who created the invoice
     const { data: { user } } = await supabase.auth.getUser()
     let actorName = 'System'
-    let actorId = invoice.customer_id
+    let actorId = i.customer_id
     if (user) {
       const { data: staff } = await supabase
         .from('team_members')
@@ -122,6 +105,26 @@ export const InvoiceProvider: React.FC<{ children: ReactNode }> = ({ children })
         actorId = user.id
       }
     }
+    
+    // Add created_by to the invoice data
+    const invoiceWithCreator = { ...i, created_by: actorName }
+    
+    const { data, error } = await supabase.from('invoices').insert(invoiceWithCreator).select().single()
+    if (error) throw error
+    await loadInvoices()
+    
+    const invoice = data as DBInvoice
+    
+    // Get customer name for notification
+    const { data: customer } = await supabase
+      .from('customers')
+      .select('name, org_name, account_type')
+      .eq('id', invoice.customer_id)
+      .single()
+    
+    const customerName = customer?.account_type === 'Organization' && customer?.org_name
+      ? `${customer.name} (${customer.org_name})`
+      : (customer?.name || 'Unknown')
     
     // Create notification and activity log for new invoice
     await logActivity(

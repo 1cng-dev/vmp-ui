@@ -46,7 +46,16 @@ export const AuthShell: React.FC<AuthShellProps> = ({ children, setRole }) => {
   const [loading, setLoading] = useState(true)
   const [shouldRedirect, setShouldRedirect] = useState(false)
   const [justSignedUp, setJustSignedUp] = useState(false)
+  const [minDisplayTimeElapsed, setMinDisplayTimeElapsed] = useState(false)
   const initialRoleSetRef = React.useRef(false)
+
+  // Set minimum display time
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setMinDisplayTimeElapsed(true)
+    }, 1000)
+    return () => clearTimeout(timer)
+  }, [])
 
   useEffect(() => {
     // Check current session
@@ -157,18 +166,10 @@ export const AuthShell: React.FC<AuthShellProps> = ({ children, setRole }) => {
     return <SignupSuccess email={signupEmail} onContinue={() => { setSignupComplete(false); setMode('login') }} />
   }
 
-  if (justSignedUp) {
+  if (justSignedUp || (loading && !minDisplayTimeElapsed)) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg)' }}>
-        <Spinner size={40} />
-      </div>
-    )
-  }
-
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg)' }}>
-        <Spinner size={40} />
+        <Spinner />
       </div>
     )
   }
@@ -191,7 +192,16 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
   const navigate = useNavigate()
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [minDisplayTimeElapsed, setMinDisplayTimeElapsed] = useState(false)
   const initialRoleSetRef = React.useRef(false)
+
+  // Set minimum display time
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setMinDisplayTimeElapsed(true)
+    }, 1000)
+    return () => clearTimeout(timer)
+  }, [])
 
   const updateTeamMemberLogin = async (userId: string, userData: any, email: string) => {
     try {
@@ -330,10 +340,10 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
     navigate('/admin')
   }
 
-  if (loading) {
+  if (loading && !minDisplayTimeElapsed) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg)' }}>
-        <Spinner size={40} />
+        <Spinner />
       </div>
     )
   }

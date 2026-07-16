@@ -8,7 +8,7 @@ import useVMStore from '../store/vmStore'
 import useUIStore from '../store/uiStore'
 import useReceiptStore from '../store/receiptStore'
 import Icon from '../lib/icons'
-import { formatMMK, StatusPill, Spinner } from '../components/ui/ui'
+import { formatMMK, StatusPill, CircularSpinner } from '../components/ui/ui'
 import { InvoiceDrawer } from '../components/finance/InvoiceDrawer'
 import { ReportsView } from '../components/finance/ReportsView'
 import { exportToCSV } from '@/lib/csvExport'
@@ -373,7 +373,7 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal }) => {
                 </thead>
                 <tbody>
                   {invoicesLoading ? (
-                    <tr><td colSpan={selectedExportColumns.length + 1}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div></td></tr>
+                    <tr><td colSpan={selectedExportColumns.length + 1}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
                   ) : (
                     <>
                       {filtered.length === 0 && <tr><td colSpan={selectedExportColumns.length + 1}><div className="empty"><div className="title">No invoices yet</div><div className="sub">Invoices will appear here once they're generated.</div></div></td></tr>}

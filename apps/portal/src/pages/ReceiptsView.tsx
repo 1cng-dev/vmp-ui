@@ -2,7 +2,7 @@ import React, { useEffect } from 'react'
 import useReceiptStore from '../store/receiptStore'
 import useCustomerStore from '../store/customerStore'
 import useInvoiceStore from '../store/invoiceStore'
-import { Spinner } from '../components/ui/ui'
+import { CircularSpinner } from '../components/ui/ui'
 
 interface ReceiptsViewProps {
   openCust: (id: string) => void
@@ -46,7 +46,7 @@ export const ReceiptsView: React.FC<ReceiptsViewProps> = ({ openCust }) => {
             </thead>
             <tbody>
               {receiptsLoading ? (
-                <tr><td colSpan={6}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div></td></tr>
+                <tr><td colSpan={6}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
               ) : receipts.length === 0 ? (
                 <tr><td colSpan={6}><div className="empty"><div className="title">No receipts yet</div><div className="sub">Receipts will appear here after Finance sends them.</div></div></td></tr>
               ) : (

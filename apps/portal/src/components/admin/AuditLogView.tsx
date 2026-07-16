@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react'
 import useUIStore from '../../store/uiStore'
 import useActivityStore from '../../store/activityStore'
 import Icon from '../../lib/icons'
-import { Avatar, Spinner } from '../ui/ui'
+import { Avatar, CircularSpinner } from '../ui/ui'
 
 export const AuditLogView: React.FC = () => {
   const { activity, activityLoading } = useActivityStore()
@@ -55,7 +55,7 @@ export const AuditLogView: React.FC = () => {
             <thead><tr><th>Timestamp</th><th>Actor</th><th>Type</th><th>Event</th></tr></thead>
             <tbody>
               {activityLoading ? (
-                <tr><td colSpan={4}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div></td></tr>
+                <tr><td colSpan={4}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
               ) : (
                 <>
                   {filtered.map((a: any, i: number) => (

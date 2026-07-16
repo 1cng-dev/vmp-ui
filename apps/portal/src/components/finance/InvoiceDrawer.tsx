@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import useInvoiceStore from '../../store/invoiceStore'
 import useCustomerStore from '../../store/customerStore'
 import useUIStore from '../../store/uiStore'
+import useActivityStore from '../../store/activityStore'
 import Icon from '../../lib/icons'
 import { StatusPill, formatMMK } from '../ui/ui'
 import { exportInvoiceToPDF } from '../../lib/pdfExport'
@@ -17,10 +18,19 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
   const { invoices, markPaid, updateInvoice, loadInvoices } = useInvoiceStore()
   const { customers } = useCustomerStore()
   const { toast } = useUIStore()
+  const { activity } = useActivityStore()
+  const [showConfirm, setShowConfirm] = useState(false)
+  
   const c = customers.find(c => c.id === invoice.customer_id)
   if (!c) return null
   const live = invoices.find(i => i.id === invoice.id) || invoice
-  const [showConfirm, setShowConfirm] = useState(false)
+  
+  // Find the activity log entry for this invoice creation
+  const invoiceCreationActivity = activity.find((a: any) => 
+    a.text?.toLowerCase().includes('created invoice') && 
+    a.text?.toLowerCase().includes(live.legacy_id || live.id)
+  )
+  const invoiceActor = invoiceCreationActivity?.actor || live.created_by || 'system'
 
   const handleTransferReceived = async () => {
     await updateInvoice(live.id, { status: 'Customer Transferred' })
@@ -186,16 +196,12 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
             </div>
           </div>
           <div className="card">
-            <div className="card-head"><h3 className="card-title">Audit trail</h3></div>
+            <div className="card-head"><h3 className="card-title">Invoice details</h3></div>
             <div className="card-body" style={{ padding: '6px 18px' }}>
-              {[
-                ['—', 'system', 'Invoice generated'],
-              ].filter((a): a is [string, string, string] => Boolean(a)).map((a, i) => (
-                <div key={i} className="feed-item">
-                  <span className="dot finance" />
-                  <div className="body">{a[2]}<div className="meta">{a[1]} · {a[0]}</div></div>
-                </div>
-              ))}
+              <div className="feed-item">
+                <span className="dot finance" />
+                <div className="body">Invoice generated<div className="meta">{invoiceActor} · {new Date(live.created_at).toLocaleString()}</div></div>
+              </div>
             </div>
           </div>
         </div>

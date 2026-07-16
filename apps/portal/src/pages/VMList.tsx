@@ -3,7 +3,7 @@ import useVMStore from '../store/vmStore'
 import useCustomerStore from '../store/customerStore'
 import useUIStore from '../store/uiStore'
 import Icon from '../lib/icons'
-import { StatusPill, ExpiryCell, Spinner } from '../components/ui/ui'
+import { StatusPill, ExpiryCell, CircularSpinner } from '../components/ui/ui'
 
 interface VMListProps {
   openVM: (id: string) => void
@@ -183,7 +183,7 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal }) => {
           </thead>
           <tbody>
             {vmsLoading ? (
-              <tr><td colSpan={10}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div></td></tr>
+              <tr><td colSpan={10}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
             ) : filtered.length === 0 ? (
               <tr><td colSpan={10}><div className="empty"><div className="title">No VMs match these filters</div><div className="sub">Try a different status or clear the search.</div></div></td></tr>
             ) : (

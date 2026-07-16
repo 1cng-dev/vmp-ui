@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useTeamStore } from '../store/TeamContext'
 import useUIStore from '../store/uiStore'
 import Icon from '../lib/icons'
-import { Avatar, Spinner } from '../components/ui/ui'
+import { Avatar, CircularSpinner } from '../components/ui/ui'
 import { SecurityCol } from '../components/team/SecurityCol'
 import { SettingsView } from '../components/team/SettingsView'
 import InviteTeamMemberModal from '../components/modals/InviteTeamMemberModal'
@@ -72,7 +72,7 @@ const TeamView: React.FC<TeamViewProps> = () => {
             <div className="card-head"><h3 className="card-title">Team members</h3></div>
             <div className="card-body flush" style={{ overflowX: 'auto' }}>
               {teamLoading ? (
-                <div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div>
+                <div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div>
               ) : (
                 <table className="tbl" style={{ minWidth: 800 }}>
                   <thead><tr><th>User</th><th>Role</th><th>Team</th><th>Status</th><th>Last active</th><th style={{ width: 40 }}></th></tr></thead>

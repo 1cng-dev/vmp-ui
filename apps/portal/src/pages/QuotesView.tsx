@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import Icon from '../lib/icons'
-import { formatMMK, Spinner } from '../components/ui/ui'
+import { formatMMK, CircularSpinner } from '../components/ui/ui'
 import useQuoteStore from '../store/quoteStore'
 import useUIStore from '../store/uiStore'
 import useCustomerStore from '../store/customerStore'
@@ -997,7 +997,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
             <thead><tr><th>Quote #</th><th>Customer</th><th>Type</th><th>Request</th><th>Billing Term</th><th className="right">Lines</th><th className="right">Total</th><th>Valid until</th><th>Status</th><th></th></tr></thead>
             <tbody>
               {quotesLoading || customersLoading ? (
-                <tr><td colSpan={10}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div></td></tr>
+                <tr><td colSpan={10}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
               ) : (
                 <>
                   {quotes.map(q => {

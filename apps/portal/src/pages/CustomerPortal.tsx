@@ -62,6 +62,15 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
   const [detailRequest, setDetailRequest] = useState<any>(null)
   const [detailInvoice, setDetailInvoice] = useState<any>(null)
   const [renewVm, setRenewVm] = useState<any>(null)
+  const [minDisplayTimeElapsed, setMinDisplayTimeElapsed] = useState(false)
+
+  // Set minimum display time
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setMinDisplayTimeElapsed(true)
+    }, 1000)
+    return () => clearTimeout(timer)
+  }, [])
 
   // Load data on mount and when auth changes
   useEffect(() => {
@@ -117,24 +126,10 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
     }
   }, [me?.kyc_status, view, me])
 
-  if (!auth?.user) {
+  if (!auth?.user || customers.length === 0 || !me || !minDisplayTimeElapsed) {
     return (
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', zIndex: 9999 }}>
-        <Spinner size={40} />
-      </div>
-    )
-  }
-  if (customers.length === 0) {
-    return (
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', zIndex: 9999 }}>
-        <Spinner size={40} />
-      </div>
-    )
-  }
-  if (!me) {
-    return (
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', zIndex: 9999 }}>
-        <Spinner size={40} />
+        <Spinner />
       </div>
     )
   }

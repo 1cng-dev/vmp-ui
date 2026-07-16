@@ -3,7 +3,7 @@ import useCustomerStore from '../../store/customerStore'
 import useVMStore from '../../store/vmStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
-import { formatMMK, ExpiryCell, Spinner } from '../ui/ui'
+import { formatMMK, ExpiryCell, CircularSpinner } from '../ui/ui'
 import useInvoiceStore from '../../store/invoiceStore'
 import * as XLSX from 'xlsx'
 
@@ -224,7 +224,7 @@ export const ReportsView: React.FC = () => {
                 <thead><tr><th>Customer</th><th className="right">VMs</th><th className="right">Lifetime</th><th>YTD</th></tr></thead>
                 <tbody style={{ height: '100%' }}>
                   {isLoading ? (
-                    <tr><td colSpan={4}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div></td></tr>
+                    <tr><td colSpan={4}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
                   ) : (() => {
                     const rows = [...displayCustomers]
                       .map(c => {

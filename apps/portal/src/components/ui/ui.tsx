@@ -2,6 +2,7 @@ import React from 'react'
 import Icon from '../../lib/icons'
 import FadeIn from './FadeIn'
 import Spinner from './Spinner'
+import CircularSpinner from './CircularSpinner'
 
 interface StatusPillProps {
   status: string
@@ -137,4 +138,4 @@ const Donut: React.FC<DonutProps> = ({ segments, size = 110, thickness = 14 }) =
   )
 }
 
-export { StatusPill, formatMMK, ExpiryCell, Avatar, SecCheck, Bars, Donut, FadeIn, Spinner }
+export { StatusPill, formatMMK, ExpiryCell, Avatar, SecCheck, Bars, Donut, FadeIn, Spinner, CircularSpinner }

@@ -3,6 +3,7 @@ import useCustomerStore from '../../store/customerStore'
 import useTeamStore from '../../store/teamStore'
 import useUIStore from '../../store/uiStore'
 import useVMRequestStore from '../../store/vmRequestStore'
+import useInvoiceStore from '../../store/invoiceStore'
 import Icon from '../../lib/icons'
 import { StatusPill } from '../ui/ui'
 import EngineerVMCreateForm from '../engineer/EngineerVMCreateForm'
@@ -25,6 +26,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
   const { addVM, vms, getVMById, getVMByHostname, updateVM, getVMRequest } = useVMStore()
   const { vmRequests, updateVMRequest } = useVMRequestStore()
   const { addonRequests, updateAddonRequest } = useAddonRequestStore()
+  const { invoices } = useInvoiceStore()
   const [showVMFormModal, setShowVMFormModal] = useState(false)
   const [salesData, setSalesData] = useState({
     assignee: '—',
@@ -42,6 +44,14 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
   const isUpgrade = requestType === 'vm' && (t?.task_type?.toLowerCase() === 'change-plan')
   const isRenewal = requestType === 'vm' && (t?.task_type === 'Renewal' || t?.task_type === 'renewal')
   const isSpecChange = t?.spec_changed || false
+  
+  // Check if payment is received for this request (via invoice)
+  const invoice = invoices.find((i: any) => 
+    requestType === 'vm' 
+      ? i.vm_request_ids?.includes(requestId)
+      : i.addon_request_ids?.includes(requestId)
+  )
+  const isPaymentReceived = invoice && invoice.status === 'Payment Received'
   const isBackupChange = t?.backup_changed || false
 
   // Load customers if not loaded yet
@@ -186,9 +196,21 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                         {isUpgrade ? (
                           <>
                             {active && i === 0 && t && (
-                              <button className="btn sm accent mt-2" onClick={() => { updateVMRequest(t.id, { status: 'In Progress' }); toast('Upgrade approved and sent to Engineering', 'info') }}>
-                                <Icon name="check" size={11} />Approve & send to Engineering
-                              </button>
+                              <>
+                                <button 
+                                  className="btn sm accent mt-2" 
+                                  onClick={() => { updateVMRequest(t.id, { status: 'In Progress' }); toast('Upgrade approved and sent to Engineering', 'info') }}
+                                  disabled={!isPaymentReceived}
+                                  style={!isPaymentReceived ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                                >
+                                  <Icon name="check" size={11} />Approve & send to Engineering
+                                </button>
+                                {!isPaymentReceived && (
+                                  <div className="text-xs text-mute mt-1" style={{ color: 'var(--bad)' }}>
+                                    Payment must be received before starting provisioning
+                                  </div>
+                                )}
+                              </>
                             )}
                             {active && i === 2 && t && userRole !== 'Sales' && (
                               <button className="btn sm ok mt-2" onClick={async () => {
@@ -228,9 +250,21 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                         ) : (t && t.task_type === 'Renewal') ? (
                         <>
                           {active && i === 0 && t && (
-                            <button className="btn sm accent mt-2" onClick={() => { updateVMRequest(t.id, { status: 'In Progress' }); toast('Renewal approved and sent to Engineering', 'info') }}>
-                              <Icon name="check" size={11} />Approve & send to Engineering
-                            </button>
+                            <>
+                              <button 
+                                className="btn sm accent mt-2" 
+                                onClick={() => { updateVMRequest(t.id, { status: 'In Progress' }); toast('Renewal approved and sent to Engineering', 'info') }}
+                                disabled={!isPaymentReceived}
+                                style={!isPaymentReceived ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                              >
+                                <Icon name="check" size={11} />Approve & send to Engineering
+                              </button>
+                              {!isPaymentReceived && (
+                                <div className="text-xs text-mute mt-1" style={{ color: 'var(--bad)' }}>
+                                  Payment must be received before starting provisioning
+                                </div>
+                              )}
+                            </>
                           )}
                           {active && i === 2 && t && userRole !== 'Sales' && (
                             <button className="btn sm ok mt-2" onClick={async () => {
@@ -286,9 +320,21 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                         ) : isTrialConversion ? (
                           <>
                             {active && i === 0 && t && (
-                              <button className="btn sm accent mt-2" onClick={() => { updateVMRequest(t.id, { status: 'In Progress' }); toast('Trial conversion approved and sent to Engineering', 'info') }}>
-                                <Icon name="check" size={11} />Approve & send to Engineering
-                              </button>
+                              <>
+                                <button 
+                                  className="btn sm accent mt-2" 
+                                  onClick={() => { updateVMRequest(t.id, { status: 'In Progress' }); toast('Trial conversion approved and sent to Engineering', 'info') }}
+                                  disabled={!isPaymentReceived}
+                                  style={!isPaymentReceived ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                                >
+                                  <Icon name="check" size={11} />Approve & send to Engineering
+                                </button>
+                                {!isPaymentReceived && (
+                                  <div className="text-xs text-mute mt-1" style={{ color: 'var(--bad)' }}>
+                                    Payment must be received before starting provisioning
+                                  </div>
+                                )}
+                              </>
                             )}
                             {active && i === 2 && t && userRole !== 'Sales' && (
                               <button className="btn sm ok mt-2" onClick={async () => {
@@ -347,18 +393,37 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                         ) : requestType === 'vm' ? (
                           <>
                             {active && i === 0 && t && (
-                              <button className="btn sm accent mt-2" onClick={() => updateVMRequest(t.id, { status: 'Provisioning' })}>
-                                <Icon name="check" size={11} />Approve & send to Engineering
-                              </button>
+                              <>
+                                <button 
+                                  className="btn sm accent mt-2" 
+                                  onClick={() => updateVMRequest(t.id, { status: 'Provisioning' })}
+                                  disabled={!isPaymentReceived}
+                                  style={!isPaymentReceived ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                                >
+                                  <Icon name="check" size={11} />Approve & send to Engineering
+                                </button>
+                                {!isPaymentReceived && (
+                                  <div className="text-xs text-mute mt-1" style={{ color: 'var(--bad)' }}>
+                                    Payment must be received before starting provisioning
+                                  </div>
+                                )}
+                              </>
                             )}
                             {active && i === 2 && t && !(t as any).createdVmId && (t as any).task_type !== 'Renewal' && userRole !== 'Sales' && (
-                              <button className="btn sm primary mt-2" onClick={() => setShowVMFormModal(true)}>
+                              <button 
+                                className="btn sm primary mt-2" 
+                                onClick={() => setShowVMFormModal(true)}
+                                disabled={!isPaymentReceived}
+                                style={!isPaymentReceived ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                              >
                                 <Icon name="plus" size={11} />Add VM Details
                               </button>
                             )}
                             {active && t && i > 0 && i !== 2 && (i !== WF.length - 1 && i !== 4 || t.status !== 'Completed') && (
                               <button
                                 className="btn sm accent mt-2"
+                                disabled={!isPaymentReceived || (userRole === 'Sales' && i > 1)}
+                                style={!isPaymentReceived || (userRole === 'Sales' && i > 1) ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
                                 onClick={async () => {
                                   const statusMap: Record<number, string> = {
                                     2: 'Network',
@@ -403,10 +468,6 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
 
 
                                 }}
-
-
-                                disabled={userRole === 'Sales' && i > 1}
-                                style={userRole === 'Sales' && i > 1 ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
                               >
                                 <Icon name="check" size={11} />
                                 {i === WF.length - 1 || i === 4 ? 'Complete' : `Mark done → ${WF[i + 1].team}`}
@@ -416,9 +477,21 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                         ) : (
                           <>
                             {active && i === 0 && (
-                              <button className="btn sm accent mt-2" onClick={() => { updateAddonRequest(request.id, { status: 'In Progress' }); toast('Add-on provisioning started', 'info') }}>
-                                <Icon name="play" size={11} />Start provisioning
-                              </button>
+                              <>
+                                <button 
+                                  className="btn sm accent mt-2" 
+                                  onClick={() => { updateAddonRequest(request.id, { status: 'In Progress' }); toast('Add-on provisioning started', 'info') }}
+                                  disabled={!isPaymentReceived}
+                                  style={!isPaymentReceived ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                                >
+                                  <Icon name="play" size={11} />Start provisioning
+                                </button>
+                                {!isPaymentReceived && (
+                                  <div className="text-xs text-mute mt-1" style={{ color: 'var(--bad)' }}>
+                                    Payment must be received before starting provisioning
+                                  </div>
+                                )}
+                              </>
                             )}
                             {active && i === 2 && (
                               <button className="btn sm ok mt-2" onClick={() => { updateAddonRequest(request.id, { status: 'Completed' }); toast('Add-on provisioning completed', 'ok') }}>
