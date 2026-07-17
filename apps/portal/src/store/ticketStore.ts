@@ -78,7 +78,7 @@ export const TicketProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   }, [])
 
   const subscribeToTickets = useCallback(() => {
-    const channelName = `tickets-changes`
+    const channelName = 'tickets-changes'
     const channel = supabase.channel(channelName)
     
     channel
@@ -100,7 +100,7 @@ export const TicketProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const unsubscribe = subscribeToTickets()
     loadTickets() // Initial load
     return unsubscribe
-  }, [subscribeToTickets, loadTickets])
+  }, [subscribeToTickets])
 
   const addTicket = useCallback(async (t: any) => {
     try {

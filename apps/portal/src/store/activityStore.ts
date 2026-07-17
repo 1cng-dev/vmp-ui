@@ -96,7 +96,7 @@ export const ActivityProvider: React.FC<{ children: ReactNode }> = ({ children }
     loadActivity()
     const unsubscribe = subscribeToActivity()
     return () => unsubscribe()
-  }, [loadActivity, subscribeToActivity])
+  }, [subscribeToActivity])
 
   const value: ActivityStoreValue = {
     activity,

@@ -7,7 +7,7 @@ import { supabase } from '../../lib/supabase'
 import { createAlert } from '../../services/notificationService'
 
 export const AlertsView: React.FC = () => {
-  const { alerts, markAlertRead, markAllAlertsRead, loadAlerts } = useAlertStore()
+  const { alerts, markAlertRead, markAllAlertsRead } = useAlertStore()
   const { vms, loadVMs } = useVMStore()
   const { toast } = useUIStore()
   const [filter, setFilter] = useState('All')
@@ -17,12 +17,6 @@ export const AlertsView: React.FC = () => {
   const sevLabel: Record<string, string> = { urgent: 'Urgent', warn: 'Warning', info: 'Info' }
   const typeIcon: Record<string, string> = { expiry: 'clock', kyc: 'shield', finance: 'invoice', task: 'tasks', system: 'settings', vm: 'server' }
 
-  // Load alerts if not loaded yet
-  useEffect(() => {
-    if (alerts.length === 0) {
-      loadAlerts()
-    }
-  }, [alerts.length, loadAlerts])
 
   // Check VM expiry and create notifications when AlertsView loads
   const hasChecked = useRef(false)

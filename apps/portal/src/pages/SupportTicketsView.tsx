@@ -11,19 +11,13 @@ interface SupportTicketsViewProps {
 }
 
 export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ openModal }) => {
-  const { tickets, ticketsLoading, loadTickets } = useTicketStore()
+  const { tickets, ticketsLoading } = useTicketStore()
   const { customers } = useCustomerStore()
   const [filter, setFilter] = useState('all')
   const [selectedTicket, setSelectedTicket] = useState<any>(null)
   const [showNew, setShowNew] = useState(false)
   const selectedTicketIdRef = useRef<string | null>(null)
 
-  // Load tickets if not loaded yet
-  useEffect(() => {
-    if (tickets.length === 0) {
-      loadTickets()
-    }
-  }, [tickets.length, loadTickets])
 
   // Update selectedTicket when tickets change to get the latest data
   useEffect(() => {

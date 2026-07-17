@@ -5,7 +5,7 @@ import Icon from '../../lib/icons'
 import { Avatar, Spinner } from '../ui/ui'
 
 export const ActivityView: React.FC = () => {
-  const { activity, activityLoading, loadActivity } = useActivityStore()
+  const { activity, activityLoading } = useActivityStore()
   const { toast } = useUIStore()
   const [filter, setFilter] = useState('All')
   const [search, setSearch] = useState('')
@@ -15,12 +15,6 @@ export const ActivityView: React.FC = () => {
   const kindIcon: Record<string, string> = { vm: 'server', finance: 'invoice', task: 'tasks', alert: 'bell', customer: 'users' }
   const kindColor: Record<string, string> = { vm: 'var(--accent)', finance: 'var(--ok)', task: 'var(--info)', alert: 'var(--warn)', customer: 'oklch(0.55 0.17 285)' }
 
-  // Load activity if not loaded yet
-  React.useEffect(() => {
-    if (activity.length === 0) {
-      loadActivity()
-    }
-  }, [activity.length, loadActivity])
 
   const filtered = activity.filter(a => {
     if (filter !== 'All' && a.kind !== map[filter]) return false

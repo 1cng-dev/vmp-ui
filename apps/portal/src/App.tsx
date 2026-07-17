@@ -27,10 +27,11 @@ import { CommandPalette, ShortcutsModal, CalendarView } from './components/commo
 import { NotifPanel, PlaceholderView, TweaksUI } from './components/common'
 import { useTweaks, TweakState } from './components/common/useTweaks'
 import { AlertProvider, useAlertStore } from './store/alertStore'
+import { useActivityStore } from './store/activityStore'
+import { TicketProvider, useTicketStore } from './store/ticketStore'
 import Welcome from './pages/Welcome'
 import SetupPassword from './pages/SetupPassword'
 import ChangePasswordPage from './pages/ChangePassword'
-import { TicketProvider } from './store/ticketStore'
 import { TeamProvider, useTeamStore } from './store/TeamContext'
 import useCustomerStore, { CustomerProvider } from './store/customerStore'
 import { VMRequestProvider, useVMRequestStore } from './store/vmRequestStore'
@@ -57,7 +58,7 @@ const PrefetchCustomers: React.FC = () => {
   const auth = useAuth()
   React.useEffect(() => {
     if (auth?.user?.id) {
-      loadCustomers()
+      loadCustomers().catch(err => console.error('Error loading customers:', err))
     }
   }, [loadCustomers, auth?.user?.id])
   return null
@@ -89,12 +90,22 @@ const PrefetchQuotes: React.FC = () => {
 
 const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: keyof TweakState | Partial<TweakState>, value?: any) => void }) => {
   const { alerts, alertsLoading, markAllAlertsRead } = useAlertStore()
+  const { loadAlerts } = useAlertStore()
+  const { loadActivity } = useActivityStore()
+  const { loadTickets } = useTicketStore()
   const auth = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
-  const { customers } = useCustomerStore()
-  const { team } = useTeamStore()
   const [minDisplayTimeElapsed, setMinDisplayTimeElapsed] = React.useState(false)
+
+  // Prefetch alerts, activity, and tickets when auth is available
+  React.useEffect(() => {
+    if (auth?.user?.id) {
+      loadAlerts().catch(err => console.error('Error loading alerts:', err))
+      loadActivity().catch(err => console.error('Error loading activity:', err))
+      loadTickets().catch(err => console.error('Error loading tickets:', err))
+    }
+  }, [auth?.user?.id, loadAlerts, loadActivity, loadTickets])
 
   // Ensure minimum display time to prevent flash
   React.useEffect(() => {
@@ -360,13 +371,13 @@ const App = () => {
               <PrefetchCustomers />
               {/* Global VM requests provider to keep data cached across pages */}
               <VMRequestProvider>
+                <PrefetchVMRequests />
                 <QuoteProvider>
+                  <PrefetchQuotes />
                   <AddonRequestProvider>
                     <AlertProvider>
                       <InvoiceProvider>
                       <ReceiptProvider>
-                      <PrefetchVMRequests />
-                      <PrefetchQuotes />
                       <VMProvider>
                   <Router>
                     <Routes>

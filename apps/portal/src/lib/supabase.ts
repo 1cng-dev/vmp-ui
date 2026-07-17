@@ -11,6 +11,11 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true,
     storageKey: 'ims-auth-token',
   },
+  realtime: {
+    params: {
+      eventsPerSecond: 10,
+    },
+  },
 });
 
 export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
