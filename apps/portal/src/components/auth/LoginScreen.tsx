@@ -35,7 +35,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onSwitchToSignup, prefillEmai
     }
 
     // Check customer status after successful auth
-    if (authData.user) {
+    if (authData.user && authData.user.id && authData.user.id !== 'undefined' && authData.user.id !== 'null') {
       const { data: customer } = await supabase
         .from('customers')
         .select('status, force_password_change')

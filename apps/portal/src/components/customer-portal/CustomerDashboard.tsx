@@ -73,6 +73,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ me, myVMs,
             <table className="tbl">
               <thead><tr><th>VM</th><th>Status</th><th>Spec</th><th>Public IP</th><th>Expires</th></tr></thead>
               <tbody>
+                {myVMs.length === 0 && <tr><td colSpan={5}><div className="empty"><div className="title">No VMs yet</div><div className="sub">Click "Request new VM" to deploy your first virtual machine.</div></div></td></tr>}
                 {myVMs.slice(0, 5).map((v: any) => (
                   <tr key={v.id} onClick={() => setDetailVm(v)}>
                     <td><div className="fw-6">{v.hostname}</div><div className="text-xs text-mute mono">{v.legacy_id || v.id}</div></td>

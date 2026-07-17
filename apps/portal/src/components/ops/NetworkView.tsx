@@ -11,8 +11,8 @@ interface NetworkViewProps {
 }
 
 export const NetworkView: React.FC<NetworkViewProps> = ({ openVM, openModal }) => {
-  const { vms, vmsLoading } = useVMStore()
-  const { customers, customersLoading } = useCustomerStore()
+  const { vms, vmsLoading, loadVMs } = useVMStore()
+  const { customers, customersLoading, loadCustomers } = useCustomerStore()
   const { toast } = useUIStore()
   const withIp = vms.filter(v => v.publicIp && v.publicIp !== '—' && v.publicIp !== 'pending')
   const ranges = [
@@ -20,6 +20,16 @@ export const NetworkView: React.FC<NetworkViewProps> = ({ openVM, openModal }) =
     { range: '203.81.65.0/24', total: 256, used: 32, vlan: 'reserve' },
     { range: '10.10.0.0/16', total: 65536, used: 412, vlan: 'private' },
   ]
+
+  // Load data if not loaded yet
+  React.useEffect(() => {
+    if (vms.length === 0) {
+      loadVMs()
+    }
+    if (customers.length === 0) {
+      loadCustomers()
+    }
+  }, [vms.length, customers.length, loadVMs, loadCustomers])
 
   return (
     <div className="content">

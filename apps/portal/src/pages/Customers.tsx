@@ -3,7 +3,7 @@ import useCustomerStore from '../store/customerStore'
 import useVMStore from '../store/vmStore'
 import useUIStore from '../store/uiStore'
 import Icon from '../lib/icons'
-import { StatusPill, Avatar, formatMMK, Spinner } from '../components/ui/ui'
+import { StatusPill, Avatar, CircularSpinner } from '../components/ui/ui'
 
 interface CustomersViewProps {
   openCust: (id: string) => void
@@ -17,6 +17,13 @@ const CustomersView: React.FC<CustomersViewProps> = ({ openCust, openModal }) =>
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [menu, setMenu] = useState<string | null>(null)
+
+  // Load customers if not loaded yet
+  useEffect(() => {
+    if (customers.length === 0) {
+      loadCustomers()
+    }
+  }, [loadCustomers, customers.length])
 
   const filters = [
     { id: 'all', label: 'All customers', count: customers.length },
@@ -96,9 +103,6 @@ const CustomersView: React.FC<CustomersViewProps> = ({ openCust, openModal }) =>
             </div>
           </div>
           <div className="card-body" style={{ padding: 0 }}>
-            {customersLoading ? (
-              <div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div>
-            ) : (
               <table className="tbl">
             <thead>
               <tr>
@@ -112,16 +116,21 @@ const CustomersView: React.FC<CustomersViewProps> = ({ openCust, openModal }) =>
               </tr>
             </thead>
             <tbody>
-              {filtered.map(c => {
-                const vmCount = vms.filter(v => v.customer === c.id && v.status === 'Active').length
-                return (
-                  <tr key={c.id} onClick={() => openCust(c.id)}>
-                    <td>
-                      <div className="flex center gap-2">
-                        <Avatar name={c.name} size={28} />
-                        <div><div className="fw-6">{c.name}</div><div className="text-xs text-mute mono">{c.legacy_id}</div></div>
-                      </div>
-                    </td>
+              {customersLoading ? (
+                <tr><td colSpan={7}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
+              ) : filtered.length === 0 ? (
+                <tr><td colSpan={7}><div className="empty"><div className="title">No customers yet</div><div className="sub">Customers will appear here when they sign up.</div></div></td></tr>
+              ) : (
+                filtered.map(c => {
+                  const vmCount = vms.filter(v => v.customer_id === c.id && v.status === 'Active').length
+                  return (
+                    <tr key={c.id} onClick={() => openCust(c.id)}>
+                      <td>
+                        <div className="flex center gap-2">
+                          <Avatar name={c.name} size={28} />
+                          <div><div className="fw-6">{c.name}</div><div className="text-xs text-mute mono">{c.legacy_id}</div></div>
+                        </div>
+                      </td>
                     <td><div className="fw-6 text-sm">{c.org_name}</div><div className="text-xs text-mute">{c.email}</div></td>
                     <td><StatusPill status={c.kyc_status} /></td>
                     <td><StatusPill status={c.status} /></td>
@@ -174,11 +183,10 @@ const CustomersView: React.FC<CustomersViewProps> = ({ openCust, openModal }) =>
                     </td>
                   </tr>
                 )
-              })}
-              {filtered.length === 0 && <tr><td colSpan={9}><div className="empty"><div className="title">No customers found</div><div className="sub">Try adjusting filters or add a new customer.</div></div></td></tr>}
+              })
+              )}
               </tbody>
             </table>
-            )}
           </div>
         </div>
     </div>

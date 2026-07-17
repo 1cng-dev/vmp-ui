@@ -5,11 +5,18 @@ import Icon from '../../lib/icons'
 import { Avatar, CircularSpinner } from '../ui/ui'
 
 export const AuditLogView: React.FC = () => {
-  const { activity, activityLoading } = useActivityStore()
+  const { activity, activityLoading, loadActivity } = useActivityStore()
   const { toast } = useUIStore()
   const [actor, setActor] = useState('All')
   const [action, setAction] = useState('All')
   const [search, setSearch] = useState('')
+
+  // Load activity if not loaded yet
+  React.useEffect(() => {
+    if (activity.length === 0) {
+      loadActivity()
+    }
+  }, [activity.length, loadActivity])
 
   const auditData = useMemo(() => {
     return activity

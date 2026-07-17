@@ -374,20 +374,20 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal }) => {
                 <tbody>
                   {invoicesLoading ? (
                     <tr><td colSpan={selectedExportColumns.length + 1}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
+                  ) : filtered.length === 0 ? (
+                    <tr><td colSpan={selectedExportColumns.length + 1}><div className="empty"><div className="title">No invoices yet</div><div className="sub">Invoices will appear here once they're generated.</div></div></td></tr>
                   ) : (
-                    <>
-                      {filtered.length === 0 && <tr><td colSpan={selectedExportColumns.length + 1}><div className="empty"><div className="title">No invoices yet</div><div className="sub">Invoices will appear here once they're generated.</div></div></td></tr>}
-                      {filtered.map(i => {
-                        const c = customers.find(c => c.id === i.customer_id)
-                    const vmRequestsList = vmRequests.filter((v: any) => i.vm_request_ids.includes(v.id))
-                    const addonRequestsList = addonRequests.filter((a: any) => i.addon_request_ids.includes(a.id))
-                    const addonVMs = addonRequestsList.map((a: any) => vms.find((vm: any) => vm.id === a.vm_id)).filter(Boolean)
-                    const totalQty = (i.line_items || []).reduce((sum: number, item: any) => {
-                      if (item.kind === 'instance') return sum + (item.qty || 1)
-                      return sum
-                    }, 0)
-                    return (
-                      <tr key={i.id} onClick={() => { setSelectedInvoice(i); setView('detail'); }}>
+                    filtered.map(i => {
+                      const c = customers.find(c => c.id === i.customer_id)
+                      const vmRequestsList = vmRequests.filter((v: any) => i.vm_request_ids.includes(v.id))
+                      const addonRequestsList = addonRequests.filter((a: any) => i.addon_request_ids.includes(a.id))
+                      const addonVMs = addonRequestsList.map((a: any) => vms.find((vm: any) => vm.id === a.vm_id)).filter(Boolean)
+                      const totalQty = (i.line_items || []).reduce((sum: number, item: any) => {
+                        if (item.kind === 'instance') return sum + (item.qty || 1)
+                        return sum
+                      }, 0)
+                      return (
+                        <tr key={i.id} onClick={() => { setSelectedInvoice(i); setView('detail'); }}>
                         {selectedExportColumns.includes('invoiceId') && <td className="mono fw-6 text-sm">{i.legacy_id || i.id.slice(0, 8)}</td>}
                         {selectedExportColumns.includes('invoiceDate') && <td className="tnum text-sm">{i.invoice_date ? new Date(i.invoice_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).replace(',', '') : '—'}</td>}
                         {selectedExportColumns.includes('qty') && <td className="tnum text-sm">{totalQty}</td>}
@@ -436,8 +436,7 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal }) => {
                         </td>
                       </tr>
                     )
-                  })}
-                    </>
+                  })
                   )}
                 </tbody>
               </table>

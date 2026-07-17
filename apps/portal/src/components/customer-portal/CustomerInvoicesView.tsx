@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect } from 'react'
 import { StatusPill, formatMMK, CircularSpinner } from '../ui/ui'
 import Icon from '../../lib/icons'
 import useUIStore from '../../store/uiStore'
@@ -25,10 +25,16 @@ export const CustomerInvoicesView: React.FC<CustomerInvoicesViewProps> = ({ myIn
   const { invoicesLoading } = useInvoiceStore()
 
   useEffect(() => {
-    loadAddonRequests()
-    loadQuotes()
-    loadVMs()
-  }, [loadAddonRequests, loadQuotes, loadVMs])
+    if (addonRequests.length === 0) {
+      loadAddonRequests()
+    }
+    if (quotes.length === 0) {
+      loadQuotes()
+    }
+    if (vms.length === 0) {
+      loadVMs()
+    }
+  }, [addonRequests.length, quotes.length, vms.length, loadAddonRequests, loadQuotes, loadVMs])
 
   return (
     <div className="content">

@@ -71,51 +71,52 @@ const TeamView: React.FC<TeamViewProps> = () => {
           <div className="card">
             <div className="card-head"><h3 className="card-title">Team members</h3></div>
             <div className="card-body flush" style={{ overflowX: 'auto' }}>
-              {teamLoading ? (
-                <div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div>
-              ) : (
                 <table className="tbl" style={{ minWidth: 800 }}>
                   <thead><tr><th>User</th><th>Role</th><th>Team</th><th>Status</th><th>Last active</th><th style={{ width: 40 }}></th></tr></thead>
                   <tbody>
-                  {team.map(u => (
-                    <tr key={u.id}>
-                      <td>
-                        <div className="flex center gap-2">
-                          <Avatar name={u.name} size={28} />
-                          <div><div className="fw-6">{u.name}</div><div className="text-xs text-mute">{u.email}</div></div>
-                        </div>
-                      </td>
-                      <td>
-                        <select value={u.role} onChange={e => { updateMember(u.id, { role: e.target.value }); toast(`${u.name} → ${e.target.value}`, 'info'); }} style={{ padding: '3px 6px', fontSize: 11, border: '1px solid var(--line)', borderRadius: 999, background: 'var(--accent-soft)', color: 'var(--accent-strong)', fontWeight: 600 }}>
-                          {Object.keys(ROLES).filter(r => r !== 'Customer').map(r => <option key={r}>{r}</option>)}
-                        </select>
-                      </td>
-                      <td className="text-sm">{u.team}</td>
-                      <td>
-                        <span className={`pill ${u.status === 'Active' ? 'ok' : 'subtle'}`} style={{ fontSize: 10.5 }}>
-                          {u.status}
-                        </span>
-                      </td>
-                      <td className="text-sm text-mute">{u.last}</td>
-                      <td style={{ position: 'relative' }}>
-                        <button className="icon-btn" onClick={(e) => { e.stopPropagation(); setMenu(menu === u.id ? null : u.id); }}><Icon name="more" /></button>
-                        {menu === u.id && (
-                          <div onClick={e => e.stopPropagation()} style={{
-                            position: 'absolute', right: 14, top: 36, zIndex: 20,
-                            background: 'var(--surface)', border: '1px solid var(--line)',
-                            borderRadius: 8, boxShadow: 'var(--shadow)', minWidth: 160, padding: 4,
-                          }}>
-                            <button className="nav-item" onClick={() => { setResetPasswordUser({ id: u.id, name: u.name, email: u.email }); setMenu(null); }}><Icon name="key" size={13} />Reset password</button>                          {/* <button className="nav-item" onClick={() => { toast('2FA reset', 'info'); setMenu(null); }}><Icon name="shield" size={13} />Reset 2FA</button> */}
-                            <div style={{ height: 1, background: 'var(--line)', margin: '4px 0' }} />
-                            <button className="nav-item" style={{ color: 'var(--bad)' }} onClick={() => { setConfirmDelete({ id: u.id, name: u.name }); setMenu(null); }}><Icon name="trash" size={13} />Remove user</button>                        </div>
-                          )}
-                      </td>
-                    </tr>
-                  ))}
-                  {team.length === 0 && <tr><td colSpan={6}><div className="empty"><div className="title">No team members</div><div className="sub">Invite team members to get started.</div></div></td></tr>}
+                  {teamLoading ? (
+                    <tr><td colSpan={6}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
+                  ) : team.length === 0 ? (
+                    <tr><td colSpan={6}><div className="empty"><div className="title">No team members yet</div><div className="sub">Invite team members to get started.</div></div></td></tr>
+                  ) : (
+                    team.map(u => (
+                      <tr key={u.id}>
+                        <td>
+                          <div className="flex center gap-2">
+                            <Avatar name={u.name} size={28} />
+                            <div><div className="fw-6">{u.name}</div><div className="text-xs text-mute">{u.email}</div></div>
+                          </div>
+                        </td>
+                        <td>
+                          <select value={u.role} onChange={e => { updateMember(u.id, { role: e.target.value }); toast(`${u.name} → ${e.target.value}`, 'info'); }} style={{ padding: '3px 6px', fontSize: 11, border: '1px solid var(--line)', borderRadius: 999, background: 'var(--accent-soft)', color: 'var(--accent-strong)', fontWeight: 600 }}>
+                            {Object.keys(ROLES).filter(r => r !== 'Customer').map(r => <option key={r}>{r}</option>)}
+                          </select>
+                        </td>
+                        <td className="text-sm">{u.team}</td>
+                        <td>
+                          <span className={`pill ${u.status === 'Active' ? 'ok' : 'subtle'}`} style={{ fontSize: 10.5 }}>
+                            {u.status}
+                          </span>
+                        </td>
+                        <td className="text-sm text-mute">{u.last}</td>
+                        <td style={{ position: 'relative' }}>
+                          <button className="icon-btn" onClick={(e) => { e.stopPropagation(); setMenu(menu === u.id ? null : u.id); }}><Icon name="more" /></button>
+                          {menu === u.id && (
+                            <div onClick={e => e.stopPropagation()} style={{
+                              position: 'absolute', right: 14, top: 36, zIndex: 20,
+                              background: 'var(--surface)', border: '1px solid var(--line)',
+                              borderRadius: 8, boxShadow: 'var(--shadow)', minWidth: 160, padding: 4,
+                            }}>
+                              <button className="nav-item" onClick={() => { setResetPasswordUser({ id: u.id, name: u.name, email: u.email }); setMenu(null); }}><Icon name="key" size={13} />Reset password</button>                          {/* <button className="nav-item" onClick={() => { toast('2FA reset', 'info'); setMenu(null); }}><Icon name="shield" size={13} />Reset 2FA</button> */}
+                              <div style={{ height: 1, background: 'var(--line)', margin: '4px 0' }} />
+                              <button className="nav-item" style={{ color: 'var(--bad)' }} onClick={() => { setConfirmDelete({ id: u.id, name: u.name }); setMenu(null); }}><Icon name="trash" size={13} />Remove user</button>                        </div>
+                            )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
                   </tbody>
                 </table>
-                )}
             </div>
           </div>
 

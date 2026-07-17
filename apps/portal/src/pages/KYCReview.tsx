@@ -6,7 +6,7 @@ import useCustomerStore from '../store/customerStore'
 import useUIStore from '../store/uiStore'
 import useActivityStore from '../store/activityStore'
 import Icon from '../lib/icons'
-import { Avatar, StatusPill, Spinner } from '../components/ui/ui'
+import { Avatar, StatusPill, CircularSpinner } from '../components/ui/ui'
 import { useAuth } from '../components/auth/Auth'
 import { createAlert } from '../services/notificationService'
 
@@ -208,9 +208,6 @@ export const KYCReviewView: React.FC = () => {
               ))}
             </div>
             <div className="card-body" style={{ padding: 0 }}>
-              {customersLoading ? (
-                <div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div>
-              ) : (
                 <>
                   {list.map((c: any) => (
                 <div key={c.id} onClick={() => setSelected(c)} style={{
@@ -227,9 +224,10 @@ export const KYCReviewView: React.FC = () => {
                   <StatusPill status={c.kyc_status} />
                 </div>
               ))}
-              {list.length === 0 && <div className="empty"><div className="title">All caught up</div><div className="sub">No {tab.toLowerCase()} submissions.</div></div>}
+              {customersLoading ? (
+                <div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div>
+              ) : list.length === 0 && <div className="empty"><div className="title">All caught up</div><div className="sub">No {tab.toLowerCase()} submissions.</div></div>}
                 </>
-              )}
             </div>
           </div>
 

@@ -5,10 +5,9 @@ import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { supabase } from '../../lib/supabase'
 import { createAlert } from '../../services/notificationService'
-import { Spinner } from '../ui/ui'
 
 export const AlertsView: React.FC = () => {
-  const { alerts, alertsLoading, markAlertRead, markAllAlertsRead } = useAlertStore()
+  const { alerts, markAlertRead, markAllAlertsRead, loadAlerts } = useAlertStore()
   const { vms, loadVMs } = useVMStore()
   const { toast } = useUIStore()
   const [filter, setFilter] = useState('All')
@@ -17,6 +16,13 @@ export const AlertsView: React.FC = () => {
   const sevColor: Record<string, string> = { urgent: 'var(--bad)', warn: 'var(--warn)', info: 'var(--info)' }
   const sevLabel: Record<string, string> = { urgent: 'Urgent', warn: 'Warning', info: 'Info' }
   const typeIcon: Record<string, string> = { expiry: 'clock', kyc: 'shield', finance: 'invoice', task: 'tasks', system: 'settings', vm: 'server' }
+
+  // Load alerts if not loaded yet
+  useEffect(() => {
+    if (alerts.length === 0) {
+      loadAlerts()
+    }
+  }, [alerts.length, loadAlerts])
 
   // Check VM expiry and create notifications when AlertsView loads
   const hasChecked = useRef(false)
@@ -132,9 +138,7 @@ export const AlertsView: React.FC = () => {
           ))}
         </div>
         <div className="card-body" style={{ padding: 0 }}>
-          {alertsLoading ? (
-            <div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spinner /></div>
-          ) : filtered.length === 0 ? (
+          {filtered.length === 0 ? (
             <div className="empty"><div className="title">No notifications</div><div className="sub">No alerts match your filters.</div></div>
           ) : (
             filtered.map(a => (

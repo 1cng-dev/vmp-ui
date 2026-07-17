@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase, supabaseAdmin } from '../lib/supabase'
 import Icon from '../lib/icons'
 import { AuthLayout } from '../components/auth/shared/AuthLayout'
+import { Spinner } from '../components/ui/ui'
 import useUIStore from '../store/uiStore'
 import { useTeamStore } from '../store/TeamContext'
 
@@ -146,25 +147,9 @@ const SetupPassword = () => {
 
   if (validating) {
     return (
-      <AuthLayout>
-        <div style={{ width: 'min(420px, 100%)', textAlign: 'center' }}>
-          <div className="brand-mark" style={{ width: 48, height: 48, fontSize: 22, margin: '0 auto 16px', borderRadius: 12 }}>V</div>
-          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em' }}>Validating invite...</h1>
-          <p className="text-sm text-mute mt-2">Please wait while we verify your invitation</p>
-          <div style={{ marginTop: 24, padding: '16px', background: 'var(--accent-soft)', borderRadius: 8, border: '1px solid var(--accent)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'center' }}>
-              <div style={{ width: 20, height: 20, border: '2px solid var(--accent)', borderTop: '2px solid transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
-              <span style={{ fontSize: 13, color: 'var(--accent-strong)', fontWeight: 500 }}>Verifying your invitation</span>
-            </div>
-          </div>
-          <style>{`
-            @keyframes spin {
-              0% { transform: rotate(0deg); }
-              100% { transform: rotate(360deg); }
-            }
-          `}</style>
-        </div>
-      </AuthLayout>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Spinner />
+      </div>
     )
   }
 

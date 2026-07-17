@@ -4,13 +4,20 @@ import { Spinner } from '../ui/ui'
 import Icon from '../../lib/icons'
 
 export const CustomerNotificationsView: React.FC = () => {
-  const { alerts, alertsLoading, markAlertRead, markAllAlertsRead } = useAlertStore()
+  const { alerts, alertsLoading, markAlertRead, markAllAlertsRead, loadAlerts } = useAlertStore()
   const [filter, setFilter] = useState('All')
   const [sev, setSev] = useState('All')
   const [search, setSearch] = useState('')
   const sevColor: Record<string, string> = { urgent: 'var(--bad)', warn: 'var(--warn)', info: 'var(--info)' }
   const sevLabel: Record<string, string> = { urgent: 'Urgent', warn: 'Warning', info: 'Info' }
   const typeIcon: Record<string, string> = { expiry: 'clock', kyc: 'shield', finance: 'invoice', task: 'tasks', system: 'settings', vm: 'server' }
+
+  // Load alerts if not loaded yet
+  React.useEffect(() => {
+    if (alerts.length === 0) {
+      loadAlerts()
+    }
+  }, [alerts.length, loadAlerts])
 
   const filtered = alerts.filter(a => {
     if (filter === 'Unread' && a.read) return false

@@ -23,17 +23,23 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       const { data: { user } } = await supabase.auth.getUser()
       const userId = user?.id
 
+      // Don't try to load alerts if userId is not available yet or invalid
+      if (!userId || typeof userId !== 'string' || userId.length < 10 || userId === 'undefined' || userId === 'null') {
+        setAlertsLoading(false)
+        return
+      }
+
       // Get user's role and customer_id
       let customerId: string | null = null
       let isCustomer = false
-      
+
       try {
         const { data: userData } = await supabase
           .from('customers')
           .select('id')
           .eq('id', userId)
           .single()
-        
+
         customerId = userData?.id || null
         isCustomer = !!customerId
       } catch (customerError) {

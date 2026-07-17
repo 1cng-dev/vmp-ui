@@ -27,11 +27,17 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   const loadCustomers = useCallback(async () => {
     setCustomersLoading(true)
-    
+
     try {
       const { data: userRes } = await supabase.auth.getUser()
       const role = userRes?.user?.user_metadata?.role || userRes?.user?.role
       const userId = userRes?.user?.id
+
+      // Don't try to load customers if userId is not available yet or invalid
+      if (!userId || typeof userId !== 'string' || userId.length < 10) {
+        setCustomersLoading(false)
+        return
+      }
 
       let query = supabase
         .from('customers')
@@ -39,7 +45,7 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
         .order('created_at', { ascending: false })
 
       // For normal customers, fetch only their own row; staff/admin can load all
-      if (role !== 'Staff' && role !== 'Admin' && role !== 'Sales' && role !== 'Finance' && role !== 'Engineer' && userId) {
+      if (role !== 'Staff' && role !== 'Admin' && role !== 'Sales' && role !== 'Finance' && role !== 'Engineer') {
         query = query.eq('id', userId)
       }
 
@@ -80,10 +86,15 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
   const subscribeToCustomers = useCallback(() => {
     const channelName = `customers-changes`
     const channel = supabase.channel(channelName)
-    
+
     channel
       .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, () => {
-        loadCustomers()
+        // Only reload if userId is available
+        supabase.auth.getUser().then(({ data: { user } }) => {
+          if (user?.id) {
+            loadCustomers()
+          }
+        })
       })
       .subscribe()
 

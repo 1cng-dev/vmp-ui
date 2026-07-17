@@ -18,7 +18,7 @@ interface AddonServicesViewProps {
 
 const AddonServicesView: React.FC<AddonServicesViewProps> = ({ openTask, setView, setAutoOpenQuote, setPrefillCustomerId, setPrefillRequestId, setPrefillRequestType, userRole }) => {
   const { addonRequests, addonRequestsLoading, loadAddonRequests } = useAddonRequestStore()
-  const { customers, customersLoading } = useCustomerStore()
+  const { customers } = useCustomerStore()
   const { vms } = useVMStore()
   const [filter, setFilter] = React.useState<'all' | 'Pending' | 'In Progress' | 'Completed' | 'Rejected'>('all')
 
@@ -39,15 +39,15 @@ const AddonServicesView: React.FC<AddonServicesViewProps> = ({ openTask, setView
 
   const filters = [
     { id: 'all', label: 'All' },
-    { id: 'Pending', label: 'Pending' },
+    ...(userRole === 'Sales' || userRole === 'Admin' ? [{ id: 'Pending', label: 'Pending' }] : []),
     { id: 'In Progress', label: 'In Progress' },
     { id: 'Completed', label: 'Completed' },
     { id: 'Rejected', label: 'Rejected' },
   ] as const
 
-  // Sales sees all requests, Engineer sees only approved requests (not Pending)
+  // Sales and Admin see all requests, Engineer sees only approved requests (not Pending)
   let filteredByRole = addonRequests
-  if (userRole !== 'Sales') {
+  if (userRole !== 'Sales' && userRole !== 'Admin') {
     filteredByRole = filteredByRole.filter(r => ['In Progress', 'Network', 'Testing', 'Completed'].includes(r.status))
   }
 
@@ -60,7 +60,7 @@ const AddonServicesView: React.FC<AddonServicesViewProps> = ({ openTask, setView
       <div className="page-head">
         <div>
           <h1 className="page-title">Add-on Services</h1>
-          <p className="page-subtitle">Manage CPFS/CCIS requests across customers · {addonRequests.length} total</p>
+          <p className="page-subtitle">Manage CPFS/CCIS requests across customers · {filteredByRole.length} total</p>
         </div>
       </div>
 
@@ -68,7 +68,7 @@ const AddonServicesView: React.FC<AddonServicesViewProps> = ({ openTask, setView
         <div className="filter-bar">
           {filters.map(f => (
             <button key={f.id} className={`filter-chip ${filter === f.id ? 'active' : ''}`} onClick={() => setFilter(filter === f.id ? 'all' as any : f.id as any)}>
-              {f.label}<span className="ct">{f.id === 'all' ? addonRequests.length : addonRequests.filter(r => r.status === f.id).length}</span>
+              {f.label}<span className="ct">{f.id === 'all' ? filteredByRole.length : addonRequests.filter(r => r.status === f.id).length}</span>
             </button>
           ))}
           <div style={{ flex: 1 }} />
@@ -88,14 +88,13 @@ const AddonServicesView: React.FC<AddonServicesViewProps> = ({ openTask, setView
               </tr>
             </thead>
             <tbody>
-              {addonRequestsLoading || customersLoading ? (
-                <tr><td colSpan={7}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
-              ) : (
                 <>
-                  {list.length === 0 && (
+                  {addonRequestsLoading ? (
+                    <tr><td colSpan={7}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
+                  ) : list.length === 0 ? (
                     <tr><td colSpan={7}><div className="empty"><div className="title">No add-on requests</div><div className="sub">Try a different filter or create a new request from the customer portal.</div></div></td></tr>
-                  )}
-              {list.map((t: any) => {
+                  ) : (
+                    list.map((t: any) => {
                 const cust = customers.find(c => c.id === t.customer_id)
                 const svc = `${t.cpfs_enabled ? 'CPFS' : ''}${t.cpfs_enabled && t.ccis_enabled ? ' + ' : ''}${t.ccis_enabled ? 'CCIS' : ''}` || '—'
                 return (
@@ -122,9 +121,9 @@ const AddonServicesView: React.FC<AddonServicesViewProps> = ({ openTask, setView
                     </td>
                   </tr>
                 )
-              })}
-              </>
+              })
               )}
+              </>
             </tbody>
           </table>
         </div>

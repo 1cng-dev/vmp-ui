@@ -21,7 +21,7 @@ interface QuotesViewProps {
 }
 
 const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, prefillRequestId, prefillRequestType }: QuotesViewProps) => {
-  const { quotes, quotesLoading, addQuote } = useQuoteStore()
+  const { quotes, quotesLoading, addQuote, loadQuotes } = useQuoteStore()
   const { toast } = useUIStore()
   const { user, refreshUser } = useAuthStore()
   const { vms, loadVMs } = useVMStore()
@@ -32,13 +32,20 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
   const [currentVMData, setCurrentVMData] = useState<any>(null)
   const [selectedQuote, setSelectedQuote] = useState<any>(null)
 
+  // Load quotes if not loaded yet
+  useEffect(() => {
+    if (quotes.length === 0) {
+      loadQuotes()
+    }
+  }, [quotes.length, loadQuotes])
+
   // Row types for the sheet
   type InstanceLine = { spec: string; vcpu: number; ram: number; storage: number; qty: number; unit: number; term: string }
   type BackupLine = { spec: string; storage: number; unit: number; term: string }
   type PublicIPLine = { spec: string; unit: number; term: string }
 
-  const { customers, customersLoading } = useCustomerStore()
-  const { vmRequests, vmRequestsLoading } = useVMRequestStore()
+  const { customers } = useCustomerStore()
+  const { vmRequests } = useVMRequestStore()
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>(undefined)
   const [selectedRequestId, setSelectedRequestId] = useState<string | undefined>(undefined)
@@ -140,20 +147,13 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
         const finalMonths = totalMonths + extraMonths
         const finalDays = days % 30
 
-        // Determine billing term based on remaining duration, or show exact months and days
+        // For change-plan requests, always show exact remaining duration (not standard billing terms)
+        // Change plans are prorated based on remaining time, not new billing cycles
         let billingTerm: string
-        if (finalMonths === 1 && finalDays === 0) {
-          billingTerm = 'Monthly'
-        } else if (finalMonths === 3 && finalDays === 0) {
-          billingTerm = 'Quarterly'
-        } else if (finalMonths === 6 && finalDays === 0) {
-          billingTerm = 'Half Yearly'
-        } else if (finalMonths === 12 && finalDays === 0) {
-          billingTerm = 'Yearly'
+        if (finalDays > 0) {
+          billingTerm = `${finalMonths} months ${finalDays} days`
         } else {
-          billingTerm = finalDays > 0
-            ? `${finalMonths} months ${finalDays} days`
-            : `${finalMonths} months`
+          billingTerm = `${finalMonths} months`
         }
 
         // Parse notes to determine what changed
@@ -247,20 +247,13 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
         return
       }
 
-      // Determine billing term based on remaining duration, showing exact months and days
+      // For change-plan requests, always show exact remaining duration (not standard billing terms)
+      // Change plans are prorated based on remaining time, not new billing cycles
       let billingTerm: string
-      if (totalMonths === 1 && days === 0) {
-        billingTerm = 'Monthly'
-      } else if (totalMonths === 3 && days === 0) {
-        billingTerm = 'Quarterly'
-      } else if (totalMonths === 6 && days === 0) {
-        billingTerm = 'Half Yearly'
-      } else if (totalMonths === 12 && days === 0) {
-        billingTerm = 'Yearly'
+      if (days > 0) {
+        billingTerm = `${totalMonths} months ${days} days`
       } else {
-        billingTerm = days > 0
-          ? `${totalMonths} months ${days} days`
-          : `${totalMonths} months`
+        billingTerm = `${totalMonths} months`
       }
 
       // Parse notes to determine what changed
@@ -1017,38 +1010,37 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
           <table className="tbl">
             <thead><tr><th>Quote #</th><th>Customer</th><th>Type</th><th>Request</th><th>Billing Term</th><th className="right">Lines</th><th className="right">Total</th><th>Valid until</th><th>Status</th><th></th></tr></thead>
             <tbody>
-              {quotesLoading || customersLoading ? (
-                <tr><td colSpan={10}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
-              ) : (
-                <>
-                  {quotes.map(q => {
-                  const cust = customers.find(c => c.id === q.customer_id)
-                  const request = vmRequests.find(r => r.id === q.vm_request_id)
-                  const addonReq = addonRequests.find(a => a.id === (q as any).addon_request_id)
-                  const isAddon = !!(q as any).addon_request_id
-                  const requestHostname = isAddon ? addonReq?.description : request?.hostname || request?.sizing || '—'
-                  return (
-                    <tr key={q.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedQuote(q)}>
-                      <td className="mono fw-6">{q.legacy_id || q.id.slice(0, 8)}</td>
-                      <td>{cust?.org_name || cust?.name || '—'}</td>
-                      <td><span className="pill subtle"><span className="dot" />{isAddon ? 'Add-on' : (request?.task_type || 'new')}</span></td>
-                      <td>{requestHostname}</td>
-                      <td>{q.billing_term || 'Monthly'}</td>
-                      <td className="right tnum">{(q.line_items || []).length}</td>
-                      <td className="right tnum fw-6">MMK {formatMMK(q.grand_total || 0)}</td>
-                      <td className="tnum text-sm">{new Date(q.validity_date).toLocaleDateString()}</td>
-                      <td><span className={`pill ${q.status === 'Accepted' ? 'ok' : q.status === 'Sent' ? 'accent' : 'subtle'}`}><span className="dot" />{q.status}</span></td>
-                      <td className="right" onClick={e => e.stopPropagation()}><button className="btn sm" onClick={async () => {
-                    const cust = customers.find(c => c.id === q.customer_id)
-                    const request = vmRequests.find(r => r.id === q.vm_request_id)
-                    await exportQuoteToPDF(q, cust, request)
-                  }}><Icon name="download" size={11} />PDF</button></td>
-                    </tr>
-                  )
-                  })}
-                  {quotes.length === 0 && <tr><td colSpan={10}><div className="empty"><div className="title">No quotes yet</div><div className="sub">Create your first quote to get started.</div></div></td></tr>}
-                </>
-              )}
+                  {quotesLoading ? (
+                    <tr><td colSpan={10}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
+                  ) : quotes.length === 0 ? (
+                    <tr><td colSpan={10}><div className="empty"><div className="title">No quotes yet</div><div className="sub">Quotes will appear here when you create pricing for customer requests.</div></div></td></tr>
+                  ) : (
+                    quotes.map(q => {
+                      const cust = customers.find(c => c.id === q.customer_id)
+                      const request = vmRequests.find(r => r.id === q.vm_request_id)
+                      const addonReq = addonRequests.find(a => a.id === (q as any).addon_request_id)
+                      const isAddon = !!(q as any).addon_request_id
+                      const requestHostname = isAddon ? addonReq?.description : request?.hostname || request?.sizing || '—'
+                      return (
+                        <tr key={q.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedQuote(q)}>
+                          <td className="mono fw-6">{q.legacy_id || q.id.slice(0, 8)}</td>
+                          <td>{cust?.org_name || cust?.name || '—'}</td>
+                          <td><span className="pill subtle"><span className="dot" />{isAddon ? 'Add-on' : (request?.task_type || 'new')}</span></td>
+                          <td>{requestHostname}</td>
+                          <td>{q.billing_term || 'Monthly'}</td>
+                          <td className="right tnum">{(q.line_items || []).length}</td>
+                          <td className="right tnum fw-6">MMK {formatMMK(q.grand_total || 0)}</td>
+                          <td className="tnum text-sm">{new Date(q.validity_date).toLocaleDateString()}</td>
+                          <td><span className={`pill ${q.status === 'Accepted' ? 'ok' : q.status === 'Sent' ? 'accent' : 'subtle'}`}><span className="dot" />{q.status}</span></td>
+                          <td className="right" onClick={e => e.stopPropagation()}><button className="btn sm" onClick={async () => {
+                        const cust = customers.find(c => c.id === q.customer_id)
+                        const request = vmRequests.find(r => r.id === q.vm_request_id)
+                        await exportQuoteToPDF(q, cust, request)
+                      }}><Icon name="download" size={11} />PDF</button></td>
+                        </tr>
+                      )
+                    })
+                  )}
             </tbody>
           </table>
         </div>

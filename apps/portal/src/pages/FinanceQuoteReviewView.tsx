@@ -12,7 +12,7 @@ import { NewInvoiceModal } from '../components/modals/AdminVMModals'
 import type { DBQuote } from '../types'
 
 const FinanceQuoteReviewView = () => {
-  const { quotes, quotesLoading, updateQuote } = useQuoteStore()
+  const { quotes, quotesLoading, updateQuote, loadQuotes } = useQuoteStore()
   const { customers } = useCustomerStore()
   const { vmRequests } = useVMRequestStore()
   const { vms, loadVMs } = useVMStore()
@@ -20,6 +20,13 @@ const FinanceQuoteReviewView = () => {
   const { toast } = useUIStore()
   const [selectedQuote, setSelectedQuote] = useState<DBQuote | null>(null)
   const [quoteForInvoice, setQuoteForInvoice] = useState<DBQuote | null>(null)
+
+  // Ensure quotes are loaded
+  useEffect(() => {
+    if (quotes.length === 0) {
+      loadQuotes()
+    }
+  }, [quotes.length, loadQuotes])
 
   // Ensure addon requests and VMs are loaded
   useEffect(() => {

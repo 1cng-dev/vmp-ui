@@ -17,7 +17,7 @@ interface TasksViewProps {
 
 export const TasksView: React.FC<TasksViewProps> = ({ openTask, setView, setAutoOpenQuote, setPrefillCustomerId, setPrefillRequestId, setPrefillRequestType, userRole }) => {
   const { customers, customersLoading, loadCustomers } = useCustomerStore()
-  const { vmRequests, vmRequestsLoading } = useVMRequestStore()
+  const { vmRequests, vmRequestsLoading, loadVMRequests } = useVMRequestStore()
   const { quotes } = useQuoteStore()
   const [filter, setFilter] = useState('all')
 
@@ -27,6 +27,13 @@ export const TasksView: React.FC<TasksViewProps> = ({ openTask, setView, setAuto
       loadCustomers()
     }
   }, [customers.length, loadCustomers])
+
+  // Load VM requests if not loaded yet
+  React.useEffect(() => {
+    if (vmRequests.length === 0) {
+      loadVMRequests()
+    }
+  }, [vmRequests.length, loadVMRequests])
 
   // Only show VM requests in Customer Requests - addon requests have their own dedicated page
   const allRequests = vmRequests.map((r: any) => ({ ...r, requestType: 'vm' }))
@@ -64,73 +71,72 @@ export const TasksView: React.FC<TasksViewProps> = ({ openTask, setView, setAuto
           <table className="tbl">
             <thead><tr><th>Request</th><th>Customer</th><th>Service type</th><th>Request Type</th><th>Provision Status</th><th>Quote</th><th></th></tr></thead>
             <tbody>
-              {customersLoading || vmRequestsLoading ? (
-                <tr><td colSpan={7}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
-              ) : (
-                <>
-                  {filteredTasks.length === 0 && <tr><td colSpan={7}><div className="empty"><div className="title">No requests yet</div><div className="sub">Waiting for customer VM requests.</div></div></td></tr>}
-              {filteredTasks.map(t => {
-                const c = customers.find(c => c.id === t.customer_id)
-                const quote = quotes.find((q: any) => q.vm_request_id === t.id)
-                return (
-                  <tr key={t.id} onClick={() => openTask(t.id)}>
-                    <td>
-                      <div className="fw-6">{t.hostname}</div>
-                      <div className="text-xs text-mute mono">{t.legacy_id || t.id}</div>
-                    </td>
-                    <td>
-                      <div className="flex center gap-2">
-                        <Avatar name={c?.name || c?.org_name || 'Unknown'} size={22}/>
-                        <div className="flex col">
-                          <span className="text-sm fw-6">{c?.name || 'Unknown'}</span>
-                          {c?.org_name && <span className="text-xs text-mute">{c.org_name}</span>}
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      {t.requestType === 'vm' ? (
-                        <span className="pill subtle">{t.sizing || 'Standard'}</span>
-                      ) : (
-                        <div className="flex gap-1">
-                          {t.cpfs_enabled && <span className="pill subtle">CPFS</span>}
-                          {t.ccis_enabled && <span className="pill subtle">CCIS</span>}
-                        </div>
-                      )}
-                    </td>
-                    <td>
-                      {t.requestType === 'vm' ? (
-                        <span className="pill subtle">{t.request_type === 'trial' ? 'Trial' : t.task_type || 'New'}</span>
-                      ) : (
-                        <span className="pill accent">Add-on</span>
-                      )}
-                    </td>
-                    <td><StatusPill status={t.status}/></td>
-                    <td>
-                      {quote ? (
-                        <span className={`pill ${quote.status === 'Accepted' ? 'ok' : quote.status === 'Rejected' ? 'danger' : quote.status === 'Sent' ? 'warn' : 'subtle'}`}>
-                          <span className="dot"/>Quote: {quote.status}
-                        </span>
-                      ) : (
-                        <span className="text-sm text-mute">No quote</span>
-                      )}
-                    </td>
-                    <td className="right">
-                      <div className="flex center gap-1">
-                        {t.request_type !== 'trial' ? (
-                          <button className="btn" style={{ padding: '4px 10px', fontSize: 11, width: '80px' }} onClick={e => { e.stopPropagation(); setPrefillCustomerId && setPrefillCustomerId(t.customer_id); setPrefillRequestId && setPrefillRequestId(t.id); setPrefillRequestType && setPrefillRequestType(t.requestType); setAutoOpenQuote && setAutoOpenQuote(true); setView && setView('quotes'); }}>
-                            {quote ? 'New Quote' : 'Quotation'}
-                          </button>
-                        ) : (
-                          <div style={{ width: '80px' }}></div>
-                        )}
-                        <Icon name="chevron-right" size={12} className="text-mute"/>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-              </>
-              )}
+                  {customersLoading || vmRequestsLoading ? (
+                    <tr><td colSpan={7}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
+                  ) : filteredTasks.length === 0 ? (
+                    <tr><td colSpan={7}><div className="empty"><div className="title">No requests yet</div><div className="sub">Waiting for customer VM requests.</div></div></td></tr>
+                  ) : (
+                    filteredTasks.map(t => {
+                      const c = customers.find(c => c.id === t.customer_id)
+                      const quote = quotes.find((q: any) => q.vm_request_id === t.id)
+                      return (
+                        <tr key={t.id} onClick={() => openTask(t.id)}>
+                          <td>
+                            <div className="fw-6">{t.hostname}</div>
+                            <div className="text-xs text-mute mono">{t.legacy_id || t.id}</div>
+                          </td>
+                          <td>
+                            <div className="flex center gap-2">
+                              <Avatar name={c?.name || c?.org_name || 'Unknown'} size={22}/>
+                              <div className="flex col">
+                                <span className="text-sm fw-6">{c?.name || 'Unknown'}</span>
+                                {c?.org_name && <span className="text-xs text-mute">{c.org_name}</span>}
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            {t.requestType === 'vm' ? (
+                              <span className="pill subtle">{t.sizing || 'Standard'}</span>
+                            ) : (
+                              <div className="flex gap-1">
+                                {t.cpfs_enabled && <span className="pill subtle">CPFS</span>}
+                                {t.ccis_enabled && <span className="pill subtle">CCIS</span>}
+                              </div>
+                            )}
+                          </td>
+                          <td>
+                            {t.requestType === 'vm' ? (
+                              <span className="pill subtle">{t.request_type === 'trial' ? 'Trial' : t.task_type || 'New'}</span>
+                            ) : (
+                              <span className="pill accent">Add-on</span>
+                            )}
+                          </td>
+                          <td><StatusPill status={t.status}/></td>
+                          <td>
+                            {quote ? (
+                              <span className={`pill ${quote.status === 'Accepted' ? 'ok' : quote.status === 'Rejected' ? 'danger' : quote.status === 'Sent' ? 'warn' : 'subtle'}`}>
+                                <span className="dot"/>Quote: {quote.status}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-mute">No quote</span>
+                            )}
+                          </td>
+                          <td className="right">
+                            <div className="flex center gap-1">
+                              {t.request_type !== 'trial' ? (
+                                <button className="btn" style={{ padding: '4px 10px', fontSize: 11, width: '80px' }} onClick={e => { e.stopPropagation(); setPrefillCustomerId && setPrefillCustomerId(t.customer_id); setPrefillRequestId && setPrefillRequestId(t.id); setPrefillRequestType && setPrefillRequestType(t.requestType); setAutoOpenQuote && setAutoOpenQuote(true); setView && setView('quotes'); }}>
+                                  {quote ? 'New Quote' : 'Quotation'}
+                                </button>
+                              ) : (
+                                <div style={{ width: '80px' }}></div>
+                              )}
+                              <Icon name="chevron-right" size={12} className="text-mute"/>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
             </tbody>
           </table>
         </div>

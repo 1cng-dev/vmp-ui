@@ -41,6 +41,7 @@ import { AddonRequestProvider } from './store/addonRequestStore'
 import { InvoiceProvider } from './store/invoiceStore'
 import { ReceiptProvider } from './store/receiptStore'
 import { ActivityProvider } from './store/activityStore'
+import Spinner from './components/ui/Spinner'
 
 const ACCENT_MAP: Record<string, number> = {
   '#4F6FE3': 250,
@@ -53,9 +54,12 @@ const ACCENT_MAP: Record<string, number> = {
 // Prefetch customers once at app startup so pages render without initial spinners
 const PrefetchCustomers: React.FC = () => {
   const { loadCustomers } = useCustomerStore()
+  const auth = useAuth()
   React.useEffect(() => {
-    loadCustomers()
-  }, [loadCustomers])
+    if (auth?.user?.id) {
+      loadCustomers()
+    }
+  }, [loadCustomers, auth?.user?.id])
   return null
 }
 
@@ -84,10 +88,19 @@ const PrefetchQuotes: React.FC = () => {
 }
 
 const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: keyof TweakState | Partial<TweakState>, value?: any) => void }) => {
-  const { alerts, markAllAlertsRead } = useAlertStore()
+  const { alerts, alertsLoading, markAllAlertsRead } = useAlertStore()
   const auth = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
+  const { customers } = useCustomerStore()
+  const { team } = useTeamStore()
+  const [minDisplayTimeElapsed, setMinDisplayTimeElapsed] = React.useState(false)
+
+  // Ensure minimum display time to prevent flash
+  React.useEffect(() => {
+    const timer = setTimeout(() => setMinDisplayTimeElapsed(true), 400)
+    return () => clearTimeout(timer)
+  }, [])
 
   // Extract view from URL path
   const getPathView = () => {
@@ -179,6 +192,18 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
   }, [tw.role])
 
   const unread = alerts.filter((a: any) => !a.read).length
+
+  // Show full page loading spinner until critical data is loaded and minimum time elapsed
+  // Only wait for: auth, team (for admin), alerts
+  // Customers data loads progressively in background - don't block on it to avoid RLS issues
+  const needsTeamData = tw.role !== 'Customer'
+  if (!auth?.user || (needsTeamData && team.length === 0) || alertsLoading || !minDisplayTimeElapsed) {
+    return (
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', zIndex: 9999 }}>
+        <Spinner />
+      </div>
+    )
+  }
 
   const crumbs: Record<string, string[]> = {
     'dashboard': ['Overview', 'Dashboard'],

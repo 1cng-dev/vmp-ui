@@ -51,7 +51,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
   const { addTask } = useTaskStore()
   const { toast } = useUIStore()
   const { alerts } = useAlertStore()
-  const { vmRequests } = useVMRequestStore()
+  const { vmRequests, loadVMRequests } = useVMRequestStore()
   const { addonRequests, loadAddonRequests } = useAddonRequestStore()
   const auth = useAuth()
   const location = useLocation()
@@ -86,8 +86,9 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
       loadVMs()
       loadInvoices()
       loadAddonRequests()
+      loadVMRequests()
     }
-  }, [auth?.user, loadCustomers, loadVMs, loadInvoices, loadAddonRequests])
+  }, [auth?.user, loadCustomers, loadVMs, loadInvoices, loadAddonRequests, loadVMRequests])
 
   // Realtime: refresh invoices automatically without manual refresh
   useEffect(() => {

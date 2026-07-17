@@ -14,10 +14,12 @@ export const CustomerTicketsView: React.FC<CustomerTicketsViewProps> = ({ me, se
   const [filter, setFilter] = useState('all')
   const [sort, setSort] = useState('updated')
 
-  // Load tickets on mount
+  // Load tickets if not loaded yet
   React.useEffect(() => {
-    loadTickets()
-  }, [loadTickets])
+    if (tickets.length === 0) {
+      loadTickets()
+    }
+  }, [tickets.length, loadTickets])
 
   // Filter tickets for current customer
   const myTickets = tickets.filter((t: any) => t.customer_id === me.id)
