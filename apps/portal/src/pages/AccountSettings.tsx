@@ -91,7 +91,6 @@ export const AccountSettingsView: React.FC<AccountSettingsViewProps> = ({ role }
     }
   }
 
-  const saveSecurity = () => toast('Security settings saved', 'ok')
   const saveNotif = () => toast('Notification preferences saved', 'ok')
   const savePrefs = () => toast('Preferences saved', 'ok')
 

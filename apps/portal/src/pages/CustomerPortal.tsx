@@ -9,7 +9,6 @@ import useCustomerStore from '../store/customerStore'
 import useVMStore from '../store/vmStore'
 import useInvoiceStore from '../store/invoiceStore'
 import useTicketStore from '../store/ticketStore'
-import useTaskStore from '../store/taskStore'
 import useUIStore from '../store/uiStore'
 import useAlertStore from '../store/alertStore'
 import Spinner from '../components/ui/Spinner'
@@ -48,8 +47,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
   const { vms, loadVMs } = useVMStore()
   const { invoices, loadInvoices } = useInvoiceStore()
   const { tickets } = useTicketStore()
-  const { addTask } = useTaskStore()
-  const { toast } = useUIStore()
+    const { toast } = useUIStore()
   const { alerts } = useAlertStore()
   const { vmRequests, loadVMRequests } = useVMRequestStore()
   const { addonRequests, loadAddonRequests } = useAddonRequestStore()
@@ -179,17 +177,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
     { id: 'tickets', label: 'Support tickets', icon: 'mail', badge: openTickets.length || null },
   ]
 
-  const submitRenewalRequest = (vm: any, months: number) => {
-    addTask({
-      title: `Customer renewal request — ${vm.name} (${months} months)`,
-      customer: safeMe.id, vm: vm.id, type: 'Renewal', priority: 'Normal', status: 'Pending',
-      team: 'Sales', subscription: `${months} months`,
-      notes: `Customer-initiated renewal request via portal.`,
-    })
-    toast(`Renewal request submitted. Sales will be in touch.`, 'ok')
-    setRenewVm(null)
-  }
-
+      
   return (
     <div className="app" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, background: 'white' }}>
       <aside className="sidebar">
@@ -345,7 +333,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
         }
       </div>
 
-      {renewVm && <CustRenewModal vm={renewVm} onClose={() => setRenewVm(null)} onSubmit={submitRenewalRequest} me={safeMe} />}
+      {renewVm && <CustRenewModal vm={renewVm} onClose={() => setRenewVm(null)} me={safeMe} />}
       <Toasts />
     </div >
   )

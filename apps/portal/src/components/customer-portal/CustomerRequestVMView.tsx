@@ -73,8 +73,6 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
     { id: 'yangon-dc2', name: 'Yangon Zone B', flag: '🇲🇲', flagImage: 'https://flagcdn.com/w40/mm.png', sub: 'Secondary · DR pair', latency: '4ms', disabled: true },
   ]
 
-  const bandwidthOpts = ['100 Mbps', '500 Mbps', '1 Gbps', '10 Gbps']
-
   const commonPorts = [
     { port: '22', label: 'SSH', desc: 'Secure Shell' },
     { port: '80', label: 'HTTP', desc: 'Web traffic' },
@@ -90,26 +88,11 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
     { port: '8080', label: 'HTTP-Alt', desc: 'Alternate HTTP' },
   ]
 
-  const storageSteps = [25, 50, 100, 200, 500, 1000, 2000]
-
   const selectedOS = f.os === 'custom' ? { name: f.customOsName || 'Other OS', accent: 'var(--accent)', versions: [f.customOsVersion || 'Custom version'] } : osCatalog.find(o => o.id === f.os) || osCatalog[0]
   const selectedZone = zones.find(z => z.id === f.zone) || zones[0]
   const hostValid = /^[a-z0-9][a-z0-9-]{1,30}$/i.test(f.hostname)
 
   const canSubmit = () => !!f.purpose && hostValid
-
-  const setVolumeCount = (count: number) => {
-    const cur = f.volumes
-    const next = count > cur.length
-      ? [...cur, ...Array.from({ length: count - cur.length }, () => ({ size: 100 }))]
-      : cur.slice(0, count)
-    set('volumes', next)
-  }
-  const setVolumeSize = (idx: number, size: number) => {
-    const next = [...f.volumes]
-    next[idx] = { ...next[idx], size }
-    set('volumes', next)
-  }
 
   const togglePort = (port: string) => {
     const ports = f.firewallPorts

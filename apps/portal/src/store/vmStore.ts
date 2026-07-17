@@ -262,7 +262,7 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     }
 
     // Persist to Supabase
-    const { error, data } = await supabase.from('vms').insert(newVM).select()
+    const { error } = await supabase.from('vms').insert(newVM).select()
     if (error) {
       throw error
     }
@@ -453,7 +453,7 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     }
   }, [startVM, stopVM, vms, logActivity])
 
-  const snapshotVM = useCallback(async (id: string, name: string) => {
+  const snapshotVM = useCallback(async (_id: string, _name: string) => {
     // In the future, this will call Proxmox API to create a snapshot
     // For now, it's a placeholder
   }, [])

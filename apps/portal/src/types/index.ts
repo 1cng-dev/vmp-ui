@@ -373,7 +373,7 @@ export interface Invoice {
   issued: string
   due: string
   status: string
-  receipt: string | null
+  receipt: string
   invoice_date: string | null
   paid_date?: string
   discount?: number

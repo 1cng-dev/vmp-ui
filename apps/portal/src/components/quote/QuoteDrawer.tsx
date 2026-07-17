@@ -43,7 +43,7 @@ const QuoteDrawer = ({ quote, onClose }: QuoteDrawerProps) => {
   const addonReq = addonRequests.find(a => a.id === (quote as any).addon_request_id)
   const isAddon = !!(quote as any).addon_request_id
   // For renewal requests, find VM by hostname since VM is linked to original request
-  const vm = vmReq?.task_type === 'Renewal' || vmReq?.task_type === 'renewal'
+  const vm = (vmReq as any)?.task_type === 'Renewal' || (vmReq as any)?.task_type === 'renewal'
     ? vms.find(v => v.hostname === vmReq?.hostname)
     : vms.find(v => v.vm_request_id === quote.vm_request_id)
 

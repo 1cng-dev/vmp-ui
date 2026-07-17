@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react'
 import { StatusPill, formatMMK, CircularSpinner } from '../ui/ui'
 import Icon from '../../lib/icons'
-import useUIStore from '../../store/uiStore'
 import useVMRequestStore from '../../store/vmRequestStore'
 import useAddonRequestStore from '../../store/addonRequestStore'
 import useQuoteStore from '../../store/quoteStore'
@@ -16,7 +15,6 @@ interface CustomerInvoicesViewProps {
 }
 
 export const CustomerInvoicesView: React.FC<CustomerInvoicesViewProps> = ({ myInvs, setDetailInvoice }) => {
-  const { toast } = useUIStore()
   const { vmRequests } = useVMRequestStore()
   const { addonRequests, loadAddonRequests } = useAddonRequestStore()
   const { quotes, loadQuotes } = useQuoteStore()

@@ -14,7 +14,7 @@ export const NetworkView: React.FC<NetworkViewProps> = ({ openVM, openModal }) =
   const { vms, vmsLoading, loadVMs } = useVMStore()
   const { customers, customersLoading, loadCustomers } = useCustomerStore()
   const { toast } = useUIStore()
-  const withIp = vms.filter(v => v.publicIp && v.publicIp !== '—' && v.publicIp !== 'pending')
+  const withIp = vms.filter(v => v.public_ip && v.public_ip !== '—' && v.public_ip !== 'pending')
   const ranges = [
     { range: '203.81.64.0/24', total: 256, used: withIp.length + 18, vlan: 'mixed' },
     { range: '203.81.65.0/24', total: 256, used: 32, vlan: 'reserve' },
@@ -82,11 +82,11 @@ export const NetworkView: React.FC<NetworkViewProps> = ({ openVM, openModal }) =
                   return (
                     <tr key={v.id} onClick={() => openVM(v.id)}>
                       <td className="mono fw-6">{v.public_ip}</td>
-                      <td className="mono">{v.vlan || '—'}</td>
+                      <td className="mono">{(v as any).vlan || '—'}</td>
                       <td><div className="fw-6">{v.hostname}</div><div className="text-xs text-mute mono">{v.id}</div></td>
                       <td className="text-sm">{c?.name || c?.org_name || 'Unknown'}</td>
-                      <td className="mono text-xs">{v.port_forward || '—'}</td>
-                      <td className="mono text-xs">{v.firewall_policy || '—'}</td>
+                      <td className="mono text-xs">{(v as any).port_forward || '—'}</td>
+                      <td className="mono text-xs">{(v as any).firewall_policy || '—'}</td>
                       <td><StatusPill status={v.status}/></td>
                     </tr>
                   )

@@ -51,25 +51,14 @@ const IaaSCard: React.FC<IaaSCardProps> = ({ selected, onClick, padding = 14, ch
   </button>
 )
 
-const SummaryLine: React.FC<{ icon: string; label: string; value: React.ReactNode }> = ({ icon, label, value }) => (
-  <div className="flex between text-sm" style={{ marginBottom: 6 }}>
-    <span className="text-mute flex center gap-2">
-      <Icon name={icon} size={12} />
-      {label}
-    </span>
-    <span>{value}</span>
-  </div>
-)
-
 // ── Renew (IaaS-style) ────────────────────────────────────────────────────
 interface CustRenewModalProps {
   vm: VM
   onClose: () => void
-  onSubmit: (vm: VM, months: number) => void
   me: any
 }
 
-const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, onSubmit, me }) => {
+const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, me }) => {
   const { addTask } = useTaskStore()
   const { toast } = useUIStore()
   const [months, setMonths] = useState(12)
@@ -558,7 +547,7 @@ const CustChangePlanModal: React.FC<CustChangePlanModalProps> = ({ vm, onClose }
       title: `Plan change — ${vm.name} (${currentPlan.label} → ${target.label})`,
       customer: vm.customer, vm: vm.id, type: 'Upgrade', priority: 'Normal', status: 'Pending', team: 'Sales',
       subscription: '—',
-      assignee: me?.salesperson || '—',
+      assignee: (me as any)?.salesperson || '—',
       notes: `Customer-initiated plan change via portal.
 From: ${currentPlan.label} (${vm.vcpu}c / ${vm.ram}GB / ${vm.storage}GB) — MMK ${formatMMK(vm.priceMonth)}/mo
 To: ${target.label} (${target.vcpu}c / ${target.ram}GB / ${target.storage}GB) — MMK ${formatMMK(target.price)}/mo

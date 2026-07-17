@@ -23,8 +23,8 @@ interface QuotesViewProps {
 const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, prefillRequestId, prefillRequestType }: QuotesViewProps) => {
   const { quotes, quotesLoading, addQuote, loadQuotes } = useQuoteStore()
   const { toast } = useUIStore()
-  const { user, refreshUser } = useAuthStore()
-  const { vms, loadVMs } = useVMStore()
+  const { refreshUser } = useAuthStore()
+  const { loadVMs } = useVMStore()
   const [building, setBuilding] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [addonRequests, setAddonRequests] = useState<any[]>([])
@@ -73,20 +73,20 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
   }, [loadVMs])
 
   // Helper function to parse billing term string to number of months
-  const parseBillingTermToMonths = (term: string): number => {
-    if (term === 'Monthly') return 1
-    if (term === 'Quarterly') return 3
-    if (term === 'Half Yearly') return 6
-    if (term === 'Yearly') return 12
+  // const parseBillingTermToMonths = (term: string): number => {
+  //   if (term === 'Monthly') return 1
+  //   if (term === 'Quarterly') return 3
+  //   if (term === 'Half Yearly') return 6
+  //   if (term === 'Yearly') return 12
 
-    // Parse custom terms like "9 months" or "9 months 2 days"
-    const match = term.match(/(\d+)\s*months/)
-    if (match) {
-      return parseInt(match[1], 10)
-    }
+  //   // Parse custom terms like "9 months" or "9 months 2 days"
+  //   const match = term.match(/(\d+)\s*months/)
+  //   if (match) {
+  //     return parseInt(match[1], 10)
+  //   }
 
-    return 1 // Default to 1 month
-  }
+  //   return 1 // Default to 1 month
+  // }
 
   // Load current VM data for renewal and change-plan requests
   useEffect(() => {
@@ -157,11 +157,11 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
         }
 
         // Parse notes to determine what changed
-        const notes = selectedRequest.notes || ''
+        // const notes = selectedRequest.notes || ''
         const isSpecChange = selectedRequest.spec_changed || false
         const isBackupChange = selectedRequest.backup_changed || false
 
-        console.log('Before comparison logic:', { notes, isSpecChange, isBackupChange })
+        console.log('Before comparison logic:', { isSpecChange, isBackupChange })
 
         // Fallback: check if spec values differ from current VM data
         const specDiffers = currentVMData && (
@@ -257,7 +257,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
       }
 
       // Parse notes to determine what changed
-      const notes = selectedRequest.notes || ''
+      // const notes = selectedRequest.notes || ''
       const isSpecChange = selectedRequest.spec_changed || false
       const isBackupChange = selectedRequest.backup_changed || false
 
@@ -608,14 +608,14 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
     instance[i] = { ...instance[i], ...patch }
     setSheet({ ...sheet, instance })
   }
-  const addInstance = () => {
-    const isAddon = requestType === 'addon'
-    const next = isAddon
-      ? { spec: 'Service|package', vcpu: 0, ram: 0, storage: 0, qty: 1, unit: 0, term: 'Monthly' as const }
-      : { spec: `Instance ${sheet.instance.length + 1}`, vcpu: 2, ram: 8, storage: 100, qty: 1, unit: 120000, term: 'Monthly' as const }
-    setSheet({ ...sheet, instance: [...sheet.instance, next] })
-  }
-  const removeInstance = (i: number) => setSheet({ ...sheet, instance: sheet.instance.filter((_, j) => j !== i) })
+  // const addInstance = () => {
+  //   const isAddon = requestType === 'addon'
+  //   const next = isAddon
+  //     ? { spec: 'Service|package', vcpu: 0, ram: 0, storage: 0, qty: 1, unit: 0, term: 'Monthly' as const }
+  //     : { spec: `Instance ${sheet.instance.length + 1}`, vcpu: 2, ram: 8, storage: 100, qty: 1, unit: 120000, term: 'Monthly' as const }
+  //   setSheet({ ...sheet, instance: [...sheet.instance, next] })
+  // }
+  // const removeInstance = (i: number) => setSheet({ ...sheet, instance: sheet.instance.filter((_, j) => j !== i) })
 
   const updateBackup = (i: number, patch: Partial<BackupLine>) => {
     const backup = [...sheet.backup]
@@ -931,7 +931,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                       billing_term: sheet.instance[0]?.term || 'Monthly',
                       discount_pct: sheet.discountPct,
                       currency: 'MMK',
-                      created_by: user?.id,
+                      // created_by: user?.id,
                       line_items: [
                         ...sheet.instance.map(l => ({ kind: 'instance', ...l })),
                         ...sheet.backup.map(l => ({ kind: 'backup', ...l })),
@@ -976,7 +976,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                       billing_term: sheet.instance[0]?.term || 'Monthly',
                       discount_pct: sheet.discountPct,
                       currency: 'MMK',
-                      created_by: user?.id,
+                      // created_by: user?.id,
                       line_items: [
                         ...sheet.instance.map(l => ({ kind: 'instance', ...l })),
                         ...sheet.backup.map(l => ({ kind: 'backup', ...l })),
@@ -1034,8 +1034,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                           <td><span className={`pill ${q.status === 'Accepted' ? 'ok' : q.status === 'Sent' ? 'accent' : 'subtle'}`}><span className="dot" />{q.status}</span></td>
                           <td className="right" onClick={e => e.stopPropagation()}><button className="btn sm" onClick={async () => {
                         const cust = customers.find(c => c.id === q.customer_id)
-                        const request = vmRequests.find(r => r.id === q.vm_request_id)
-                        await exportQuoteToPDF(q, cust, request)
+                        await exportQuoteToPDF(q, cust)
                       }}><Icon name="download" size={11} />PDF</button></td>
                         </tr>
                       )

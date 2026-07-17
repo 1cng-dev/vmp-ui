@@ -11,7 +11,7 @@ export const ReportsView: React.FC = () => {
   const { customers } = useCustomerStore()
   const { vms, loadVMs } = useVMStore()
   const { toast } = useUIStore()
-  const { invoices, invoicesLoading, loadInvoices } = useInvoiceStore()
+  const { invoices, loadInvoices } = useInvoiceStore()
   const [isLoading, setIsLoading] = useState(false)
   const [dateFilter, setDateFilter] = useState<'all' | 'custom'>('all')
   const [startDate, setStartDate] = useState('')

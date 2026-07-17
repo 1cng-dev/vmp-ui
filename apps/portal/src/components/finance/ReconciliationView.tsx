@@ -15,7 +15,7 @@ export const ReconciliationView: React.FC = () => {
 
   const match = (txId: string, invId: string) => {
     setMatches({ ...matches, [txId]: invId })
-    markPaid(invId)
+    markPaid(invId, '')
     toast(`Matched ${txId} → ${invId}`, 'ok')
   }
 

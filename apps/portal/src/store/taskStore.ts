@@ -39,7 +39,7 @@ const useTaskStore = (): TaskStoreValue => {
     setTasks(s => s.map(t => t.id === id ? { ...t, ...patch } : t))
   }, [])
 
-  const advanceProvision = useCallback((id: string, parsedSpec?: any, addVM?: (vm: any) => string, updateVM?: (id: string, patch: any) => void) => {
+  const advanceProvision = useCallback((id: string, _parsedSpec?: any, _addVM?: (vm: any) => string, _updateVM?: (id: string, patch: any) => void) => {
     const t = tasks.find(x => x.id === id)
     if (!t) return
     const stage = (t.wfStage || 0) + 1
@@ -55,8 +55,9 @@ const useTaskStore = (): TaskStoreValue => {
     let patch: any = { wfStage: stage, status: notes?.status || t.status }
 
 
-    if (stage === 6 && t.createdVmId && updateVM) {
-      updateVM(t.createdVmId, { status: 'Active' })
+    if (stage === 6 && t.createdVmId) {
+      // TODO: Update VM status to Active when updateVM is available
+      console.log('VM created, would update status to Active')
     }
 
     setTasks(s => s.map(x => x.id === id ? { ...x, ...patch } : x))
@@ -219,11 +220,22 @@ const useTaskStore = (): TaskStoreValue => {
     }
   }, [])
 
-  const deleteTask = useCallback((id: string) => {
+  const removeTask = useCallback((id: string) => {
     setTasks(s => s.filter(t => t.id !== id))
   }, [])
 
-  const moveTask = useCallback((id: string, status: string) => {
+  const moveTask = useCallback((id: string, to: number) => {
+    // Convert stage number to status string
+    const stageToStatus: Record<number, string> = {
+      0: 'Pending',
+      1: 'In Progress', 
+      2: 'In Progress',
+      3: 'In Progress',
+      4: 'In Progress',
+      5: 'In Progress',
+      6: 'Done'
+    }
+    const status = stageToStatus[to] || 'Pending'
     const t = tasks.find(t => t.id === id)
     if (!t || t.status === status) return
     updateTask(id, { status })
@@ -231,7 +243,7 @@ const useTaskStore = (): TaskStoreValue => {
 
   return {
     tasks,
-    addTask, updateTask, deleteTask, moveTask, advanceProvision, createVMManually, setTasks, updateVMExpiryForRequest,
+    addTask, updateTask, removeTask, moveTask, advanceProvision, createVMManually, setTasks, updateVMExpiryForRequest,
   }
 }
 

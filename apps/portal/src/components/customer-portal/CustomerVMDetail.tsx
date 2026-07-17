@@ -14,13 +14,11 @@ interface CustomerVMDetailProps {
 }
 
 export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialVm, onClose, onRenew, me }) => {
-  const { vms, startVM, stopVM, restartVM, snapshotVM, updateVMTags, updateVMNotes, getVMRequest, getAddonRequestsForVM } = useVMStore()
+  const { vms, startVM, stopVM, restartVM, snapshotVM, getVMRequest, getAddonRequestsForVM } = useVMStore()
   const { toast } = useUIStore()
   const vm = vms.find((v: any) => v.id === initialVm.id) || initialVm
   const [tab, setTab] = useState('overview')
   const [revealCreds, setRevealCreds] = useState(false)
-  const [tagInput, setTagInput] = useState('')
-  const [notesDraft, setNotesDraft] = useState(vm.notes || '')
   const [snapName, setSnapName] = useState('')
   const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [convertToPaidOpen, setConvertToPaidOpen] = useState(false)
@@ -29,7 +27,6 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
   const vmRequest = vm.vm_request_id ? getVMRequest(vm.vm_request_id) : null
   const addonRequests = getAddonRequestsForVM(vm.id)
 
-  const tags = vm.tags || []
   const isRunning = vm.power_state === 'Running'
 
   const cpu: number[] = []
@@ -42,14 +39,6 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
   ] : []
 
   const snapshots = Array.isArray((vm as any).snapshots) ? (vm as any).snapshots : []
-
-  const addTag = () => {
-    if (!tagInput.trim()) return
-    const next = [...tags, tagInput.trim()]
-    updateVMTags(vm.id, next)
-    setTagInput('')
-  }
-  const removeTag = (t: string) => updateVMTags(vm.id, tags.filter((x: string) => x !== t))
 
   const openConsole = () => {
     const params = new URLSearchParams({
@@ -74,7 +63,6 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
             <StatusPill status={vm.status} />
             <StatusPill status={vm.task_type || 'new'} />
             <span className="pill"><Icon name={vm.power_state === 'Running' ? 'play' : 'pause'} size={10} />{vm.power_state}</span>
-            {tags.map((t: string) => <span key={t} className="pill subtle">#{t}</span>)}
           </div>
         </div>
         <div className="page-actions">
@@ -84,7 +72,6 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
           }
           <button className="btn" onClick={() => restartVM(vm.id)} disabled={!isRunning}><Icon name="refresh" size={12} />Restart</button>
           <button className="btn" onClick={openConsole} disabled={!isRunning} title={isRunning ? 'Open VNC console in new tab' : 'Start the VM to open console'}><Icon name="terminal" size={12} />Console<Icon name="external" size={10} /></button>
-          <button className="btn" onClick={() => setUpgradeOpen(true)}><Icon name="arrow-up" size={12} />Change Plan</button>
           {vmRequest?.request_type === 'trial' && <button className="btn primary" onClick={() => setConvertToPaidOpen(true)}><Icon name="credit-card" size={12} />Convert to Paid</button>}
           <button className="btn accent" onClick={onRenew}><Icon name="refresh" size={12} />Renew</button>
         </div>
@@ -102,8 +89,8 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
 
       <div className="card">
         <div className="tabs">
-          {['overview', 'specs', 'network', 'backups', 'credentials', 'snapshots', 'usage', 'addons', 'tags-notes'].map(t => {
-            const label = t === 'tags-notes' ? 'Tags & notes' : t === 'addons' ? 'Add-on Services' : t.charAt(0).toUpperCase() + t.slice(1)
+          {['overview', 'specs', 'network', 'backups', 'credentials', 'snapshots', 'usage', 'addons'].map(t => {
+            const label = t === 'addons' ? 'Add-on Services' : t.charAt(0).toUpperCase() + t.slice(1)
             return (
               <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
                 {label}
@@ -250,44 +237,6 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
                 )}
               </tbody>
             </table>
-          </div>
-        )}
-
-        {tab === 'tags-notes' && (
-          <div className="card-body">
-            <div className="grid-2" style={{ gap: 24 }}>
-              <div>
-                <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Tags</div>
-                <div className="flex wrap gap-2 mb-2">
-                  {tags.length === 0 && <span className="text-xs text-mute">No tags yet.</span>}
-                  {tags.map((t: string) => (
-                    <span key={t} className="pill accent" style={{ paddingRight: 4 }}>
-                      <span>#{t}</span>
-                      <button className="icon-btn" style={{ width: 18, height: 18, marginLeft: 2 }} onClick={() => removeTag(t)}><Icon name="x" size={10} /></button>
-                    </span>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <input value={tagInput} onChange={e => setTagInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addTag()} placeholder="Add a tag (e.g. production, db, backup)" style={{ flex: 1, padding: '7px 10px', border: '1px solid var(--line)', borderRadius: 6, fontSize: 12.5 }} />
-                  <button className="btn" onClick={addTag}><Icon name="plus" size={12} />Add</button>
-                </div>
-                <div className="text-xs text-mute mt-2">Tags help you organize VMs. Try: production, staging, db, web, backup-critical.</div>
-              </div>
-              <div>
-                <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Notes</div>
-                <textarea
-                  value={notesDraft}
-                  onChange={e => setNotesDraft(e.target.value)}
-                  placeholder="Add notes for this VM…"
-                  rows={6}
-                  style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 6, fontSize: 12.5, resize: 'vertical' }}
-                />
-                <div className="flex gap-2 mt-2">
-                  <button className="btn accent" onClick={() => { updateVMNotes(vm.id, notesDraft); toast('Notes saved', 'ok') }}><Icon name="check" size={12} />Save notes</button>
-                  <button className="btn ghost" onClick={() => setNotesDraft(vm.notes || '')}>Reset</button>
-                </div>
-              </div>
-            </div>
           </div>
         )}
 

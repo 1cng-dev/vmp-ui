@@ -14,7 +14,7 @@ interface InvoiceDrawerProps {
   openModal: (kind: string, props?: any) => void
 }
 
-export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, openCust, openModal }) => {
+export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, openModal }) => {
   const { invoices, markPaid, updateInvoice, loadInvoices } = useInvoiceStore()
   const { customers } = useCustomerStore()
   const { toast } = useUIStore()

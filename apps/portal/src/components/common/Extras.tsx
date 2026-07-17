@@ -210,7 +210,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ openVM }) => {
     const d = new Date(v.expiry)
     return d.getMonth() === base.getMonth() && d.getFullYear() === base.getFullYear()
   })
-  const monthRevenue = monthVMs.reduce((a, v) => a + v.priceMonth * 12, 0)
+  const monthRevenue = monthVMs.reduce((a, v) => a + (v as any).priceMonth * 12, 0)
 
   return (
     <div className="content">

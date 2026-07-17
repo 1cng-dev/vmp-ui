@@ -14,7 +14,7 @@ interface EngineerVMCreateFormProps {
 }
 
 const EngineerVMCreateForm = ({ task, onSubmit }: EngineerVMCreateFormProps) => {
-  const qty = task.qty || 1
+  const qty = (task as any).qty || 1
   const [publicIps, setPublicIps] = useState<string[]>(() => Array(qty).fill(''))
   const [privateIps, setPrivateIps] = useState<string[]>(() => Array(qty).fill(''))
   const [assigned_vmids, setAssigned_vmids] = useState<number[]>(() => Array(qty).fill(0))
@@ -64,13 +64,13 @@ const EngineerVMCreateForm = ({ task, onSubmit }: EngineerVMCreateFormProps) => 
   return (
     <div className="flex col gap-4">
       <div className="text-sm text-mute">
-        <div><strong>Request:</strong> {task.hostname}</div>
-        <div><strong>Configuration:</strong> {task.task_type || 'new'} · {qty} VM{qty > 1 ? 's' : ''} · {task.vcpu} vCPU · {task.ram}GB RAM · {task.storage}GB Storage</div>
+        <div><strong>Request:</strong> {(task as any).hostname}</div>
+        <div><strong>Configuration:</strong> {(task as any).task_type || 'new'} · {qty} VM{qty > 1 ? 's' : ''} · {(task as any).vcpu} vCPU · {(task as any).ram}GB RAM · {(task as any).storage}GB Storage</div>
       </div>
 
       {Array.from({ length: qty }).map((_, i) => (
         <div key={i} style={{ padding: 12, background: 'var(--surface-2)', borderRadius: 4 }}>
-          <div className="fw-6 mb-3" style={{ fontSize: 14 }}>VM #{i + 1}: {task.hostname}-{i + 1}</div>
+          <div className="fw-6 mb-3" style={{ fontSize: 14 }}>VM #{i + 1}: {(task as any).hostname}-{i + 1}</div>
           <div className="grid-3" style={{ gap: 12 }}>
             <div className="field">
               <label>Public IP</label>

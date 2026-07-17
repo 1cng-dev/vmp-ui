@@ -49,7 +49,7 @@ const useTeamStore = (): TeamStoreValue => {
     }
     
     // Map database fields to interface fields and format last_login_at
-    const mappedData = (data || []).map(member => ({
+    const mappedData = (data || []).map((member: any) => ({
       ...member,
       id: member.user_id,
       last: member.last_login_at ? formatDate(member.last_login_at) : '-'
@@ -98,7 +98,7 @@ const useTeamStore = (): TeamStoreValue => {
     const inviteToken = crypto.randomUUID()
     
     // Create team_members record with the user_id
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('team_members')
       .insert({
         user_id: userId,

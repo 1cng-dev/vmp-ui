@@ -59,7 +59,7 @@ export const exportToPDF = <T extends Record<string, any>>(
   }
 }
 
-export const exportQuoteToPDF = async (quote: any, customer: any, request?: any) => {
+export const exportQuoteToPDF = async (quote: any, customer: any) => {
   const logoUrl = '/src/public/assets/logo.png'
   const signatureUrl = '/src/public/assets/sign1.png'
   const lineItems = quote.line_items || []

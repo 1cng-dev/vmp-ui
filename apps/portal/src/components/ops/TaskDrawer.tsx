@@ -1,9 +1,8 @@
 import React, { useState } from 'react'
 import useCustomerStore from '../../store/customerStore'
-import useTeamStore from '../../store/teamStore'
-import useUIStore from '../../store/uiStore'
 import useVMRequestStore from '../../store/vmRequestStore'
 import useInvoiceStore from '../../store/invoiceStore'
+import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { StatusPill } from '../ui/ui'
 import EngineerVMCreateForm from '../engineer/EngineerVMCreateForm'
@@ -20,7 +19,6 @@ interface TaskDrawerProps {
 
 export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, userRole }) => {
   const { customers, loadCustomers } = useCustomerStore()
-  const { team } = useTeamStore()
   const { toast } = useUIStore()
   const { createVMManually } = useTaskStore()
   const { addVM, vms, getVMById, getVMByHostname, updateVM, getVMRequest } = useVMStore()
@@ -42,7 +40,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
   const request = t || addonRequest
   const requestType = t ? 'vm' : 'addon'
   const isUpgrade = requestType === 'vm' && (t?.task_type?.toLowerCase() === 'change-plan')
-  const isRenewal = requestType === 'vm' && (t?.task_type === 'Renewal' || t?.task_type === 'renewal')
+  const isRenewal = requestType === 'vm' && ((t as any)?.task_type === 'Renewal' || (t as any)?.task_type === 'renewal')
   const isSpecChange = t?.spec_changed || false
   const isTrial = requestType === 'vm' && t?.request_type === 'trial'
   
@@ -134,20 +132,6 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
     'VPS Portal': 'var(--accent)',
     Engineering: 'var(--ok)',
     Network: 'oklch(0.55 0.17 285)'
-  }
-
-  const save = () => {
-    if (requestType === 'vm') {
-      if (!t) return
-      updateVMRequest(t.id, {
-        status: salesData.status,
-        assigned_to: salesData.assignee !== '—' ? salesData.assignee : null,
-      })
-    } else {
-      const mapped = salesData.status === 'Provisioning' ? 'In Progress' : salesData.status
-      updateAddonRequest(request.id, { status: mapped as any })
-    }
-    toast(`${request.id} updated · customer notified`, 'ok')
   }
 
   return (
