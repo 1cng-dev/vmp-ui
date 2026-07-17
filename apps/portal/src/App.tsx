@@ -196,8 +196,9 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
   // Show full page loading spinner until critical data is loaded and minimum time elapsed
   // Only wait for: auth, team (for admin), alerts
   // Customers data loads progressively in background - don't block on it to avoid RLS issues
+  const { teamLoading } = useTeamStore()
   const needsTeamData = tw.role !== 'Customer'
-  if (!auth?.user || (needsTeamData && team.length === 0) || alertsLoading || !minDisplayTimeElapsed) {
+  if (!auth?.user || (needsTeamData && teamLoading) || alertsLoading || !minDisplayTimeElapsed) {
     return (
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', zIndex: 9999 }}>
         <Spinner />

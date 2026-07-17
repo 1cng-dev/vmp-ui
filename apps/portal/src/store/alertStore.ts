@@ -168,18 +168,166 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const channelName = `alerts-changes-${Date.now()}`
     const subscription = supabase
       .channel(channelName)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'alerts' }, () => {
-        loadAlerts()
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'alerts' }, async () => {
+        // Fetch alerts without loading state to avoid showing full-page spinner on real-time updates
+        try {
+          const { data: { user } } = await supabase.auth.getUser()
+          const userId = user?.id
+
+          if (!userId || typeof userId !== 'string' || userId.length < 10 || userId === 'undefined' || userId === 'null') {
+            return
+          }
+
+          // Get user's role and customer_id
+          let customerId: string | null = null
+          let isCustomer = false
+
+          try {
+            const { data: userData } = await supabase
+              .from('customers')
+              .select('id')
+              .eq('id', userId)
+              .single()
+
+            customerId = userData?.id || null
+            isCustomer = !!customerId
+          } catch (customerError) {
+            isCustomer = false
+            customerId = null
+          }
+
+          let query = supabase
+            .from('alerts')
+            .select('*')
+            .order('created_at', { ascending: false })
+
+          if (isCustomer && customerId) {
+            query = query.eq('customer_id', customerId)
+          }
+
+          const { data, error } = await query
+
+          if (error) throw error
+
+          let readAlertIds: Set<string> = new Set()
+          if (userId) {
+            const { data: readData } = await supabase
+              .from('alert_reads')
+              .select('alert_id')
+              .eq('user_id', userId)
+            readAlertIds = new Set(readData?.map(r => r.alert_id) || [])
+          }
+
+          const transformedAlerts = (data || []).map((a: any) => ({
+            id: a.id,
+            sev: a.sev,
+            title: a.title,
+            body: a.body,
+            ts: new Date(a.created_at).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            }),
+            read: readAlertIds.has(a.id),
+            type: a.type,
+            related_entity_id: a.related_entity_id,
+            related_entity_type: a.related_entity_type,
+            actor_id: a.actor_id,
+            actor_name: a.actor_name,
+            customer_id: a.customer_id,
+            metadata: a.metadata
+          }))
+
+          setAlerts(transformedAlerts)
+        } catch (error) {
+          console.error('Error loading alerts in subscription:', error)
+        }
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'alert_reads' }, () => {
-        loadAlerts()
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'alert_reads' }, async () => {
+        // Fetch alerts without loading state to avoid showing full-page spinner on real-time updates
+        try {
+          const { data: { user } } = await supabase.auth.getUser()
+          const userId = user?.id
+
+          if (!userId || typeof userId !== 'string' || userId.length < 10 || userId === 'undefined' || userId === 'null') {
+            return
+          }
+
+          // Get user's role and customer_id
+          let customerId: string | null = null
+          let isCustomer = false
+
+          try {
+            const { data: userData } = await supabase
+              .from('customers')
+              .select('id')
+              .eq('id', userId)
+              .single()
+
+            customerId = userData?.id || null
+            isCustomer = !!customerId
+          } catch (customerError) {
+            isCustomer = false
+            customerId = null
+          }
+
+          let query = supabase
+            .from('alerts')
+            .select('*')
+            .order('created_at', { ascending: false })
+
+          if (isCustomer && customerId) {
+            query = query.eq('customer_id', customerId)
+          }
+
+          const { data, error } = await query
+
+          if (error) throw error
+
+          let readAlertIds: Set<string> = new Set()
+          if (userId) {
+            const { data: readData } = await supabase
+              .from('alert_reads')
+              .select('alert_id')
+              .eq('user_id', userId)
+            readAlertIds = new Set(readData?.map(r => r.alert_id) || [])
+          }
+
+          const transformedAlerts = (data || []).map((a: any) => ({
+            id: a.id,
+            sev: a.sev,
+            title: a.title,
+            body: a.body,
+            ts: new Date(a.created_at).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            }),
+            read: readAlertIds.has(a.id),
+            type: a.type,
+            related_entity_id: a.related_entity_id,
+            related_entity_type: a.related_entity_type,
+            actor_id: a.actor_id,
+            actor_name: a.actor_name,
+            customer_id: a.customer_id,
+            metadata: a.metadata
+          }))
+
+          setAlerts(transformedAlerts)
+        } catch (error) {
+          console.error('Error loading alerts in subscription:', error)
+        }
       })
       .subscribe()
 
     return () => {
       supabase.removeChannel(subscription)
     }
-  }, [loadAlerts])
+  }, [])
 
   useEffect(() => {
     const unsubscribe = subscribeToAlerts()

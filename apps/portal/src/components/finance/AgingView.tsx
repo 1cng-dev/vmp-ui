@@ -115,7 +115,7 @@ export const AgingView: React.FC = () => {
                 return (
                   <tr key={i.id}>
                     <td className="mono fw-6">{i.legacy_id || i.id}</td>
-                    <td><div className="fw-6 text-sm">{c?.name} ({c?.org_name})</div></td>
+                    <td><div className="fw-6 text-sm">{c?.org_name ? `${c?.name} (${c?.org_name})` : c?.name}</div></td>
                     <td className="tnum text-sm">{i.due ? new Date(i.due).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).replace(',', '') : '—'}</td>
                     <td><span className={`pill ${color}`}><span className="dot" />{bucket}</span></td>
                     <td className="right tnum fw-6">MMK {formatMMK(i.amount)}</td>

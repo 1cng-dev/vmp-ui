@@ -48,20 +48,25 @@ export const QuoteProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const subscribeToQuotes = useCallback(() => {
     const ch = supabase
       .channel(`quotes-${Date.now()}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'quotes' }, () => {
-        loadQuotes()
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'quotes' }, async () => {
+        // Fetch quotes without loading state to avoid showing spinner on real-time updates
+        const { data, error } = await supabase.from('quotes').select('*').order('created_at', { ascending: false })
+        if (!error) {
+          setQuotes((data as DBQuote[]) || [])
+        }
       })
       .subscribe()
     return () => {
       supabase.removeChannel(ch)
     }
-  }, [loadQuotes])
+  }, [])
 
   const addQuote = useCallback(async (q: NewQuoteInput) => {
     const { data, error } = await supabase.from('quotes').insert(q).select().single()
     if (error) throw error
-    await loadQuotes()
-    
+    // Don't call loadQuotes here - let the real-time subscription handle it
+    // This prevents showing loading spinner in quotes table when creating a quote
+
     const quote = data as DBQuote
     
     // Get customer name for notification

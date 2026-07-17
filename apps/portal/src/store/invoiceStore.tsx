@@ -108,12 +108,23 @@ export const InvoiceProvider: React.FC<{ children: ReactNode }> = ({ children })
     
     // Add created_by to the invoice data
     const invoiceWithCreator = { ...i, created_by: actorName }
-    
+
     const { data, error } = await supabase.from('invoices').insert(invoiceWithCreator).select().single()
     if (error) throw error
     await loadInvoices()
-    
+
     const invoice = data as DBInvoice
+
+    // Query again to get the legacy_id (trigger-generated)
+    const { data: invoiceWithLegacy } = await supabase
+      .from('invoices')
+      .select('legacy_id')
+      .eq('id', invoice.id)
+      .single()
+
+    if (invoiceWithLegacy?.legacy_id) {
+      invoice.legacy_id = invoiceWithLegacy.legacy_id
+    }
     
     // Get customer name for notification
     const { data: customer } = await supabase
@@ -151,8 +162,8 @@ export const InvoiceProvider: React.FC<{ children: ReactNode }> = ({ children })
         due_date: invoice.due
       }
     })
-    
-    return invoice.id
+
+    return invoice.legacy_id || invoice.id
   }, [loadInvoices])
 
   const updateInvoice = useCallback(async (id: string, patch: Partial<DBInvoice>) => {

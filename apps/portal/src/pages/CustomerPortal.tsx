@@ -44,7 +44,7 @@ interface CustomerPortalProps {
 }
 
 export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRole, roleNames: _roleNames = {} }) => {
-  const { customers, loadCustomers } = useCustomerStore()
+  const { customers, customersLoading, loadCustomers } = useCustomerStore()
   const { vms, loadVMs } = useVMStore()
   const { invoices, loadInvoices } = useInvoiceStore()
   const { tickets } = useTicketStore()
@@ -130,7 +130,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
     }
   }, [me?.kyc_status, view, me])
 
-  if (!auth?.user || customers.length === 0 || !me || !minDisplayTimeElapsed) {
+  if (!auth?.user || customersLoading || !me || !minDisplayTimeElapsed) {
     return (
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', zIndex: 9999 }}>
         <Spinner />

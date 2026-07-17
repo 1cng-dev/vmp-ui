@@ -38,7 +38,14 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
     // VMs that have already expired or expire today, with Active or Suspended status only
     return d <= 0 && (v.status === 'Active' || v.status === 'Suspended')
   })
-  const overdue = invoices.filter(i => i.status === 'Overdue').length
+  // Calculate overdue based on due date, not status (to match AgingView logic)
+  const overdueInvoices = invoices.filter(i => {
+    if (i.status === 'Payment Received') return false
+    if (!i.due) return false
+    const days = Math.ceil((TODAY.getTime() - new Date(i.due).getTime()) / 86400000)
+    return days > 0 // overdue if due date is in the past
+  })
+  const overdue = overdueInvoices.length
   // Calculate MRR from invoices in current month
   const currentMonth = TODAY.getMonth()
   const currentYear = TODAY.getFullYear()
@@ -51,7 +58,7 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
     const amount = typeof i.amount === 'string' ? parseFloat(i.amount) : (i.amount || 0)
     return sum + (grossAmount || amount || 0)
   }, 0)
-  const overdueValue = invoices.filter(i => i.status === 'Overdue').reduce((a, i) => a + (typeof i.amount === 'string' ? parseFloat(i.amount) : (i.amount || 0)), 0)
+  const overdueValue = overdueInvoices.reduce((a, i) => a + (typeof i.amount === 'string' ? parseFloat(i.amount) : (i.amount || 0)), 0)
 
   // Calculate weekly VM growth
   const oneWeekAgo = new Date(TODAY.getTime() - 7 * 86400000)
