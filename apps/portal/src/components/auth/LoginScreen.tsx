@@ -5,6 +5,7 @@ import Icon from '../../lib/icons'
 import { supabase } from '../../lib/supabase'
 import { AuthLayout } from './shared/AuthLayout'
 import { ForgotPasswordScreen } from './ForgotPasswordScreen'
+import { useSystemSettingsStore } from '../../store/systemSettingsStore'
 
 interface LoginScreenProps {
   onSwitchToSignup: () => void
@@ -14,6 +15,7 @@ interface LoginScreenProps {
 const LoginScreen: React.FC<LoginScreenProps> = ({ onSwitchToSignup, prefillEmail }) => {
   const { toast } = useUIStore()
   const navigate = useNavigate()
+  const { settings } = useSystemSettingsStore()
   const [f, setF] = useState({ email: prefillEmail || '', password: '', remember: true })
   const [showPw, setShowPw] = useState(false)
   const [showForgotPassword, setShowForgotPassword] = useState(false)
@@ -75,9 +77,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onSwitchToSignup, prefillEmai
     <AuthLayout>
       <div style={{ width: 'min(420px, 100%)' }}>
         <div className="text-center mb-4">
-          <div className="brand-mark" style={{ width: 48, height: 48, fontSize: 22, margin: '0 auto 16px', borderRadius: 12 }}>V</div>
+          {settings?.logo_url ? (
+            <img src={`${settings.logo_url}?v=${settings.updated_at}`} alt="Logo" style={{ width: 96, height: 96, objectFit: 'contain', margin: '0 auto 16px', display: 'block', borderRadius: 12 }} />
+          ) : (
+            <div className="brand-mark" style={{ width: 96, height: 96, fontSize: 36, margin: '0 auto 16px', borderRadius: 12 }}>V</div>
+          )}
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em' }}>Welcome back</h1>
-          <p className="text-sm text-mute mt-2">Sign in to your VPS Myanmar account</p>
+          <p className="text-sm text-mute mt-2">Sign in to your {settings?.company_name || 'VPS Myanmar'} account</p>
         </div>
 
         <form onSubmit={submit} className="card">
@@ -112,7 +118,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onSwitchToSignup, prefillEmai
         </form>
 
         <div className="text-center text-sm text-mute mt-3">
-          New to VPS Myanmar? <a onClick={onSwitchToSignup} style={{ color: 'var(--accent-strong)', cursor: 'pointer', fontWeight: 600 }}>Create an account</a>
+          New to {settings?.company_name || 'VPS Myanmar'}? <a onClick={onSwitchToSignup} style={{ color: 'var(--accent-strong)', cursor: 'pointer', fontWeight: 600 }}>Create an account</a>
         </div>
       </div>
     </AuthLayout>

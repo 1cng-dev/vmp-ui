@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase, supabaseAdmin } from '../lib/supabase'
 import Icon from '../lib/icons'
 import { AuthLayout } from '../components/auth/shared/AuthLayout'
+import { useSystemSettingsStore } from '../store/systemSettingsStore'
 import { Spinner } from '../components/ui/ui'
 import useUIStore from '../store/uiStore'
 import { useTeamStore } from '../store/TeamContext'
@@ -157,7 +158,11 @@ const SetupPassword = () => {
     <AuthLayout>
       <div style={{ width: 'min(420px, 100%)' }}>
         <div className="text-center mb-4">
-          <div className="brand-mark" style={{ width: 48, height: 48, fontSize: 22, margin: '0 auto 16px', borderRadius: 12 }}>V</div>
+          {(() => { const { settings } = useSystemSettingsStore(); return settings?.logo_url ? (
+            <img src={`${settings.logo_url}?v=${settings.updated_at}`} alt="Logo" style={{ width: 96, height: 96, objectFit: 'contain', margin: '0 auto 16px', display: 'block', borderRadius: 12 }} />
+          ) : (
+            <div className="brand-mark" style={{ width: 96, height: 96, fontSize: 36, margin: '0 auto 16px', borderRadius: 12 }}>V</div>
+          )})()}
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em' }}>Set your password</h1>
           <p className="text-sm text-mute mt-2">Create a password to activate your account</p>
         </div>

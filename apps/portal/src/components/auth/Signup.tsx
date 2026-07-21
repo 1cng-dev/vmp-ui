@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import useAuthStore from '../../store/authStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
+import { useSystemSettingsStore } from '../../store/systemSettingsStore'
 import { SignupStepAccount } from './steps/SignupStepAccount'
 import { SignupStepIndividual } from './steps/SignupStepIndividual'
 import { SignupStepOrganization } from './steps/SignupStepOrganization'
@@ -159,9 +160,15 @@ const SignupScreen: React.FC<{ onComplete: (email: string) => void; onSwitchToLo
         padding: '14px 32px', display: 'flex', alignItems: 'center', gap: 16,
       }}>
         <div className="flex center gap-3">
-          <div className="brand-mark" style={{ width: 32, height: 32, fontSize: 14, borderRadius: 7 }}>V</div>
+          {(() => { const { settings } = useSystemSettingsStore(); return settings?.logo_url ? (
+            <img src={settings.logo_url} alt="Logo" style={{ width: 32, height: 32, objectFit: 'contain', borderRadius: 7 }} />
+          ) : (
+            <div className="brand-mark" style={{ width: 32, height: 32, fontSize: 14, borderRadius: 7 }}>V</div>
+          )})()}
           <div>
-            <div className="fw-7 text-sm">VPS Myanmar</div>
+            {(() => { const { settings } = useSystemSettingsStore(); return (
+              <div className="fw-7 text-sm">{settings?.company_name || 'VPS Myanmar'}</div>
+            )})()}
             <div className="text-xs text-mute" style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>Cloud infrastructure</div>
           </div>
         </div>

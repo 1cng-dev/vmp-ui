@@ -9,6 +9,7 @@ import { useAlertStore } from '../../store/alertStore'
 import useInvoiceStore from '../../store/invoiceStore'
 import { useQuoteStore } from '../../store/quoteStore'
 import { useAddonRequestStore } from '../../store/addonRequestStore'
+import { useSystemSettingsStore } from '../../store/systemSettingsStore'
 
 interface NavItem {
   section?: string
@@ -176,13 +177,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
     'Admin': null,
   }
   const allow = allowedFor[role]
+  const { settings } = useSystemSettingsStore()
 
   return (
     <aside className="sidebar">
       <div className="brand">
-        <div className="brand-mark">V</div>
+        {settings?.logo_url
+          ? <img src={`${settings.logo_url}?v=${settings.updated_at}`} alt="Logo" style={{ width: 56, height: 56, objectFit: 'contain', borderRadius: 8 }} />
+          : <div className="brand-mark" style={{ width: 56, height: 56, borderRadius: 8, fontSize: 24, display: 'grid', placeItems: 'center' }}>V</div>}
         <div>
-          <div className="brand-name">VM Portal</div>
+          <div className="brand-name">{settings?.company_name || 'VM Portal'}</div>
           <div className="brand-sub">{role === 'Customer' ? 'Customer view' : 'Operations'}</div>
         </div>
       </div>

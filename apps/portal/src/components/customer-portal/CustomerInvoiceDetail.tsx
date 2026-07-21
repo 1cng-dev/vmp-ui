@@ -4,6 +4,7 @@ import useCustomerStore from '../../store/customerStore'
 import useVMRequestStore from '../../store/vmRequestStore'
 import useUIStore from '../../store/uiStore'
 import useReceiptStore from '../../store/receiptStore'
+import { useSystemSettingsStore } from '../../store/systemSettingsStore'
 import Icon from '../../lib/icons'
 import { StatusPill, formatMMK } from '../ui/ui'
 import { exportInvoiceToPDF } from '../../lib/pdfExport'
@@ -19,6 +20,7 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
   const { vmRequests } = useVMRequestStore()
   const { toast } = useUIStore()
   const { loadReceiptsByInvoice } = useReceiptStore()
+  const { settings } = useSystemSettingsStore()
   const [showPaymentQR, setShowPaymentQR] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
@@ -143,8 +145,10 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
             <div className="card-body" style={{ padding: 28 }}>
               <div className="flex between mb-4">
                 <div>
-                  <div className="brand-mark" style={{ width: 40, height: 40, fontSize: 18, marginBottom: 8 }}>V</div>
-                  <div className="fw-7" style={{ fontSize: 14 }}>VPS Myanmar Co., Ltd</div>
+                  {settings?.logo_url
+                    ? <img src={`${settings.logo_url}?v=${settings.updated_at}`} alt="Logo" style={{ width: 40, height: 40, objectFit: 'contain', marginBottom: 8 }} />
+                    : <div className="brand-mark" style={{ width: 40, height: 40, fontSize: 18, marginBottom: 8 }}>V</div>}
+                  <div className="fw-7" style={{ fontSize: 14 }}>{settings?.company_name || 'VPS Myanmar Co., Ltd'}</div>
                   <div className="text-xs text-mute">No. 142, Strand Road, Yangon</div>
                   <div className="text-xs text-mute">accounts@vpsmm.co · +95 1 2345 678</div>
                 </div>

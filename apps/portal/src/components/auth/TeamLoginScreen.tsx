@@ -4,6 +4,7 @@ import Icon from '../../lib/icons'
 import { supabase } from '../../lib/supabase'
 import { AuthLayout } from './shared/AuthLayout'
 import { ForgotPasswordScreen } from './ForgotPasswordScreen'
+import { useSystemSettingsStore } from '../../store/systemSettingsStore'
 
 const TeamLoginScreen: React.FC = () => {
   const { toast } = useUIStore()
@@ -52,9 +53,15 @@ const TeamLoginScreen: React.FC = () => {
     <AuthLayout>
       <div style={{ width: 'min(420px, 100%)' }}>
         <div className="text-center mb-4">
-          <div className="brand-mark" style={{ width: 48, height: 48, fontSize: 22, margin: '0 auto 16px', borderRadius: 12 }}>V</div>
+          {(() => { const { settings } = useSystemSettingsStore(); return settings?.logo_url ? (
+            <img src={`${settings.logo_url}?v=${settings.updated_at}`} alt="Logo" style={{ width: 96, height: 96, objectFit: 'contain', margin: '0 auto 16px', display: 'block', borderRadius: 12 }} />
+          ) : (
+            <div className="brand-mark" style={{ width: 96, height: 96, fontSize: 36, margin: '0 auto 16px', borderRadius: 12 }}>V</div>
+          )})()}
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em' }}>Team Login</h1>
-          <p className="text-sm text-mute mt-2">Sign in to your VPS Myanmar team account</p>
+          {(() => { const { settings } = useSystemSettingsStore(); return (
+            <p className="text-sm text-mute mt-2">Sign in to your {settings?.company_name || 'VPS Myanmar'} team account</p>
+          )})()}
         </div>
 
         <form onSubmit={submit} className="card">

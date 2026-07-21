@@ -19,6 +19,7 @@ import { supabase } from '../lib/supabase'
 import { Avatar } from '../components/ui/ui'
 import { CustRenewModal } from '../components/modals/CustomerVMModals'
 import { useAuth } from '../components/auth/Auth'
+import { useSystemSettingsStore } from '../store/systemSettingsStore'
 import { CustomerDashboard } from '../components/customer-portal/CustomerDashboard'
 import { CustomerVMListView } from '../components/customer-portal/CustomerVMListView'
 import { CustomerRequestsView } from '../components/customer-portal/CustomerRequestsView'
@@ -55,6 +56,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
   const auth = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
+  const { settings } = useSystemSettingsStore()
   
   // Get view from URL parameter
   const view = location.pathname === '/' ? 'dashboard' : location.pathname.slice(1)
@@ -176,9 +178,11 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
     <div className="app" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, background: 'white' }}>
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-mark">V</div>
+          {settings?.logo_url
+            ? <img src={`${settings.logo_url}?v=${settings.updated_at}`} alt="Logo" style={{ width: 56, height: 56, objectFit: 'contain', borderRadius: 8 }} />
+            : <div className="brand-mark" style={{ width: 56, height: 56, borderRadius: 8, fontSize: 24, display: 'grid', placeItems: 'center' }}>V</div>}
           <div>
-            <div className="brand-name">VPS Myanmar</div>
+            <div className="brand-name">{settings?.company_name || 'VPS Myanmar'}</div>
             <div className="brand-sub">Customer portal</div>
           </div>
         </div>

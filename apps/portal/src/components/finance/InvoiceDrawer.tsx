@@ -3,6 +3,7 @@ import useInvoiceStore from '../../store/invoiceStore'
 import useCustomerStore from '../../store/customerStore'
 import useUIStore from '../../store/uiStore'
 import useActivityStore from '../../store/activityStore'
+import { useSystemSettingsStore } from '../../store/systemSettingsStore'
 import Icon from '../../lib/icons'
 import { StatusPill, formatMMK } from '../ui/ui'
 import { exportInvoiceToPDF } from '../../lib/pdfExport'
@@ -19,6 +20,7 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
   const { customers } = useCustomerStore()
   const { toast } = useUIStore()
   const { activity } = useActivityStore()
+  const { settings } = useSystemSettingsStore()
   const [showConfirm, setShowConfirm] = useState(false)
   
   const c = customers.find(c => c.id === invoice.customer_id)
@@ -74,8 +76,10 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
             <div className="card-body" style={{ padding: 28 }}>
               <div className="flex between mb-4">
                 <div>
-                  <div className="brand-mark" style={{ width: 40, height: 40, fontSize: 18, marginBottom: 8 }}>V</div>
-                  <div className="fw-7" style={{ fontSize: 14 }}>VPS Myanmar Co., Ltd</div>
+                  {settings?.logo_url
+                    ? <img src={`${settings.logo_url}?v=${settings.updated_at}`} alt="Logo" style={{ width: 40, height: 40, objectFit: 'contain', marginBottom: 8 }} />
+                    : <div className="brand-mark" style={{ width: 40, height: 40, fontSize: 18, marginBottom: 8 }}>V</div>}
+                  <div className="fw-7" style={{ fontSize: 14 }}>{settings?.company_name || 'VPS Myanmar Co., Ltd'}</div>
                   <div className="text-xs text-mute">No. 142, Strand Road, Yangon</div>
                   <div className="text-xs text-mute">accounts@vpsmm.co · +95 1 2345 678</div>
                 </div>

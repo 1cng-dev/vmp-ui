@@ -1,7 +1,10 @@
 import React from 'react'
 import Icon from '../../../lib/icons'
+import { useSystemSettingsStore } from '../../../store/systemSettingsStore'
 
-const AuthLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+const AuthLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { settings } = useSystemSettingsStore()
+  return (
   <div style={{ minHeight: '100vh', display: 'grid', gridTemplateColumns: '1fr 1fr', background: 'var(--bg)' }}>
     <div style={{
       background: 'linear-gradient(135deg, var(--ink) 0%, oklch(0.25 0.05 250) 50%, var(--accent) 100%)',
@@ -13,9 +16,11 @@ const AuthLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
       <div style={{ position: 'absolute', bottom: '-30%', left: '-15%', width: 400, height: 400, borderRadius: '50%', background: 'oklch(1 0 0 / 0.03)' }} />
       <div style={{ position: 'relative', zIndex: 1 }}>
         <div className="flex center gap-3">
-          <div style={{ width: 36, height: 36, borderRadius: 8, background: 'oklch(1 0 0 / 0.15)', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 16, backdropFilter: 'blur(8px)' }}>V</div>
+          {settings?.logo_url
+            ? <img src={`${settings.logo_url}?v=${settings.updated_at}`} alt="Logo" style={{ width: 64, height: 64, objectFit: 'contain', borderRadius: 8 }} />
+            : <div style={{ width: 64, height: 64, borderRadius: 8, background: 'oklch(1 0 0 / 0.15)', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 26, backdropFilter: 'blur(8px)' }}>V</div>}
           <div>
-            <div className="fw-7" style={{ fontSize: 15 }}>VPS Myanmar</div>
+            <div className="fw-7" style={{ fontSize: 15 }}>{settings?.company_name || 'VPS Myanmar'}</div>
             <div style={{ fontSize: 11, opacity: 0.7, letterSpacing: '0.04em', textTransform: 'uppercase' }}>Cloud infrastructure</div>
           </div>
         </div>
@@ -46,13 +51,13 @@ const AuthLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
         </div>
       </div>
       <div style={{ position: 'relative', zIndex: 1, fontSize: 11, opacity: 0.6 }}>
-        © 2026 VPS Myanmar Co., Ltd · vpsmm.co
+        {`© 2026 ${settings?.company_name || 'VPS Myanmar Co., Ltd'} · vpsmm.co`}
       </div>
     </div>
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40, overflow: 'auto' }}>
       {children}
     </div>
   </div>
-)
+)}
 
 export { AuthLayout }

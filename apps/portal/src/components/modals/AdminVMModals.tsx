@@ -8,6 +8,7 @@ import useInvoiceStore from '../../store/invoiceStore'
 import useTeamStore from '../../store/teamStore'
 import useVMRequestStore from '../../store/vmRequestStore'
 import useUIStore from '../../store/uiStore'
+import { useSystemSettingsStore } from '../../store/systemSettingsStore'
 import Icon from '../../lib/icons'
 import { formatMMK, StatusPill, Avatar } from '../ui/ui'
 
@@ -1006,12 +1007,14 @@ interface EmailModalProps {
 
 const EmailModal: React.FC<EmailModalProps> = ({ onClose, to, template }) => {
   const { toast } = useUIStore()
+  const { settings } = useSystemSettingsStore()
+  const companyName = settings?.company_name || 'VPS Myanmar'
   const templates: Record<string, { subject: string; body: string }> = {
-    welcome: { subject: 'Welcome to VPS Myanmar', body: `Hi,\n\nThank you for signing up. To activate your account, please complete the KYC verification by uploading your ID and company registration documents.\n\nThe link is in the portal.\n\n— VPS Myanmar Team` },
-    renewal: { subject: 'Your VM subscription is expiring soon', body: `Hi,\n\nYour subscription is set to expire in 7 days. To avoid service interruption, please confirm your renewal.\n\nReply to this email or visit the portal.\n\n— VPS Myanmar Team` },
-    invoice: { subject: 'Invoice attached', body: `Hi,\n\nPlease find your invoice attached.\n\nPayment is due within 10 days. We accept KBZ Pay, AYA Bank, and CB Bank transfers.\n\n— VPS Myanmar Team` },
-    receipt: { subject: 'Payment receipt', body: `Hi,\n\nThank you for your payment. Your receipt is attached for your records.\n\nIf you have any questions, please don't hesitate to contact us.\n\n— VPS Myanmar Team` },
-    kyc_request: { subject: 'KYC document re-upload', body: `Hi,\n\nWe need to re-verify your identity documents. Please upload a clearer image of your NRC.\n\nLink: portal.vpsmm.co/kyc\n\n— VPS Myanmar Team` },
+    welcome: { subject: `Welcome to ${companyName}`, body: `Hi,\n\nThank you for signing up. To activate your account, please complete the KYC verification by uploading your ID and company registration documents.\n\nThe link is in the portal.\n\n— ${companyName} Team` },
+    renewal: { subject: 'Your VM subscription is expiring soon', body: `Hi,\n\nYour subscription is set to expire in 7 days. To avoid service interruption, please confirm your renewal.\n\nReply to this email or visit the portal.\n\n— ${companyName} Team` },
+    invoice: { subject: 'Invoice attached', body: `Hi,\n\nPlease find your invoice attached.\n\nPayment is due within 10 days. We accept KBZ Pay, AYA Bank, and CB Bank transfers.\n\n— ${companyName} Team` },
+    receipt: { subject: 'Payment receipt', body: `Hi,\n\nThank you for your payment. Your receipt is attached for your records.\n\nIf you have any questions, please don't hesitate to contact us.\n\n— ${companyName} Team` },
+    kyc_request: { subject: 'KYC document re-upload', body: `Hi,\n\nWe need to re-verify your identity documents. Please upload a clearer image of your NRC.\n\nLink: portal.vpsmm.co/kyc\n\n— ${companyName} Team` },
   }
   const [tmpl, setTmpl] = useState(template || 'renewal')
   const [f, setF] = useState({ to: to || '', subject: templates[tmpl].subject, body: templates[tmpl].body })
