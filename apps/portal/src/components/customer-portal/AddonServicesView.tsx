@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import Icon from '../../lib/icons'
 import { IaaSCard } from './VMHelperComponents'
 import { useAddonRequestStore } from '../../store/addonRequestStore'
@@ -16,52 +16,99 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs }) =
   const [cpfsPackage, setCpfsPackage] = useState<'standard' | 'premium'>('standard')
   const [ccisEnabled, setCcisEnabled] = useState(false)
   const [ccisPlan, setCcisPlan] = useState<'basic' | 'standard' | 'professional' | 'enterprise' | undefined>(undefined)
-  const [duration, setDuration] = useState<number>(12)
-  const [customDuration, setCustomDuration] = useState('')
-  const [isCustomDuration, setIsCustomDuration] = useState(false)
+  const [duration, setDuration] = useState<string>('12')
+  const [remainingDuration, setRemainingDuration] = useState<{ months: number; days: number } | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  // Filter out expired VMs (expiry date < today)
+  const activeVMs = useMemo(() => {
+    return myVMs.filter((vm: any) => {
+      if (!vm.expiry || vm.expiry === '—') return true // Show VMs without expiry
+      const expiryDate = new Date(vm.expiry)
+      const today = new Date()
+      return expiryDate >= today
+    })
+  }, [myVMs])
 
   // Get existing addon requests for selected VM (Completed status means active)
-  const existingAddons = addonRequests.filter(a => a.vm_id === selectedVM && a.status === 'Completed')
+  const existingAddons = useMemo(() => {
+    return addonRequests.filter(a => a.vm_id === selectedVM && a.status === 'Completed')
+  }, [addonRequests, selectedVM])
 
-  // When VM is selected, pre-populate form with existing add-ons (only on VM change)
+  // Calculate remaining duration from VM expiry
+  const calculateRemainingDuration = (vm: any) => {
+    if (!vm.expiry) return null
+
+    const today = new Date()
+    const expiryDate = new Date(vm.expiry)
+
+    if (isNaN(expiryDate.getTime())) return null
+
+    // Calculate exact months and days using actual calendar
+    let months = expiryDate.getMonth() - today.getMonth()
+    let years = expiryDate.getFullYear() - today.getFullYear()
+    let days = expiryDate.getDate() - today.getDate()
+
+    if (days < 0) {
+      months -= 1
+      const previousMonth = new Date(expiryDate.getFullYear(), expiryDate.getMonth(), 0)
+      days += previousMonth.getDate()
+    }
+
+    if (months < 0) {
+      years -= 1
+      months += 12
+    }
+
+    const totalMonths = years * 12 + months
+
+    // Convert excess days to months (if days > 28, add a month)
+    if (days > 28) {
+      const extraMonths = Math.floor(days / 30)
+      return { months: totalMonths + extraMonths, days: days % 30 }
+    }
+
+    return { months: totalMonths, days }
+  }
+
+  // When VM is selected, calculate remaining duration and pre-populate form
   React.useEffect(() => {
-    if (selectedVM && existingAddons.length > 0) {
-      const latestAddon = existingAddons[0] // Get the most recent active add-on
-      setCpfsEnabled(latestAddon.cpfs_enabled || false)
-      if (latestAddon.cpfs_enabled) {
-        setCpfsPackage(latestAddon.cpfs_package || 'standard')
+    if (selectedVM) {
+      const vm = activeVMs.find((v: any) => v.id === selectedVM)
+      if (vm) {
+        const remaining = calculateRemainingDuration(vm)
+        setRemainingDuration(remaining)
+
+        if (remaining && remaining.months > 0) {
+          setDuration(`${remaining.months} months`)
+        } else {
+          setDuration('12 months')
+        }
       }
-      setCcisEnabled(latestAddon.ccis_enabled || false)
-      if (latestAddon.ccis_enabled) {
-        setCcisPlan(latestAddon.ccis_package as 'basic' | 'standard' | 'professional' | 'enterprise')
-      }
-      setDuration(latestAddon.duration || 12)
-      // Check if duration is a standard option
-      if (![1, 3, 6, 12].includes(latestAddon.duration || 12)) {
-        setCustomDuration(String(latestAddon.duration))
-        setIsCustomDuration(true)
+
+      const currentExistingAddons = addonRequests.filter(a => a.vm_id === selectedVM && a.status === 'Completed')
+      if (currentExistingAddons.length > 0) {
+        const latestAddon = currentExistingAddons[0]
+        setCpfsEnabled(latestAddon.cpfs_enabled || false)
+        if (latestAddon.cpfs_enabled) {
+          setCpfsPackage(latestAddon.cpfs_package || 'standard')
+        }
+        setCcisEnabled(latestAddon.ccis_enabled || false)
+        if (latestAddon.ccis_enabled) {
+          setCcisPlan(latestAddon.ccis_package as 'basic' | 'standard' | 'professional' | 'enterprise')
+        }
+        setDuration(latestAddon.duration || '12 months')
       } else {
-        setIsCustomDuration(false)
+        setCpfsEnabled(false)
+        setCcisEnabled(false)
       }
     } else {
-      // Reset form when no VM selected or VM has no existing add-ons
+      setRemainingDuration(null)
       setCpfsEnabled(false)
       setCcisEnabled(false)
-      setDuration(12)
-      setCustomDuration('')
-      setIsCustomDuration(false)
+      setDuration('12 months')
     }
-  }, [selectedVM]) // Only depend on selectedVM, not existingAddons
-
-  const getDurationLabel = (months: number) => {
-    const labels: Record<number, string> = {
-      1: 'Monthly',
-      3: 'Quarterly',
-      6: 'Half Yearly',
-      12: 'Yearly'
-    }
-    return labels[months] || `${months} month${months > 1 ? 's' : ''}`
-  }
+  }, [selectedVM, activeVMs, addonRequests])
 
   const canSubmit = () => {
     if (!selectedVM || (!cpfsEnabled && !ccisEnabled)) return false
@@ -95,7 +142,7 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs }) =
         <div className="card-head"><h3 className="card-title">Select VM</h3></div>
         <div className="card-body">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-            {myVMs.map((vm: any) => (
+            {activeVMs.map((vm: any) => (
               <IaaSCard key={vm.id} selected={selectedVM === vm.id} onClick={() => setSelectedVM(vm.id)} padding={14 as any}>
                 <div className="flex center between mb-2">
                   <div style={{ width: 38, height: 38, borderRadius: 8, background: 'var(--accent-soft)', color: 'var(--accent-strong)', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 16, flexShrink: 0 }}>
@@ -108,6 +155,12 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs }) =
                 <div className="text-xs mt-2"><span className="text-mute">Status:</span> <span className={`fw-6 ${vm.status === 'Active' ? 'text-ok' : 'text-mute'}`}>{vm.status}</span></div>
               </IaaSCard>
             ))}
+            {activeVMs.length === 0 && (
+              <div style={{ gridColumn: '1 / -1', padding: 20, textAlign: 'center', color: 'var(--ink-2)' }}>
+                <div className="text-sm">No active VMs available</div>
+                <div className="text-xs text-mute mt-1">Expired VMs are not eligible for add-on services</div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -117,36 +170,24 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs }) =
         <div className="card-head"><h3 className="card-title">Billing Term</h3></div>
         <div className="card-body">
           <div>
-            <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, display: 'block' }}>Billing Term</label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-              {[1, 3, 6, 12].map(months => (
-                <button
-                  key={months}
-                  className={`filter-chip ${!isCustomDuration && duration === months ? 'active' : ''}`}
-                  onClick={() => { setDuration(months); setIsCustomDuration(false) }}
-                >
-                  {getDurationLabel(months)}
-                </button>
-              ))}
-              <button
-                className={`filter-chip ${isCustomDuration ? 'active' : ''}`}
-                onClick={() => setIsCustomDuration(true)}
-              >
-                <Icon name="plus" size={11} /> Custom
-              </button>
-            </div>
-
-            {isCustomDuration && (
-              <div style={{ marginTop: 8 }}>
-                <input
-                  type="number"
-                  value={customDuration}
-                  onChange={e => { setCustomDuration(e.target.value); setDuration(parseInt(e.target.value) || 1) }}
-                  placeholder="Enter months"
-                  min="1"
-                  style={{ width: 120, padding: '7px 10px', border: '1px solid var(--line)', borderRadius: 6 }}
-                />
+            {selectedVM && remainingDuration ? (
+              <div style={{ padding: 12, background: 'var(--accent-soft)', borderRadius: 6, border: '1px solid var(--accent)' }}>
+                <div className="text-sm fw-6" style={{ color: 'var(--accent-strong)' }}>
+                  {remainingDuration.days > 0 
+                    ? `${remainingDuration.months} months ${remainingDuration.days} days` 
+                    : `${remainingDuration.months} months`}
+                </div>
+                <div className="text-xs text-mute mt-1">Remaining duration based on VM expiry</div>
               </div>
+            ) : selectedVM && !remainingDuration ? (
+              <div style={{ padding: 12, background: 'var(--warn-soft)', borderRadius: 6, border: '1px solid oklch(0.55 0.16 75)' }}>
+                <div className="text-sm fw-6" style={{ color: 'oklch(0.4 0.13 75)' }}>
+                  VM has no expiry date
+                </div>
+                <div className="text-xs text-mute mt-1">Duration will be set to 12 months by default</div>
+              </div>
+            ) : (
+              <div className="text-sm text-mute">Select a VM to see the remaining duration</div>
             )}
           </div>
         </div>
@@ -222,10 +263,21 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs }) =
         <div style={{ flex: 1 }}/>
         <button className="btn accent" onClick={async () => {
           try {
-            console.log('Submitting add-on request:', { selectedVM, cpfsEnabled, cpfsPackage, ccisEnabled, ccisPlan, duration })
+            setSubmitting(true)
+            console.log('Submitting add-on request:', { selectedVM, cpfsEnabled, cpfsPackage, ccisEnabled, ccisPlan, duration, remainingDuration })
             const vm = myVMs.find((v: any) => v.id === selectedVM)
             console.log('Selected VM:', vm)
             console.log('Customer ID from VM:', vm?.customer_id)
+            
+            // Format duration as text with months and days
+            let durationText = ''
+            if (remainingDuration) {
+              durationText = remainingDuration.days > 0 
+                ? `${remainingDuration.months} months ${remainingDuration.days} days` 
+                : `${remainingDuration.months} months`
+            } else {
+              durationText = `${duration} months`
+            }
             
             const addonRequest = {
               customer_id: vm?.customer_id,
@@ -234,7 +286,7 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs }) =
               cpfs_package: cpfsEnabled ? cpfsPackage : undefined,
               ccis_enabled: ccisEnabled,
               ccis_package: ccisEnabled ? ccisPlan : undefined,
-              duration: duration,
+              duration: durationText,
               status: 'Pending' as 'Pending',
             }
             console.log('Add-on request data:', addonRequest)
@@ -244,9 +296,7 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs }) =
             setSelectedVM('')
             setCpfsEnabled(false)
             setCcisEnabled(false)
-            setDuration(12)
-            setCustomDuration('')
-            setIsCustomDuration(false)
+            setDuration('12 months')
           } catch (error: any) {
             console.error('Error submitting add-on request:', error)
             console.error('Error details:', {
@@ -256,8 +306,13 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs }) =
               hint: error.hint
             })
             toast('Failed to submit add-on request: ' + (error.message || 'Unknown error'), 'error')
+          } finally {
+            setSubmitting(false)
           }
-        }} disabled={!canSubmit()} style={{ padding: '10px 18px', fontSize: 13 }}><Icon name="check" size={13}/>Submit add-on request</button>
+        }} disabled={!canSubmit() || submitting} style={{ padding: '10px 18px', fontSize: 13 }}>
+          {submitting ? <Icon name="spinner" size={13} /> : <Icon name="check" size={13}/>}
+          {submitting ? 'Submitting...' : 'Submit add-on request'}
+        </button>
       </div>
     </div>
   )

@@ -35,6 +35,7 @@ import { CustomerInvoiceDetail } from '../components/customer-portal/CustomerInv
 import { AddonServicesView } from '../components/customer-portal/AddonServicesView'
 import { CustomerReceiptsView } from '../components/customer-portal/CustomerReceiptsView'
 import { CustomerNotificationsView } from '../components/customer-portal/CustomerNotificationsView'
+import { CustomerAnnouncementsView } from '../components/customer-portal/CustomerAnnouncementsView'
 import Toasts from '../components/common/Toasts'
 
 interface CustomerPortalProps {
@@ -63,43 +64,35 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
   const [detailRequest, setDetailRequest] = useState<any>(null)
   const [detailInvoice, setDetailInvoice] = useState<any>(null)
   const [renewVm, setRenewVm] = useState<any>(null)
-  const [minDisplayTimeElapsed, setMinDisplayTimeElapsed] = useState(false)
-
-  // Set minimum display time
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setMinDisplayTimeElapsed(true)
-    }, 1000)
-    return () => clearTimeout(timer)
-  }, [])
-
+  
   // Load data on mount and when auth changes
   useEffect(() => {
-    loadCustomers()
-  }, [loadCustomers])
+    if (customers.length === 0) {
+      loadCustomers()
+    }
+  }, [loadCustomers, customers.length])
 
   useEffect(() => {
     if (auth?.user) {
-      loadCustomers()
-      loadVMs()
-      loadInvoices()
-      loadAddonRequests()
-      loadVMRequests()
+      if (vms.length === 0) loadVMs()
+      if (invoices.length === 0) loadInvoices()
+      if (addonRequests.length === 0) loadAddonRequests()
+      if (vmRequests.length === 0) loadVMRequests()
     }
-  }, [auth?.user, loadCustomers, loadVMs, loadInvoices, loadAddonRequests, loadVMRequests])
+  }, [auth?.user, loadVMs, loadInvoices, loadAddonRequests, loadVMRequests])
 
   // Realtime: refresh invoices automatically without manual refresh
   useEffect(() => {
     const sub = supabase
       .channel(`customer-invoices-${Date.now()}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, () => {
-        loadInvoices()
+        // Don't call loadInvoices - let the UI update via real-time
       })
       .subscribe()
     return () => {
       supabase.removeChannel(sub)
     }
-  }, [loadInvoices])
+  }, [])
 
   const handleSetView = (newView: string) => {
     navigate(newView === 'dashboard' ? '/' : `/${newView}`)
@@ -128,7 +121,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
     }
   }, [me?.kyc_status, view, me])
 
-  if (!auth?.user || customersLoading || !me || !minDisplayTimeElapsed) {
+  if (!auth?.user || customersLoading || (!me && !safeMe?.id)) {
     return (
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', zIndex: 9999 }}>
         <Spinner />
@@ -173,8 +166,9 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
     { id: 'addons', label: 'Add-on Services', icon: 'plus', lockedByKyc: true },
     { id: 'invoices', label: 'Invoices', icon: 'invoice', badge: pendingInv.length || null, lockedByKyc: true },
     { id: 'receipts', label: 'Receipts', icon: 'check', lockedByKyc: true },
-    { id: 'notifications', label: 'Notifications', icon: 'bell', badge: unreadAlerts || null },
-    { id: 'tickets', label: 'Support tickets', icon: 'mail', badge: openTickets.length || null },
+    { id: 'notifications', label: 'Notifications', icon: 'bell', badge: unreadAlerts || null, lockedByKyc: true },
+    { id: 'cust-announcements', label: 'Announcements', icon: 'mail' },
+    { id: 'tickets', label: 'Support tickets', icon: 'mail', badge: openTickets.length || null, lockedByKyc: true },
   ]
 
       
@@ -325,6 +319,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
                     {view === 'invoices' && <CustomerInvoicesView myInvs={myInvs} setDetailInvoice={setDetailInvoice} />}
                     {view === 'receipts' && <CustomerReceiptsView me={safeMe} />}
                     {view === 'notifications' && <CustomerNotificationsView />}
+                    {view === 'cust-announcements' && <CustomerAnnouncementsView />}
                     {view === 'tickets' && <CustomerTicketsView me={safeMe} setOpenTicket={setOpenTicket} />}
                     {view === 'addons' && <AddonServicesView myVMs={myVMs} />}
                     {view === 'account' && <CustomerAccountView me={safeMe} />}

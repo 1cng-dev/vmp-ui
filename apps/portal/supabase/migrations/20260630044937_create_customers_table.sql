@@ -195,6 +195,9 @@ add column if not exists kyc_reviewed_by text;
 alter table public.customers 
 add column if not exists kyc_reviewed_at timestamptz;
 
+alter table public.customers 
+add column if not exists kyc_documents_updated_at timestamptz;
+
 
 -- Add policy to allow staff to update customer records
 create policy customers_staff_update on public.customers

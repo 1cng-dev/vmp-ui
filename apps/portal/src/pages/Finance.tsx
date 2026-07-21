@@ -419,6 +419,11 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal }) => {
                               const receiptNumber = `RCT-${timestamp}-${random}`
                               const legacyId = `RCT-${Math.floor(1000 + Math.random() * 9000)}`
                               const message = `Thank you for your payment. Your receipt ${legacyId} for invoice ${i.legacy_id || i.id} has been sent.`
+                              
+                              // Open modal immediately
+                              openModal('email', { to: c?.email, template: 'receipt', invoiceId: i.id })
+                              
+                              // Add receipt in background
                               await addReceipt({
                                 invoice_id: i.id,
                                 customer_id: i.customer_id,
@@ -428,7 +433,6 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal }) => {
                                 sent_by: user?.id,
                                 status: 'sent'
                               })
-                              openModal('email', { to: c?.email, template: 'receipt', invoiceId: i.id })
                             }}><Icon name="mail" size={11} />Send receipt</button>
                           ) : (
                             <button className="btn sm" onClick={() => markPaid(i.id, `RCT-${i.id.slice(0, 8)}`)}><Icon name="check" size={11} />Mark paid</button>

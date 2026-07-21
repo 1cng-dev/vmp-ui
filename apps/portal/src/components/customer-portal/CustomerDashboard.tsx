@@ -16,7 +16,7 @@ interface CustomerDashboardProps {
 
 export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ me, myVMs, myInvs, myTickets, myRequests, setView, setDetailVm, setOpenTicket }) => {
   const { receipts, loadReceiptsByCustomer } = useReceiptStore()
-  
+
   useEffect(() => {
     if (me?.id) {
       loadReceiptsByCustomer(me.id)

@@ -20,7 +20,7 @@ interface TaskDrawerProps {
 export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, userRole }) => {
   const { customers, loadCustomers } = useCustomerStore()
   const { toast } = useUIStore()
-  const { createVMManually } = useTaskStore()
+  const { createVMManually, updateAddonExpiryForVM } = useTaskStore()
   const { addVM, vms, getVMById, getVMByHostname, updateVM, getVMRequest } = useVMStore()
   const { vmRequests, updateVMRequest } = useVMRequestStore()
   const { addonRequests, updateAddonRequest } = useAddonRequestStore()
@@ -285,6 +285,10 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                       end_date: newEndDate.toISOString(),
                                       duration: newDuration
                                     })
+                                    
+                                    // Update add-on service expiry for this VM
+                                    await updateAddonExpiryForVM(vmId, renewalDuration)
+                                    
                                     updateVMRequest(t.id, { status: 'Completed' })
                                     toast('Renewal completed and VM expiry extended', 'ok')
                                   } catch (error) {
@@ -511,7 +515,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                   <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Request type</div>
                   <dl className="dl">
                     <dt>Type</dt><dd>{requestType === 'vm' ? t?.task_type : 'Add-on Service'}</dd>
-                    <dt>Plan</dt><dd>{requestType === 'vm' ? (t?.request_type === 'trial' ? '14-day Trial' : 'Paid') : ((request as any)?.duration ? ((request as any)?.duration === 1 ? 'Monthly' : (request as any)?.duration === 3 ? 'Quarterly' : (request as any)?.duration === 6 ? 'Half Yearly' : (request as any)?.duration === 12 ? 'Yearly' : `${(request as any)?.duration} months`) : '—')}</dd>
+                    <dt>Plan</dt><dd>{requestType === 'vm' ? (t?.request_type === 'trial' ? '14-day Trial' : 'Paid') : ((request as any)?.duration || '—')}</dd>
                     <dt>Submitted</dt><dd className="tnum">{new Date(request.created_at).toLocaleDateString()}</dd>
                   </dl>
                 </div>
@@ -581,7 +585,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                         <dt>CCIS</dt><dd className="mono">Cloud Container Image Service - {(request as any)?.ccis_package || 'standard'}</dd>
                       </>
                     )}
-                    {(request as any)?.duration && <><dt>Duration</dt><dd className="mono">{(request as any)?.duration === 1 ? 'Monthly' : (request as any)?.duration === 3 ? 'Quarterly' : (request as any)?.duration === 6 ? 'Half Yearly' : (request as any)?.duration === 12 ? 'Yearly' : `${(request as any)?.duration} months`}</dd></>}
+                    {(request as any)?.duration && <><dt>Duration</dt><dd className="mono">{(request as any)?.duration || '—'}</dd></>}
                     {(request as any)?.notes && <><dt>Notes</dt><dd>{(request as any)?.notes}</dd></>}
                   </dl>
                 </>

@@ -48,20 +48,27 @@ export const AddonRequestProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const channelName = 'addon-requests-changes'
     const channel = supabase
       .channel(channelName)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'addon_requests' }, () => {
-        loadAddonRequests()
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'addon_requests' }, (payload) => {
+        // Handle real-time updates directly without full reload
+        if (payload.eventType === 'INSERT') {
+          setAddonRequests(prev => [...prev, payload.new as AddonRequest])
+        } else if (payload.eventType === 'UPDATE') {
+          setAddonRequests(prev => prev.map(r => r.id === payload.new.id ? payload.new as AddonRequest : r))
+        } else if (payload.eventType === 'DELETE') {
+          setAddonRequests(prev => prev.filter(r => r.id !== payload.old.id))
+        }
       })
       .subscribe()
 
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [loadAddonRequests])
+  }, [])
 
   const createAddonRequest = useCallback(async (request: Omit<AddonRequest, 'id' | 'legacy_id' | 'created_at' | 'updated_at'>) => {
     const { error, data } = await supabase.from('addon_requests').insert(request).select()
     if (error) throw error
-    await loadAddonRequests()
+    // Real-time subscription will handle data update, no need to call loadAddonRequests
     
     // Get current user for activity logging
     const { data: { user } } = await supabase.auth.getUser()
@@ -116,13 +123,13 @@ export const AddonRequestProvider: React.FC<{ children: React.ReactNode }> = ({ 
     })
     
     return data[0].id
-  }, [loadAddonRequests, logActivity])
+  }, [logActivity])
 
   const updateAddonRequest = useCallback(async (id: string, patch: Partial<AddonRequest>) => {
     const previousRequest = addonRequests.find(r => r.id === id)
     const { error } = await supabase.from('addon_requests').update(patch).eq('id', id)
     if (error) throw error
-    await loadAddonRequests()
+    // Real-time subscription will handle data update, no need to call loadAddonRequests
     
     // Log status changes
     if (patch.status && previousRequest && patch.status !== previousRequest.status) {
@@ -170,13 +177,13 @@ export const AddonRequestProvider: React.FC<{ children: React.ReactNode }> = ({ 
         }
       })
     }
-  }, [loadAddonRequests, addonRequests, logActivity])
+  }, [addonRequests, logActivity])
 
   const deleteAddonRequest = useCallback(async (id: string) => {
     const { error } = await supabase.from('addon_requests').delete().eq('id', id)
     if (error) throw error
-    await loadAddonRequests()
-  }, [loadAddonRequests])
+    // Real-time subscription will handle data update, no need to call loadAddonRequests
+  }, [])
 
   const value = { addonRequests, addonRequestsLoading, loadAddonRequests, createAddonRequest, updateAddonRequest, deleteAddonRequest }
   return React.createElement(AddonRequestContext.Provider, { value }, children as any)

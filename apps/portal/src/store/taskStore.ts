@@ -18,6 +18,7 @@ export interface TaskStoreValue {
   }, addVM: (vm: any) => Promise<string>) => Promise<void>
   setTasks: (tasks: Task[]) => void
   updateVMExpiryForRequest: (vmRequestId: string, durationMonths?: number, updateVM?: (id: string, patch: any) => Promise<void>) => Promise<void>
+  updateAddonExpiryForVM: (vmId: string, durationMonths: number) => Promise<void>
 }
 
 const useTaskStore = (): TaskStoreValue => {
@@ -220,6 +221,69 @@ const useTaskStore = (): TaskStoreValue => {
     }
   }, [])
 
+  // Function to update add-on service duration when renewal is complete
+  const updateAddonExpiryForVM = useCallback(async (vmId: string, durationMonths: number) => {
+    console.log('updateAddonExpiryForVM called:', { vmId, durationMonths })
+    
+    // Get ALL add-on requests for this VM (both pending and completed)
+    const { data: allAddonRequests } = await supabase
+      .from('addon_requests')
+      .select('id, duration, status')
+      .eq('vm_id', vmId)
+      .in('status', ['Pending', 'Completed'])
+    
+    if (allAddonRequests && allAddonRequests.length > 0) {
+      console.log(`Found ${allAddonRequests.length} add-on requests to update`)
+      
+      for (const addon of allAddonRequests) {
+        let newDuration: string
+        
+        if (addon.status === 'Pending') {
+          // New add-on from renewal: just use the renewal duration
+          newDuration = `${durationMonths} months`
+        } else {
+          // Existing add-on: parse current duration and add renewal months
+          let currentMonths = 0
+          let currentDays = 0
+          
+          if (addon.duration) {
+            // Parse "5 months 29 days" format
+            const monthsMatch = addon.duration.match(/(\d+)\s*months?/i)
+            const daysMatch = addon.duration.match(/(\d+)\s*days?/i)
+            
+            if (monthsMatch) currentMonths = parseInt(monthsMatch[1])
+            if (daysMatch) currentDays = parseInt(daysMatch[1])
+          }
+          
+          // Add renewal months
+          currentMonths += durationMonths
+          
+          // Convert excess days to months if needed
+          if (currentDays > 28) {
+            const extraMonths = Math.floor(currentDays / 30)
+            currentMonths += extraMonths
+            currentDays = currentDays % 30
+          }
+          
+          // Build new duration string
+          if (currentDays > 0) {
+            newDuration = `${currentMonths} months ${currentDays} days`
+          } else {
+            newDuration = `${currentMonths} months`
+          }
+        }
+        
+        // Update add-on request with new duration only (no expiry field)
+        await supabase.from('addon_requests').update({ 
+          duration: newDuration
+        }).eq('id', addon.id)
+        console.log(`Updated add-on request ${addon.id} (status: ${addon.status}) with new duration ${newDuration}`)
+      }
+    } else {
+      console.log('No add-on requests found for this VM')
+    }
+  }, [])
+
   const removeTask = useCallback((id: string) => {
     setTasks(s => s.filter(t => t.id !== id))
   }, [])
@@ -243,7 +307,7 @@ const useTaskStore = (): TaskStoreValue => {
 
   return {
     tasks,
-    addTask, updateTask, removeTask, moveTask, advanceProvision, createVMManually, setTasks, updateVMExpiryForRequest,
+    addTask, updateTask, removeTask, moveTask, advanceProvision, createVMManually, setTasks, updateVMExpiryForRequest, updateAddonExpiryForVM,
   }
 }
 

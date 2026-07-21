@@ -5,6 +5,7 @@ import useTaskStore from '../../store/taskStore'
 import useCustomerStore from '../../store/customerStore'
 import useTicketStore from '../../store/ticketStore'
 import useUIStore from '../../store/uiStore'
+import { useAddonRequestStore } from '../../store/addonRequestStore'
 import { createAlert } from '../../services/notificationService'
 import Icon from '../../lib/icons'
 import { formatMMK } from '../ui/ui'
@@ -60,11 +61,27 @@ interface CustRenewModalProps {
 
 const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, me }) => {
   const { addTask } = useTaskStore()
+  const { addonRequests, createAddonRequest } = useAddonRequestStore()
   const { toast } = useUIStore()
   const [months, setMonths] = useState(12)
   const [customMode, setCustomMode] = useState(false)
   const [customValue, setCustomValue] = useState('12')
   const periods = [1, 3, 6, 12]
+  
+  // Get existing add-on services for this VM
+  const existingAddons = addonRequests.filter((a: any) => a.vm_id === vm.id && a.status === 'Completed')
+  
+  // Add-on service selection state
+  const [selectedAddons, setSelectedAddons] = useState<{ cpfs: boolean; ccis: boolean }>({
+    cpfs: existingAddons.some((a: any) => a.cpfs_enabled),
+    ccis: existingAddons.some((a: any) => a.ccis_enabled)
+  })
+  const [cpfsPackage, setCpfsPackage] = useState<'standard' | 'premium'>(
+    existingAddons.find((a: any) => a.cpfs_enabled)?.cpfs_package || 'standard'
+  )
+  const [ccisPackage, setCcisPackage] = useState<'basic' | 'standard' | 'professional' | 'enterprise'>(
+    existingAddons.find((a: any) => a.ccis_enabled)?.ccis_package || 'standard'
+  )
 
   const formatDate = (dateStr: string) => {
     if (dateStr === '—') return '—'
@@ -132,11 +149,43 @@ const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, me }) => {
 
       if (error) throw error
 
+      // Create add-on requests if selected
+      if (selectedAddons.cpfs || selectedAddons.ccis) {
+        // Calculate duration string based on months
+        const durationString = `${months} months`
+        
+        if (selectedAddons.cpfs) {
+          await createAddonRequest({
+            customer_id: me.id,
+            vm_id: vm.id,
+            cpfs_enabled: true,
+            cpfs_package: cpfsPackage,
+            ccis_enabled: false,
+            duration: durationString,
+            status: 'Pending',
+            notes: `CPFS renewal for ${months} months along with VM renewal`
+          })
+        }
+        
+        if (selectedAddons.ccis) {
+          await createAddonRequest({
+            customer_id: me.id,
+            vm_id: vm.id,
+            cpfs_enabled: false,
+            ccis_enabled: true,
+            ccis_package: ccisPackage,
+            duration: durationString,
+            status: 'Pending',
+            notes: `CCIS renewal for ${months} months along with VM renewal`
+          })
+        }
+      }
+
       // Create alert for team roles (customer_id = NULL so customer doesn't see it)
       await createAlert({
         sev: 'info',
         title: 'Renewal Request',
-        body: `Renewal Request for ${(vm as any).hostname || vm.name} (${months} month${months > 1 ? 's' : ''})`,
+        body: `Renewal Request for ${(vm as any).hostname || vm.name} (${months} month${months > 1 ? 's' : ''})${selectedAddons.cpfs || selectedAddons.ccis ? ' with add-on services' : ''}`,
         type: 'vm',
         related_entity_id: insertedData.id,
         related_entity_type: 'vm_request',
@@ -149,15 +198,19 @@ const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, me }) => {
           vcpu: vm.vcpu,
           ram_gb: (vm as any).ram_gb || vm.ram,
           customer_id: me.id,
-          task_type: 'Renewal'
+          task_type: 'Renewal',
+          addons: {
+            cpfs: selectedAddons.cpfs,
+            ccis: selectedAddons.ccis
+          }
         }
       })
 
       // Also create task for ops visibility
       addTask({
-        title: `Renewal — ${(vm as any).hostname || vm.name} (${months} month${months > 1 ? 's' : ''})`,
+        title: `Renewal — ${(vm as any).hostname || vm.name} (${months} month${months > 1 ? 's' : ''})${selectedAddons.cpfs || selectedAddons.ccis ? ' + Add-ons' : ''}`,
         customer: me.id, vm: vm.id, type: 'Renewal', priority: 'Normal', status: 'Pending', team: 'Sales',
-        notes: `Customer-initiated renewal request for ${months} month${months > 1 ? 's' : ''}. Current expiry: ${vm.expiry}, New expiry: ${newExpiry}`,
+        notes: `Customer-initiated renewal request for ${months} month${months > 1 ? 's' : ''}. Current expiry: ${vm.expiry}, New expiry: ${newExpiry}${selectedAddons.cpfs ? '\nCPFS: ' + cpfsPackage : ''}${selectedAddons.ccis ? '\nCCIS: ' + ccisPackage : ''}`,
       })
 
       toast('Renewal request sent to Sales', 'ok')
@@ -226,6 +279,79 @@ const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, me }) => {
                   </button>
                 )}
               </div>
+            </div>
+          </div>
+          
+          {/* Add-on Services Section */}
+          <div className="card" style={{ borderColor: 'var(--line)', marginTop: 12 }}>
+            <div className="card-body" style={{ padding: 14 }}>
+              <div className="flex center between mb-2">
+                <div className="flex center gap-2">
+                  <Icon name="box" size={13} />
+                  <span className="fw-7 text-sm">Add-on Services</span>
+                </div>
+                <div className="text-xs text-mute">Renew along with VM</div>
+              </div>
+              
+              {/* CPFS */}
+              <div className="flex center between" style={{ padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
+                <div className="flex center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedAddons.cpfs}
+                    onChange={(e) => setSelectedAddons(prev => ({ ...prev, cpfs: e.target.checked }))}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <div>
+                    <div className="fw-6 text-sm">CPFS</div>
+                    <div className="text-xs text-mute">Cloud Parallel File System</div>
+                  </div>
+                </div>
+                {selectedAddons.cpfs && (
+                  <select
+                    value={cpfsPackage}
+                    onChange={(e) => setCpfsPackage(e.target.value as 'standard' | 'premium')}
+                    style={{ padding: '4px 8px', borderRadius: 4, fontSize: 12 }}
+                  >
+                    <option value="standard">Standard</option>
+                    <option value="premium">Premium</option>
+                  </select>
+                )}
+              </div>
+              
+              {/* CCIS */}
+              <div className="flex center between" style={{ padding: '8px 0' }}>
+                <div className="flex center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedAddons.ccis}
+                    onChange={(e) => setSelectedAddons(prev => ({ ...prev, ccis: e.target.checked }))}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <div>
+                    <div className="fw-6 text-sm">CCIS</div>
+                    <div className="text-xs text-mute">Cloud Container Image Service</div>
+                  </div>
+                </div>
+                {selectedAddons.ccis && (
+                  <select
+                    value={ccisPackage}
+                    onChange={(e) => setCcisPackage(e.target.value as 'basic' | 'standard' | 'professional' | 'enterprise')}
+                    style={{ padding: '4px 8px', borderRadius: 4, fontSize: 12 }}
+                  >
+                    <option value="basic">Basic</option>
+                    <option value="standard">Standard</option>
+                    <option value="professional">Professional</option>
+                    <option value="enterprise">Enterprise</option>
+                  </select>
+                )}
+              </div>
+              
+              {existingAddons.length > 0 && (
+                <div className="text-xs text-mute mt-2" style={{ fontStyle: 'italic' }}>
+                  Currently active: {existingAddons.map((a: any) => a.cpfs_enabled ? 'CPFS' : a.ccis_enabled ? 'CCIS' : '').filter(Boolean).join(', ') || 'None'}
+                </div>
+              )}
             </div>
           </div>
         </div>

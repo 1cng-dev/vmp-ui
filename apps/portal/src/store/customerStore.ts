@@ -88,12 +88,22 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
     const channel = supabase.channel(channelName)
 
     channel
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, () => {
-        // Only reload if userId is available
-        supabase.auth.getUser().then(({ data: { user } }) => {
-          if (user?.id) {
-            loadCustomers()
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, (payload: any) => {
+        // Update local state directly to avoid loading state
+        // Only update if the customer is in the current local state to prevent issues with other customers
+        setCustomers(prev => {
+          const payloadId = payload.new?.id || payload.old?.id
+          const exists = prev.some(c => c.id === payloadId)
+          if (!exists) return prev
+
+          if (payload.eventType === 'UPDATE') {
+            return prev.map(c => c.id === payload.new.id ? { ...c, ...payload.new } as Customer : c)
+          } else if (payload.eventType === 'INSERT') {
+            return [payload.new as Customer, ...prev]
+          } else if (payload.eventType === 'DELETE') {
+            return prev.filter(c => c.id !== payload.old.id)
           }
+          return prev
         })
       })
       .subscribe()
@@ -101,7 +111,7 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [loadCustomers])
+  }, [])
 
   // Set up real-time subscription on mount
   useEffect(() => {
@@ -157,8 +167,7 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
       .eq('id', id)
 
     if (!error) {
-      await loadCustomers()
-      
+      // Don't call loadCustomers - real-time subscription handles updates
       // Log status changes
       if (patch.status && previousCustomer && patch.status !== previousCustomer.status) {
         const { data: { user } } = await supabase.auth.getUser()
@@ -176,7 +185,7 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
             actorName = user.user_metadata?.name || user.email || 'System'
           }
         }
-        
+
         await logActivity(
           `Changed customer ${previousCustomer.name} status from ${previousCustomer.status} to ${patch.status}`,
           'customer',
@@ -187,7 +196,7 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
     } else {
       console.error('Failed to update customer:', error)
     }
-  }, [loadCustomers, customers, logActivity])
+  }, [customers, logActivity])
 
   const setKYC = useCallback(async (id: string, decision: 'Pending' | 'Approved' | 'Rejected') => {
     await updateCustomer(id, { kyc_status: decision })

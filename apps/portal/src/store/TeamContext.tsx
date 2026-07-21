@@ -65,6 +65,7 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const addMember = useCallback(async (member: any) => {
     const authUser = await supabase.auth.getUser()
     const invitedBy = authUser.data.user?.id
+    const invitedByName = authUser.data.user?.user_metadata?.name || authUser.data.user?.email || 'System'
 
     // Generate temporary password (user never sees this)
     const tempPassword = Math.random().toString(36).slice(-12)
@@ -102,6 +103,7 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         team: member.team,
         status: 'Inactive', // Set to Inactive until they accept the invite
         invited_by: invitedBy,
+        invited_by_name: invitedByName,
         invite_token: inviteToken,
         invite_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
       })

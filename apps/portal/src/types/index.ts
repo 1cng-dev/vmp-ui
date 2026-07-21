@@ -26,6 +26,7 @@ export interface Customer {
   kyc_reviewer_note?: string,
   kyc_reviewed_by?: string,
   kyc_reviewed_at?: string,
+  kyc_documents_updated_at?: string,
   nrc_front_url?: string
   nrc_back_url?: string
   org_cert_url?: string
@@ -150,6 +151,7 @@ export interface TeamMember {
   team: string
   last: string
   status: string
+  invited_by_name?: string
 }
 
 export interface Alert {
@@ -259,7 +261,7 @@ export interface AddonRequest {
   cpfs_package?: 'standard' | 'premium'
   ccis_enabled?: boolean
   ccis_package?: 'basic' | 'standard' | 'professional' | 'enterprise'
-  duration?: number
+  duration?: string
   status: 'Pending' | 'In Progress' | 'Completed' | 'Rejected'
   notes?: string
   created_at: string

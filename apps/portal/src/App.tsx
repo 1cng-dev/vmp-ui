@@ -42,6 +42,7 @@ import { AddonRequestProvider } from './store/addonRequestStore'
 import { InvoiceProvider } from './store/invoiceStore'
 import { ReceiptProvider } from './store/receiptStore'
 import { ActivityProvider } from './store/activityStore'
+import { AnnouncementProvider } from './store/announcementStore'
 import Spinner from './components/ui/Spinner'
 
 const ACCENT_MAP: Record<string, number> = {
@@ -379,6 +380,7 @@ const App = () => {
                       <InvoiceProvider>
                       <ReceiptProvider>
                       <VMProvider>
+                      <AnnouncementProvider>
                   <Router>
                     <Routes>
                       <Route path="/welcome" element={<Welcome />} />
@@ -407,6 +409,7 @@ const App = () => {
                       } />
                     </Routes>
                   </Router>
+                      </AnnouncementProvider>
                     </VMProvider>
                     </ReceiptProvider>
                     </InvoiceProvider>

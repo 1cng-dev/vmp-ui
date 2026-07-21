@@ -221,7 +221,7 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal 
                               ar.ccis_enabled && ar.ccis_package ? `CCIS ${ar.ccis_package}` : null
                             ].filter(Boolean).join(', ') || '—'}
                           </td>
-                          <td className="text-sm">{ar.duration ? (ar.duration === 1 ? 'Monthly' : ar.duration === 3 ? 'Quarterly' : ar.duration === 6 ? 'Half Yearly' : ar.duration === 12 ? 'Yearly' : `${ar.duration} month${ar.duration > 1 ? 's' : ''}`) : 'N/A'}</td>
+                          <td className="text-sm">{ar.duration || 'N/A'}</td>
                           <td><StatusPill status={ar.status}/></td>
                           <td className="tnum text-sm">{ar.updated_at ? new Date(ar.updated_at).toLocaleDateString() : '—'}</td>
                         </tr>

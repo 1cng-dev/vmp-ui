@@ -169,10 +169,18 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const channel = supabase.channel(channelName)
     
     channel
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'alerts' }, () => {
-        loadAlerts()
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'alerts' }, (payload) => {
+        // Handle real-time updates directly without full reload
+        if (payload.eventType === 'INSERT') {
+          setAlerts(prev => [payload.new as Alert, ...prev])
+        } else if (payload.eventType === 'UPDATE') {
+          setAlerts(prev => prev.map(a => a.id === payload.new.id ? payload.new as Alert : a))
+        } else if (payload.eventType === 'DELETE') {
+          setAlerts(prev => prev.filter(a => a.id !== payload.old.id))
+        }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'alert_reads' }, () => {
+        // When alert_reads changes, reload to update read status
         loadAlerts()
       })
       .subscribe()

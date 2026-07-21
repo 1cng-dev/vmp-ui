@@ -165,13 +165,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
   const items = (role === 'Customer' ? [
     { id: 'cust-vms', label: 'My VMs', icon: 'server' },
     { id: 'cust-invoices', label: 'Invoices & receipts', icon: 'invoice' },
+    { id: 'cust-announcements', label: 'Announcements', icon: 'mail' },
     { id: 'cust-profile', label: 'Profile', icon: 'users' },
   ] : NAV).filter(it => it.section || (it.id && !HIDDEN.has(it.id)))
 
   const allowedFor: Record<string, Set<string> | null> = {
-    'Sales': new Set(['dashboard', 'alerts', 'calendar', 'activity', 'vms', 'tasks', 'addons', 'customers', 'customer-accounts', 'kyc', 'quotes', 'finance', 'receipts']),
-    'Engineer': new Set(['dashboard', 'alerts', 'calendar', 'activity', 'vms', 'tasks', 'addons', 'network', 'console', 'nodes', 'topology', 'snapshots', 'maintenance', 'patches', 'firewall']),
-    'Finance': new Set(['dashboard', 'alerts', 'calendar', 'vms', 'tasks', 'finance', 'receipts', 'quote-review', 'reports', 'customers', 'customer-accounts', 'aging']),
+    'Sales': new Set(['dashboard', 'alerts', 'calendar', 'activity', 'vms', 'tasks', 'addons', 'customers', 'customer-accounts', 'kyc', 'quotes', 'finance', 'receipts', 'announcements']),
+    'Engineer': new Set(['dashboard', 'alerts', 'calendar', 'activity', 'vms', 'tasks', 'addons', 'network', 'console', 'nodes', 'topology', 'snapshots', 'maintenance', 'patches', 'firewall', 'announcements']),
+    'Finance': new Set(['dashboard', 'alerts', 'calendar', 'vms', 'tasks', 'finance', 'receipts', 'quote-review', 'reports', 'customers', 'customer-accounts', 'aging', 'announcements']),
     'Admin': null,
   }
   const allow = allowedFor[role]

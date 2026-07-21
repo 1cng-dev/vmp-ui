@@ -108,7 +108,7 @@ const AddonServicesView: React.FC<AddonServicesViewProps> = ({ openTask, setView
                     </td>
                     <td className="mono text-sm">{vmData[t.vm_id] ? `${vmData[t.vm_id].hostname} (${vmData[t.vm_id].legacy_id})` : t.vm_id?.slice(0,8) || '—'}</td>
                     <td>{svc}</td>
-                    <td className="text-sm">{t.duration ? (t.duration === 1 ? 'Monthly' : t.duration === 3 ? 'Quarterly' : t.duration === 6 ? 'Half Yearly' : t.duration === 12 ? 'Yearly' : `${t.duration} month${t.duration > 1 ? 's' : ''}`) : 'N/A'}</td>
+                    <td className="text-sm">{t.duration || 'N/A'}</td>
                     <td><StatusPill status={t.status} /></td>
                     <td className="right">
                       <div className="flex center gap-1" onClick={e => e.stopPropagation()}>

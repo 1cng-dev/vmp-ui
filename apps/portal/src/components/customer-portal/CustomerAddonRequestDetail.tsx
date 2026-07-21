@@ -73,7 +73,7 @@ export const CustomerAddonRequestDetail: React.FC<CustomerAddonRequestDetailProp
                     <dd className="mono">Cloud Container Image Service - {t.ccis_package || 'standard'}</dd>
                   </>
                 )}
-                <dt>Billing Term</dt><dd className="mono">{t.duration ? (t.duration === 1 ? 'Monthly' : t.duration === 3 ? 'Quarterly' : t.duration === 6 ? 'Half Yearly' : t.duration === 12 ? 'Yearly' : `${t.duration} month${t.duration > 1 ? 's' : ''}`) : 'N/A'}</dd>
+                <dt>Billing Term</dt><dd className="mono">{t.duration || 'N/A'}</dd>
                 <dt>VM</dt><dd className="mono">{vmData ? `${vmData.legacy_id || vmData.id} · ${vmData.hostname}` : 'Loading...'}</dd>
                 <dt>Notes</dt><dd className="mono">{t.notes || 'No notes'}</dd>
               </dl>

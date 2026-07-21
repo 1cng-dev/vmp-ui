@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Icon from '../lib/icons'
 import { formatMMK, CircularSpinner } from '../components/ui/ui'
 import useQuoteStore from '../store/quoteStore'
@@ -24,10 +24,8 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
   const { quotes, quotesLoading, addQuote, loadQuotes } = useQuoteStore()
   const { toast } = useUIStore()
   const { refreshUser } = useAuthStore()
-  const { loadVMs } = useVMStore()
   const [building, setBuilding] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [addonRequests, setAddonRequests] = useState<any[]>([])
   const [requestType, setRequestType] = useState<'vm' | 'addon'>('vm')
   const [currentVMData, setCurrentVMData] = useState<any>(null)
   const [selectedQuote, setSelectedQuote] = useState<any>(null)
@@ -43,9 +41,25 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
   type InstanceLine = { spec: string; vcpu: number; ram: number; storage: number; qty: number; unit: number; term: string }
   type BackupLine = { spec: string; storage: number; unit: number; term: string }
   type PublicIPLine = { spec: string; unit: number; term: string }
+  type AddonServiceLine = { spec: string; unit: number; term: string }
 
   const { customers } = useCustomerStore()
-  const { vmRequests } = useVMRequestStore()
+  const { vmRequests, loadVMRequests } = useVMRequestStore()
+  const { vms, loadVMs, addonRequests, loadAddonRequests } = useVMStore()
+
+  const vmMap = useMemo(() => {
+    const map = new Map<string, any>()
+    vms.forEach(vm => map.set(vm.id, vm))
+    return map
+  }, [vms])
+
+  const vmByRequestIdMap = useMemo(() => {
+    const map = new Map<string, any>()
+    vms.forEach(vm => {
+      if (vm.vm_request_id) map.set(vm.vm_request_id, vm)
+    })
+    return map
+  }, [vms])
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>(undefined)
   const [selectedRequestId, setSelectedRequestId] = useState<string | undefined>(undefined)
@@ -60,17 +74,18 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
   const isUpgrade = requestType === 'vm' && selectedRequest?.task_type?.toLowerCase() === 'change-plan'
   const isRenewal = requestType === 'vm' && selectedRequest?.task_type?.toLowerCase() === 'renewal'
 
-  // Load addon requests
+  // Ensure required stores are loaded once
   useEffect(() => {
-    const loadAddonRequests = async () => {
-      const { data, error } = await supabase.from('addon_requests').select('*')
-      if (!error && data) {
-        setAddonRequests(data)
-      }
+    if (addonRequests.length === 0) {
+      loadAddonRequests()
     }
-    loadAddonRequests()
-    loadVMs()
-  }, [loadVMs])
+    if (vms.length === 0) {
+      loadVMs()
+    }
+    if (vmRequests.length === 0) {
+      loadVMRequests()
+    }
+  }, [addonRequests.length, loadAddonRequests, loadVMs, loadVMRequests, vms.length, vmRequests.length])
 
   // Helper function to parse billing term string to number of months
   // const parseBillingTermToMonths = (term: string): number => {
@@ -354,6 +369,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
       const instanceLines: InstanceLine[] = []
       const backupLines: BackupLine[] = []
       const publicIPLines: PublicIPLine[] = []
+      const addonServiceLines: AddonServiceLine[] = []
 
       // Use full spec format like new VM requests
       instanceLines.push({
@@ -385,7 +401,65 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
         })
       }
 
-      setSheet(s => ({ ...s, instance: instanceLines, backup: backupLines, publicIP: publicIPLines }))
+      // Add add-on services from renewal request metadata
+      const addons = (selectedRequest as any).metadata?.addons
+      if (addons) {
+        if (addons.cpfs) {
+          addonServiceLines.push({
+            spec: 'CPFS',
+            unit: 0,
+            term: billingTerm
+          })
+        }
+        if (addons.ccis) {
+          addonServiceLines.push({
+            spec: 'CCIS',
+            unit: 0,
+            term: billingTerm
+          })
+        }
+      }
+
+      // Also check for pending addon requests associated with this VM (from renewal)
+      const pendingAddons = addonRequests.filter((a: any) => 
+        a.vm_id === currentVMData.id && 
+        a.status === 'Pending' &&
+        a.notes?.includes('renewal')
+      )
+      
+      for (const addon of pendingAddons) {
+        let addonTerm = addon.duration || billingTerm
+        
+        // Convert duration to standard billing term format
+        if (addon.duration) {
+          const match = addon.duration.match(/(\d+)/)
+          if (match) {
+            const months = parseInt(match[1])
+            if (months === 1) addonTerm = 'Monthly'
+            else if (months === 3) addonTerm = 'Quarterly'
+            else if (months === 6) addonTerm = 'Half Yearly'
+            else if (months === 12) addonTerm = 'Yearly'
+            else addonTerm = addon.duration
+          }
+        }
+        
+        if (addon.cpfs_enabled) {
+          addonServiceLines.push({
+            spec: `CPFS (${addon.cpfs_package || 'Standard'})`,
+            unit: 0,
+            term: addonTerm
+          })
+        }
+        if (addon.ccis_enabled) {
+          addonServiceLines.push({
+            spec: `CCIS (${addon.ccis_package || 'Standard'})`,
+            unit: 0,
+            term: addonTerm
+          })
+        }
+      }
+
+      setSheet(s => ({ ...s, instance: instanceLines, backup: backupLines, publicIP: publicIPLines, addonServices: addonServiceLines }))
     }
   }, [currentVMData, isRenewal, selectedRequest])
 
@@ -470,19 +544,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
       } else {
         const request = addonRequests.find(r => r.id === id)
         if (request) {
-          let billingTerm: string
-          if (request.duration === 1) {
-            billingTerm = 'Monthly'
-          } else if (request.duration === 3) {
-            billingTerm = 'Quarterly'
-          } else if (request.duration === 6) {
-            billingTerm = 'Half Yearly'
-          } else if (request.duration === 12) {
-            billingTerm = 'Yearly'
-          } else {
-            // Show custom duration
-            billingTerm = `${request.duration} months`
-          }
+          const billingTerm = request.duration || '—'
           
           const instanceLines: InstanceLine[] = []
           if (request.cpfs_enabled) {
@@ -520,12 +582,14 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
     instance: InstanceLine[]
     backup: BackupLine[]
     publicIP: PublicIPLine[]
+    addonServices: AddonServiceLine[]
     taxPct: number
     discountPct: number
   }>({
     instance: [],
     backup: [],
     publicIP: [],
+    addonServices: [],
     taxPct: 5,
     discountPct: 0,
   })
@@ -593,10 +657,12 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
   const instExt = (l: InstanceLine) => (l.unit || 0) * (l.qty || 0) * getTermMultiplier(l.term)
   const backupExt = (l: BackupLine) => (l.unit || 0) * getTermMultiplier(l.term)
   const publicIPExt = (l: PublicIPLine) => (l.unit || 0) * getTermMultiplier(l.term)
+  const addonServiceExt = (l: AddonServiceLine) => (l.unit || 0) * getTermMultiplier(l.term)
   const instanceSub = sheet.instance.reduce((a: number, l: InstanceLine) => a + instExt(l), 0)
   const backupSub = sheet.backup.reduce((a: number, l: BackupLine) => a + backupExt(l), 0)
   const publicIPSub = sheet.publicIP.reduce((a: number, l: PublicIPLine) => a + publicIPExt(l), 0)
-  const subTotal = instanceSub + backupSub + publicIPSub
+  const addonServiceSub = sheet.addonServices.reduce((a: number, l: AddonServiceLine) => a + addonServiceExt(l), 0)
+  const subTotal = instanceSub + backupSub + publicIPSub + addonServiceSub
   const discountAmount = Math.round(subTotal * (sheet.discountPct / 100))
   const netAmount = subTotal - discountAmount
   const tax = Math.round(netAmount * (sheet.taxPct / 100))
@@ -608,14 +674,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
     instance[i] = { ...instance[i], ...patch }
     setSheet({ ...sheet, instance })
   }
-  // const addInstance = () => {
-  //   const isAddon = requestType === 'addon'
-  //   const next = isAddon
-  //     ? { spec: 'Service|package', vcpu: 0, ram: 0, storage: 0, qty: 1, unit: 0, term: 'Monthly' as const }
-  //     : { spec: `Instance ${sheet.instance.length + 1}`, vcpu: 2, ram: 8, storage: 100, qty: 1, unit: 120000, term: 'Monthly' as const }
-  //   setSheet({ ...sheet, instance: [...sheet.instance, next] })
-  // }
-  // const removeInstance = (i: number) => setSheet({ ...sheet, instance: sheet.instance.filter((_, j) => j !== i) })
+
 
   const updateBackup = (i: number, patch: Partial<BackupLine>) => {
     const backup = [...sheet.backup]
@@ -626,6 +685,12 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
     const publicIP = [...sheet.publicIP]
     publicIP[i] = { ...publicIP[i], ...patch }
     setSheet({ ...sheet, publicIP })
+  }
+
+  const updateAddonService = (i: number, patch: Partial<AddonServiceLine>) => {
+    const addonServices = [...sheet.addonServices]
+    addonServices[i] = { ...addonServices[i], ...patch }
+    setSheet({ ...sheet, addonServices })
   }
 
   return (
@@ -665,7 +730,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                 <label>Request Type</label>
                 <select
                   value={requestType}
-                  onChange={e => { setRequestType(e.target.value as 'vm' | 'addon'); setSelectedRequestId(undefined); setSheet(s => ({ ...s, instance: [], backup: [], publicIP: [] })) }}
+                  onChange={e => { setRequestType(e.target.value as 'vm' | 'addon'); setSelectedRequestId(undefined); setSheet(s => ({ ...s, instance: [], backup: [], publicIP: [], addonServices: [] })) }}
                 >
                   <option value="vm">VM Request</option>
                   <option value="addon">Add-on Service</option>
@@ -865,6 +930,41 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                       <td colSpan={7} className="right fw-6">Backup Cost Total {backupTotalGB > 0 ? `— ${backupTotalGB}GB` : ''}</td>
                       <td className="right tnum fw-7">MMK {formatMMK(backupSub || 0)}</td>
                     </tr>
+
+                    {/* Add-on Service Cost section */}
+                    <tr><td colSpan={8} className="fw-6" style={{ background: 'var(--surface-2)' }}>Add-on Service</td></tr>
+                    {sheet.addonServices.length === 0 && (
+                      <tr><td colSpan={8} className="text-mute">No add-on services</td></tr>
+                    )}
+                    {sheet.addonServices.map((l, i) => (
+                      <tr key={i}>
+                        <td><input value={l.spec} onChange={e => updateAddonService(i, { spec: e.target.value })} /></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td className="right"><input type="number" value={l.unit} onChange={e => updateAddonService(i, { unit: +e.target.value })} style={{ width: 120 }} /></td>
+                        <td></td>
+                        <td>
+                          {['Monthly', 'Quarterly', 'Half Yearly', 'Yearly'].includes(l.term) ? (
+                            <select value={l.term} onChange={e => updateAddonService(i, { term: e.target.value as AddonServiceLine['term'] })}>
+                              <option>Monthly</option>
+                              <option>Quarterly</option>
+                              <option>Half Yearly</option>
+                              <option>Yearly</option>
+                            </select>
+                          ) : (
+                            <input value={l.term} onChange={e => updateAddonService(i, { term: e.target.value as AddonServiceLine['term'] })} style={{ width: 120 }} />
+                          )}
+                        </td>
+                        <td className="right tnum fw-6">MMK {formatMMK(addonServiceExt(l))}</td>
+                      </tr>
+                    ))}
+                    {sheet.addonServices.length > 0 && (
+                      <tr>
+                        <td colSpan={7} className="right fw-6">Add-on Service Total</td>
+                        <td className="right tnum fw-7">MMK {formatMMK(addonServiceSub || 0)}</td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               )}
@@ -916,8 +1016,11 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                   if (!selectedRequestId) { toast('Select a request first', 'warn'); return }
                   setSubmitting(true)
                   try {
+                    const selectedAddon = requestType === 'addon' ? addonRequests.find(r => r.id === selectedRequestId) : undefined
+                    const addonVMForDraft = selectedAddon ? vmMap.get(selectedAddon.vm_id) : undefined
+                    const addonVmReqIdForDraft = addonVMForDraft?.vm_request_id
                     const id = await addQuote({
-                      vm_request_id: requestType === 'vm' ? selectedRequestId : undefined,
+                      vm_request_id: requestType === 'vm' ? selectedRequestId : addonVmReqIdForDraft,
                       addon_request_id: requestType === 'addon' ? selectedRequestId : undefined,
                       status: 'Draft',
                       validity_date: new Date(Date.now() + 7 * 86400000).toISOString(),
@@ -936,6 +1039,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                         ...sheet.instance.map(l => ({ kind: 'instance', ...l })),
                         ...sheet.backup.map(l => ({ kind: 'backup', ...l })),
                         ...sheet.publicIP.map(l => ({ kind: 'publicIP', ...l })),
+                        ...sheet.addonServices.map(l => ({ kind: 'addonService', ...l })),
                       ],
                       notes: null,
                     })
@@ -943,7 +1047,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                     // Clear form inputs
                     setSelectedCustomerId(undefined)
                     setSelectedRequestId(undefined)
-                    setSheet({ instance: [], backup: [], publicIP: [], taxPct: 5, discountPct: 0 })
+                    setSheet({ instance: [], backup: [], publicIP: [], addonServices: [], taxPct: 5, discountPct: 0 })
                     setBuilding(false)
                   } finally {
                     setSubmitting(false)
@@ -961,8 +1065,11 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                   if (!selectedRequestId) { toast('Select a request first', 'warn'); return }
                   setSubmitting(true)
                   try {
+                    const selectedAddon = requestType === 'addon' ? addonRequests.find(r => r.id === selectedRequestId) : undefined
+                    const addonVMForSent = selectedAddon ? vmMap.get(selectedAddon.vm_id) : undefined
+                    const addonVmReqIdForSent = addonVMForSent?.vm_request_id
                     const id = await addQuote({
-                      vm_request_id: requestType === 'vm' ? selectedRequestId : undefined,
+                      vm_request_id: requestType === 'vm' ? selectedRequestId : addonVmReqIdForSent,
                       addon_request_id: requestType === 'addon' ? selectedRequestId : undefined,
                       status: 'Sent',
                       validity_date: new Date(Date.now() + 7 * 86400000).toISOString(),
@@ -981,6 +1088,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                         ...sheet.instance.map(l => ({ kind: 'instance', ...l })),
                         ...sheet.backup.map(l => ({ kind: 'backup', ...l })),
                         ...sheet.publicIP.map(l => ({ kind: 'publicIP', ...l })),
+                        ...sheet.addonServices.map(l => ({ kind: 'addonService', ...l })),
                       ],
                       notes: null,
                     })
@@ -989,7 +1097,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                     // Clear form inputs
                     setSelectedCustomerId(undefined)
                     setSelectedRequestId(undefined)
-                    setSheet({ instance: [], backup: [], publicIP: [], taxPct: 5, discountPct: 0 })
+                    setSheet({ instance: [], backup: [], publicIP: [], addonServices: [], taxPct: 5, discountPct: 0 })
                     setBuilding(false)
                   } finally {
                     setSubmitting(false)
@@ -1020,7 +1128,11 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                       const request = vmRequests.find(r => r.id === q.vm_request_id)
                       const addonReq = addonRequests.find(a => a.id === (q as any).addon_request_id)
                       const isAddon = !!(q as any).addon_request_id
-                      const requestHostname = isAddon ? addonReq?.description : request?.hostname || request?.sizing || '—'
+                      const addonVM = isAddon && addonReq?.vm_id ? vmMap.get(addonReq.vm_id) : null
+                      const vmByReq = vmByRequestIdMap.get((q as any).vm_request_id)
+                      const requestHostname = isAddon
+                        ? request?.hostname || vmByReq?.hostname || addonVM?.hostname || addonReq?.description || '—'
+                        : request?.hostname || request?.sizing || '—'
                       return (
                         <tr key={q.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedQuote(q)}>
                           <td className="mono fw-6">{q.legacy_id || q.id.slice(0, 8)}</td>

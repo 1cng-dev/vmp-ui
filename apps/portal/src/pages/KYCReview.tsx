@@ -219,7 +219,7 @@ export const KYCReviewView: React.FC = () => {
                   <Avatar name={c.name} size={38} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="fw-6 text-sm">{c.name}</div>
-                    <div className="text-xs text-mute" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.org_name || c.name} · {c.id}</div>
+                    <div className="text-xs text-mute" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.org_name || c.name} · {c.legacy_id}</div>
                   </div>
                   <StatusPill status={c.kyc_status} />
                 </div>
@@ -279,10 +279,10 @@ export const KYCReviewView: React.FC = () => {
                       <label>Reviewer note</label>
                       <textarea rows={2} value={note} onChange={e => setNote(e.target.value)} placeholder="Optional note recorded with your decision…" />
                     </div>
-                    <div className="flex gap-2 mt-3">
+                    <div className="flex gap-2 mt-3" style={{ flexWrap: 'wrap' }}>
                       <button className="btn accent" style={{ flex: 1 }} onClick={() => decide(sel.id, 'Approved')}><Icon name="check" size={12} />Approve</button>
-                      <button className="btn" onClick={() => { toast(`Re-upload requested from ${sel.email}`, 'info'); setNote(''); }}><Icon name="refresh" size={12} />Re-upload</button>
-                      <button className="btn danger" onClick={() => decide(sel.id, 'Rejected')}><Icon name="x" size={12} />Reject</button>
+                      <button className="btn danger" style={{ flex: 1 }} onClick={() => decide(sel.id, 'Rejected')}><Icon name="x" size={12} />Reject</button>
+                      <button className="btn" style={{ width: '100%', marginTop: 8, justifyContent: 'center' }} onClick={() => { setNote(''); decide(sel.id, 'Pending'); }}><Icon name="refresh" size={12} />Request Re-upload</button>
                     </div>
                   </>
                 )}
@@ -299,6 +299,21 @@ export const KYCReviewView: React.FC = () => {
                       {sel.kyc_reviewer_note && (
                         <div className="text-xs text-mute mt-2" style={{ fontStyle: 'italic' }}>
                           Note: {sel.kyc_reviewer_note}
+                        </div>
+                      )}
+                      {sel.kyc_documents_updated_at && sel.kyc_reviewed_at && new Date(sel.kyc_documents_updated_at) > new Date(sel.kyc_reviewed_at) && (
+                        <div className="mt-2" style={{
+                          padding: 10,
+                          background: 'oklch(0.55 0.16 75)14',
+                          borderRadius: 6,
+                          border: '1px solid oklch(0.55 0.16 75)',
+                        }}>
+                          <div className="fw-6 text-sm" style={{ color: 'oklch(0.4 0.13 75)' }}>
+                            <Icon name="refresh" size={12} /> Customer updated documents
+                          </div>
+                          <div className="text-xs text-mute mt-1">
+                            on {new Date(sel.kyc_documents_updated_at).toLocaleDateString()} at {new Date(sel.kyc_documents_updated_at).toLocaleTimeString()}
+                          </div>
                         </div>
                       )}
                     </div>

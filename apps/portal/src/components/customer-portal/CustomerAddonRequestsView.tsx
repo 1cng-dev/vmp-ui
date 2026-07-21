@@ -61,7 +61,7 @@ export const CustomerAddonRequestsView: React.FC<CustomerAddonRequestsViewProps>
                     </div>
                   </td>
                   <td className="tnum text-sm">{new Date(t.created_at).toLocaleDateString()}</td>
-                  <td className="text-sm">{t.duration ? (t.duration === 1 ? 'Monthly' : t.duration === 3 ? 'Quarterly' : t.duration === 6 ? 'Half Yearly' : t.duration === 12 ? 'Yearly' : `${t.duration} month${t.duration > 1 ? 's' : ''}`) : 'N/A'}</td>
+                  <td className="text-sm">{t.duration || 'N/A'}</td>
                   <td><StatusPill status={t.status}/></td>
                   <td className="right"><Icon name="chevron-right" size={12} className="text-mute"/></td>
                 </tr>

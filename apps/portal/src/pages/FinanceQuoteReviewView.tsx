@@ -101,7 +101,7 @@ const FinanceQuoteReviewView = () => {
                     <td>
                       {isAddon
                         ? `${addonReq?.legacy_id || addonReq?.id?.slice(0, 8) || (q as any).addon_request_id?.slice?.(0, 8) || '—'} · ${addonReq ? `${addonReq.cpfs_enabled ? 'CPFS' : ''}${addonReq.cpfs_enabled && addonReq.ccis_enabled ? ' + ' : ''}${addonReq.ccis_enabled ? 'CCIS' : ''}` : '—'}`
-                        : `${vmReq?.legacy_id || vmReq?.id?.slice(0, 8) || q.vm_request_id?.slice?.(0, 8) || '—'} · ${vmReq?.hostname || '—'}${vm ? ` (${vm.legacy_id})` : ''}`}
+                        : `${vmReq?.legacy_id || vmReq?.id?.slice(0, 8) || q.vm_request_id?.slice?.(0, 8) || '—'} · ${vmReq?.hostname || '—'}`}
                     </td>
                     <td className="tnum text-sm">{(q as any).billing_term || '—'}</td>
                     <td className="right tnum">{(q.line_items || []).length}</td>

@@ -72,12 +72,12 @@ const TeamView: React.FC<TeamViewProps> = () => {
             <div className="card-head"><h3 className="card-title">Team members</h3></div>
             <div className="card-body flush" style={{ overflowX: 'auto' }}>
                 <table className="tbl" style={{ minWidth: 800 }}>
-                  <thead><tr><th>User</th><th>Role</th><th>Team</th><th>Status</th><th>Last active</th><th style={{ width: 40 }}></th></tr></thead>
+                  <thead><tr><th>User</th><th>Role</th><th>Team</th><th>Status</th><th>Created by</th><th>Last active</th><th style={{ width: 40 }}></th></tr></thead>
                   <tbody>
                   {teamLoading ? (
-                    <tr><td colSpan={6}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
+                    <tr><td colSpan={7}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
                   ) : team.length === 0 ? (
-                    <tr><td colSpan={6}><div className="empty"><div className="title">No team members yet</div><div className="sub">Invite team members to get started.</div></div></td></tr>
+                    <tr><td colSpan={7}><div className="empty"><div className="title">No team members yet</div><div className="sub">Invite team members to get started.</div></div></td></tr>
                   ) : (
                     team.map(u => (
                       <tr key={u.id}>
@@ -98,6 +98,7 @@ const TeamView: React.FC<TeamViewProps> = () => {
                             {u.status}
                           </span>
                         </td>
+                        <td className="text-sm text-mute">{u.invited_by_name || 'System'}</td>
                         <td className="text-sm text-mute">{u.last}</td>
                         <td style={{ position: 'relative' }}>
                           <button className="icon-btn" onClick={(e) => { e.stopPropagation(); setMenu(menu === u.id ? null : u.id); }}><Icon name="more" /></button>
