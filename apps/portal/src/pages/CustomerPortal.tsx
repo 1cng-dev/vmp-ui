@@ -69,10 +69,10 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
   
   // Load data on mount and when auth changes
   useEffect(() => {
-    if (customers.length === 0) {
-      loadCustomers()
+    if (auth?.user) {
+      if (customers.length === 0) loadCustomers()
     }
-  }, [loadCustomers, customers.length])
+  }, [auth?.user, loadCustomers, customers.length])
 
   useEffect(() => {
     if (auth?.user) {

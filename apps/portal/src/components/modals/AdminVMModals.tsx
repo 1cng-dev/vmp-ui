@@ -740,6 +740,7 @@ const NewCustomerModal: React.FC<NewCustomerModalProps> = ({ onClose, onPassword
   const { addCustomerWithAuth } = useCustomerStore()
   const { toast } = useUIStore()
   const [f, setF] = useState({
+    legacyId: '',
     name: '',
     company: '',
     email: '',
@@ -778,6 +779,7 @@ const NewCustomerModal: React.FC<NewCustomerModalProps> = ({ onClose, onPassword
     try {
       const tempPassword = generateTempPassword()
       await addCustomerWithAuth({
+        legacy_id: f.legacyId || undefined,
         name: f.name,
         org_name: f.company,
         email: f.email,
@@ -841,6 +843,11 @@ const NewCustomerModal: React.FC<NewCustomerModalProps> = ({ onClose, onPassword
             <div className="grid-2" style={{ gap: 12 }}>
               <div className="field"><label>Phone</label><input value={f.phone} onChange={e => set('phone', e.target.value)} placeholder="+95 9 ..." /></div>
               <div className="field"><label>Alternate phone</label><input value={f.altPhone} onChange={e => set('altPhone', e.target.value)} placeholder="+95 9 ..." /></div>
+            </div>
+            <div className="field">
+              <label>Legacy ID (optional - for existing customers from previous system)</label>
+              <input value={f.legacyId} onChange={e => set('legacyId', e.target.value)} placeholder="e.g., CUST-001" />
+              <div className="hint">Only enter a legacy ID if the customer already has one from the previous system</div>
             </div>
 
             {/* Organization Details */}
