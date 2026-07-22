@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import type { DBInvoice, NewInvoiceInput } from '../types'
 import { createAlert } from '../services/notificationService'
 import useActivityStore from './activityStore'
+import useAddonRequestStore from './addonRequestStore'
 
 export interface InvoiceStoreValue {
   invoices: DBInvoice[]
@@ -19,6 +20,7 @@ export const InvoiceProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [invoices, setInvoices] = useState<DBInvoice[]>([])
   const [invoicesLoading, setInvoicesLoading] = useState(false)
   const { logActivity } = useActivityStore()
+  const { createAddonRequest } = useAddonRequestStore()
 
 
   const loadInvoices = useCallback(async () => {
@@ -233,6 +235,91 @@ export const InvoiceProvider: React.FC<{ children: ReactNode }> = ({ children })
   const markPaid = useCallback(async (id: string, receipt: string) => {
     const invoice = invoices.find(i => i.id === id)
     await updateInvoice(id, { status: 'Payment Received', receipt, paid_date: new Date().toISOString() })
+    
+    // Auto-create addon requests if invoice has addon services in line_items but no addon_request_ids
+    if (invoice && invoice.addon_request_ids.length === 0 && invoice.line_items) {
+      const addonItems = invoice.line_items.filter((item: any) => 
+        item.spec && (item.spec.includes('CPFS') || item.spec.includes('CCIS'))
+      )
+      
+      if (addonItems.length > 0 && invoice.vm_request_ids.length > 0) {
+        // Get the VM from the vm_request_id
+        const { data: vm } = await supabase
+          .from('vms')
+          .select('id')
+          .eq('vm_request_id', invoice.vm_request_ids[0])
+          .single()
+        
+        if (vm) {
+          let cpfsEnabled = false
+          let cpfsPackage: 'standard' | 'premium' = 'standard'
+          let ccisEnabled = false
+          let ccisPackage: 'basic' | 'standard' | 'professional' | 'enterprise' = 'basic'
+          
+          // Parse addon items to determine which services to enable
+          for (const item of addonItems) {
+            if (item.spec.includes('CPFS')) {
+              cpfsEnabled = true
+              const parts = item.spec.split('|')
+              if (parts.length > 1) {
+                const pkg = parts[1].toLowerCase()
+                cpfsPackage = pkg === 'premium' ? 'premium' : 'standard'
+              }
+            }
+            if (item.spec.includes('CCIS')) {
+              ccisEnabled = true
+              const parts = item.spec.split('|')
+              if (parts.length > 1) {
+                const pkg = parts[1].toLowerCase()
+                if (pkg === 'standard') ccisPackage = 'standard'
+                else if (pkg === 'professional') ccisPackage = 'professional'
+                else if (pkg === 'enterprise') ccisPackage = 'enterprise'
+                else ccisPackage = 'basic'
+              }
+            }
+          }
+          
+          // Create addon request
+          if (cpfsEnabled || ccisEnabled) {
+            // Get VM's start_date to match VM calculation logic
+            const { data: vmData } = await supabase
+              .from('vms')
+              .select('start_date')
+              .eq('id', vm.id)
+              .single()
+            
+            const vmStartDate = vmData?.start_date ? new Date(vmData.start_date) : new Date()
+            vmStartDate.setDate(vmStartDate.getDate() + 1) // Add 1 day to match VM logic
+            
+            // Calculate addon expiry using billing term (parse both months and days)
+            const term = invoice.billing_term || '12'
+            const monthsMatch = term.match(/(\d+)\s*months?/i)
+            const daysMatch = term.match(/(\d+)\s*days?/i)
+            
+            const durationMonths = monthsMatch ? parseInt(monthsMatch[1]) : 12
+            const durationDays = daysMatch ? parseInt(daysMatch[1]) : 0
+            
+            const expiryDate = new Date(vmStartDate)
+            expiryDate.setMonth(expiryDate.getMonth() + durationMonths)
+            expiryDate.setDate(expiryDate.getDate() + durationDays)
+            
+            await createAddonRequest({
+              vm_id: vm.id,
+              customer_id: invoice.customer_id,
+              status: 'Completed',
+              cpfs_enabled: cpfsEnabled,
+              cpfs_package: cpfsEnabled ? cpfsPackage : undefined,
+              ccis_enabled: ccisEnabled,
+              ccis_package: ccisEnabled ? ccisPackage : undefined,
+              duration: invoice.billing_term || '12',
+              start_date: vmData?.start_date || new Date().toISOString(),
+              end_date: expiryDate.toISOString(),
+              expiry: expiryDate.toISOString(),
+            })
+          }
+        }
+      }
+    }
     
     // Create notification for payment received
     if (invoice) {

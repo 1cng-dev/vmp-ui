@@ -87,22 +87,23 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal 
                         <dt>vCPU</dt><dd className="tnum">{v.vcpu} cores</dd>
                         <dt>RAM</dt><dd className="tnum">{v.ram_gb} GB</dd>
                         <dt>Storage</dt><dd className="tnum">{v.storage_gb} GB SSD</dd>
-                        <dt>OS</dt><dd>{vmRequest?.os_name || vmRequest?.custom_os_name || 'Linux'}</dd>
-                        <dt>OS Version</dt><dd>{vmRequest?.os_version || vmRequest?.custom_os_version || '—'}</dd>
-                        <dt>Purpose</dt><dd>{vmRequest?.purpose || '—'}</dd>
+                        <dt>OS</dt><dd>{(v as any).os_name || 'Linux'}</dd>
+                        <dt>OS Version</dt><dd>{(v as any).os_version || '—'}</dd>
+                        <dt>Purpose</dt><dd>{(v as any).purpose || '—'}</dd>
                       </dl>
                     </div>
                     <div>
                       <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Subscription</div>
                       <dl className="dl mt-3">
                         <dt>VM ID</dt><dd className="mono">{v.legacy_id || v.id}</dd>
-                        <dt>Assigned VM ID</dt><dd className="mono">{(v as any).assigned_vmid || vmRequest?.assigned_vmid || '—'}</dd>
+                        <dt>Assigned VM ID</dt><dd className="mono">{(v as any).assigned_vmid || '—'}</dd>
                         <dt>Request ID</dt><dd className="mono">{vmRequest?.legacy_id || v.vm_request_id || '—'}</dd>
                         <dt>Request Type</dt><dd>{vmRequest?.request_type || 'paid'}</dd>
                         <dt>Task Type</dt><dd>{v.task_type || 'New'}</dd>
-                        <dt>Quantity</dt><dd className="tnum">{vmRequest?.qty || 1}</dd>
-                        <dt>Billing Term</dt><dd className="tnum">{vmRequest?.duration ? `${vmRequest.duration} days` : '—'}</dd>
-                        <dt>Created</dt><dd className="tnum">{v.created_at ? new Date(v.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</dd>
+                        <dt>Duration</dt><dd className="tnum">{(v as any).duration ? `${(v as any).duration} month${(v as any).duration > 1 ? 's' : ''}` : '—'}</dd>
+                        <dt>Quantity</dt><dd className="tnum">{(v as any).qty || 1}</dd>
+                        <dt>Billing Term</dt><dd className="tnum">{(v as any).duration ? ((v as any).duration === 1 ? 'Monthly' : (v as any).duration === 3 ? 'Quarterly' : (v as any).duration === 6 ? 'Half Yearly' : (v as any).duration === 12 ? 'Yearly' : `${(v as any).duration} month${(v as any).duration > 1 ? 's' : ''}`) : '—'}</dd>
+                        <dt>Start Date</dt><dd className="tnum">{(v as any).start_date ? new Date((v as any).start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</dd>
                         <dt>Expiry</dt><dd><ExpiryCell date={v.expiry || '—'}/></dd>
                       </dl>
                     </div>
@@ -124,11 +125,11 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal 
                 <dl className="dl">
                   <dt>Public IPv4</dt><dd className="mono fw-6">{v.public_ip || '—'}</dd>
                   <dt>Private IPv4</dt><dd className="mono">{v.private_ip || '—'}</dd>
-                  <dt>Zone</dt><dd>{vmRequest?.zone || '—'}</dd>
-                  <dt>NICs</dt><dd className="mono">{vmRequest?.nics && vmRequest.nics.length > 0 
-                    ? vmRequest.nics.map((nic: any) => nic.vlan || nic.label).join(', ')
+                  <dt>Zone</dt><dd>{(v as any).zone || '—'}</dd>
+                  <dt>NICs</dt><dd className="mono">{(v as any).nics && ((v as any).nics as any).length > 0 
+                    ? (typeof (v as any).nics === 'string' ? JSON.parse((v as any).nics) : (v as any).nics).map((nic: any) => nic.vlan || nic.label).join(', ')
                     : '—'}</dd>
-                  <dt>Public IP Required</dt><dd>{vmRequest?.public_ip_required ? 'Yes' : 'No'}</dd>
+                  <dt>Public IP Required</dt><dd>{(v as any).public_ip_required ? 'Yes' : 'No'}</dd>
                   <dt>Firewall policy</dt><dd className="mono">Default</dd>
                 </dl>
               </div></div>
@@ -138,14 +139,14 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal 
                   <table className="tbl">
                     <thead><tr><th>Port</th><th>Protocol</th><th>Source</th></tr></thead>
                     <tbody>
-                      {vmRequest?.firewall_ports?.map((port: any, idx: number) => (
+                      {(v as any).firewall_ports?.map((port: any, idx: number) => (
                         <tr key={idx}>
                           <td className="mono fw-6">{port}</td>
                           <td className="mono">TCP</td>
                           <td className="text-sm">any</td>
                         </tr>
                       ))}
-                      {(!vmRequest?.firewall_ports || vmRequest.firewall_ports.length === 0) && (
+                      {(!(v as any).firewall_ports || (v as any).firewall_ports.length === 0) && (
                         <tr><td colSpan={3}><div className="empty"><div className="sub">No specific firewall ports defined.</div></div></td></tr>
                       )}
                     </tbody>
@@ -159,8 +160,8 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal 
             <div className="card">
               <div className="card-body">
                 <dl className="dl">
-                  <dt>Backup Enabled</dt><dd>{vmRequest?.backup_enabled ? 'Yes' : 'No'}</dd>
-                  <dt>Backup Type</dt><dd>{vmRequest?.backup_enabled ? vmRequest?.backup_type : '—'}</dd>
+                  <dt>Backup Enabled</dt><dd>{(v as any).backup_enabled ? 'Yes' : 'No'}</dd>
+                  <dt>Backup Type</dt><dd>{(v as any).backup_enabled ? (v as any).backup_type : '—'}</dd>
                 </dl>
               </div>
             </div>
@@ -203,31 +204,32 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal 
                 {addonRequests.length === 0 ? (
                   <div className="empty"><div className="sub">No completed add-on services for this VM.</div></div>
                 ) : (
-                  <table className="tbl">
-                    <thead><tr><th>Request ID</th><th>Services</th><th>Package</th><th>Billing Term</th><th>Status</th><th>Completed Date</th></tr></thead>
-                    <tbody>
-                      {addonRequests.map((ar: any) => (
-                        <tr key={ar.id}>
-                          <td className="mono fw-6">{ar.legacy_id || ar.id}</td>
-                          <td>
+                  <div className="grid-2" style={{ gap: 14 }}>
+                    {addonRequests.map((ar: any) => (
+                      <div key={ar.id}>
+                        <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>{ar.legacy_id || ar.id}</div>
+                        <dl className="dl">
+                          <dt>Services</dt>
+                          <dd>
                             <div className="flex gap-1">
                               {ar.cpfs_enabled && <span className="pill subtle">CPFS</span>}
                               {ar.ccis_enabled && <span className="pill subtle">CCIS</span>}
                             </div>
-                          </td>
-                          <td className="text-sm">
-                            {[
-                              ar.cpfs_enabled && ar.cpfs_package ? `CPFS ${ar.cpfs_package}` : null,
-                              ar.ccis_enabled && ar.ccis_package ? `CCIS ${ar.ccis_package}` : null
-                            ].filter(Boolean).join(', ') || '—'}
-                          </td>
-                          <td className="text-sm">{ar.duration || 'N/A'}</td>
-                          <td><StatusPill status={ar.status}/></td>
-                          <td className="tnum text-sm">{ar.updated_at ? new Date(ar.updated_at).toLocaleDateString() : '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                          </dd>
+                          <dt>Package</dt><dd>{[
+                            ar.cpfs_enabled && ar.cpfs_package ? `CPFS ${ar.cpfs_package}` : null,
+                            ar.ccis_enabled && ar.ccis_package ? `CCIS ${ar.ccis_package}` : null
+                          ].filter(Boolean).join(', ') || '—'}</dd>
+                          <dt>Duration</dt><dd>{ar.duration || 'N/A'}</dd>
+                          {ar.start_date && <><dt>Start Date</dt><dd className="tnum">{new Date(ar.start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
+                          {ar.end_date && <><dt>End Date</dt><dd className="tnum">{new Date(ar.end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
+                          {ar.expiry && <><dt>Expiry</dt><dd className="tnum">{new Date(ar.expiry).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
+                          <dt>Status</dt><dd><StatusPill status={ar.status}/></dd>
+                          <dt>Completed</dt><dd className="tnum">{ar.updated_at ? new Date(ar.updated_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</dd>
+                        </dl>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>
@@ -245,7 +247,7 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal 
                       <dt>Power state</dt><dd>{v.power_state}</dd>
                       <dt>Status</dt><dd>{v.status}</dd>
                       <dt>Task Type</dt><dd>{v.task_type || 'New'}</dd>
-                      <dt>Assigned VM ID</dt><dd>{(v as any).assigned_vmid || vmRequest?.assigned_vmid || '—'}</dd>
+                      <dt>Assigned VM ID</dt><dd>{(v as any).assigned_vmid || '—'}</dd>
                       <dt>Created</dt><dd className="tnum">{v.created_at ? new Date(v.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</dd>
                       <dt>Updated</dt><dd className="tnum">{v.updated_at ? new Date(v.updated_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</dd>
                     </dl>
@@ -256,10 +258,10 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal 
                       <dt>vCPU</dt><dd>{v.vcpu} cores</dd>
                       <dt>Memory</dt><dd>{v.ram_gb} GB</dd>
                       <dt>Storage</dt><dd>{v.storage_gb} GB SSD</dd>
-                      <dt>OS</dt><dd>{vmRequest?.os_name || vmRequest?.custom_os_name || 'Linux'}</dd>
-                      <dt>OS Version</dt><dd>{vmRequest?.os_version || vmRequest?.custom_os_version || '—'}</dd>
-                      <dt>Specification Type</dt><dd>{vmRequest?.sizing || 'Standard'}</dd>
-                      <dt>Storage Partitions</dt><dd>{vmRequest?.storage_partitions || '—'}</dd>
+                      <dt>OS</dt><dd>{(v as any).os_name || 'Linux'}</dd>
+                      <dt>OS Version</dt><dd>{(v as any).os_version || '—'}</dd>
+                      <dt>Specification Type</dt><dd>{(v as any).sizing || 'Standard'}</dd>
+                      <dt>Storage Partitions</dt><dd>{(v as any).storage_partitions || '—'}</dd>
                     </dl>
                   </div>
                   <div>
@@ -268,16 +270,10 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal 
                       <dt>Request ID</dt><dd className="mono">{vmRequest?.legacy_id || v.vm_request_id || '—'}</dd>
                       <dt>Request Type</dt><dd>{vmRequest?.request_type || 'paid'}</dd>
                       <dt>Request Status</dt><dd>{vmRequest?.status || '—'}</dd>
-                      <dt>Quantity</dt><dd className="tnum">{vmRequest?.qty || 1}</dd>
-                      <dt>Billing Term</dt><dd className="tnum">{vmRequest?.duration ? `${vmRequest.duration} days` : '—'}</dd>
+                      <dt>Quantity</dt><dd className="tnum">{(v as any).qty || 1}</dd>
+                      <dt>Billing Term</dt><dd className="tnum">{(v as any).duration ? ((v as any).duration === 1 ? 'Monthly' : (v as any).duration === 3 ? 'Quarterly' : (v as any).duration === 6 ? 'Half Yearly' : (v as any).duration === 12 ? 'Yearly' : `${(v as any).duration} month${(v as any).duration > 1 ? 's' : ''}`) : '—'}</dd>
                       <dt>Request Created</dt><dd className="tnum">{vmRequest?.created_at ? new Date(vmRequest.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</dd>
                       <dt>Request Updated</dt><dd className="tnum">{vmRequest?.updated_at ? new Date(vmRequest.updated_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</dd>
-                    </dl>
-                  </div>
-                  <div>
-                    <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Addons & Assignment</div>
-                    <dl className="dl">
-                      <dt>Backup Enabled</dt><dd>{vmRequest?.backup_enabled ? vmRequest.backup_type : 'No'}</dd>
                     </dl>
                   </div>
                 </div>

@@ -262,6 +262,9 @@ export interface AddonRequest {
   ccis_enabled?: boolean
   ccis_package?: 'basic' | 'standard' | 'professional' | 'enterprise'
   duration?: string
+  start_date?: string
+  end_date?: string
+  expiry?: string
   status: 'Pending' | 'In Progress' | 'Completed' | 'Rejected'
   notes?: string
   created_at: string
@@ -286,6 +289,26 @@ export interface NewVMInput {
   expiry?: string
   duration?: number
   legacy_id?: string
+  backup_enabled?: boolean
+  backup_type?: string
+  request_type?: 'trial' | 'paid'
+  // Fields for direct VM creation (from vm_requests table)
+  os_name?: string
+  os_version?: string
+  custom_os_name?: string
+  custom_os_version?: string
+  zone?: string
+  nics?: any[]
+  public_ip_required?: boolean
+  firewall_ports?: string[]
+  purpose?: string
+  sizing?: 'Standard' | 'High Performance'
+  storage_partitions?: string
+  qty?: number
+  provision_status?: 'pending' | 'in_progress' | 'completed' | 'failed'
+  start_date?: string
+  end_date?: string
+  assigned_vmid?: number
 }
 
 

@@ -8,9 +8,10 @@ import { StatusPill, ExpiryCell, CircularSpinner } from '../components/ui/ui'
 interface VMListProps {
   openVM: (id: string) => void
   openModal: (kind: string, props?: any) => void
+  setView: (view: string) => void
 }
 
-const VMList: React.FC<VMListProps> = ({ openVM, openModal }) => {
+const VMList: React.FC<VMListProps> = ({ openVM, openModal, setView }) => {
   const { vms, vmsLoading, loadVMs, updateVM } = useVMStore()
   const { customers } = useCustomerStore()
   const { toast } = useUIStore()
@@ -133,7 +134,7 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal }) => {
         </div>
         <div className="page-actions">
           <button className="btn" onClick={handleExportAll}><Icon name="download" size={13} />Export CSV</button>
-          <button className="btn primary" onClick={() => openModal('newvm')}><Icon name="plus" size={13} />New VM</button>
+          <button className="btn primary" onClick={() => setView('direct-vm-create')}><Icon name="plus" size={13} />New VM</button>
         </div>
       </div>
 

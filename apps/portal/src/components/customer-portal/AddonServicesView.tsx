@@ -231,7 +231,7 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs }) =
       </div>
 
       {/* CCIS Section */}
-      <div className="card">
+      <div className="card" style={{ marginBottom: 16 }}>
         <div className="card-head">
           <h3 className="card-title">CCIS (Cloud Content Inspection Service)</h3>
           <span className={`toggle ${ccisEnabled ? 'on' : ''}`} onClick={() => setCcisEnabled(!ccisEnabled)}/>
@@ -258,6 +258,32 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs }) =
         )}
       </div>
 
+      {/* Existing Add-on Requests */}
+      {selectedVM && existingAddons.length > 0 && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="card-head"><h3 className="card-title">Active Add-on Services</h3></div>
+          <div className="card-body">
+            {existingAddons.map((addon) => (
+              <div key={addon.id} style={{ padding: 12, background: 'var(--surface-2)', borderRadius: 6, marginBottom: 8, border: '1px solid var(--line)' }}>
+                <div className="flex center between mb-2">
+                  <div className="fw-6 text-sm">
+                    {addon.cpfs_enabled && 'CPFS'}{addon.cpfs_enabled && addon.ccis_enabled && ' + '}{addon.ccis_enabled && 'CCIS'}
+                  </div>
+                  <span className="pill ok"><span className="dot" />Active</span>
+                </div>
+                <div className="grid-2" style={{ gap: 8 }}>
+                  {addon.cpfs_enabled && <div className="text-xs text-mute">CPFS: {addon.cpfs_package}</div>}
+                  {addon.ccis_enabled && <div className="text-xs text-mute">CCIS: {addon.ccis_package}</div>}
+                  <div className="text-xs text-mute">Duration: {addon.duration}</div>
+                  {addon.start_date && <div className="text-xs text-mute">Start: {new Date(addon.start_date).toLocaleDateString()}</div>}
+                  {addon.expiry && <div className="text-xs text-mute">Expiry: {new Date(addon.expiry).toLocaleDateString()}</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Submit Button */}
       <div className="flex center" style={{ gap: 10, paddingTop: 8, marginTop: 24 }}>
         <div style={{ flex: 1 }}/>
@@ -279,6 +305,18 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs }) =
               durationText = `${duration} months`
             }
             
+            // Calculate start_date, end_date, and expiry for addon request using VM's start_date
+            const vmStartDate = vm?.start_date ? new Date(vm.start_date) : new Date()
+            vmStartDate.setDate(vmStartDate.getDate() + 1) // Add 1 day to match VM logic
+            
+            // Parse duration to get months and days
+            const durationMonths = remainingDuration ? remainingDuration.months : parseInt(duration)
+            const durationDays = remainingDuration ? remainingDuration.days : 0
+            
+            const expiryDate = new Date(vmStartDate)
+            expiryDate.setMonth(expiryDate.getMonth() + durationMonths)
+            expiryDate.setDate(expiryDate.getDate() + durationDays)
+            
             const addonRequest = {
               customer_id: vm?.customer_id,
               vm_id: selectedVM,
@@ -287,6 +325,9 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs }) =
               ccis_enabled: ccisEnabled,
               ccis_package: ccisEnabled ? ccisPlan : undefined,
               duration: durationText,
+              start_date: vm?.start_date || new Date().toISOString(),
+              end_date: expiryDate.toISOString(),
+              expiry: expiryDate.toISOString(),
               status: 'Pending' as 'Pending',
             }
             console.log('Add-on request data:', addonRequest)

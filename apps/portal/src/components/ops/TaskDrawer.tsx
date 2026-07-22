@@ -144,7 +144,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
             {requestType === 'addon' && <span className="pill warn">Add-on Service</span>}
           </div>
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em' }}>
-            {requestType === 'vm' ? (t?.hostname || 'VM') : `Add-on Request for VM ${(request as any)?.vm_id}`}
+            {requestType === 'vm' ? (t?.hostname || 'VM') : `Add-on Request for ${addonVMData?.legacy_id || addonVMData?.hostname || (request as any)?.vm_id}`}
           </h2>
           <div className="flex gap-2 mt-2">
             <StatusPill status={salesData.status} />
@@ -483,7 +483,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                 )}
                               </>
                             )}
-                            {active && i === 2 && (
+                            {active && i === 2 && userRole !== 'Sales' && (
                               <button className="btn sm ok mt-2" onClick={() => { updateAddonRequest(request.id, { status: 'Completed' }); toast('Add-on provisioning completed', 'ok') }}>
                                 <Icon name="check" size={11} />Complete
                               </button>
@@ -586,6 +586,9 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                       </>
                     )}
                     {(request as any)?.duration && <><dt>Duration</dt><dd className="mono">{(request as any)?.duration || '—'}</dd></>}
+                    {(request as any)?.start_date && <><dt>Start Date</dt><dd className="mono tnum">{new Date((request as any)?.start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
+                    {(request as any)?.end_date && <><dt>End Date</dt><dd className="mono tnum">{new Date((request as any)?.end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
+                    {(request as any)?.expiry && <><dt>Expiry</dt><dd className="mono tnum">{new Date((request as any)?.expiry).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
                     {(request as any)?.notes && <><dt>Notes</dt><dd>{(request as any)?.notes}</dd></>}
                   </dl>
                 </>

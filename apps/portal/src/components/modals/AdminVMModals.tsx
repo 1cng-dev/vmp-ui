@@ -1208,7 +1208,10 @@ const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({ onClose, presetCustom
         if (vmRequest && vmRequest.duration) {
           initialMonths = vmRequest.duration
         }
-      } else if ((presetQuote as any).addon_request_id) {
+      }
+      
+      // Also check for addon_request_id (can coexist with vm_request_id for addon services)
+      if ((presetQuote as any).addon_request_id) {
         initialAddonRequestIds = [(presetQuote as any).addon_request_id]
       }
 

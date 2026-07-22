@@ -30,6 +30,21 @@ export interface VM {
   end_date?: string | null
   backup_enabled?: boolean
   backup_type?: string
+  // Additional fields for direct VM creation
+  os_name?: string
+  os_version?: string
+  custom_os_name?: string | null
+  custom_os_version?: string | null
+  zone?: string
+  nics?: any
+  firewall_ports?: string[]
+  public_ip_required?: boolean
+  purpose?: string
+  sizing?: string
+  storage_partitions?: string
+  qty?: number
+  provision_status?: string
+  request_type?: 'trial' | 'paid'
 }
 
 export interface VMRequest {
@@ -116,7 +131,7 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     try {
       const { data, error } = await supabase.from('vms').select('*').order('created_at', { ascending: false })
       if (error) throw error
-      setVms((data as VM[]) || [])
+      setVms((data as any) || [])
     } finally {
       setVmsLoading(false)
     }
@@ -252,13 +267,27 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       expiry: vm.expiry,
       duration: vm.duration,
       legacy_id: vm.legacy_id,
-      assigned_vmid: (vm as any).assigned_vmid,
+      assigned_vmid: vm.assigned_vmid,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-      start_date: (vm as any).start_date || null,
-      end_date: (vm as any).end_date || null,
+      start_date: vm.start_date || null,
+      end_date: vm.end_date || null,
       backup_enabled: (vm as any).backup_enabled || false,
       backup_type: (vm as any).backup_type || 'weekly',
+      // Fields for direct VM creation
+      os_name: vm.os_name,
+      os_version: vm.os_version,
+      custom_os_name: vm.custom_os_name,
+      custom_os_version: vm.custom_os_version,
+      zone: vm.zone,
+      nics: vm.nics,
+      public_ip_required: vm.public_ip_required,
+      firewall_ports: vm.firewall_ports,
+      purpose: vm.purpose,
+      sizing: vm.sizing,
+      storage_partitions: vm.storage_partitions,
+      qty: vm.qty,
+      provision_status: vm.provision_status || 'completed',
     }
 
     // Persist to Supabase
@@ -292,7 +321,7 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       { vmId: newVM.legacy_id || newVM.id, hostname: newVM.hostname, customerId: newVM.customer_id }
     )
     return id
-  }, [])
+  }, [logActivity])
 
   const updateVM = useCallback(async (id: string, patch: Partial<VM>) => {
     const previousVM = vms.find(v => v.id === id)

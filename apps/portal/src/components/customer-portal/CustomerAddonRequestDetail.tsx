@@ -74,6 +74,9 @@ export const CustomerAddonRequestDetail: React.FC<CustomerAddonRequestDetailProp
                   </>
                 )}
                 <dt>Billing Term</dt><dd className="mono">{t.duration || 'N/A'}</dd>
+                {t.start_date && <><dt>Start Date</dt><dd className="mono tnum">{new Date(t.start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
+                {t.end_date && <><dt>End Date</dt><dd className="mono tnum">{new Date(t.end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
+                {t.expiry && <><dt>Expiry</dt><dd className="mono tnum">{new Date(t.expiry).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
                 <dt>VM</dt><dd className="mono">{vmData ? `${vmData.legacy_id || vmData.id} · ${vmData.hostname}` : 'Loading...'}</dd>
                 <dt>Notes</dt><dd className="mono">{t.notes || 'No notes'}</dd>
               </dl>

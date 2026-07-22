@@ -4,6 +4,7 @@ import { Sidebar, Topbar } from './components/layout/Shell'
 import { AuthShell, TeamAuthShell, useAuth } from './components/auth/Auth'
 import Dashboard from './pages/Dashboard'
 import VMList from './pages/VMList'
+import AdminDirectVMCreate from './pages/AdminDirectVMCreate'
 import VMDrawer from './components/vm/VMDrawer'
 import { NewVMModal, RenewModal, SpecModal, TerminateModal, DeleteModal, NewTaskModal, NewCustomerModal, TempPasswordModal, EmailModal, NewInvoiceModal, InviteMemberModal, ConfirmModal } from './components/modals/AdminVMModals'
 import CustomersView from './pages/Customers'
@@ -257,6 +258,7 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
     'apikeys': ['Admin', 'API & webhooks'],
     'backups': ['Admin', 'Backup center'],
     'account': ['You', 'Account settings'],
+    'direct-vm-create': ['VMs', 'Direct VM Creation'],
   }
 
 
@@ -283,7 +285,8 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
             {view === 'alerts' && <AlertsView />}
             {view === 'calendar' && <CalendarView openVM={openVM} />}
             {view === 'activity' && <ActivityView />}
-            {view === 'vms' && <VMList openVM={openVM} openModal={openModal} />}
+            {view === 'direct-vm-create' && <AdminDirectVMCreate />}
+            {view === 'vms' && <VMList openVM={openVM} openModal={openModal} setView={handleSetView} />}
             {drawerVmId && <VMDrawer vmId={drawerVmId} onClose={closeDrawer} openCust={openCust} openModal={openModal} />}
             {view === 'tasks' && <TasksView openTask={openTask} setView={handleSetView} setAutoOpenQuote={setAutoOpenQuote} setPrefillCustomerId={setPrefillCustomerId} setPrefillRequestId={setPrefillRequestId} setPrefillRequestType={setPrefillRequestType} userRole={tw.role} />}
             {view === 'addons' && <AddonServicesView openTask={openTask} setView={handleSetView} setAutoOpenQuote={setAutoOpenQuote} setPrefillCustomerId={setPrefillCustomerId} setPrefillRequestId={setPrefillRequestId} setPrefillRequestType={setPrefillRequestType} userRole={tw.role} />}

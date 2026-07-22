@@ -171,6 +171,25 @@ const useTaskStore = (): TaskStoreValue => {
         assigned_vmid: vmDetails.assigned_vmids[i] || null,
         backup_enabled: t.backup_enabled || false,
         backup_type: t.backup_type || 'weekly',
+        // Copy request_type from vm_request
+        request_type: t.request_type,
+        // Copy OS fields from vm_request
+        os_name: t.os_name,
+        os_version: t.os_version,
+        custom_os_name: t.custom_os_name,
+        custom_os_version: t.custom_os_version,
+        // Copy network fields from vm_request
+        zone: t.zone,
+        nics: t.nics,
+        public_ip_required: t.public_ip_required,
+        firewall_ports: t.firewall_ports,
+        // Copy other fields from vm_request
+        purpose: t.purpose,
+        sizing: t.sizing,
+        storage_partitions: t.storage_partitions,
+        qty: t.qty,
+        // Set provision_status to 'completed' for provisioned VMs
+        provision_status: 'completed',
       }
       console.log(`About to call addVM for VM ${i + 1}:`, vmData)
       try {

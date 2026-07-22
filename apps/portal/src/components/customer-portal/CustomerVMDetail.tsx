@@ -107,13 +107,14 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
                 ['vCPU', `${vm.vcpu} cores`],
                 ['Memory', `${vm.ram_gb} GB`],
                 ['Storage', `${vm.storage_gb} GB SSD`],
-                ['OS', vmRequest?.os_name || vmRequest?.custom_os_name || 'Linux'],
-                ['Purpose', vmRequest?.purpose || '—'],
+                ['OS', (vm as any).os_name || 'Linux'],
+                ['Purpose', (vm as any).purpose || '—'],
               ]} />
               <InfoCard icon="invoice" title="Subscription" rows={[
                 ['VM ID', vm.legacy_id || vm.id],
-                ['Assigned VM ID', (vm as any).assigned_vmid || vmRequest?.assigned_vmid || '—'],
+                ['Assigned VM ID', (vm as any).assigned_vmid || '—'],
                 ['Task Type', vm.task_type || 'New'],
+                ['Billing Term', (vm as any).duration ? ((vm as any).duration === 1 ? 'Monthly' : (vm as any).duration === 3 ? 'Quarterly' : (vm as any).duration === 6 ? 'Half Yearly' : (vm as any).duration === 12 ? 'Yearly' : `${(vm as any).duration} month${(vm as any).duration > 1 ? 's' : ''}`) : '—'],
                 ['Created', new Date(vm.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })],
                 ['Expires', vm.expiry ? new Date(vm.expiry).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'],
               ]} />
@@ -245,13 +246,13 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
             <div className="grid-2" style={{ gap: 14 }}>
               <InfoCard icon="server" title="Instance" mono rows={[
                 ['VM ID', vm.legacy_id || vm.id],
-                ['Assigned VM ID', (vm as any).assigned_vmid || vmRequest?.assigned_vmid || '—'],
+                ['Assigned VM ID', (vm as any).assigned_vmid || '—'],
                 ['Hostname', vm.hostname],
                 ['Power state', vm.power_state],
                 ['Request ID', vmRequest?.legacy_id || vm.vm_request_id],
                 ['Request Type', vmRequest?.request_type || 'paid'],
                 ['Status', vmRequest?.status || '—'],
-                ['Duration', (vm as any).duration ? ((vm as any).duration === 1 ? 'Monthly' : (vm as any).duration === 3 ? 'Quarterly' : (vm as any).duration === 6 ? 'Half Yearly' : (vm as any).duration === 12 ? 'Yearly' : `${(vm as any).duration} month${(vm as any).duration > 1 ? 's' : ''}`) : vmRequest?.duration ? (vmRequest.duration === 1 ? 'Monthly' : vmRequest.duration === 3 ? 'Quarterly' : vmRequest.duration === 6 ? 'Half Yearly' : vmRequest.duration === 12 ? 'Yearly' : `${vmRequest.duration} month${vmRequest.duration > 1 ? 's' : ''}`) : '—'],
+                ['Duration', (vm as any).duration ? ((vm as any).duration === 1 ? 'Monthly' : (vm as any).duration === 3 ? 'Quarterly' : (vm as any).duration === 6 ? 'Half Yearly' : (vm as any).duration === 12 ? 'Yearly' : `${(vm as any).duration} month${(vm as any).duration > 1 ? 's' : ''}`) : '—'],
                 ['Start Date', (vm as any).start_date ? new Date((vm as any).start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'],
                 ['End Date', (vm as any).end_date ? new Date((vm as any).end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'],
                 ['Expiry', vm.expiry ? new Date(vm.expiry).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'],
@@ -260,9 +261,9 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
                 ['vCPU', `${vm.vcpu} cores`],
                 ['Memory', `${vm.ram_gb} GB`],
                 ['Storage', `${vm.storage_gb} GB SSD`],
-                ['OS', vmRequest?.os_name || vmRequest?.custom_os_name || 'Linux'],
-                ['OS Version', vmRequest?.os_version || '—'],
-                ['Specification Type', vmRequest?.sizing || 'Standard'],
+                ['OS', (vm as any).os_name || 'Linux'],
+                ['OS Version', (vm as any).os_version || '—'],
+                ['Specification Type', (vm as any).sizing || 'Standard'],
               ]} />
             </div>
             <div style={{ padding: 12, background: 'var(--info-soft)', borderRadius: 8, fontSize: 12, display: 'flex', gap: 8, marginTop: 14, color: 'var(--info)' }}>
@@ -301,31 +302,32 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
                 <div className="sub">No completed add-on services for this VM. Contact your account manager to add services.</div>
               </div>
             ) : (
-              <table className="tbl">
-                <thead><tr><th>Request ID</th><th>Services</th><th>Package</th><th>Billing Term</th><th>Status</th><th>Completed Date</th></tr></thead>
-                <tbody>
-                  {addonRequests.map((ar: any) => (
-                    <tr key={ar.id}>
-                      <td className="mono fw-6">{ar.legacy_id || ar.id}</td>
-                      <td>
+              <div className="grid-2" style={{ gap: 14 }}>
+                {addonRequests.map((ar: any) => (
+                  <div key={ar.id}>
+                    <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>{ar.legacy_id || ar.id}</div>
+                    <dl className="dl">
+                      <dt>Services</dt>
+                      <dd>
                         <div className="flex gap-1">
                           {ar.cpfs_enabled && <span className="pill subtle">CPFS</span>}
                           {ar.ccis_enabled && <span className="pill subtle">CCIS</span>}
                         </div>
-                      </td>
-                      <td className="text-sm">
-                        {[
-                          ar.cpfs_enabled && ar.cpfs_package ? `CPFS ${ar.cpfs_package}` : null,
-                          ar.ccis_enabled && ar.ccis_package ? `CCIS ${ar.ccis_package}` : null
-                        ].filter(Boolean).join(', ') || '—'}
-                      </td>
-                      <td className="text-sm">{ar.duration || 'N/A'}</td>
-                      <td><StatusPill status={ar.status}/></td>
-                      <td className="tnum text-sm">{ar.updated_at ? new Date(ar.updated_at).toLocaleDateString() : '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </dd>
+                      <dt>Package</dt><dd>{[
+                        ar.cpfs_enabled && ar.cpfs_package ? `CPFS ${ar.cpfs_package}` : null,
+                        ar.ccis_enabled && ar.ccis_package ? `CCIS ${ar.ccis_package}` : null
+                      ].filter(Boolean).join(', ') || '—'}</dd>
+                      <dt>Duration</dt><dd>{ar.duration || 'N/A'}</dd>
+                      {ar.start_date && <><dt>Start Date</dt><dd className="tnum">{new Date(ar.start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
+                      {ar.end_date && <><dt>End Date</dt><dd className="tnum">{new Date(ar.end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
+                      {ar.expiry && <><dt>Expiry</dt><dd className="tnum">{new Date(ar.expiry).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
+                      <dt>Status</dt><dd><StatusPill status={ar.status}/></dd>
+                      <dt>Completed</dt><dd className="tnum">{ar.updated_at ? new Date(ar.updated_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</dd>
+                    </dl>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         )}
