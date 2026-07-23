@@ -22,9 +22,10 @@ export interface TeamStoreValue {
   team: TeamMember[]
   teamLoading: boolean
   loadTeam: () => Promise<void>
-  addMember: (member: Omit<TeamMember, 'id' | 'last' | 'status'>) => Promise<void>
+  addMember: (member: Omit<TeamMember, 'id' | 'last' | 'status'>) => Promise<{ password: string }>
   updateMember: (id: string, patch: any) => Promise<void>
   removeMember: (id: string) => Promise<void>
+  resetPassword: (id: string, password: string) => Promise<void>
 }
 
 const useTeamStore = (): TeamStoreValue => {
@@ -72,8 +73,8 @@ const useTeamStore = (): TeamStoreValue => {
     const authUser = await supabase.auth.getUser()
     const invitedBy = authUser.data.user?.id
     
-    // Generate temporary password (user never sees this)
-    const tempPassword = Math.random().toString(36).slice(-12)
+    // Generate temporary password (will be shown to admin)
+    const tempPassword = Math.random().toString(36).slice(-12) + Math.random().toString(36).slice(-12)
     
     // Create Supabase auth user first
     const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
@@ -86,16 +87,22 @@ const useTeamStore = (): TeamStoreValue => {
         name: member.name
       }
     })
-    
+
     if (userError) {
       console.error('Failed to create auth user:', userError)
       throw userError
     }
-    
+
     const userId = userData.user.id
-    
-    // Generate invite token
-    const inviteToken = crypto.randomUUID()
+
+    // Ensure the role is set in auth metadata (double-check)
+    await supabaseAdmin.auth.admin.updateUserById(userId, {
+      user_metadata: {
+        role: member.role,
+        team: member.team,
+        name: member.name
+      }
+    })
     
     // Create team_members record with the user_id
     const { error } = await supabase
@@ -106,10 +113,9 @@ const useTeamStore = (): TeamStoreValue => {
         name: member.name,
         role: member.role,
         team: member.team,
-        status: 'Inactive', // Set to Inactive until they accept the invite
+        status: 'Active',
         invited_by: invitedBy,
-        invite_token: inviteToken,
-        invite_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
+        force_password_change: true
       })
       .select()
       .single()
@@ -119,31 +125,10 @@ const useTeamStore = (): TeamStoreValue => {
       throw error
     }
     
-    // Generate invite token and direct link
-    const inviteLink = `${window.location.origin}/setup-password?token=${inviteToken}`
-    console.log('Invite token generated:', inviteToken)
-    console.log('Direct invite link:', inviteLink)
-    console.log('About to save to database with user_id:', userId, 'and invite_token:', inviteToken)
-    
-    // Call Edge Function to send Resend email with direct link
-    const { error: emailError } = await supabase.functions.invoke('send-invite', {
-      body: {
-        email: member.email,
-        name: member.name,
-        role: member.role,
-        team: member.team,
-        inviteToken: inviteToken,
-        inviteLink: inviteLink // Send direct link to edge function
-      }
-    })
-    
-    if (emailError) {
-      console.error('Failed to send invite email:', emailError)
-      throw emailError
-    }
-    
     await loadTeam()
-    console.log('Team reloaded after invite')
+    
+    // Return the temporary password for the admin to share
+    return { password: tempPassword }
   }, [loadTeam])
 
   const updateMember = useCallback(async (id: string, patch: any) => {
@@ -174,6 +159,17 @@ const useTeamStore = (): TeamStoreValue => {
     await loadTeam()
   }, [loadTeam])
 
+  const resetPassword = useCallback(async (id: string, password: string) => {
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(id, {
+      password: password
+    })
+
+    if (error) {
+      console.error('Failed to reset password:', error)
+      throw error
+    }
+  }, [])
+
   return {
     teamLoading,
     team,
@@ -181,6 +177,7 @@ const useTeamStore = (): TeamStoreValue => {
     addMember,
     updateMember,
     removeMember,
+    resetPassword,
   }
 }
 

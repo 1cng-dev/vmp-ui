@@ -49,43 +49,50 @@ const InviteTeamMemberModal: React.FC<InviteTeamMemberModalProps> = ({ onClose, 
       <div className="modal-overlay" onClick={handleClose}>
         <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
           <div className="modal-head">
-            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Team member added</h3>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Team Member Added Successfully</h3>
             <button className="icon-btn" onClick={handleClose}><Icon name="x" size={14} /></button>
           </div>
           <div className="modal-body">
-            <div className="text-center">
-              <Icon name="check-circle" size={48} style={{ color: 'var(--ok)', marginBottom: 16 }} />
-              <h4 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{f.name} has been added to the team</h4>
-              <p className="text-sm text-mute mt-2">Share these credentials with them:</p>
-              
-              <div className="card mt-3" style={{ background: 'var(--bg-soft)' }}>
-                <div className="card-body" style={{ padding: 16 }}>
-                  <div className="flex col gap-2">
-                    <div className="text-xs text-mute">Email</div>
-                    <div className="fw-6 text-sm">{f.email}</div>
-                    <div className="text-xs text-mute mt-1">Temporary Password</div>
-                    <div className="flex center between">
-                      <div className="fw-6 text-sm mono" style={{ fontFamily: 'monospace' }}>
-                        {showPassword ? tempPassword : '••••••••••••'}
-                      </div>
-                      <div className="flex gap-1">
-                        <button className="icon-btn" onClick={() => setShowPassword(!showPassword)}>
-                          <Icon name={showPassword ? 'eye-off' : 'eye'} size={14} />
-                        </button>
-                        <button className="icon-btn" onClick={copyPassword}>
-                          <Icon name="copy" size={14} />
-                        </button>
-                      </div>
-                    </div>
+            <div className="flex col gap-3">
+              <div style={{ textAlign: 'center', padding: 20 }}>
+                <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--ok-soft)', color: 'var(--ok)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                  <Icon name="check" size={32} />
+                </div>
+                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>{f.name}</h3>
+                <p className="text-sm text-mute mt-1">{f.email}</p>
+                <div className="flex gap-2 mt-2" style={{ justifyContent: 'center' }}>
+                  <span className="pill subtle" style={{ fontSize: 11 }}>{f.role}</span>
+                  <span className="pill subtle" style={{ fontSize: 11 }}>{f.team}</span>
+                </div>
+              </div>
+
+              <div style={{ background: 'var(--surface-2)', padding: 16, borderRadius: 8 }}>
+                <div className="text-sm fw-6 mb-2">Temporary Password</div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <div style={{ flex: 1, background: 'var(--surface-3)', padding: 12, borderRadius: 6, fontFamily: 'var(--mono)', fontSize: 16, fontWeight: 600, letterSpacing: 2, textAlign: 'center' }}>
+                    {showPassword ? tempPassword : '••••••••••••'}
+                  </div>
+                  <div onClick={() => setShowPassword(!showPassword)} style={{ padding: '12px', minWidth: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#e5e7eb', border: '1px solid #d1d5db', borderRadius: 6, cursor: 'pointer', color: '#374151' }}>
+                    <Icon name={showPassword ? "eye-off" : "eye"} size={14} />
+                  </div>
+                  <div onClick={copyPassword} style={{ padding: '12px', minWidth: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#e5e7eb', border: '1px solid #d1d5db', borderRadius: 6, cursor: 'pointer', color: '#374151' }}>
+                    <Icon name="copy" size={14} />
                   </div>
                 </div>
               </div>
-              
-              <p className="text-xs text-mute mt-3">They can log in with these credentials and change their password later.</p>
+
+              <div style={{ padding: 12, background: 'var(--info-soft)', borderRadius: 6, fontSize: 12, color: 'var(--info)' }}>
+                <div className="flex gap-2">
+                  <Icon name="alert" size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+                  <div>
+                    <strong>Important:</strong> Share this temporary password with the team member. They will need to change their password on first login at /admin.
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
           <div className="modal-foot">
-            <button className="btn primary" onClick={handleClose} style={{ width: '100%' }}>Done</button>
+            <button className="btn primary" onClick={handleClose} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 16px' }}>Done</button>
           </div>
         </div>
       </div>

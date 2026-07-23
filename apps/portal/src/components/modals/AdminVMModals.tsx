@@ -1016,7 +1016,7 @@ const TempPasswordModal: React.FC<TempPasswordModalProps> = ({ email, tempPasswo
           </div>
         </div>
         <div className="modal-foot">
-          <button className="btn primary" onClick={onClose} style={{ width: '100%' }}>Done</button>
+          <button className="btn primary" onClick={onClose} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 16px' }}>Done</button>
         </div>
       </div>
     </div>

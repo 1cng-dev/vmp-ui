@@ -38,6 +38,19 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onSwitchToSignup, prefillEmai
 
     // Check customer status after successful auth
     if (authData.user && authData.user.id && authData.user.id !== 'undefined' && authData.user.id !== 'null') {
+      const userData = authData.user.user_metadata
+      const userRole = userData?.role || 'Customer'
+
+      // Check if team member trying to login from customer portal
+      const teamRoles = ['Admin', 'Sales', 'Engineer', 'Finance']
+      if (teamRoles.includes(userRole)) {
+        // Block team members from customer portal - they must use /admin
+        toast('Invalid login credentials', 'bad')
+        await supabase.auth.signOut()
+        setLoading(false)
+        return
+      }
+
       const { data: customer } = await supabase
         .from('customers')
         .select('status, force_password_change')

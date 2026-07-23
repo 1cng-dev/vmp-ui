@@ -65,10 +65,9 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const addMember = useCallback(async (member: any) => {
     const authUser = await supabase.auth.getUser()
     const invitedBy = authUser.data.user?.id
-    const invitedByName = authUser.data.user?.user_metadata?.name || authUser.data.user?.email || 'System'
 
-    // Generate temporary password
-    const tempPassword = Math.random().toString(36).slice(-12)
+    // Generate temporary password (will be shown to admin)
+    const tempPassword = Math.random().toString(36).slice(-12) + Math.random().toString(36).slice(-12)
 
     // Create Supabase auth user first
     const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
@@ -89,6 +88,15 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const userId = userData.user.id
 
+    // Ensure the role is set in auth metadata (double-check)
+    await supabaseAdmin.auth.admin.updateUserById(userId, {
+      user_metadata: {
+        role: member.role,
+        team: member.team,
+        name: member.name
+      }
+    })
+
     // Create team_members record with the user_id (no invite token needed)
     const { error } = await supabase
       .from('team_members')
@@ -100,7 +108,7 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         team: member.team,
         status: 'Active', // Set to Active directly since they can login with temp password
         invited_by: invitedBy,
-        invited_by_name: invitedByName
+        force_password_change: true
       })
       .select()
       .single()

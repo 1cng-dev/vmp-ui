@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { supabase } from '../../lib/supabase'
@@ -8,6 +9,7 @@ import { useSystemSettingsStore } from '../../store/systemSettingsStore'
 
 const TeamLoginScreen: React.FC = () => {
   const { toast } = useUIStore()
+  const navigate = useNavigate()
   const [f, setF] = useState({ email: '', password: '', remember: true })
   const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -36,6 +38,21 @@ const TeamLoginScreen: React.FC = () => {
         toast('Invalid login credentials', 'bad')
         setLoading(false)
         return
+      }
+
+      // Check if team member needs to change password
+      if (data.user && data.user.id) {
+        const { data: teamMember } = await supabase
+          .from('team_members')
+          .select('force_password_change')
+          .eq('user_id', data.user.id)
+          .single()
+
+        if (teamMember?.force_password_change) {
+          navigate('/team-change-password')
+          setLoading(false)
+          return
+        }
       }
 
       toast('Welcome back!', 'ok')

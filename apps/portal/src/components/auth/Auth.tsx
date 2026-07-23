@@ -73,6 +73,12 @@ export const AuthShell: React.FC<AuthShellProps> = ({ children, setRole }) => {
         // Redirect team users to admin portal
         const teamRoles = ['Admin', 'Sales', 'Engineer', 'Finance']
         if (teamRoles.includes(userRole)) {
+          // If on customer portal, sign out team members
+          if (window.location.pathname.startsWith('/admin') === false) {
+            await supabase.auth.signOut()
+            setLoading(false)
+            return
+          }
           if (window.location.pathname !== '/admin') {
             setShouldRedirect(true)
           }
@@ -111,6 +117,12 @@ export const AuthShell: React.FC<AuthShellProps> = ({ children, setRole }) => {
         // Redirect team users to admin portal
         const teamRoles = ['Admin', 'Sales', 'Engineer', 'Finance']
         if (teamRoles.includes(userRole)) {
+          // If on customer portal, sign out team members
+          if (window.location.pathname.startsWith('/admin') === false) {
+            await supabase.auth.signOut()
+            setLoading(false)
+            return
+          }
           if (window.location.pathname !== '/admin') {
             setShouldRedirect(true)
           }

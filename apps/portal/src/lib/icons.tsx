@@ -57,6 +57,8 @@ const Icon: React.FC<IconProps> = ({ name, size = 16, stroke = 1.6, className = 
     case 'external': return <svg {...props}><path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg>
     case 'menu': return <svg {...props}><path d="M4 6h16M4 12h16M4 18h16"/></svg>
     case 'eye': return <svg {...props}><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+    case 'eye-off': return <svg {...props}><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><path d="m15 9-3 3"/><path d="m9 15 3-3"/></svg>
+    case 'copy': return <svg {...props}><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
     case 'logout': return <svg {...props}><path d="M9 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h4M16 17l5-5-5-5M21 12H9"/></svg>
     case 'file': return <svg {...props}><path d="M6 3h9l5 5v13H6z"/><path d="M15 3v5h5"/></svg>
     case 'attach': return <svg {...props}><path d="m21 12-9 9a5 5 0 0 1-7-7l9-9a3.5 3.5 0 0 1 5 5l-9 9a2 2 0 0 1-3-3l8-8"/></svg>

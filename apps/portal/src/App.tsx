@@ -33,6 +33,7 @@ import { TicketProvider, useTicketStore } from './store/ticketStore'
 import Welcome from './pages/Welcome'
 import SetupPassword from './pages/SetupPassword'
 import ChangePasswordPage from './pages/ChangePassword'
+import TeamChangePasswordPage from './pages/TeamChangePassword'
 import { TeamProvider, useTeamStore } from './store/TeamContext'
 import useCustomerStore, { CustomerProvider } from './store/customerStore'
 import { VMRequestProvider, useVMRequestStore } from './store/vmRequestStore'
@@ -389,6 +390,7 @@ const App = () => {
                       <Route path="/welcome" element={<Welcome />} />
                       <Route path="/setup-password" element={<SetupPassword />} />
                       <Route path="/change-password" element={<ChangePasswordPage />} />
+                      <Route path="/team-change-password" element={<TeamChangePasswordPage />} />
                       <Route path="/auth/reset-password" element={<ResetPasswordScreen />} />
                       <Route path="/admin" element={
                         <TeamAuthShell setRole={(role) => setTweak('role' as keyof TweakState, role)}>
