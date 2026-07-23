@@ -4,7 +4,7 @@ export interface CreateAlertInput {
   sev: 'urgent' | 'warn' | 'info'
   title: string
   body: string
-  type: 'expiry' | 'kyc' | 'finance' | 'task' | 'system' | 'vm'
+  type: 'expiry' | 'kyc' | 'finance' | 'task' | 'system' | 'vm' | 'addon'
   related_entity_id?: string
   related_entity_type?: string
   actor_id?: string

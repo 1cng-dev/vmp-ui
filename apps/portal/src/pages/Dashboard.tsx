@@ -12,9 +12,10 @@ interface DashboardProps {
   openVM: (id: string) => void
   setView: (view: string) => void
   openModal: (type: string, data?: any) => void
+  userRole?: string
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => {
+const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal, userRole }) => {
   const { customers } = useCustomerStore()
   const { vms, vmsLoading, loadVMs } = useVMStore()
   const { invoices, loadInvoices } = useInvoiceStore()
@@ -120,7 +121,7 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
           <h1 className="page-title">{greeting}, {auth?.user?.name || auth?.user?.email?.split('@')[0] || 'User'}</h1>
           <p className="page-subtitle">{new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} — here's what needs attention today.</p>        </div>
         <div className="page-actions">
-          <button className="btn primary" onClick={() => openModal('newvm')}><Icon name="plus" size={13} />New VM</button>
+          {userRole === 'Admin' && <button className="btn primary" onClick={() => openModal('newvm')}><Icon name="plus" size={13} />New VM</button>}
         </div>
       </div>
 
@@ -178,7 +179,7 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
                           </td>
                           <td>{c?.name}{c?.org_name || c?.company ? ` (${c?.org_name || c?.company})` : ''}</td>
                           <td><ExpiryCell date={v.expiry || ''} /></td>
-                          <td><StatusPill status={v.status} /></td>
+                          <td><StatusPill status={v.status} expiry={v.expiry} /></td>
                         </tr>
                       )
                     })}
@@ -268,7 +269,7 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal }) => 
                           </td>
                           <td>{c?.name}{c?.org_name || c?.company ? ` (${c?.org_name || c?.company})` : ''}</td>
                           <td><div className="text-sm" style={{ color: 'var(--bad)' }}>{showExpiredToday ? 'expired today' : `${Math.abs(daysExpired)} days ago`}</div></td>
-                          <td><StatusPill status={v.status} /></td>
+                          <td><StatusPill status={v.status} expiry={v.expiry} /></td>
                         </tr>
                       )
                     })}

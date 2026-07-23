@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import Icon from '../../lib/icons'
 import { StatusPill } from '../ui/ui'
-import { supabase } from '../../lib/supabase'
+import useVMStore from '../../store/vmStore'
 
 interface CustomerAddonRequestDetailProps {
   request: any
@@ -10,26 +10,15 @@ interface CustomerAddonRequestDetailProps {
 
 export const CustomerAddonRequestDetail: React.FC<CustomerAddonRequestDetailProps> = ({ request, onClose }) => {
   const t = request
-  const [vmData, setVmData] = useState<any>(null)
+  const { getVMById } = useVMStore()
+  
+  const transformStatus = (status: string) => {
+    if (status === 'Pending') return 'Under Review'
+    return status
+  }
 
-  useEffect(() => {
-    const fetchVmData = async () => {
-      if (t.vm_id) {
-        // Fetch VM to get legacy_id and hostname
-        const { data: vm } = await supabase
-          .from('vms')
-          .select('legacy_id, hostname, vm_request_id')
-          .eq('id', t.vm_id)
-          .single()
-
-        if (vm) {
-          setVmData(vm)
-        }
-      }
-    }
-
-    fetchVmData()
-  }, [t.vm_id])
+  // Get VM data synchronously from store
+  const vmData = t.vm_id ? getVMById(t.vm_id) : null
 
   const timeline = [
     { ts: t.created_at, who: 'You', event: 'Add-on request submitted', kind: 'customer' },
@@ -47,7 +36,8 @@ export const CustomerAddonRequestDetail: React.FC<CustomerAddonRequestDetailProp
           </div>
           <h1 className="page-title">{t.legacy_id || t.id}</h1>
           <div className="flex gap-2 mt-2">
-            <StatusPill status={t.status}/>
+            <StatusPill status={t.status} transformStatus={transformStatus}/>
+            <StatusPill status={t.operational_status || 'Active'} expiry={t.expiry} />
             <span className="pill accent">Add-on Service</span>
             <span className="pill accent"><span className="dot"/>Submitted {new Date(t.created_at).toLocaleDateString()}</span>
           </div>
@@ -109,10 +99,10 @@ export const CustomerAddonRequestDetail: React.FC<CustomerAddonRequestDetailProp
             <div className="card-body">
               <div className="flex center between mb-2">
                 <span className="text-sm text-mute">Current status</span>
-                <StatusPill status={t.status}/>
+                <StatusPill status={t.status} transformStatus={transformStatus}/>
               </div>
               <div className="text-xs text-mute">
-                {t.status === 'Pending' && 'Your request is being reviewed by our team'}
+                {t.status === 'Pending' && 'Under Review: Your request is being reviewed by our team'}
                 {t.status === 'In Progress' && 'Your request is being processed'}
                 {t.status === 'Completed' && 'Your add-on service has been activated'}
                 {t.status === 'Rejected' && 'Your request was rejected'}

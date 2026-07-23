@@ -21,6 +21,11 @@ export const CustomerInvoicesView: React.FC<CustomerInvoicesViewProps> = ({ myIn
   const { vms, loadVMs } = useVMStore()
   const { customers } = useCustomerStore()
   const { invoicesLoading } = useInvoiceStore()
+  
+  const transformStatus = (status: string) => {
+    if (status === 'Pending') return 'Under Review'
+    return status
+  }
 
   useEffect(() => {
     if (addonRequests.length === 0) {
@@ -89,7 +94,7 @@ export const CustomerInvoicesView: React.FC<CustomerInvoicesViewProps> = ({ myIn
                       const quote = quotes.find((q: any) => q.id === i.quote_id)
                       return quote?.legacy_id || '—'
                     })()}</td>
-                    <td><StatusPill status={i.status}/></td>
+                    <td><StatusPill status={i.status} transformStatus={transformStatus}/></td>
                     <td className="right tnum text-sm">MMK {formatMMK(i.discount || 0)}</td>
                     <td className="right tnum text-sm">MMK {formatMMK(i.net_amount || i.amount)}</td>
                     <td className="right tnum text-sm">MMK {formatMMK(i.vat || 0)}</td>

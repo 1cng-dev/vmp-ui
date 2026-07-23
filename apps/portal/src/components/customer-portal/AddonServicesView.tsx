@@ -20,19 +20,23 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs }) =
   const [remainingDuration, setRemainingDuration] = useState<{ months: number; days: number } | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  // Filter out expired VMs (expiry date < today)
+  // Filter out expired and terminated VMs
   const activeVMs = useMemo(() => {
     return myVMs.filter((vm: any) => {
-      if (!vm.expiry || vm.expiry === '—') return true // Show VMs without expiry
+      if (!vm.expiry || vm.expiry === '—') return vm.status !== 'Terminated' // Show VMs without expiry only if not terminated
       const expiryDate = new Date(vm.expiry)
       const today = new Date()
-      return expiryDate >= today
+      return expiryDate >= today && vm.status !== 'Terminated'
     })
   }, [myVMs])
 
-  // Get existing addon requests for selected VM (Completed status means active)
+  // Get existing addon requests for selected VM (Completed status means active, and not terminated)
   const existingAddons = useMemo(() => {
-    return addonRequests.filter(a => a.vm_id === selectedVM && a.status === 'Completed')
+    return addonRequests.filter(a => 
+      a.vm_id === selectedVM && 
+      a.status === 'Completed' &&
+      a.operational_status !== 'Terminated'
+    )
   }, [addonRequests, selectedVM])
 
   // Calculate remaining duration from VM expiry
@@ -86,7 +90,11 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs }) =
         }
       }
 
-      const currentExistingAddons = addonRequests.filter(a => a.vm_id === selectedVM && a.status === 'Completed')
+      const currentExistingAddons = addonRequests.filter(a => 
+        a.vm_id === selectedVM && 
+        a.status === 'Completed' &&
+        a.operational_status !== 'Terminated'
+      )
       if (currentExistingAddons.length > 0) {
         const latestAddon = currentExistingAddons[0]
         setCpfsEnabled(latestAddon.cpfs_enabled || false)

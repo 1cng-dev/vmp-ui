@@ -28,6 +28,11 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
   const [receipts, setReceipts] = useState<any[]>([])
   const inv = invoices.find((i: any) => i.id === initial.id) || initial;
   const c = customers.find((c: any) => c.id === inv.customer_id);
+  
+  const transformStatus = (status: string) => {
+    if (status === 'Pending') return 'Under Review'
+    return status
+  }
   const invoiceVMRequests = vmRequests.filter((v: any) => inv.vm_request_ids && inv.vm_request_ids.includes(v.id));
 
   useEffect(() => {
@@ -120,7 +125,7 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
           </div>
           <h1 className="page-title">Invoice {inv.legacy_id || inv.id}</h1>
           <div className="flex gap-2 mt-2">
-            <StatusPill status={inv.status}/>
+            <StatusPill status={inv.status} transformStatus={transformStatus}/>
             <span className="pill subtle">Invoice Date {inv.invoice_date ? new Date(inv.invoice_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).replace(',', '') : '—'}</span>
             <span className="pill subtle">Due {inv.due ? new Date(inv.due).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).replace(',', '') : '—'}</span>
             {inv.paid_date && <span className="pill subtle">Paid {new Date(inv.paid_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).replace(',', '')}</span>}

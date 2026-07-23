@@ -46,7 +46,7 @@ export async function checkVMExpiry(): Promise<VMExpiryCheckResult> {
       const daysUntilExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
 
       // Check if alert already exists for this VM and threshold
-      const alertExists = await checkAlertExists(vm.id, daysUntilExpiry)
+      const alertExists = await checkAlertExists(vm.id)
       if (alertExists) {
         result.details.push(`Alert already exists for VM ${vm.hostname} (${daysUntilExpiry} days)`)
         continue
@@ -69,8 +69,8 @@ export async function checkVMExpiry(): Promise<VMExpiryCheckResult> {
         await createExpiryAlert(vm, 0, 'expired today')
         result.alertsCreated++
         result.details.push(`Created expiry-day alert for VM ${vm.hostname}`)
-      } else if (daysUntilExpiry < 0 && daysUntilExpiry >= -7) {
-        // Grace period: 0 to 7 days after expiry
+      } else if (daysUntilExpiry < 0 && daysUntilExpiry >= -30) {
+        // Grace period: 0 to 30 days after expiry (send daily notifications)
         await createExpiryAlert(vm, daysUntilExpiry, `in grace period (${Math.abs(daysUntilExpiry)} days overdue)`)
         result.alertsCreated++
         result.details.push(`Created grace period alert for VM ${vm.hostname}`)
@@ -87,7 +87,7 @@ export async function checkVMExpiry(): Promise<VMExpiryCheckResult> {
 /**
  * Check if an alert already exists for this VM and threshold
  */
-async function checkAlertExists(vmId: string, daysUntilExpiry: number): Promise<boolean> {
+async function checkAlertExists(vmId: string): Promise<boolean> {
   const { data, error } = await supabase
     .from('alerts')
     .select('id, body')
@@ -102,14 +102,10 @@ async function checkAlertExists(vmId: string, daysUntilExpiry: number): Promise<
     return false
   }
 
-  // Check if the alert body contains the same threshold
+  // For daily notifications, if an alert exists in the last 24 hours, skip creating a new one
+  // This prevents duplicate alerts for the same day
   if (data && data.length > 0) {
-    const alertBody = (data[0] as any).body || ''
-    if (daysUntilExpiry === 30 && alertBody.includes('30 days')) return true
-    if (daysUntilExpiry === 7 && alertBody.includes('7 days')) return true
-    if (daysUntilExpiry === 1 && alertBody.includes('1 day')) return true
-    if (daysUntilExpiry === 0 && alertBody.includes('expired today')) return true
-    if (daysUntilExpiry < 0 && alertBody.includes('grace period')) return true
+    return true
   }
 
   return false

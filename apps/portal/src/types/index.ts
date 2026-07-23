@@ -266,6 +266,7 @@ export interface AddonRequest {
   end_date?: string
   expiry?: string
   status: 'Pending' | 'In Progress' | 'Completed' | 'Rejected'
+  operational_status?: 'Active' | 'Expired' | 'Terminated'
   notes?: string
   created_at: string
   updated_at: string

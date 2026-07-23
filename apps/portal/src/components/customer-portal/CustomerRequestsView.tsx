@@ -7,7 +7,13 @@ interface CustomerRequestsViewProps {
   setDetailRequest: (request: any) => void
 }
 
-export const CustomerRequestsView: React.FC<CustomerRequestsViewProps> = ({ myRequests, setDetailRequest }) => (
+export const CustomerRequestsView: React.FC<CustomerRequestsViewProps> = ({ myRequests, setDetailRequest }) => {
+  const transformStatus = (status: string) => {
+    if (status === 'Pending') return 'Under Review'
+    return status
+  }
+  
+  return (
   <div className="content">
     <div className="page-head">
       <div>
@@ -32,7 +38,7 @@ export const CustomerRequestsView: React.FC<CustomerRequestsViewProps> = ({ myRe
                 <td className="tnum text-sm">{new Date(t.created_at).toLocaleDateString()}</td>
                 <td className="text-sm">{t.duration ? (t.duration === 1 ? 'Monthly' : t.duration === 3 ? 'Quarterly' : t.duration === 6 ? 'Half Yearly' : t.duration === 12 ? 'Yearly' : `${t.duration} month${t.duration > 1 ? 's' : ''}`) : 'N/A'}</td>
                 <td className="text-sm" style={{ color: t.sizing === 'Standard' ? 'var(--ok)' : 'var(--accent-strong)' }}>{t.sizing}</td>
-                <td><StatusPill status={t.status}/></td>
+                <td><StatusPill status={t.status} transformStatus={transformStatus}/></td>
                 <td className="right"><Icon name="chevron-right" size={12} className="text-mute"/></td>
               </tr>
             ))}
@@ -41,4 +47,4 @@ export const CustomerRequestsView: React.FC<CustomerRequestsViewProps> = ({ myRe
       </div>
     </div>
   </div>
-)
+)}

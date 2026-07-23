@@ -7,6 +7,7 @@ import useTaskStore from '../../store/taskStore'
 import useInvoiceStore from '../../store/invoiceStore'
 import useTeamStore from '../../store/teamStore'
 import useVMRequestStore from '../../store/vmRequestStore'
+import useAddonRequestStore from '../../store/addonRequestStore'
 import useUIStore from '../../store/uiStore'
 import { useSystemSettingsStore } from '../../store/systemSettingsStore'
 import Icon from '../../lib/icons'
@@ -630,16 +631,33 @@ interface TerminateModalProps {
 
 const TerminateModal: React.FC<TerminateModalProps> = ({ vm, onClose }) => {
   const { updateVM } = useVMStore()
+  const { updateAddonRequest, addonRequests } = useAddonRequestStore()
   const { toast } = useUIStore()
   const [inputValue, setInputValue] = useState('')
 
   const vmName = (vm as any).hostname || vm.name
   const isConfirmed = inputValue === vmName
 
-  const submit = () => {
+  const submit = async () => {
     if (!isConfirmed) return
+    
+    // Find all add-on requests for this VM
+    const vmAddonRequests = addonRequests.filter(a => a.vm_id === vm.id && a.status === 'Completed')
+    
+    // Terminate all associated add-on services
+    for (const addon of vmAddonRequests) {
+      await updateAddonRequest(addon.id, { operational_status: 'Terminated' })
+    }
+    
+    // Terminate the VM
     updateVM(vm.id, { status: 'Terminated' as any, power_state: 'Stopped' as any })
-    toast(`VM ${vmName} terminated`, 'warn')
+    
+    const addonCount = vmAddonRequests.length
+    const message = addonCount > 0 
+      ? `VM ${vmName} terminated along with ${addonCount} associated add-on service(s)`
+      : `VM ${vmName} terminated`
+    
+    toast(message, 'warn')
     onClose()
   }
 

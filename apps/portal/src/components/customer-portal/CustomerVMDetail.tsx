@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import useVMStore from '../../store/vmStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
-import { StatusPill } from '../ui/ui'
+import { StatusPill, ExpiryCell } from '../ui/ui'
 import { InfoCard, UsageCard, UsageDetailCard } from './VMHelperComponents'
 import { CustUpgradeModal, CustConvertToPaidModal } from '../modals/CustomerVMModals'
 
@@ -60,20 +60,24 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
           </div>
           <h1 className="page-title">{vm.hostname}</h1>
           <div className="flex gap-2 mt-2">
-            <StatusPill status={vm.status} />
+            <StatusPill status={vm.status} expiry={vm.expiry} />
             <StatusPill status={vm.task_type || 'new'} />
             <span className="pill"><Icon name={vm.power_state === 'Running' ? 'play' : 'pause'} size={10} />{vm.power_state}</span>
           </div>
         </div>
         <div className="page-actions">
-          {isRunning
-            ? <button className="btn" onClick={() => stopVM(vm.id)}><Icon name="pause" size={12} />Stop</button>
-            : <button className="btn primary" onClick={() => startVM(vm.id)}><Icon name="play" size={12} />Start</button>
-          }
-          <button className="btn" onClick={() => restartVM(vm.id)} disabled={!isRunning}><Icon name="refresh" size={12} />Restart</button>
-          <button className="btn" onClick={openConsole} disabled={!isRunning} title={isRunning ? 'Open VNC console in new tab' : 'Start the VM to open console'}><Icon name="terminal" size={12} />Console<Icon name="external" size={10} /></button>
-          {vmRequest?.request_type === 'trial' && <button className="btn primary" onClick={() => setConvertToPaidOpen(true)}><Icon name="credit-card" size={12} />Convert to Paid</button>}
-          <button className="btn accent" onClick={onRenew}><Icon name="refresh" size={12} />Renew</button>
+          {vm.status !== 'Terminated' && (
+            <>
+              {isRunning
+                ? <button className="btn" onClick={() => stopVM(vm.id)}><Icon name="pause" size={12} />Stop</button>
+                : <button className="btn primary" onClick={() => startVM(vm.id)}><Icon name="play" size={12} />Start</button>
+              }
+              <button className="btn" onClick={() => restartVM(vm.id)} disabled={!isRunning}><Icon name="refresh" size={12} />Restart</button>
+              <button className="btn" onClick={openConsole} disabled={!isRunning} title={isRunning ? 'Open VNC console in new tab' : 'Start the VM to open console'}><Icon name="terminal" size={12} />Console<Icon name="external" size={10} /></button>
+              {vmRequest?.request_type === 'trial' && <button className="btn primary" onClick={() => setConvertToPaidOpen(true)}><Icon name="credit-card" size={12} />Convert to Paid</button>}
+              <button className="btn accent" onClick={onRenew}><Icon name="refresh" size={12} />Renew</button>
+            </>
+          )}
         </div>
 
         {upgradeOpen && <CustUpgradeModal vm={vm} onClose={() => setUpgradeOpen(false)} me={me} />}
@@ -321,7 +325,7 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
                       <dt>Duration</dt><dd>{ar.duration || 'N/A'}</dd>
                       {ar.start_date && <><dt>Start Date</dt><dd className="tnum">{new Date(ar.start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
                       {ar.end_date && <><dt>End Date</dt><dd className="tnum">{new Date(ar.end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
-                      {ar.expiry && <><dt>Expiry</dt><dd className="tnum">{new Date(ar.expiry).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
+                      {ar.expiry && <><dt>Expiry</dt><dd><ExpiryCell date={ar.expiry || ''} /></dd></>}
                       <dt>Status</dt><dd><StatusPill status={ar.status}/></dd>
                       <dt>Completed</dt><dd className="tnum">{ar.updated_at ? new Date(ar.updated_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</dd>
                     </dl>

@@ -154,10 +154,30 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
     // VMs expiring within the next 14 days, with Active or Suspended status only
     return d >= 0 && d <= 14 && (v.status === 'Active' || v.status === 'Suspended')
   })
+
+  const expiringSoonAddons = myAddonRequests.filter((a: any) => {
+    if (!a.expiry || a.expiry === '—') return false
+    const d = (new Date(a.expiry).getTime() - new Date().getTime()) / 86400000
+    // Add-ons expiring within the next 14 days, excluding terminated ones
+    return d >= 0 && d <= 14 && a.operational_status !== 'Terminated'
+  })
+
+  // Get VM information for expiring add-ons
+  const expiringAddonVMs = expiringSoonAddons.map((addon: any) => {
+    const vm = myVMs.find((v: any) => v.id === addon.vm_id)
+    return {
+      ...addon,
+      vm_hostname: vm?.hostname || 'Unknown VM',
+      vm_legacy_id: vm?.legacy_id || vm?.id
+    }
+  })
   const openTickets = myTickets.filter((t: any) => t.status === 'Pending')
   const pendingInv = myInvs.filter((i: any) => i.status === 'Pending')
   const pendingRequests = myRequests.filter((r: any) => r.status === 'Pending')
-  const unreadAlerts = alerts.filter((a: any) => !a.read).length
+
+  // Filter alerts for current customer and calculate unread
+  const myAlerts = alerts.filter((a: any) => a.customer_id === safeMe.id || !a.customer_id)
+  const unreadAlerts = myAlerts.filter((a: any) => !a.read).length
 
   const items = [
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
@@ -168,7 +188,6 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
     { id: 'addons', label: 'Add-on Services', icon: 'plus', lockedByKyc: true },
     { id: 'invoices', label: 'Invoices', icon: 'invoice', badge: pendingInv.length || null, lockedByKyc: true },
     { id: 'receipts', label: 'Receipts', icon: 'check', lockedByKyc: true },
-    { id: 'notifications', label: 'Notifications', icon: 'bell', badge: unreadAlerts || null, lockedByKyc: true },
     { id: 'cust-announcements', label: 'Announcements', icon: 'mail' },
     { id: 'tickets', label: 'Support tickets', icon: 'mail', badge: openTickets.length || null, lockedByKyc: true },
   ]
@@ -249,7 +268,21 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
           </div>
           <div className="topbar-spacer" />
           <div className="text-sm text-mute">{safeMe.org_name} · <span className="mono">{safeMe.legacy_id || safeMe.id}</span></div>
-          <button className="icon-btn" title="Notifications" onClick={() => handleSetView('notifications')}><Icon name="bell" size={15} /></button>
+          <button className="icon-btn" title="Notifications" onClick={() => handleSetView('notifications')} style={{ position: 'relative' }}>
+            <Icon name="bell" size={15} />
+            {unreadAlerts > 0 && (
+              <span style={{
+                position: 'absolute',
+                top: -2,
+                right: -2,
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: 'var(--bad)',
+                border: '2px solid var(--bg)',
+              }} />
+            )}
+          </button>
         </div>
 
         {safeMe.kyc_status !== 'Approved' && !detailVm && !openTicket && !detailRequest && !detailInvoice && (
@@ -299,6 +332,15 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
             <Icon name="alert" size={16} style={{ color: 'oklch(0.55 0.16 75)' }} />
             <div className="text-sm" style={{ color: 'oklch(0.4 0.13 75)' }}>
               <span className="fw-6">{expiringSoonVMs.map((v: any) => `${v.hostname}(${v.legacy_id})`).join(', ')} expiring soon.</span> Renew now to avoid service interruption.
+            </div>
+          </div>
+        )}
+
+        {expiringAddonVMs.length > 0 && !detailVm && view !== 'request' && safeMe.kyc_status === 'Approved' && (
+          <div style={{ padding: '12px 28px', background: 'var(--warn-soft)', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Icon name="alert" size={16} style={{ color: 'oklch(0.55 0.16 75)' }} />
+            <div className="text-sm" style={{ color: 'oklch(0.4 0.13 75)' }}>
+              <span className="fw-6">Add-on service(s) for {expiringAddonVMs.map((a: any) => `${a.vm_hostname}(${a.vm_legacy_id})`).join(', ')} expiring soon.</span> Renew now to avoid service interruption.
             </div>
           </div>
         )}

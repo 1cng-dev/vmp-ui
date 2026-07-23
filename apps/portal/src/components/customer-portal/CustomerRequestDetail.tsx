@@ -10,6 +10,11 @@ interface CustomerRequestDetailProps {
 export const CustomerRequestDetail: React.FC<CustomerRequestDetailProps> = ({ request, onClose }) => {
   const t = request
   
+  const transformStatus = (status: string) => {
+    if (status === 'Pending') return 'Under Review'
+    return status
+  }
+  
   const isChangePlan = t.task_type?.toLowerCase() === 'change-plan'
   const isSpecChange = t.spec_changed || false
   const isBackupChange = t.backup_changed || false
@@ -30,7 +35,7 @@ export const CustomerRequestDetail: React.FC<CustomerRequestDetailProps> = ({ re
           </div>
           <h1 className="page-title">{t.hostname}</h1>
           <div className="flex gap-2 mt-2">
-            <StatusPill status={t.status}/>
+            <StatusPill status={t.status} transformStatus={transformStatus}/>
             <span className="pill subtle">{t.request_type === 'trial' ? '14-day Trial' : 'Paid'}</span>
             <span className="pill accent"><span className="dot"/>Submitted {new Date(t.created_at).toLocaleDateString()}</span>
           </div>
@@ -122,9 +127,9 @@ export const CustomerRequestDetail: React.FC<CustomerRequestDetailProps> = ({ re
             <div className="card-head"><h3 className="card-title">Status</h3></div>
             <div className="card-body">
               <div style={{ padding: 14, background: t.status === 'Completed' ? 'var(--ok-soft)' : t.status === 'Rejected' ? 'var(--bad-soft)' : 'var(--accent-soft)', borderRadius: 8 }}>
-                <div className="fw-7" style={{ color: t.status === 'Completed' ? 'var(--ok)' : t.status === 'Rejected' ? 'var(--bad)' : 'var(--accent-strong)' }}>{t.status}</div>
+                <div className="fw-7" style={{ color: t.status === 'Completed' ? 'var(--ok)' : t.status === 'Rejected' ? 'var(--bad)' : 'var(--accent-strong)' }}>{transformStatus(t.status)}</div>
                 <div className="text-xs mt-1" style={{ color: 'var(--ink-2)' }}>
-                  {t.status === 'Pending' && 'Awaiting review by Sales. Typical response: within 1 business day.'}
+                  {t.status === 'Pending' && 'Under Review: Awaiting review by Sales. Typical response: within 1 business day.'}
                   {t.status === 'In Progress' && 'Sales is working on your request. They\'ll reach out shortly.'}
                   {t.status === 'Rejected' && 'Your request was rejected. Please contact support for details.'}
                   {t.status === 'Completed' && 'Your request was completed. Check My VMs.'}

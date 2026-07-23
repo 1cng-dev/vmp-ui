@@ -87,6 +87,7 @@ export interface AddonRequest {
   ccis_package?: string
   duration?: number
   status: string
+  operational_status?: 'Active' | 'Expired' | 'Terminated'
   legacy_id?: string
   created_at: string
   updated_at: string
@@ -162,7 +163,11 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   }, [vmRequests])
 
   const getAddonRequestsForVM = useCallback((vmId: string): AddonRequest[] => {
-    return addonRequests.filter(req => req.vm_id === vmId && req.status === 'Completed')
+    return addonRequests.filter(req => 
+      req.vm_id === vmId && 
+      req.status === 'Completed' &&
+      req.operational_status !== 'Terminated'
+    )
   }, [addonRequests])
 
   const getVMById = useCallback((vmId: string): VM | undefined => {

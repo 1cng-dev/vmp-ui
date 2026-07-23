@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import useVMStore from '../store/vmStore'
 import useCustomerStore from '../store/customerStore'
+import useAddonRequestStore from '../store/addonRequestStore'
 import useUIStore from '../store/uiStore'
 import Icon from '../lib/icons'
 import { StatusPill, ExpiryCell, CircularSpinner } from '../components/ui/ui'
@@ -9,15 +10,37 @@ interface VMListProps {
   openVM: (id: string) => void
   openModal: (kind: string, props?: any) => void
   setView: (view: string) => void
+  userRole?: string
 }
 
-const VMList: React.FC<VMListProps> = ({ openVM, openModal, setView }) => {
+const VMList: React.FC<VMListProps> = ({ openVM, openModal, setView, userRole }) => {
   const { vms, vmsLoading, loadVMs, updateVM } = useVMStore()
   const { customers } = useCustomerStore()
+  const { updateAddonRequest, addonRequests } = useAddonRequestStore()
   const { toast } = useUIStore()
   const [filter, setFilter] = useState<Set<string>>(new Set(['all']))
   const [search, setSearch] = useState('')
   const [menu, setMenu] = useState<string | null>(null)
+
+  const handleActivate = async (vm: any) => {
+    // Find all add-on requests for this VM
+    const vmAddonRequests = addonRequests.filter(a => a.vm_id === vm.id && a.status === 'Completed')
+    
+    // Activate all associated add-on services
+    for (const addon of vmAddonRequests) {
+      await updateAddonRequest(addon.id, { operational_status: 'Active' })
+    }
+    
+    // Activate the VM and set power state to Running
+    updateVM(vm.id, { status: 'Active' as any, power_state: 'Running' as any })
+    
+    const addonCount = vmAddonRequests.length
+    const message = addonCount > 0 
+      ? `VM ${vm.hostname} activated along with ${addonCount} associated add-on service(s)`
+      : `VM ${vm.hostname} activated`
+    
+    toast(message, 'ok')
+  }
 
   // Ensure VMs are loaded when this page is opened
   useEffect(() => {
@@ -134,7 +157,7 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal, setView }) => {
         </div>
         <div className="page-actions">
           <button className="btn" onClick={handleExportAll}><Icon name="download" size={13} />Export CSV</button>
-          <button className="btn primary" onClick={() => setView('direct-vm-create')}><Icon name="plus" size={13} />New VM</button>
+          {userRole === 'Admin' && <button className="btn primary" onClick={() => setView('direct-vm-create')}><Icon name="plus" size={13} />New VM</button>}
         </div>
       </div>
 
@@ -205,7 +228,7 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal, setView }) => {
                     <div className="fw-6 text-sm">{c?.org_name}</div>
                     <div className="text-xs text-mute">{c?.name}</div>
                   </td>
-                  <td><StatusPill status={v.status} /></td>
+                  <td><StatusPill status={v.status} expiry={v.expiry} /></td>
                   <td><span className="pill"><Icon name={v.power_state === 'Running' ? 'play' : 'pause'} size={10}/>{v.power_state || 'Unknown'}</span></td>
                   <td className="mono text-xs">
                     {v.vcpu}c · {v.ram_gb}GB · {v.storage_gb}GB
@@ -234,7 +257,7 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal, setView }) => {
                             <button className="nav-item" onClick={() => { openModal('terminate', { vm: v }); setMenu(null); }}><Icon name="trash" size={13} />Terminate</button>
                           </>
                         ) : (
-                          <button className="nav-item" onClick={() => { updateVM(v.id, { status: 'Active' as any }); setMenu(null); toast(`VM ${v.hostname} activated`, 'ok'); }}><Icon name="play" size={13} />Activate</button>
+                          <button className="nav-item" onClick={() => { handleActivate(v); setMenu(null); }}><Icon name="play" size={13} />Activate</button>
                         )}
                         <div style={{ height: 1, background: 'var(--line)', margin: '4px 0' }} />
                         <button className="nav-item" style={{ color: 'var(--bad)' }} onClick={() => { openModal('delete', { vm: v }); setMenu(null); }}><Icon name="x" size={13} />Delete</button>

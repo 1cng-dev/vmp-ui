@@ -40,3 +40,17 @@ CREATE POLICY "Admins can update alerts" ON alerts
 CREATE POLICY "Admins can delete alerts" ON alerts
   FOR DELETE TO authenticated
   USING (true);
+
+
+
+-- Allow service role to insert alerts
+CREATE POLICY "Service role can insert alerts" 
+ON alerts FOR INSERT 
+TO service_role 
+WITH CHECK (true);
+
+-- Allow service role to select alerts
+CREATE POLICY "Service role can select alerts" 
+ON alerts FOR SELECT 
+TO service_role 
+USING (true);

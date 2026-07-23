@@ -12,13 +12,6 @@ export const CustomerNotificationsView: React.FC = () => {
   const sevLabel: Record<string, string> = { urgent: 'Urgent', warn: 'Warning', info: 'Info' }
   const typeIcon: Record<string, string> = { expiry: 'clock', kyc: 'shield', finance: 'invoice', task: 'tasks', system: 'settings', vm: 'server' }
 
-  // Load alerts if not loaded yet
-  React.useEffect(() => {
-    if (alerts.length === 0) {
-      loadAlerts()
-    }
-  }, [alerts.length, loadAlerts])
-
   const filtered = alerts.filter(a => {
     if (filter === 'Unread' && a.read) return false
     if (filter !== 'All' && filter !== 'Unread' && a.type !== filter.toLowerCase()) return false

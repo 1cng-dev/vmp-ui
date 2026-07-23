@@ -1,87 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState } from 'react'
 import useAlertStore from '../../store/alertStore'
-import useVMStore from '../../store/vmStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
-import { supabase } from '../../lib/supabase'
-import { createAlert } from '../../services/notificationService'
 
 export const AlertsView: React.FC = () => {
   const { alerts, markAlertRead, markAllAlertsRead } = useAlertStore()
-  const { vms, loadVMs } = useVMStore()
   const { toast } = useUIStore()
   const [filter, setFilter] = useState('All')
   const [sev, setSev] = useState('All')
   const [search, setSearch] = useState('')
   const sevColor: Record<string, string> = { urgent: 'var(--bad)', warn: 'var(--warn)', info: 'var(--info)' }
   const sevLabel: Record<string, string> = { urgent: 'Urgent', warn: 'Warning', info: 'Info' }
-  const typeIcon: Record<string, string> = { expiry: 'clock', kyc: 'shield', finance: 'invoice', task: 'tasks', system: 'settings', vm: 'server' }
-
-
-  // Check VM expiry and create notifications when AlertsView loads
-  const hasChecked = useRef(false)
-  
-  useEffect(() => {
-    const checkVMExpiry = async () => {
-      if (hasChecked.current) {
-        return
-      }
-      hasChecked.current = true
-      
-      await loadVMs()
-      const today = new Date()
-      
-      for (const vm of vms) {
-        if (!vm.expiry || vm.expiry === '—' || vm.status !== 'Active') continue
-        
-        const expiryDate = new Date(vm.expiry)
-        const daysUntilExpiry = Math.ceil((expiryDate.getTime() - today.getTime()) / 86400000)
-        
-        // Create alerts for key expiry dates
-        if (daysUntilExpiry === 30 || daysUntilExpiry === 7 || daysUntilExpiry === 1 || daysUntilExpiry === 0 || (daysUntilExpiry < 0 && daysUntilExpiry >= -7)) {
-          // Check if alert already exists for this VM and expiry date (any time)
-          const { data: existingAlerts } = await supabase
-            .from('alerts')
-            .select('*')
-            .eq('related_entity_id', vm.id)
-            .eq('related_entity_type', 'vm')
-            .eq('type', 'expiry')
-          
-          const alertAlreadyExists = existingAlerts?.some((alert: any) => {
-            const alertDays = alert.metadata?.days_until
-            return alertDays === daysUntilExpiry && 
-                   alert.metadata?.expiry_date === vm.expiry
-          })
-          
-          if (!alertAlreadyExists) {
-            const title = daysUntilExpiry < 0 
-              ? `VM Expired - ${Math.abs(daysUntilExpiry)} day${Math.abs(daysUntilExpiry) > 1 ? 's' : ''} ago`
-              : `VM Expiring in ${daysUntilExpiry} day${daysUntilExpiry !== 1 ? 's' : ''}`
-            
-            const body = daysUntilExpiry < 0
-              ? `VM ${vm.hostname} expired ${Math.abs(daysUntilExpiry)} day${Math.abs(daysUntilExpiry) > 1 ? 's' : ''} ago on ${new Date(vm.expiry).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
-              : `VM ${vm.hostname} will expire on ${new Date(vm.expiry).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
-            
-            await createAlert({
-              sev: daysUntilExpiry <= 1 ? 'urgent' : 'warn',
-              title,
-              body,
-              type: 'expiry',
-              related_entity_id: vm.id,
-              related_entity_type: 'vm',
-              metadata: { 
-                expiry_date: vm.expiry, 
-                days_until: daysUntilExpiry,
-                vm_hostname: vm.hostname
-              }
-            })
-          }
-        }
-      }
-    }
-    
-    checkVMExpiry()
-  }, [])
+  const typeIcon: Record<string, string> = { expiry: 'clock', kyc: 'shield', finance: 'invoice', task: 'tasks', system: 'settings', vm: 'server', addon: 'plus' }
 
   const filtered = alerts.filter(a => {
     if (filter === 'Unread' && a.read) return false
@@ -108,7 +38,7 @@ export const AlertsView: React.FC = () => {
 
       <div className="card">
         <div className="filter-bar" style={{ flexWrap: 'wrap' }}>
-          {['All', 'Unread', 'Expiry', 'Kyc', 'Finance', 'Task'].map(f => {
+          {['All', 'Unread', 'Expiry', 'Kyc', 'Finance', 'Task', 'Addon'].map(f => {
             const cnt = f === 'All' ? alerts.length : f === 'Unread' ? alerts.filter(a => !a.read).length : alerts.filter(a => a.type === f.toLowerCase()).length
             return (
               <button key={f} className={`filter-chip ${filter === f ? 'active' : ''}`} onClick={() => setFilter(f)}>

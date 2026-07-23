@@ -40,6 +40,11 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ me, myVMs,
   const openTickets = myTickets.filter((t: any) => t.status === 'Open' || t.status === 'In Progress')
   const pendingInv = myInvs.filter((i: any) => i.status !== 'Payment Received')
   const pendingReq = myRequests.filter((r: any) => r.status === 'Pending' || r.status === 'In Progress')
+  
+  const transformStatus = (status: string) => {
+    if (status === 'Pending') return 'Under Review'
+    return status
+  }
 
   return (
     <div className="content">
@@ -77,7 +82,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ me, myVMs,
                 {myVMs.slice(0, 5).map((v: any) => (
                   <tr key={v.id} onClick={() => setDetailVm(v)}>
                     <td><div className="fw-6">{v.hostname}</div><div className="text-xs text-mute mono">{v.legacy_id || v.id}</div></td>
-                    <td><StatusPill status={v.status}/></td>
+                    <td><StatusPill status={v.status} transformStatus={transformStatus} expiry={v.expiry}/></td>
                     <td className="mono text-xs">{v.vcpu}c · {v.ram_gb}GB · {v.storage_gb}GB</td>
                     <td className="mono text-xs">{v.public_ip || '—'}</td>
                     <td><ExpiryCell date={v.expiry}/></td>
@@ -96,7 +101,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ me, myVMs,
                 <div key={t.id} onClick={() => setOpenTicket(t)} style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)', cursor: 'pointer' }}>
                   <div className="flex center between mb-1">
                     <span className="mono text-xs text-mute">{t.legacy_id || t.id}</span>
-                    <StatusPill status={t.status}/>
+                    <StatusPill status={t.status} transformStatus={transformStatus}/>
                   </div>
                   <div className="fw-6 text-sm">{t.subject}</div>
                   <div className="text-xs text-mute mt-1">Updated {t.updated}</div>

@@ -1,6 +1,8 @@
 import React, { useState } from 'react'
 import useVMStore from '../../store/vmStore'
 import useCustomerStore from '../../store/customerStore'
+import useAddonRequestStore from '../../store/addonRequestStore'
+import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { StatusPill, ExpiryCell } from '../ui/ui'
 
@@ -14,6 +16,8 @@ interface VMDrawerProps {
 const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal }) => {
   const { vms, updateVM, getVMRequest, getAddonRequestsForVM } = useVMStore()
   const { customers } = useCustomerStore()
+  const { updateAddonRequest, addonRequests: allAddonRequests } = useAddonRequestStore()
+  const { toast } = useUIStore()
   const v = vms.find((x: any) => x.id === vmId)
   if (!v) return null
   const c = customers.find((c: any) => c.id === v.customer_id)
@@ -26,6 +30,26 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal 
   const creds = v.username && v.password ? [
     { type: 'SSH', user: v.username, pass: v.password }
   ] : []
+
+  const handleActivate = async () => {
+    // Find all add-on requests for this VM
+    const vmAddonRequests = allAddonRequests.filter(a => a.vm_id === v.id && a.status === 'Completed')
+    
+    // Activate all associated add-on services
+    for (const addon of vmAddonRequests) {
+      await updateAddonRequest(addon.id, { operational_status: 'Active' })
+    }
+    
+    // Activate the VM and set power state to Running
+    updateVM(v.id, { status: 'Active' as any, power_state: 'Running' as any })
+    
+    const addonCount = vmAddonRequests.length
+    const message = addonCount > 0 
+      ? `VM ${v.hostname} activated along with ${addonCount} associated add-on service(s)`
+      : `VM ${v.hostname} activated`
+    
+    toast(message, 'ok')
+  }
 
   return (
     <div className="drawer-overlay" onClick={onClose}>
@@ -48,19 +72,16 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal 
             <div>
               <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em' }}>{v.hostname}</h2>
               <div className="flex gap-2 mt-2">
-                <StatusPill status={v.status}/>
+                <StatusPill status={v.status} expiry={v.expiry}/>
                 <StatusPill status={v.task_type || 'new'}/>
                 <span className="pill"><Icon name={v.power_state === 'Running' ? 'play' : 'pause'} size={10}/>{v.power_state}</span>
               </div>
             </div>
             <div className="flex gap-2">
               {v.status === 'Active' ? (
-                <>
-                  <button className="btn" onClick={() => updateVM(v.id, { status: 'Suspended' as any })}><Icon name="pause" size={12}/>Suspend</button>
-                  <button className="btn" onClick={() => openModal('terminate', { vm: v })}><Icon name="trash" size={12}/>Terminate</button>
-                </>
+                <button className="btn" onClick={() => openModal('terminate', { vm: v })}><Icon name="trash" size={12}/>Terminate</button>
               ) : (
-                <button className="btn primary" onClick={() => updateVM(v.id, { status: 'Active' as any })}><Icon name="play" size={12}/>Activate</button>
+                <button className="btn primary" onClick={handleActivate}><Icon name="play" size={12}/>Activate</button>
               )}
               <button className="btn danger" onClick={() => openModal('delete', { vm: v })}><Icon name="x" size={12}/>Delete</button>
             </div>
@@ -223,7 +244,7 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal 
                           <dt>Duration</dt><dd>{ar.duration || 'N/A'}</dd>
                           {ar.start_date && <><dt>Start Date</dt><dd className="tnum">{new Date(ar.start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
                           {ar.end_date && <><dt>End Date</dt><dd className="tnum">{new Date(ar.end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
-                          {ar.expiry && <><dt>Expiry</dt><dd className="tnum">{new Date(ar.expiry).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
+                          {ar.expiry && <><dt>Expiry</dt><dd><ExpiryCell date={ar.expiry || ''} /></dd></>}
                           <dt>Status</dt><dd><StatusPill status={ar.status}/></dd>
                           <dt>Completed</dt><dd className="tnum">{ar.updated_at ? new Date(ar.updated_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</dd>
                         </dl>

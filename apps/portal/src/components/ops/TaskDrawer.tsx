@@ -4,7 +4,7 @@ import useVMRequestStore from '../../store/vmRequestStore'
 import useInvoiceStore from '../../store/invoiceStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
-import { StatusPill } from '../ui/ui'
+import { StatusPill, ExpiryCell } from '../ui/ui'
 import EngineerVMCreateForm from '../engineer/EngineerVMCreateForm'
 import useTaskStore from '../../store/taskStore'
 import useVMStore from '../../store/vmStore'
@@ -23,7 +23,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
   const { createVMManually, updateAddonExpiryForVM } = useTaskStore()
   const { addVM, vms, getVMById, getVMByHostname, updateVM, getVMRequest } = useVMStore()
   const { vmRequests, updateVMRequest } = useVMRequestStore()
-  const { addonRequests, updateAddonRequest } = useAddonRequestStore()
+  const { addonRequests, updateAddonRequest, deleteAddonRequest } = useAddonRequestStore()
   const { invoices } = useInvoiceStore()
   const [showVMFormModal, setShowVMFormModal] = useState(false)
   const [salesData, setSalesData] = useState({
@@ -137,22 +137,51 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
   return (
     <div className="drawer-overlay" onClick={onClose}>
       <div className="drawer" onClick={e => e.stopPropagation()} style={{ width: 'min(860px, 95vw)' }}>
-        <div style={{ padding: '20px 22px 16px', borderBottom: '1px solid var(--line)' }}>
-          <div className="flex center gap-2 mb-2">
-            <span className="mono text-sm text-mute">{request.legacy_id || request.id}</span>
-            <span className="pill accent"><span className="dot" />Customer-submitted</span>
-            {requestType === 'addon' && <span className="pill warn">Add-on Service</span>}
+        <div style={{ padding: '20px 22px 16px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <div className="flex center gap-2 mb-2">
+              <span className="mono text-sm text-mute">{request.legacy_id || request.id}</span>
+              <span className="pill accent"><span className="dot" />Customer-submitted</span>
+              {requestType === 'addon' && <span className="pill warn">Add-on Service</span>}
+            </div>
+            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em' }}>
+              {requestType === 'vm' ? (t?.hostname || 'VM') : `Add-on Request for ${addonVMData?.legacy_id || addonVMData?.hostname || (request as any)?.vm_id}`}
+            </h2>
+            <div className="flex gap-2 mt-2">
+              <StatusPill status={salesData.status} />
+              {requestType === 'vm' && <span className="pill subtle">{t?.task_type}</span>}
+              {requestType === 'vm' && <span className="pill subtle">{t?.request_type === 'trial' ? 'Trial' : 'Paid'}</span>}
+              <span className="pill subtle"><Icon name="building" size={10} />{c?.org_name || c?.name}</span>
+              <span className="pill subtle">Created {new Date(request.created_at).toLocaleDateString()}</span>
+            </div>
           </div>
-          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em' }}>
-            {requestType === 'vm' ? (t?.hostname || 'VM') : `Add-on Request for ${addonVMData?.legacy_id || addonVMData?.hostname || (request as any)?.vm_id}`}
-          </h2>
-          <div className="flex gap-2 mt-2">
-            <StatusPill status={salesData.status} />
-            {requestType === 'vm' && <span className="pill subtle">{t?.task_type}</span>}
-            {requestType === 'vm' && <span className="pill subtle">{t?.request_type === 'trial' ? 'Trial' : 'Paid'}</span>}
-            <span className="pill subtle"><Icon name="building" size={10} />{c?.org_name || c?.name}</span>
-            <span className="pill subtle">Created {new Date(request.created_at).toLocaleDateString()}</span>
-          </div>
+          {requestType === 'addon' && userRole === 'Admin' && (
+            <div className="flex gap-2">
+              {(request as any)?.operational_status === 'Terminated' ? (
+                <button className="btn ok" onClick={() => updateAddonRequest(request.id, { operational_status: 'Active' })}>
+                  <Icon name="play" size={12} />Activate
+                </button>
+              ) : (
+                <button className="btn" onClick={() => updateAddonRequest(request.id, { operational_status: 'Terminated' })}>
+                  <Icon name="trash" size={12} />Terminate
+                </button>
+              )}
+              <button className="btn danger" onClick={async () => {
+                if (confirm('Are you sure you want to delete this add-on request? This cannot be undone.')) {
+                  try {
+                    await deleteAddonRequest(request.id)
+                    toast('Add-on request deleted', 'ok')
+                    onClose()
+                  } catch (error) {
+                    toast('Failed to delete add-on request', 'error')
+                    console.error('Error deleting add-on request:', error)
+                  }
+                }
+              }}>
+                <Icon name="trash" size={12} />Delete
+              </button>
+            </div>
+          )}
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: 22 }}>
@@ -588,7 +617,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                     {(request as any)?.duration && <><dt>Duration</dt><dd className="mono">{(request as any)?.duration || '—'}</dd></>}
                     {(request as any)?.start_date && <><dt>Start Date</dt><dd className="mono tnum">{new Date((request as any)?.start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
                     {(request as any)?.end_date && <><dt>End Date</dt><dd className="mono tnum">{new Date((request as any)?.end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
-                    {(request as any)?.expiry && <><dt>Expiry</dt><dd className="mono tnum">{new Date((request as any)?.expiry).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
+                    {(request as any)?.expiry && <><dt>Expiry</dt><dd><ExpiryCell date={(request as any)?.expiry || ''} /></dd></>}
                     {(request as any)?.notes && <><dt>Notes</dt><dd>{(request as any)?.notes}</dd></>}
                   </dl>
                 </>

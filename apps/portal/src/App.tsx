@@ -281,12 +281,12 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
             />
             {notifOpen && <NotifPanel onAllRead={() => { markAllAlertsRead(); setNotifOpen(false) }} onViewAll={() => { handleSetView('alerts'); setNotifOpen(false) }} />}
 
-            {view === 'dashboard' && <Dashboard openVM={openVM} setView={handleSetView} openModal={openModal} />}
+            {view === 'dashboard' && <Dashboard openVM={openVM} setView={handleSetView} openModal={openModal} userRole={tw.role} />}
             {view === 'alerts' && <AlertsView />}
             {view === 'calendar' && <CalendarView openVM={openVM} />}
             {view === 'activity' && <ActivityView />}
             {view === 'direct-vm-create' && <AdminDirectVMCreate />}
-            {view === 'vms' && <VMList openVM={openVM} openModal={openModal} setView={handleSetView} />}
+            {view === 'vms' && <VMList openVM={openVM} openModal={openModal} setView={handleSetView} userRole={tw.role} />}
             {drawerVmId && <VMDrawer vmId={drawerVmId} onClose={closeDrawer} openCust={openCust} openModal={openModal} />}
             {view === 'tasks' && <TasksView openTask={openTask} setView={handleSetView} setAutoOpenQuote={setAutoOpenQuote} setPrefillCustomerId={setPrefillCustomerId} setPrefillRequestId={setPrefillRequestId} setPrefillRequestType={setPrefillRequestType} userRole={tw.role} />}
             {view === 'addons' && <AddonServicesView openTask={openTask} setView={handleSetView} setAutoOpenQuote={setAutoOpenQuote} setPrefillCustomerId={setPrefillCustomerId} setPrefillRequestId={setPrefillRequestId} setPrefillRequestType={setPrefillRequestType} userRole={tw.role} />}
@@ -299,7 +299,7 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
             {view === 'maintenance' && <PlaceholderView title="Maintenance Windows" description="Maintenance scheduling - coming soon" />}
             {view === 'patches' && <PlaceholderView title="Patch Queue" description="OS patch management - coming soon" />}
             {view === 'firewall' && <PlaceholderView title="Firewall Rules" description="Firewall configuration - coming soon" />}
-            {view === 'customers' && <CustomersView openCust={openCust} openModal={openModal} />}
+            {view === 'customers' && <CustomersView openCust={openCust} openModal={openModal} userRole={tw.role} />}
             {drawerCustId && <CustomerDrawer custId={drawerCustId} onClose={closeCustDrawer} openVM={openVM} openModal={openModal} />}
             {view === 'customer-accounts' && <CustomerAccountManagementView openCust={openCust} openModal={openModal} setView={handleSetView} role={tw.role} />}
             {view === 'kyc' && <KYCReviewView />}

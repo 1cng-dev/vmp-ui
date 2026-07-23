@@ -8,9 +8,10 @@ import { StatusPill, Avatar, CircularSpinner } from '../components/ui/ui'
 interface CustomersViewProps {
   openCust: (id: string) => void
   openModal: (kind: string, props?: any) => void
+  userRole?: string
 }
 
-const CustomersView: React.FC<CustomersViewProps> = ({ openCust, openModal }) => {
+const CustomersView: React.FC<CustomersViewProps> = ({ openCust, openModal, userRole }) => {
   const { customers, customersLoading, updateCustomer, loadCustomers, deleteCustomer } = useCustomerStore()
   const { vms } = useVMStore()
   const { toast } = useUIStore()
@@ -146,7 +147,7 @@ const CustomersView: React.FC<CustomersViewProps> = ({ openCust, openModal }) =>
                         }}>
                           <button className="nav-item" onClick={() => { openCust(c.id); setMenu(null); }}><Icon name="eye" size={13} />View profile</button>
                           <button className="nav-item" onClick={() => { openModal('email', { to: c.email }); setMenu(null); }}><Icon name="mail" size={13} />Send email</button>
-                          <button className="nav-item" onClick={() => { openModal('newvm', { customer: c.id }); setMenu(null); }}><Icon name="plus" size={13} />New VM</button>
+                          {userRole === 'Admin' && <button className="nav-item" onClick={() => { openModal('newvm', { customer: c.id }); setMenu(null); }}><Icon name="plus" size={13} />New VM</button>}
                           {c.status === 'Active'
                             ? <button className="nav-item" onClick={() => {
                               openModal('confirm', {

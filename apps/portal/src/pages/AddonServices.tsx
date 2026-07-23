@@ -1,12 +1,11 @@
 import React from 'react'
 import Icon from '../lib/icons'
-import { StatusPill, CircularSpinner } from '../components/ui/ui'
+import { StatusPill, CircularSpinner, ExpiryCell } from '../components/ui/ui'
 import useAddonRequestStore from '../store/addonRequestStore'
 import useCustomerStore from '../store/customerStore'
 import useVMStore from '../store/vmStore'
 
 interface AddonServicesViewProps {
-  openModal?: (kind: string, props?: any) => void
   openTask: (id: string) => void
   setView: (view: string) => void
   setAutoOpenQuote: (value: boolean) => void
@@ -82,17 +81,20 @@ const AddonServicesView: React.FC<AddonServicesViewProps> = ({ openTask, setView
                 <th>Customer</th>
                 <th>Linked VM</th>
                 <th>Services</th>
+                <th>Start Date</th>
+                <th>Expiry</th>
                 <th>Billing Term</th>
-                <th>Status</th>
+                <th>Provision Status</th>
+                <th>Operational Status</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
                 <>
                   {addonRequestsLoading ? (
-                    <tr><td colSpan={7}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
+                    <tr><td colSpan={10}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
                   ) : list.length === 0 ? (
-                    <tr><td colSpan={7}><div className="empty"><div className="title">No add-on requests</div><div className="sub">Try a different filter or create a new request from the customer portal.</div></div></td></tr>
+                    <tr><td colSpan={10}><div className="empty"><div className="title">No add-on requests</div><div className="sub">Try a different filter or create a new request from the customer portal.</div></div></td></tr>
                   ) : (
                     list.map((t: any) => {
                 const cust = customers.find(c => c.id === t.customer_id)
@@ -101,15 +103,17 @@ const AddonServicesView: React.FC<AddonServicesViewProps> = ({ openTask, setView
                   <tr key={t.id} onClick={() => openTask(t.id)} style={{ cursor: 'pointer' }}>
                     <td>
                       <div className="fw-6">{t.legacy_id || t.id}</div>
-                      <div className="text-xs text-mute">Submitted {new Date(t.created_at).toLocaleDateString()}</div>
                     </td>
                     <td>
                       <div className="fw-6 text-sm">{cust?.name}{cust?.org_name ? ` (${cust.org_name})` : ''}</div>
                     </td>
                     <td className="mono text-sm">{vmData[t.vm_id] ? `${vmData[t.vm_id].hostname} (${vmData[t.vm_id].legacy_id})` : t.vm_id?.slice(0,8) || '—'}</td>
                     <td>{svc}</td>
+                    <td className="tnum text-sm">{t.start_date ? new Date(t.start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}</td>
+                    <td><ExpiryCell date={t.expiry || ''} /></td>
                     <td className="text-sm">{t.duration || 'N/A'}</td>
                     <td><StatusPill status={t.status} /></td>
+                    <td><StatusPill status={t.operational_status || 'Active'} expiry={t.expiry} /></td>
                     <td className="right">
                       <div className="flex center gap-1" onClick={e => e.stopPropagation()}>
                         <button className="btn" style={{ padding: '4px 10px', fontSize: 11 }}

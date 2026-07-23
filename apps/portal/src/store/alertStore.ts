@@ -179,16 +179,12 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           setAlerts(prev => prev.filter(a => a.id !== payload.old.id))
         }
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'alert_reads' }, () => {
-        // When alert_reads changes, reload to update read status
-        loadAlerts()
-      })
       .subscribe()
 
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [loadAlerts])
+  }, [])
 
   useEffect(() => {
     const unsubscribe = subscribeToAlerts()

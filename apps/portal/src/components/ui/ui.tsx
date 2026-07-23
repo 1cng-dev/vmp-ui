@@ -6,9 +6,24 @@ import CircularSpinner from './CircularSpinner'
 
 interface StatusPillProps {
   status: string
+  transformStatus?: (status: string) => string
+  expiry?: string
 }
 
-const StatusPill: React.FC<StatusPillProps> = ({ status }) => {
+const StatusPill: React.FC<StatusPillProps> = ({ status, transformStatus, expiry }) => {
+  let displayStatus = transformStatus ? transformStatus(status) : status
+  
+  // For VMs: if expiry date has passed and status is not Terminated, show as Expired
+  if (expiry && expiry !== '—') {
+    const expiryDate = new Date(expiry)
+    const now = new Date()
+    const isExpired = expiryDate < now
+    
+    if (isExpired && status !== 'Terminated') {
+      displayStatus = 'Expired'
+    }
+  }
+  
   const map: Record<string, string> = {
     'Active': 'ok', 'Running': 'ok', 'Approved': 'ok', 'Done': 'ok', 'Payment Received': 'ok',
     'Pending': 'warn', 'In Progress': 'warn', 'Customer Transferred': 'warn',
@@ -16,7 +31,7 @@ const StatusPill: React.FC<StatusPillProps> = ({ status }) => {
     'Expired': 'bad', 'Overdue': 'bad', 'Rejected': 'bad', 'Blocked': 'bad', 'Inactive': 'subtle',
     'Stopped': 'subtle', 'Terminated': 'bad',
   }
-  return <span className={`pill ${map[status] || 'subtle'}`}><span className="dot"></span>{status}</span>
+  return <span className={`pill ${map[status] || 'subtle'}`}><span className="dot"></span>{displayStatus}</span>
 }
 
 const formatMMK = (n: number) => {
