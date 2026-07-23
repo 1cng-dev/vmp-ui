@@ -44,14 +44,20 @@ async function checkVMExpiry(supabase: any) {
     const expiryDate = new Date(vm.expiry)
     const daysUntilExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
 
-    // Check duplicate in last 24 hours
+    // Check duplicate for same day only (not 24 hours)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const tomorrow = new Date(today)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+
     const { data: existingAlerts } = await supabase
       .from('alerts')
       .select('id')
       .eq('related_entity_id', vm.id)
       .eq('related_entity_type', 'vm')
       .eq('type', 'vm')
-      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+      .gte('created_at', today.toISOString())
+      .lt('created_at', tomorrow.toISOString())
       .limit(1)
 
     if (existingAlerts && existingAlerts.length > 0) continue
@@ -69,10 +75,24 @@ async function checkVMExpiry(supabase: any) {
         ? `VM Expiring Today`
         : `VM Expiring in ${daysUntilExpiry} Day${daysUntilExpiry > 1 ? 's' : ''}`
 
+      // Format expiry date for readability
+      const formattedExpiry = expiryDate.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+      })
+
+      // Build message with days
+      const daysMessage = daysUntilExpiry < 0 
+        ? `expired ${Math.abs(daysUntilExpiry)} day${Math.abs(daysUntilExpiry) > 1 ? 's' : ''} ago`
+        : daysUntilExpiry === 0 
+        ? 'expiring today'
+        : `expiring in ${daysUntilExpiry} day${daysUntilExpiry > 1 ? 's' : ''}`
+
       const insertResult = await supabase.from('alerts').insert({
         sev: severity,
         title,
-        body: `VM ${vm.hostname} (${vm.legacy_id || vm.id}) is ${daysUntilExpiry < 0 ? 'in grace period' : 'expiring soon'}. Expiry: ${vm.expiry}`,
+        body: `VM ${vm.hostname} (${vm.legacy_id || vm.id}) is ${daysMessage}. Expiry: ${formattedExpiry}`,
         type: 'vm',
         related_entity_id: vm.id,
         related_entity_type: 'vm',
@@ -112,14 +132,20 @@ async function checkAddonExpiry(supabase: any) {
     const expiryDate = new Date(addon.expiry)
     const daysUntilExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
 
-    // Check duplicate in last 24 hours
+    // Check duplicate for same day only (not 24 hours)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const tomorrow = new Date(today)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+
     const { data: existingAlerts } = await supabase
       .from('alerts')
       .select('id')
       .eq('related_entity_id', addon.id)
       .eq('related_entity_type', 'addon_request')
-      .eq('type', 'addon')
-      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+      .eq('type', 'expiry')
+      .gte('created_at', today.toISOString())
+      .lt('created_at', tomorrow.toISOString())
       .limit(1)
 
     if (existingAlerts && existingAlerts.length > 0) continue
@@ -137,10 +163,24 @@ async function checkAddonExpiry(supabase: any) {
         ? `Add-on Service Expiring Today`
         : `Add-on Service Expiring in ${daysUntilExpiry} Day${daysUntilExpiry > 1 ? 's' : ''}`
 
+      // Format expiry date for readability
+      const formattedExpiry = expiryDate.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+      })
+
+      // Build message with days
+      const daysMessage = daysUntilExpiry < 0 
+        ? `expired ${Math.abs(daysUntilExpiry)} day${Math.abs(daysUntilExpiry) > 1 ? 's' : ''} ago`
+        : daysUntilExpiry === 0 
+        ? 'expiring today'
+        : `expiring in ${daysUntilExpiry} day${daysUntilExpiry > 1 ? 's' : ''}`
+
       const insertResult = await supabase.from('alerts').insert({
         sev: severity,
         title,
-        body: `Add-on service ${addon.legacy_id || addon.id} is ${daysUntilExpiry < 0 ? 'in grace period' : 'expiring soon'}. Expiry: ${addon.expiry}`,
+        body: `Add-on service ${addon.legacy_id || addon.id} is ${daysMessage}. Expiry: ${formattedExpiry}`,
         type: 'expiry',
         related_entity_id: addon.id,
         related_entity_type: 'addon_request',
