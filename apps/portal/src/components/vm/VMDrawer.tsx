@@ -149,7 +149,7 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
                   <dt>Private IPv4</dt><dd className="mono">{v.private_ip || '—'}</dd>
                   <dt>Zone</dt><dd>{(v as any).zone || '—'}</dd>
                   <dt>NICs</dt><dd className="mono">{(v as any).nics && ((v as any).nics as any).length > 0 
-                    ? (typeof (v as any).nics === 'string' ? JSON.parse((v as any).nics) : (v as any).nics).map((nic: any) => nic.vlan || nic.label).join(', ')
+                    ? (typeof (v as any).nics === 'string' ? JSON.parse((v as any).nics) : (v as any).nics).map((nic: any) => nic.description ? `${nic.label} (${nic.description})` : nic.label).join(', ')
                     : '—'}</dd>
                   <dt>Public IP Required</dt><dd>{(v as any).public_ip_required ? 'Yes' : 'No'}</dd>
                   <dt>Firewall policy</dt><dd className="mono">Default</dd>

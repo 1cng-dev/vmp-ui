@@ -94,7 +94,7 @@ const TeamLoginScreen: React.FC = () => {
         </form>
 
         <div className="text-center text-sm text-mute mt-3">
-          Team members receive invite links via email. Contact your administrator if you need access.
+          Contact your administrator if you need access to the team portal.
         </div>
       </div>
     </AuthLayout>

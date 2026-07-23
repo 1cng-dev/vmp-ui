@@ -553,51 +553,97 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
               {requestType === 'vm' ? (
                 <>
                   <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>VM Configuration</div>
-                  <dl className="dl">
-                    <dt>Request ID</dt><dd className="mono">{t?.legacy_id || t?.id}</dd>
-                    {(isUpgrade || isRenewal) && currentVMData && (
-                      <>
-                        <dt>VM ID</dt><dd className="mono">{currentVMData.legacy_id || currentVMData.id}</dd>
-                      </>
-                    )}
-                    <dt>Hostname</dt><dd className="mono">{t?.hostname}</dd>
-                    <dt>Purpose</dt><dd>{t?.purpose || '—'}</dd>
-                    {!isUpgrade || isSpecChange ? (
-                      <>
-                        <dt>vCPU</dt><dd className="mono">{t?.vcpu} cores</dd>
-                        <dt>Memory</dt><dd className="mono">{t?.ram_gb} GB</dd>
-                        <dt>Storage</dt><dd className="mono">{t?.storage} GB</dd>
-                      </>
-                    ) : null}
-                    <dt>Quantity</dt><dd className="mono">{t?.qty}</dd>
-                    <dt>Spec Type</dt><dd className="mono" style={{ color: t?.sizing === 'Standard' ? 'var(--ok)' : 'var(--accent-strong)' }}>{t?.sizing}</dd>
-                    <dt>OS</dt><dd className="mono">{t?.os_name} {t?.os_version}</dd>
-                    <dt>Zone</dt><dd className="mono">{t?.zone}</dd>
-                    {t?.duration && <><dt>Billing Term</dt><dd className="mono">{t?.duration === 1 ? 'Monthly' : t?.duration === 3 ? 'Quarterly' : t?.duration === 6 ? 'Half Yearly' : t?.duration === 12 ? 'Yearly' : `${t?.duration} months`}</dd></>}
-                    {(!isUpgrade || isBackupChange) && (
-                      <>
-                        <dt>Backup</dt>
-                        <dd className="mono">
-                          {isUpgrade && currentVMData ? (
-                            <>
-                              {currentVMData.backup_enabled ? `${currentVMData.backup_type === 'daily' ? 'Daily' : 'Weekly'} Backup` : 'Disabled'}
-                              <span style={{ color: 'var(--accent-strong)', margin: '0 4px' }}>→</span>
-                              <span style={{ color: 'var(--accent-strong)', fontWeight: 600 }}>
-                                {t?.backup_enabled ? `${t?.backup_type === 'daily' ? 'Daily' : 'Weekly'} Backup` : 'Disabled'}
-                              </span>
-                            </>
-                          ) : (
-                            t?.backup_enabled ? `${t?.backup_type === 'daily' ? 'Daily' : 'Weekly'} Backup` : 'Disabled'
-                          )}
-                        </dd>
-                      </>
-                    )}
-                    {t?.notes && (
-                      <>
-                        <dt>Notes</dt><dd>{t?.notes}</dd>
-                      </>
-                    )}
-                  </dl>
+                  <div className="grid-2" style={{ gap: 16 }}>
+                    <div>
+                      <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>General</div>
+                      <dl className="dl">
+                        <dt>Request ID</dt><dd className="mono">{t?.legacy_id || t?.id}</dd>
+                        {(isUpgrade || isRenewal) && currentVMData && (
+                          <>
+                            <dt>VM ID</dt><dd className="mono">{currentVMData.legacy_id || currentVMData.id}</dd>
+                          </>
+                        )}
+                        <dt>Hostname</dt><dd className="mono">{t?.hostname}</dd>
+                        <dt>Purpose</dt><dd>{t?.purpose || '—'}</dd>
+                        <dt>Quantity</dt><dd className="mono">{t?.qty}</dd>
+                        {t?.duration && <><dt>Billing Term</dt><dd className="mono">{t?.duration === 1 ? 'Monthly' : t?.duration === 3 ? 'Quarterly' : t?.duration === 6 ? 'Half Yearly' : t?.duration === 12 ? 'Yearly' : `${t?.duration} months`}</dd></>}
+                        <dt>Spec Type</dt><dd className="mono" style={{ color: t?.sizing === 'Standard' ? 'var(--ok)' : 'var(--accent-strong)' }}>{t?.sizing}</dd>
+                        <dt>OS</dt><dd className="mono">{t?.os_name} {t?.os_version}</dd>
+                      </dl>
+
+                      {!isUpgrade || isSpecChange ? (
+                        <>
+                          <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Compute</div>
+                          <dl className="dl">
+                            <dt>vCPU</dt><dd className="mono">{t?.vcpu} cores</dd>
+                            <dt>Memory</dt><dd className="mono">{t?.ram_gb} GB</dd>
+                            <dt>Storage</dt><dd className="mono">{t?.storage} GB</dd>
+                          </dl>
+                        </>
+                      ) : null}
+                    </div>
+
+                    <div>
+                      <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Network</div>
+                      <dl className="dl">
+                        <dt>Zone</dt><dd className="mono">{t?.zone}</dd>
+                        <dt>Public IP</dt><dd className="mono">{t?.public_ip_required ? 'Yes' : 'No'}</dd>
+                        {t?.nics && t.nics.length > 0 && (
+                          <>
+                            <dt>NICs</dt>
+                            <dd className="mono">{t.nics.map((n: any) => n.description ? `${n.label} (${n.description})` : n.label).join(', ')}</dd>
+                          </>
+                        )}
+                        {t?.firewall_ports && t.firewall_ports.length > 0 && (
+                          <>
+                            <dt>Firewall Ports</dt>
+                            <dd className="mono">{t.firewall_ports.join(', ')}</dd>
+                          </>
+                        )}
+                      </dl>
+
+                      {t?.storage_partitions && (
+                        <>
+                          <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Storage</div>
+                          <dl className="dl">
+                            <dt>Storage Partitions</dt>
+                            <dd className="mono">{t.storage_partitions}</dd>
+                          </dl>
+                        </>
+                      )}
+
+                      {(!isUpgrade || isBackupChange) && (
+                        <>
+                          <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Backup</div>
+                          <dl className="dl">
+                            <dt>Backup</dt>
+                            <dd className="mono">
+                              {isUpgrade && currentVMData ? (
+                                <>
+                                  {currentVMData.backup_enabled ? `${currentVMData.backup_type === 'daily' ? 'Daily' : 'Weekly'} Backup` : 'Disabled'}
+                                  <span style={{ color: 'var(--accent-strong)', margin: '0 4px' }}>→</span>
+                                  <span style={{ color: 'var(--accent-strong)', fontWeight: 600 }}>
+                                    {t?.backup_enabled ? `${t?.backup_type === 'daily' ? 'Daily' : 'Weekly'} Backup` : 'Disabled'}
+                                  </span>
+                                </>
+                              ) : (
+                                t?.backup_enabled ? `${t?.backup_type === 'daily' ? 'Daily' : 'Weekly'} Backup` : 'Disabled'
+                              )}
+                            </dd>
+                          </dl>
+                        </>
+                      )}
+
+                      {t?.notes && (
+                        <>
+                          <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Notes</div>
+                          <dl className="dl">
+                            <dt>Notes</dt><dd>{t?.notes}</dd>
+                          </dl>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </>
               ) : (
                 <>

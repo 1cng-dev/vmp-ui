@@ -22,7 +22,7 @@ export interface TeamStoreValue {
   team: TeamMember[]
   teamLoading: boolean
   loadTeam: () => Promise<void>
-  addMember: (member: Omit<TeamMember, 'id' | 'last' | 'status'>) => Promise<void>
+  addMember: (member: Omit<TeamMember, 'id' | 'last' | 'status'>) => Promise<{ password: string }>
   updateMember: (id: string, patch: any) => Promise<void>
   removeMember: (id: string) => Promise<void>
   resetPassword: (id: string, password: string) => Promise<void>
@@ -67,7 +67,7 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const invitedBy = authUser.data.user?.id
     const invitedByName = authUser.data.user?.user_metadata?.name || authUser.data.user?.email || 'System'
 
-    // Generate temporary password (user never sees this)
+    // Generate temporary password
     const tempPassword = Math.random().toString(36).slice(-12)
 
     // Create Supabase auth user first
@@ -89,10 +89,7 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const userId = userData.user.id
 
-    // Generate invite token
-    const inviteToken = crypto.randomUUID()
-
-    // Create team_members record with the user_id
+    // Create team_members record with the user_id (no invite token needed)
     const { error } = await supabase
       .from('team_members')
       .insert({
@@ -101,11 +98,9 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         name: member.name,
         role: member.role,
         team: member.team,
-        status: 'Inactive', // Set to Inactive until they accept the invite
+        status: 'Active', // Set to Active directly since they can login with temp password
         invited_by: invitedBy,
-        invited_by_name: invitedByName,
-        invite_token: inviteToken,
-        invite_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
+        invited_by_name: invitedByName
       })
       .select()
       .single()
@@ -115,31 +110,10 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       throw error
     }
 
-    // Generate invite token and direct link
-    const inviteLink = `${window.location.origin}/setup-password?token=${inviteToken}`
-    console.log('Invite token generated:', inviteToken)
-    console.log('Direct invite link:', inviteLink)
-    console.log('About to save to database with user_id:', userId, 'and invite_token:', inviteToken)
-
-    // Call Edge Function to send Resend email with direct link
-    const { error: emailError } = await supabase.functions.invoke('send-invite', {
-      body: {
-        email: member.email,
-        name: member.name,
-        role: member.role,
-        team: member.team,
-        inviteToken: inviteToken,
-        inviteLink: inviteLink // Send direct link to edge function
-      }
-    })
-
-    if (emailError) {
-      console.error('Failed to send invite email:', emailError)
-      throw emailError
-    }
-
     await loadTeam()
-    console.log('Team reloaded after invite')
+    
+    // Return the temporary password to show to the admin
+    return { password: tempPassword }
   }, [loadTeam])
 
   const updateMember = useCallback(async (id: string, patch: any) => {

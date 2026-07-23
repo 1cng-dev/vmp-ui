@@ -134,9 +134,18 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
                 <dl className="dl">
                   <dt>Public IPv4</dt><dd className="mono fw-6">{vm.public_ip || '—'}</dd>
                   <dt>Private IPv4</dt><dd className="mono">{vm.private_ip || '—'}</dd>
-                  <dt>NICs</dt><dd className="mono">{vmRequest?.nics && vmRequest.nics.length > 0
-                    ? vmRequest.nics.map((nic: any) => nic.vlan || nic.label).join(', ')
-                    : vmRequest?.zone || '—'}</dd>
+                  <dt>Zone</dt><dd className="mono">{vmRequest?.zone || (vm as any).zone || '—'}</dd>
+                  <dt>NICs</dt><dd className="mono">{(() => {
+                    try {
+                      const src = vmRequest?.nics ?? (vm as any).nics
+                      const arr = Array.isArray(src) ? src : (typeof src === 'string' ? JSON.parse(src) : [])
+                      return arr && arr.length > 0
+                        ? arr.map((nic: any) => nic?.description ? `${nic.label} (${nic.description})` : nic.label).join(', ')
+                        : '—'
+                    } catch {
+                      return '—'
+                    }
+                  })()}</dd>
                   <dt>Public access</dt><dd><span className="pill ok"><span className="dot" />Enabled</span></dd>
                   <dt>Firewall policy</dt><dd className="mono">Default</dd>
                 </dl>
@@ -148,20 +157,36 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
                     <table className="tbl">
                       <thead><tr><th>Port</th><th>Protocol</th><th>Source</th></tr></thead>
                       <tbody>
-                        {vmRequest?.firewall_ports?.map((port: any, idx: number) => (
-                          <tr key={idx}>
-                            <td className="mono fw-6">{port}</td>
-                            <td className="mono">TCP</td>
-                            <td className="text-sm">any</td>
-                          </tr>
-                        ))}
-                        {(!vmRequest?.firewall_ports || vmRequest.firewall_ports.length === 0) && (
-                          <>
-                            <tr><td className="mono fw-6">443</td><td className="mono">TCP</td><td className="text-sm">any (HTTPS)</td></tr>
-                            <tr><td className="mono fw-6">80</td><td className="mono">TCP</td><td className="text-sm">any (HTTP)</td></tr>
-                            <tr><td className="mono fw-6">22</td><td className="mono">TCP</td><td className="text-sm">trusted-admin</td></tr>
-                          </>
-                        )}
+                        {(() => {
+                          try {
+                            const src = vmRequest?.firewall_ports ?? (vm as any).firewall_ports
+                            const arr = Array.isArray(src) ? src : (typeof src === 'string' ? JSON.parse(src) : [])
+                            if (!arr || arr.length === 0) {
+                              return (
+                                <>
+                                  <tr><td className="mono fw-6">443</td><td className="mono">TCP</td><td className="text-sm">any (HTTPS)</td></tr>
+                                  <tr><td className="mono fw-6">80</td><td className="mono">TCP</td><td className="text-sm">any (HTTP)</td></tr>
+                                  <tr><td className="mono fw-6">22</td><td className="mono">TCP</td><td className="text-sm">trusted-admin</td></tr>
+                                </>
+                              )
+                            }
+                            return arr.map((port: any, idx: number) => (
+                              <tr key={idx}>
+                                <td className="mono fw-6">{port}</td>
+                                <td className="mono">TCP</td>
+                                <td className="text-sm">any</td>
+                              </tr>
+                            ))
+                          } catch {
+                            return (
+                              <>
+                                <tr><td className="mono fw-6">443</td><td className="mono">TCP</td><td className="text-sm">any (HTTPS)</td></tr>
+                                <tr><td className="mono fw-6">80</td><td className="mono">TCP</td><td className="text-sm">any (HTTP)</td></tr>
+                                <tr><td className="mono fw-6">22</td><td className="mono">TCP</td><td className="text-sm">trusted-admin</td></tr>
+                              </>
+                            )
+                          }
+                        })()}
                       </tbody>
                     </table>
                   </div>

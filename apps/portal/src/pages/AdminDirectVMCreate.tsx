@@ -21,8 +21,6 @@ const AdminDirectVMCreate: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [customDuration, setCustomDuration] = useState('')
   const [isCustomDuration, setIsCustomDuration] = useState(false)
-  const [customVlan, setCustomVlan] = useState('')
-  const [isCustomVlan, setIsCustomVlan] = useState(false)
   const [customPort, setCustomPort] = useState('')
 
   const getDurationLabel = (months: number) => {
@@ -59,7 +57,7 @@ const AdminDirectVMCreate: React.FC = () => {
     backupTime: '02:00',
     backupType: 'daily',
     zone: 'yangon-dc1',
-    nics: [{ id: 1, label: 'NIC 1', type: 'Public', vlan: 'Auto-assign' }],
+    nics: [{ id: 1, label: 'NIC 1', description: '' }],
     firewallPorts: ['22', '80', '443'],
     start_date: new Date().toISOString().slice(0, 10),
     legacy_id: '',
@@ -90,8 +88,8 @@ const AdminDirectVMCreate: React.FC = () => {
   ]
 
   const zones = [
-    { id: 'yangon-dc1', name: 'Yangon Zone A', flag: '🇲🇲', flagImage: 'https://flagcdn.com/w40/mm.png', sub: 'Primary · low latency', latency: '2ms', disabled: false },
-    { id: 'yangon-dc2', name: 'Yangon Zone B', flag: '🇲🇲', flagImage: 'https://flagcdn.com/w40/mm.png', sub: 'Secondary · DR pair', latency: '4ms', disabled: true },
+    { id: 'yangon-dc1', name: 'Yangon Zone A', flag: '🇲🇲', flagImage: 'https://flagcdn.com/w40/mm.png', disabled: false },
+    { id: 'yangon-dc2', name: 'Yangon Zone B', flag: '🇲🇲', flagImage: 'https://flagcdn.com/w40/mm.png', sub: 'Coming soon', disabled: true },
   ]
 
   const commonPorts = [
@@ -122,7 +120,7 @@ const AdminDirectVMCreate: React.FC = () => {
 
   const addNic = () => {
     if (f.nics.length >= 3) return
-    set('nics', [...f.nics, { id: Date.now(), label: `NIC ${f.nics.length + 1}`, type: 'Private', vlan: 'vlan-100' }])
+    set('nics', [...f.nics, { id: Date.now(), label: `NIC ${f.nics.length + 1}`, description: '' }])
   }
 
   const removeNic = (id: number) => {
@@ -353,7 +351,7 @@ const AdminDirectVMCreate: React.FC = () => {
                     <span className="text-sm text-mute">NICs</span>
                     <div className="fw-6 text-sm" style={{ textAlign: 'right' }}>
                       {f.nics.map((n: any, i: number) => (
-                        <div key={i}>{n.label} ({n.type}, VLAN: {n.vlan})</div>
+                        <div key={i}>{n.label}{n.description ? ` (${n.description})` : ''}</div>
                       ))}
                     </div>
                   </div>
@@ -722,8 +720,8 @@ const AdminDirectVMCreate: React.FC = () => {
                       {f.zone === z.id && <Icon name="check" size={14} style={{ color: 'var(--accent-strong)' }} />}
                     </div>
                     <div className="fw-7 text-sm">{z.name}</div>
-                    <div className="text-xs text-mute">{z.sub}</div>
-                    <div className="text-xs mt-2 mono"><span className="text-mute">Latency:</span> <span className="fw-6">{z.latency}</span></div>
+                    {z.sub && <div className="text-xs text-mute mt-1">{z.sub}</div>}
+                    {!z.sub && <div style={{ height: '18px' }} />}
                   </IaaSCard>
                 </div>
               ))}
@@ -758,33 +756,14 @@ const AdminDirectVMCreate: React.FC = () => {
                     )}
                   </div>
                   <div className="grid-2" style={{ gap: 12 }}>
-                    <div>
-                      <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>Interface type</div>
-                      <div className="flex gap-2">
-                        {['Public', 'Private'].map(t => (
-                          <button key={t} className={`filter-chip ${nic.type === t ? 'active' : ''}`} onClick={() => updateNic(nic.id, 'type', t)}>{t}</button>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>VLAN / subnet</div>
-                      <select value={nic.vlan} onChange={e => { updateNic(nic.id, 'vlan', e.target.value); if (e.target.value === 'other') setIsCustomVlan(true); else setIsCustomVlan(false) }} style={{ padding: '6px 10px', border: '1px solid var(--line)', borderRadius: 6, background: 'var(--surface)', fontSize: 12, width: '100%' }}>
-                        <option value="Auto-assign">Auto-assign</option>
-                        <option value="VLAN 100 (default)">VLAN 100 (default)</option>
-                        <option value="VLAN 200 (management)">VLAN 200 (management)</option>
-                        <option value="VLAN 300 (storage)">VLAN 300 (storage)</option>
-                        <option value="VLAN 400 (backup)">VLAN 400 (backup)</option>
-                        <option value="other">Other (custom)</option>
-                      </select>
-                      {isCustomVlan && nic.vlan === 'other' && (
-                        <input
-                          type="text"
-                          value={customVlan}
-                          onChange={e => { setCustomVlan(e.target.value); updateNic(nic.id, 'vlan', e.target.value) }}
-                          placeholder="Enter VLAN or subnet"
-                          style={{ marginTop: 8, padding: '6px 10px', border: '1px solid var(--line)', borderRadius: 6, background: 'var(--surface)', fontSize: 12, width: '100%' }}
-                        />
-                      )}
+                    <div className="field" style={{ gridColumn: 'span 2' }}>
+                      <label>Description</label>
+                      <textarea
+                        rows={2}
+                        value={nic.description || ''}
+                        onChange={e => updateNic(nic.id, 'description', e.target.value)}
+                        placeholder="e.g. Public-facing web, internal DB sync, backup network"
+                      />
                     </div>
                   </div>
                 </div>

@@ -71,7 +71,7 @@ export const CustomerRequestDetail: React.FC<CustomerRequestDetailProps> = ({ re
                 {t.nics && t.nics.length > 0 && (
                   <>
                     <dt>NICs</dt>
-                    <dd className="mono">{t.nics.map((n: any) => `${n.label} (${n.type}, VLAN: ${n.vlan})`).join(', ')}</dd>
+                    <dd className="mono">{t.nics.map((n: any) => n.description ? `${n.label} (${n.description})` : n.label).join(', ')}</dd>
                   </>
                 )}
                 {(!isChangePlan || isBackupChange) && t.backup_enabled && (
