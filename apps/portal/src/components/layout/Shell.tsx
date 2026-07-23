@@ -34,7 +34,6 @@ interface TopbarProps {
   theme: string
   setTheme: (theme: string) => void
   onBellClick?: () => void
-  onSearchClick?: () => void
   onHelpClick?: () => void
   unread?: number
 }
@@ -222,7 +221,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
   )
 }
 
-export const Topbar: React.FC<TopbarProps> = ({ crumbs, actions, theme, setTheme, onBellClick, onSearchClick, onHelpClick, unread }) => (
+export const Topbar: React.FC<TopbarProps> = ({ crumbs, actions, theme, setTheme, onBellClick, onHelpClick, unread }) => (
   <div className="topbar">
     <div className="crumbs">
       {crumbs.map((c, i) => (
@@ -233,11 +232,6 @@ export const Topbar: React.FC<TopbarProps> = ({ crumbs, actions, theme, setTheme
       ))}
     </div>
     <div className="topbar-spacer" />
-    <div className="search" onClick={onSearchClick}>
-      <Icon name="search" size={14} className="search-icon" />
-      <input placeholder="Search VMs, customers, invoices…" readOnly style={{ cursor: 'pointer' }} />
-      <span className="kbd">⌘K</span>
-    </div>
     <button className="icon-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} title="Toggle theme">
       <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={15} />
     </button>

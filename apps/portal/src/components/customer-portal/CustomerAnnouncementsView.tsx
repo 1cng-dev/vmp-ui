@@ -1,9 +1,10 @@
 import React, { useEffect } from 'react'
 import useAnnouncementStore from '../../store/announcementStore'
 import { CircularSpinner } from '../ui/ui'
+import Icon from '../../lib/icons'
 
 export const CustomerAnnouncementsView: React.FC = () => {
-  const { announcements, loadAnnouncements, announcementsLoading } = useAnnouncementStore()
+  const { announcements, loadAnnouncements, announcementsLoading, markAnnouncementRead, markAllAnnouncementsRead } = useAnnouncementStore()
 
   useEffect(() => {
     if (announcements.length === 0) {
@@ -12,6 +13,7 @@ export const CustomerAnnouncementsView: React.FC = () => {
   }, [loadAnnouncements, announcements.length])
 
   const sentAnnouncements = announcements.filter((a: any) => a.status === 'Sent')
+  const unreadCount = sentAnnouncements.filter((a: any) => !a.read).length
 
   return (
     <div className="content">
@@ -20,6 +22,11 @@ export const CustomerAnnouncementsView: React.FC = () => {
           <h1 className="page-title">Announcements</h1>
           <p className="page-subtitle">Latest updates and news from the VPS Myanmar team</p>
         </div>
+        {unreadCount > 0 && (
+          <div className="page-actions">
+            <button className="btn" onClick={markAllAnnouncementsRead}><Icon name="check" size={13} />Mark all read</button>
+          </div>
+        )}
       </div>
 
       <div className="card">
@@ -30,8 +37,27 @@ export const CustomerAnnouncementsView: React.FC = () => {
               {announcementsLoading ? (
                 <tr><td colSpan={3}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
               ) : sentAnnouncements.map((a: any) => (
-                <tr key={a.id}>
-                  <td><div className="fw-6">{a.title}</div></td>
+                <tr 
+                  key={a.id} 
+                  style={{ 
+                    backgroundColor: !a.read ? 'var(--bg-subtle)' : undefined,
+                    cursor: !a.read ? 'pointer' : 'default' 
+                  }}
+                  onClick={() => !a.read && markAnnouncementRead(a.id)}
+                >
+                  <td>
+                    <div className="fw-6" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {!a.read && (
+                        <span style={{ 
+                          width: 8, 
+                          height: 8, 
+                          borderRadius: '50%', 
+                          background: 'var(--accent)' 
+                        }} />
+                      )}
+                      {a.title}
+                    </div>
+                  </td>
                   <td><div className="text-sm text-mute">{a.body}</div></td>
                   <td className="tnum text-sm">{a.sent_at ? new Date(a.sent_at).toLocaleDateString() : '—'}</td>
                 </tr>

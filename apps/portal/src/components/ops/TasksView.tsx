@@ -123,7 +123,7 @@ export const TasksView: React.FC<TasksViewProps> = ({ openTask, setView, setAuto
                           </td>
                           <td className="right">
                             <div className="flex center gap-1">
-                              {t.request_type !== 'trial' ? (
+                              {t.request_type !== 'trial' && userRole !== 'Finance' && userRole !== 'Engineer' ? (
                                 <button className="btn" style={{ padding: '4px 10px', fontSize: 11, width: '80px' }} onClick={e => { e.stopPropagation(); setPrefillCustomerId && setPrefillCustomerId(t.customer_id); setPrefillRequestId && setPrefillRequestId(t.id); setPrefillRequestType && setPrefillRequestType(t.requestType); setAutoOpenQuote && setAutoOpenQuote(true); setView && setView('quotes'); }}>
                                   {quote ? 'New Quote' : 'Quotation'}
                                 </button>

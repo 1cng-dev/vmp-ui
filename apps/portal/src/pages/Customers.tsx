@@ -113,14 +113,13 @@ const CustomersView: React.FC<CustomersViewProps> = ({ openCust, openModal, user
                 <th>Status</th>
                 <th className="right">Active VMs</th>
                 <th>Since</th>
-                <th style={{ width: 40 }}></th>
               </tr>
             </thead>
             <tbody>
               {customersLoading ? (
-                <tr><td colSpan={7}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
+                <tr><td colSpan={6}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={7}><div className="empty"><div className="title">No customers yet</div><div className="sub">Customers will appear here when they sign up.</div></div></td></tr>
+                <tr><td colSpan={6}><div className="empty"><div className="title">No customers yet</div><div className="sub">Customers will appear here when they sign up.</div></div></td></tr>
               ) : (
                 filtered.map(c => {
                   const vmCount = vms.filter(v => v.customer_id === c.id && v.status === 'Active').length
@@ -136,52 +135,7 @@ const CustomersView: React.FC<CustomersViewProps> = ({ openCust, openModal, user
                     <td><StatusPill status={c.kyc_status} /></td>
                     <td><StatusPill status={c.status} /></td>
                     <td className="right tnum">{vmCount}</td>
-                    <td className="tnum text-sm">{c.created_at}</td>
-                    <td onClick={e => e.stopPropagation()} style={{ position: 'relative' }}>
-                      <button className="icon-btn" onClick={(e) => { e.stopPropagation(); setMenu(menu === c.id ? null : c.id); }}><Icon name="more" /></button>
-                      {menu === c.id && (
-                        <div onClick={e => e.stopPropagation()} style={{
-                          position: 'absolute', right: 14, top: 36, zIndex: 20,
-                          background: 'var(--surface)', border: '1px solid var(--line)',
-                          borderRadius: 8, boxShadow: 'var(--shadow)', minWidth: 180, padding: 4,
-                        }}>
-                          <button className="nav-item" onClick={() => { openCust(c.id); setMenu(null); }}><Icon name="eye" size={13} />View profile</button>
-                          <button className="nav-item" onClick={() => { openModal('email', { to: c.email }); setMenu(null); }}><Icon name="mail" size={13} />Send email</button>
-                          {userRole === 'Admin' && <button className="nav-item" onClick={() => { openModal('newvm', { customer: c.id }); setMenu(null); }}><Icon name="plus" size={13} />New VM</button>}
-                          {c.status === 'Active'
-                            ? <button className="nav-item" onClick={() => {
-                              openModal('confirm', {
-                                title: 'Deactivate Customer',
-                                message: `Deactivate customer ${c.name}?`,
-                                onConfirm: () => { updateCustomer(c.id, { status: 'Inactive' }); setMenu(null) }
-                              })
-                            }}><Icon name="pause" size={13} />Deactivate</button>
-                            : <button className="nav-item" onClick={() => {
-                              openModal('confirm', {
-                                title: 'Activate Customer',
-                                message: `Activate customer ${c.name}?`,
-                                onConfirm: () => { updateCustomer(c.id, { status: 'Active' }); setMenu(null) }
-                              })
-                            }}><Icon name="play" size={13} />Activate</button>
-                          }
-                          <button className="nav-item" style={{ color: 'var(--bad)' }} onClick={() => {
-                            openModal('confirm', {
-                              title: 'Delete Customer',
-                              message: `Delete customer ${c.name}? This will permanently remove their account and all associated data.`,
-                              onConfirm: async () => {
-                                try {
-                                  await deleteCustomer(c.id)
-                                  toast(`Customer ${c.name} deleted`, 'ok')
-                                  setMenu(null)
-                                } catch (error) {
-                                  toast('Failed to delete customer', 'error')
-                                }
-                              }
-                            })
-                          }}><Icon name="trash" size={13} />Delete customer</button>
-                        </div>
-                      )}
-                    </td>
+                    <td className="tnum text-sm">{c.created_at ? new Date(c.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}</td>
                   </tr>
                 )
               })

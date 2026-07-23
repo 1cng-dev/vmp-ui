@@ -115,12 +115,6 @@ const AdminDirectVMCreate: React.FC = () => {
   const teamMemberIds = team.map((t: any) => t.user_id)
   const actualCustomers = customers.filter((c: any) => !teamMemberIds.includes(c.id))
 
-  const calculateEndDate = () => {
-    const end = new Date(f.start_date)
-    end.setMonth(end.getMonth() + f.duration)
-    return end.toISOString().slice(0, 10)
-  }
-
   const togglePort = (port: string) => {
     const ports = f.firewallPorts
     set('firewallPorts', ports.includes(port) ? ports.filter((p: string) => p !== port) : [...ports, port])
@@ -156,20 +150,50 @@ const AdminDirectVMCreate: React.FC = () => {
   const confirmSubmit = async () => {
     try {
       setIsSubmitting(true)
-      
+
+      // Validate required fields
+      if (!f.legacy_id) {
+        toast('Legacy ID is required', 'bad')
+        setIsSubmitting(false)
+        return
+      }
+      if (!f.assigned_vmid) {
+        toast('Assigned VM ID is required', 'bad')
+        setIsSubmitting(false)
+        return
+      }
+      if (!f.public_ip) {
+        toast('Public IPv4 is required', 'bad')
+        setIsSubmitting(false)
+        return
+      }
+      if (!f.private_ip) {
+        toast('Private IPv4 is required', 'bad')
+        setIsSubmitting(false)
+        return
+      }
+      if (!f.username) {
+        toast('Username is required', 'bad')
+        setIsSubmitting(false)
+        return
+      }
+      if (!f.password) {
+        toast('Password is required', 'bad')
+        setIsSubmitting(false)
+        return
+      }
+
       // Check for duplicate legacy_id
-      if (f.legacy_id) {
-        const { data: existingVM } = await supabase
-          .from('vms')
-          .select('id')
-          .eq('legacy_id', f.legacy_id)
-          .single()
-        
-        if (existingVM) {
-          toast('Legacy ID already exists. Please use a different ID.', 'bad')
-          setIsSubmitting(false)
-          return
-        }
+      const { data: existingVM } = await supabase
+        .from('vms')
+        .select('id')
+        .eq('legacy_id', f.legacy_id)
+        .single()
+
+      if (existingVM) {
+        toast('Legacy ID already exists. Please use a different ID.', 'bad')
+        setIsSubmitting(false)
+        return
       }
       
       // Calculate expiry date using same logic as customer VM request: start_date + 1 day + duration
@@ -184,12 +208,12 @@ const AdminDirectVMCreate: React.FC = () => {
         customer_id: f.customer,
         request_type: f.requestType,
         task_type: 'new',
-        legacy_id: f.legacy_id || undefined,
-        assigned_vmid: parseInt(f.assigned_vmid) || undefined,
-        public_ip: f.public_ip || undefined,
-        private_ip: f.private_ip || undefined,
-        username: f.username || undefined,
-        password: f.password || undefined,
+        legacy_id: f.legacy_id,
+        assigned_vmid: parseInt(f.assigned_vmid),
+        public_ip: f.public_ip,
+        private_ip: f.private_ip,
+        username: f.username,
+        password: f.password,
         vcpu: f.vcpu,
         ram_gb: f.ram,
         storage_gb: f.storage,
@@ -237,7 +261,7 @@ const AdminDirectVMCreate: React.FC = () => {
           cpfs_package: f.cpfs_enabled ? f.cpfs_package : undefined,
           ccis_enabled: f.ccis_enabled,
           ccis_package: f.ccis_enabled ? f.ccis_package : undefined,
-          duration: String(f.addon_duration),
+          duration: `${f.addon_duration} month${f.addon_duration > 1 ? 's' : ''}`,
           start_date: f.addon_start_date + 'T00:00:00.000Z',
           end_date: expiryDate.toISOString(),
           expiry: expiryDate.toISOString(),
@@ -990,27 +1014,27 @@ const AdminDirectVMCreate: React.FC = () => {
           <div className="card-body">
             <div className="grid-2" style={{ gap: 12 }}>
               <div className="field">
-                <label>Legacy ID</label>
+                <label>Legacy ID <span style={{ color: 'var(--bad)' }}>*</span></label>
                 <input value={f.legacy_id} onChange={e => set('legacy_id', e.target.value)} placeholder="e.g. AD-1024" />
               </div>
               <div className="field">
-                <label>Assigned VM ID</label>
+                <label>Assigned VM ID <span style={{ color: 'var(--bad)' }}>*</span></label>
                 <input value={f.assigned_vmid} onChange={e => set('assigned_vmid', e.target.value)} placeholder="e.g. 1001" />
               </div>
               <div className="field">
-                <label>Public IPv4</label>
+                <label>Public IPv4 <span style={{ color: 'var(--bad)' }}>*</span></label>
                 <input value={f.public_ip} onChange={e => set('public_ip', e.target.value)} placeholder="e.g. 203.81.64.10" />
               </div>
               <div className="field">
-                <label>Private IPv4</label>
+                <label>Private IPv4 <span style={{ color: 'var(--bad)' }}>*</span></label>
                 <input value={f.private_ip} onChange={e => set('private_ip', e.target.value)} placeholder="e.g. 10.0.0.5" />
               </div>
               <div className="field">
-                <label>Username</label>
+                <label>Username <span style={{ color: 'var(--bad)' }}>*</span></label>
                 <input value={f.username} onChange={e => set('username', e.target.value)} placeholder="e.g. root" />
               </div>
               <div className="field">
-                <label>Password</label>
+                <label>Password <span style={{ color: 'var(--bad)' }}>*</span></label>
                 <input type="password" value={f.password} onChange={e => set('password', e.target.value)} placeholder="VM password" />
               </div>
             </div>

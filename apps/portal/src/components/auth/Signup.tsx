@@ -139,7 +139,12 @@ const SignupScreen: React.FC<{ onComplete: (email: string) => void; onSwitchToLo
         payer_phone: f.payerPhone,
         status: 'Active',
         agreed_to_terms: f.agreedToTerms,
-                              }
+        nrcFrontFile: f.nrcFrontFile,
+        nrcBackFile: f.nrcBackFile,
+        orgCertFile: f.orgCertFile,
+        orgTaxIdFile: f.orgTaxIdFile,
+        dirIdFile: f.dirIdFile,
+      }
     })
 
     if (!result.success) {

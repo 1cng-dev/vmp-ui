@@ -17,9 +17,10 @@ import { exportToPDF } from '@/lib/pdfExport'
 interface FinanceViewProps {
   openCust: (id: string) => void
   openModal: (kind: string, props?: any) => void
+  userRole?: string
 }
 
-const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal }) => {
+const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal, userRole }) => {
   const { invoices, invoicesLoading, markPaid, loadInvoices } = useInvoiceStore()
   const { customers } = useCustomerStore()
   const { vmRequests } = useVMRequestStore()
@@ -410,7 +411,7 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal }) => {
                         {selectedExportColumns.includes('vat') && <td className="right tnum text-sm">MMK {formatMMK(i.vat || 0)}</td>}
                         {selectedExportColumns.includes('grossAmount') && <td className="right tnum fw-6 text-sm">MMK {formatMMK(i.gross_amount || i.amount)}</td>}
                         <td onClick={e => e.stopPropagation()} className="right">
-                          {i.status === 'Payment Received' ? (
+                          {i.status === 'Payment Received' && userRole !== 'Sales' ? (
                             <button className="btn sm" onClick={async () => {
                               const { supabase } = await import('../lib/supabase')
                               const { data: { user } } = await supabase.auth.getUser()
@@ -434,7 +435,7 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal }) => {
                                 status: 'sent'
                               })
                             }}><Icon name="mail" size={11} />Send receipt</button>
-                          ) : (
+                          ) : userRole !== 'Sales' && (
                             <button className="btn sm" onClick={() => markPaid(i.id, `RCT-${i.id.slice(0, 8)}`)}><Icon name="check" size={11} />Mark paid</button>
                           )}
                         </td>
@@ -448,7 +449,7 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal }) => {
           </div>
         </>
       ) : (
-        <InvoiceDrawer invoice={selectedInvoice} onClose={() => setView('list')} openCust={openCust} openModal={openModal} />
+        <InvoiceDrawer invoice={selectedInvoice} onClose={() => setView('list')} openCust={openCust} openModal={openModal} role={userRole} />
       )}
     </div>
   )

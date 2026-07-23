@@ -1035,16 +1035,11 @@ const EmailModal: React.FC<EmailModalProps> = ({ onClose, to, template }) => {
   const { settings } = useSystemSettingsStore()
   const companyName = settings?.company_name || 'VPS Myanmar'
   const templates: Record<string, { subject: string; body: string }> = {
-    welcome: { subject: `Welcome to ${companyName}`, body: `Hi,\n\nThank you for signing up. To activate your account, please complete the KYC verification by uploading your ID and company registration documents.\n\nThe link is in the portal.\n\n— ${companyName} Team` },
-    renewal: { subject: 'Your VM subscription is expiring soon', body: `Hi,\n\nYour subscription is set to expire in 7 days. To avoid service interruption, please confirm your renewal.\n\nReply to this email or visit the portal.\n\n— ${companyName} Team` },
-    invoice: { subject: 'Invoice attached', body: `Hi,\n\nPlease find your invoice attached.\n\nPayment is due within 10 days. We accept KBZ Pay, AYA Bank, and CB Bank transfers.\n\n— ${companyName} Team` },
     receipt: { subject: 'Payment receipt', body: `Hi,\n\nThank you for your payment. Your receipt is attached for your records.\n\nIf you have any questions, please don't hesitate to contact us.\n\n— ${companyName} Team` },
-    kyc_request: { subject: 'KYC document re-upload', body: `Hi,\n\nWe need to re-verify your identity documents. Please upload a clearer image of your NRC.\n\nLink: portal.vpsmm.co/kyc\n\n— ${companyName} Team` },
   }
-  const [tmpl, setTmpl] = useState(template || 'renewal')
+  const [tmpl, setTmpl] = useState(template || 'receipt')
   const [f, setF] = useState({ to: to || '', subject: templates[tmpl].subject, body: templates[tmpl].body })
   const set = (k: string, v: any) => setF(x => ({ ...x, [k]: v }))
-  const pick = (k: string) => { setTmpl(k); setF(x => ({ ...x, subject: templates[k].subject, body: templates[k].body })) }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -1055,16 +1050,6 @@ const EmailModal: React.FC<EmailModalProps> = ({ onClose, to, template }) => {
         </div>
         <div className="modal-body">
           <div className="flex col gap-3">
-            <div className="field">
-              <label>Template</label>
-              <div className="flex gap-2 wrap">
-                {Object.keys(templates).map(k => (
-                  <button key={k} type="button" className={`filter-chip ${tmpl === k ? 'active' : ''}`} onClick={() => pick(k)}>
-                    {k.replace('_', ' ')}
-                  </button>
-                ))}
-              </div>
-            </div>
             <div className="field"><label>To</label><input value={f.to} onChange={e => set('to', e.target.value)} placeholder="customer@email.com" /></div>
             <div className="field"><label>Subject</label><input value={f.subject} onChange={e => set('subject', e.target.value)} /></div>
             <div className="field"><label>Body</label><textarea rows={6} value={f.body} onChange={e => set('body', e.target.value)} /></div>
@@ -1207,6 +1192,7 @@ const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({ onClose, presetCustom
   const { customers } = useCustomerStore()
   const { vmRequests } = useVMRequestStore()
   const { toast } = useUIStore()
+  const [loading, setLoading] = useState(false)
 
   const [f, setF] = useState({
     customer: presetCustomer || presetQuote?.customer_id || '',
@@ -1280,6 +1266,7 @@ const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({ onClose, presetCustom
 
   const submit = async () => {
     try {
+      setLoading(true)
       const id = await addInvoice({
         customer_id: f.customer,
         vm_request_ids: f.vm_request_ids,
@@ -1301,6 +1288,8 @@ const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({ onClose, presetCustom
       onClose()
     } catch (error) {
       toast('Failed to create invoice', 'error')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -1398,7 +1387,7 @@ const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({ onClose, presetCustom
                     <div className="flex between"><span className="text-mute">Net Amount</span><span className="tnum fw-6">MMK {formatMMK(netAmount)}</span></div>
                     <div className="flex between"><span className="text-mute">VAT</span><span className="tnum fw-6">MMK {formatMMK(vat)}</span></div>
                     <div className="flex between"><span className="text-mute">Billing Term</span><span className="tnum fw-6">{(presetQuote as any).billing_term || '—'}</span></div>
-                    <div className="flex between"><span className="text-mute">Invoice Date</span><span className="tnum fw-6">{issuedDate.toISOString().slice(0, 10)}</span></div>
+                    <div className="flex between"><span className="text-mute">Invoice Date</span><input type="date" value={f.invoiceDate} onChange={e => set('invoiceDate', e.target.value)} style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--line)', width: 140 }} /></div>
                     <div className="flex between"><span className="text-mute">Due Date</span><span className="tnum fw-6">{dueDate.toISOString().slice(0, 10)}</span></div>
                     <div className="divider" />
                     <div className="flex between"><span className="fw-7">Grand Total</span><span className="tnum fw-7" style={{ fontSize: 16 }}>MMK {formatMMK(grossAmount)}</span></div>
@@ -1438,8 +1427,11 @@ const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({ onClose, presetCustom
           </div>
         </div>
         <div className="modal-foot">
-          <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <button className="btn accent" disabled={!f.vm_request_ids.length && !f.addon_request_ids.length} onClick={submit}><Icon name="plus" size={12} />Create invoice</button>
+          <button className="btn ghost" onClick={onClose} disabled={loading}>Cancel</button>
+          <button className="btn accent" disabled={loading || (!f.vm_request_ids.length && !f.addon_request_ids.length)} onClick={submit}>
+            {loading ? <Icon name="spinner" size={12} /> : <Icon name="plus" size={12} />}
+            {loading ? 'Creating...' : 'Create invoice'}
+          </button>
         </div>
       </div>
     </div>

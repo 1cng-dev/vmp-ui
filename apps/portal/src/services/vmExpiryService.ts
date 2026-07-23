@@ -53,25 +53,14 @@ export async function checkVMExpiry(): Promise<VMExpiryCheckResult> {
       }
 
       // Create alerts based on days until expiry
-      if (daysUntilExpiry === 14) {
-        await createExpiryAlert(vm, 14, '14 days before expiry')
+      if (daysUntilExpiry >= 0 && daysUntilExpiry <= 14) {
+        // Expiring within the next 14 days
+        await createExpiryAlert(vm, daysUntilExpiry, daysUntilExpiry === 0 ? 'expiring today' : `expiring in ${daysUntilExpiry} day${daysUntilExpiry !== 1 ? 's' : ''}`)
         result.alertsCreated++
-        result.details.push(`Created 14-day alert for VM ${vm.hostname}`)
-      } else if (daysUntilExpiry === 7) {
-        await createExpiryAlert(vm, 7, '7 days before expiry')
-        result.alertsCreated++
-        result.details.push(`Created 7-day alert for VM ${vm.hostname}`)
-      } else if (daysUntilExpiry === 1) {
-        await createExpiryAlert(vm, 1, '1 day before expiry')
-        result.alertsCreated++
-        result.details.push(`Created 1-day alert for VM ${vm.hostname}`)
-      } else if (daysUntilExpiry === 0) {
-        await createExpiryAlert(vm, 0, 'expired today')
-        result.alertsCreated++
-        result.details.push(`Created expiry-day alert for VM ${vm.hostname}`)
+        result.details.push(`Created expiring soon alert for VM ${vm.hostname} (${daysUntilExpiry} days)`)
       } else if (daysUntilExpiry < 0 && daysUntilExpiry >= -30) {
         // Grace period: 0 to 30 days after expiry (send daily notifications)
-        await createExpiryAlert(vm, daysUntilExpiry, `in grace period (${Math.abs(daysUntilExpiry)} days overdue)`)
+        await createExpiryAlert(vm, daysUntilExpiry, `expired ${Math.abs(daysUntilExpiry)} day${Math.abs(daysUntilExpiry) !== 1 ? 's' : ''} ago`)
         result.alertsCreated++
         result.details.push(`Created grace period alert for VM ${vm.hostname}`)
       }

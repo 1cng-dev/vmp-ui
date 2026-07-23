@@ -3,8 +3,6 @@ import { useTeamStore } from '../store/TeamContext'
 import useUIStore from '../store/uiStore'
 import Icon from '../lib/icons'
 import { Avatar, CircularSpinner } from '../components/ui/ui'
-import { SecurityCol } from '../components/team/SecurityCol'
-import { SettingsView } from '../components/team/SettingsView'
 import InviteTeamMemberModal from '../components/modals/InviteTeamMemberModal'
 
 interface TeamViewProps {
@@ -140,31 +138,6 @@ const TeamView: React.FC<TeamViewProps> = () => {
       </div>
       </>
 
-        <div className="card">
-          <div className="card-head"><h3 className="card-title">Auth & security</h3></div>
-          <div className="card-body">
-            <div className="grid-3" style={{ gap: 20 }}>
-              <SecurityCol title="Login policy" items={[
-                ['Email + password (all roles)', true],
-                ['Two-factor auth (2FA)', true],
-                ['Session auto-logout (30 min)', true],
-                ['Brute-force block (5 attempts)', true],
-              ]} />
-              <SecurityCol title="Admin access" items={[
-                ['IP whitelist (admin only)', true],
-                ['Password reset via email', true],
-                ['Audit access logs (90 days)', true],
-              ]} />
-              <SecurityCol title="Customer portal" items={[
-                ['Separate portal URL', true],
-                ['Block portal when KYC pending', true],
-                ['Read-only VM view', true],
-                ['Self-serve renewal request', true],
-              ]} />
-            </div>
-          </div>
-        </div>
-
       {inviteModalOpen && (
         <InviteTeamMemberModal onClose={() => setInviteModalOpen(false)} onSuccess={() => loadTeam()} />
       )}
@@ -273,4 +246,4 @@ const TeamView: React.FC<TeamViewProps> = () => {
   )
 }
 
-export { TeamView, SettingsView }
+export { TeamView }

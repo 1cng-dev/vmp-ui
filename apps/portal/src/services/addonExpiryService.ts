@@ -54,25 +54,14 @@ export async function checkAddonExpiry(): Promise<AddonExpiryCheckResult> {
       }
 
       // Create alerts based on days until expiry
-      if (daysUntilExpiry === 14) {
-        await createExpiryAlert(addon, 14, '14 days before expiry')
+      if (daysUntilExpiry >= 0 && daysUntilExpiry <= 14) {
+        // Expiring within the next 14 days
+        await createExpiryAlert(addon, daysUntilExpiry, daysUntilExpiry === 0 ? 'expiring today' : `expiring in ${daysUntilExpiry} day${daysUntilExpiry !== 1 ? 's' : ''}`)
         result.alertsCreated++
-        result.details.push(`Created 14-day alert for add-on ${addon.legacy_id || addon.id}`)
-      } else if (daysUntilExpiry === 7) {
-        await createExpiryAlert(addon, 7, '7 days before expiry')
-        result.alertsCreated++
-        result.details.push(`Created 7-day alert for add-on ${addon.legacy_id || addon.id}`)
-      } else if (daysUntilExpiry === 1) {
-        await createExpiryAlert(addon, 1, '1 day before expiry')
-        result.alertsCreated++
-        result.details.push(`Created 1-day alert for add-on ${addon.legacy_id || addon.id}`)
-      } else if (daysUntilExpiry === 0) {
-        await createExpiryAlert(addon, 0, 'expired today')
-        result.alertsCreated++
-        result.details.push(`Created expiry-day alert for add-on ${addon.legacy_id || addon.id}`)
+        result.details.push(`Created expiring soon alert for add-on ${addon.legacy_id || addon.id} (${daysUntilExpiry} days)`)
       } else if (daysUntilExpiry < 0 && daysUntilExpiry >= -30) {
         // Grace period: 0 to 30 days after expiry (send daily notifications)
-        await createExpiryAlert(addon, daysUntilExpiry, `in grace period (${Math.abs(daysUntilExpiry)} days overdue)`)
+        await createExpiryAlert(addon, daysUntilExpiry, `expired ${Math.abs(daysUntilExpiry)} day${Math.abs(daysUntilExpiry) !== 1 ? 's' : ''} ago`)
         result.alertsCreated++
         result.details.push(`Created grace period alert for add-on ${addon.legacy_id || addon.id}`)
       }

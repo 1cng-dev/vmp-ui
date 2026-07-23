@@ -30,14 +30,14 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal, userR
   const expiringSoon = vms.filter(v => {
     if (!v.expiry || v.expiry === '—') return false
     const d = Math.ceil((new Date(v.expiry).getTime() - TODAY.getTime()) / 86400000)
-    // Only VMs expiring in the future (1-14 days), not today or already expired, with Active or Suspended status only
-    return d > 0 && d <= 14 && (v.status === 'Active' || v.status === 'Suspended')
+    // Only VMs expiring in the future (1-14 days), not today or already expired, with Active status only
+    return d > 0 && d <= 14 && v.status === 'Active'
   })
   const expiredVMs = vms.filter(v => {
     if (!v.expiry || v.expiry === '—') return false
     const d = Math.ceil((new Date(v.expiry).getTime() - TODAY.getTime()) / 86400000)
-    // VMs that have already expired or expire today, with Active or Suspended status only
-    return d <= 0 && (v.status === 'Active' || v.status === 'Suspended')
+    // VMs that have already expired or expire today, with Active status only
+    return d <= 0 && v.status === 'Active'
   })
   // Calculate overdue based on due date, not status (to match AgingView logic)
   const overdueInvoices = invoices.filter(i => {
@@ -83,7 +83,6 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal, userR
 
   const statusDonut = [
     { label: 'Active', value: vms.filter(v => v.status === 'Active').length, color: 'oklch(0.62 0.13 155)' },
-    { label: 'Suspended', value: vms.filter(v => v.status === 'Suspended').length, color: 'oklch(0.6 0.18 25)' },
     { label: 'Terminated', value: vms.filter(v => v.status === 'Terminated').length, color: 'oklch(0.55 0.01 80)' },
   ]
 

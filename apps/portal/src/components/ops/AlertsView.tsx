@@ -1,11 +1,9 @@
 import React, { useState } from 'react'
 import useAlertStore from '../../store/alertStore'
-import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 
 export const AlertsView: React.FC = () => {
   const { alerts, markAlertRead, markAllAlertsRead } = useAlertStore()
-  const { toast } = useUIStore()
   const [filter, setFilter] = useState('All')
   const [sev, setSev] = useState('All')
   const [search, setSearch] = useState('')
@@ -32,7 +30,6 @@ export const AlertsView: React.FC = () => {
         </div>
         <div className="page-actions">
           <button className="btn" onClick={markAllAlertsRead}><Icon name="check" size={13} />Mark all read</button>
-          <button className="btn" onClick={() => toast('Notification settings opened', 'info')}><Icon name="settings" size={13} />Settings</button>
         </div>
       </div>
 

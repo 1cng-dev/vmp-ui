@@ -65,14 +65,14 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
   const [selectedRequestId, setSelectedRequestId] = useState<string | undefined>(undefined)
 
   const customerRequests = requestType === 'vm'
-    ? vmRequests.filter(r => r.customer_id === selectedCustomerId)
-    : addonRequests.filter(r => r.customer_id === selectedCustomerId)
+    ? vmRequests.filter(r => (r as any).customer_id === selectedCustomerId)
+    : addonRequests.filter(r => (r as any).customer_id === selectedCustomerId)
 
   const selectedRequest = requestType === 'vm'
     ? vmRequests.find(r => r.id === selectedRequestId)
     : addonRequests.find(r => r.id === selectedRequestId)
-  const isUpgrade = requestType === 'vm' && selectedRequest?.task_type?.toLowerCase() === 'change-plan'
-  const isRenewal = requestType === 'vm' && selectedRequest?.task_type?.toLowerCase() === 'renewal'
+  const isUpgrade = requestType === 'vm' && (selectedRequest as any)?.task_type?.toLowerCase() === 'change-plan'
+  const isRenewal = requestType === 'vm' && (selectedRequest as any)?.task_type?.toLowerCase() === 'renewal'
 
   // Ensure required stores are loaded once
   useEffect(() => {
@@ -108,8 +108,8 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
     const loadCurrentVMData = async () => {
       if ((isRenewal || isUpgrade) && selectedRequest) {
         // vm_requests table doesn't have vm_id, so we need to lookup by hostname
-        if (selectedRequest.hostname) {
-          const { data: vmData } = await supabase.from('vms').select('*').eq('hostname', selectedRequest.hostname).single()
+        if ((selectedRequest as any).hostname) {
+          const { data: vmData } = await supabase.from('vms').select('*').eq('hostname', (selectedRequest as any).hostname).single()
           if (vmData) {
             setCurrentVMData(vmData)
           } else {
@@ -173,20 +173,20 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
 
         // Parse notes to determine what changed
         // const notes = selectedRequest.notes || ''
-        const isSpecChange = selectedRequest.spec_changed || false
-        const isBackupChange = selectedRequest.backup_changed || false
+        const isSpecChange = (selectedRequest as any).spec_changed || false
+        const isBackupChange = (selectedRequest as any).backup_changed || false
 
         console.log('Before comparison logic:', { isSpecChange, isBackupChange })
 
         // Fallback: check if spec values differ from current VM data
         const specDiffers = currentVMData && (
-          selectedRequest.vcpu !== currentVMData.vcpu ||
-          selectedRequest.ram_gb !== (currentVMData.ram_gb || currentVMData.ram) ||
-          selectedRequest.storage !== (currentVMData.storage_gb || currentVMData.storage)
+          (selectedRequest as any).vcpu !== currentVMData.vcpu ||
+          (selectedRequest as any).ram_gb !== (currentVMData.ram_gb || currentVMData.ram) ||
+          (selectedRequest as any).storage !== (currentVMData.storage_gb || currentVMData.storage)
         )
         const backupDiffers = currentVMData && (
-          selectedRequest.backup_enabled !== currentVMData.backup_enabled ||
-          (selectedRequest.backup_enabled && selectedRequest.backup_type !== currentVMData.backup_type)
+          (selectedRequest as any).backup_enabled !== currentVMData.backup_enabled ||
+          ((selectedRequest as any).backup_enabled && (selectedRequest as any).backup_type !== currentVMData.backup_type)
         )
 
         console.log('Change comparison:', {
@@ -194,13 +194,13 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
           isBackupChange,
           specDiffers,
           backupDiffers,
-          requestVcpu: selectedRequest.vcpu,
+          requestVcpu: (selectedRequest as any).vcpu,
           currentVcpu: currentVMData?.vcpu,
-          requestRam: selectedRequest.ram_gb,
+          requestRam: (selectedRequest as any).ram_gb,
           currentRam: currentVMData?.ram_gb || currentVMData?.ram,
-          requestStorage: selectedRequest.storage,
+          requestStorage: (selectedRequest as any).storage,
           currentStorage: currentVMData?.storage_gb || currentVMData?.storage,
-          requestBackupEnabled: selectedRequest.backup_enabled,
+          requestBackupEnabled: (selectedRequest as any).backup_enabled,
           currentBackupEnabled: currentVMData?.backup_enabled,
         })
 
@@ -208,53 +208,53 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
         const backupLines: BackupLine[] = []
 
         if (isSpecChange || specDiffers) {
-          if (selectedRequest.vcpu) {
+          if ((selectedRequest as any).vcpu) {
             const vcpuMonthlyPrice = 25000 // Fixed price per vCPU core
 
             instanceLines.push({
-              spec: `vCPU|${selectedRequest.vcpu} cores`,
+              spec: `vCPU|${(selectedRequest as any).vcpu} cores`,
               vcpu: 0,
               ram: 0,
               storage: 0,
               qty: 1,
               unit: vcpuMonthlyPrice,
-              term: billingTerm
+              term: String(billingTerm)
             })
           }
-          if (selectedRequest.ram_gb) {
-            const ramMonthlyPrice = selectedRequest.ram_gb * 3000 // 3000 MMK per GB
+          if ((selectedRequest as any).ram_gb) {
+            const ramMonthlyPrice = (selectedRequest as any).ram_gb * 3000 // 3000 MMK per GB
 
             instanceLines.push({
-              spec: `RAM|${selectedRequest.ram_gb} GB`,
+              spec: `RAM|${(selectedRequest as any).ram_gb} GB`,
               vcpu: 0,
               ram: 0,
               storage: 0,
               qty: 1,
               unit: ramMonthlyPrice,
-              term: billingTerm
+              term: String(billingTerm)
             })
           }
-          if (selectedRequest.storage) {
-            const storageMonthlyPrice = selectedRequest.storage * 500 // 500 MMK per GB
+          if ((selectedRequest as any).storage) {
+            const storageMonthlyPrice = (selectedRequest as any).storage * 500 // 500 MMK per GB
 
             instanceLines.push({
-              spec: `Storage|${selectedRequest.storage} GB`,
+              spec: `Storage|${(selectedRequest as any).storage} GB`,
               vcpu: 0,
               ram: 0,
               storage: 0,
               qty: 1,
               unit: storageMonthlyPrice,
-              term: billingTerm
+              term: String(billingTerm)
             })
           }
         }
 
-        if ((isBackupChange || backupDiffers) && selectedRequest.backup_enabled) {
+        if ((isBackupChange || backupDiffers) && (selectedRequest as any).backup_enabled) {
           backupLines.push({
-            spec: selectedRequest.backup_type === 'daily' ? 'Daily Backup' : 'Weekly Backup',
-            storage: selectedRequest.storage || 0,
+            spec: (selectedRequest as any).backup_type === 'daily' ? 'Daily Backup' : 'Weekly Backup',
+            storage: (selectedRequest as any).storage || 0,
             unit: 0,
-            term: billingTerm
+            term: String(billingTerm)
           })
         }
 
@@ -273,77 +273,77 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
 
       // Parse notes to determine what changed
       // const notes = selectedRequest.notes || ''
-      const isSpecChange = selectedRequest.spec_changed || false
-      const isBackupChange = selectedRequest.backup_changed || false
+      const isSpecChange = (selectedRequest as any).spec_changed || false
+      const isBackupChange = (selectedRequest as any).backup_changed || false
 
       // Fallback: check if spec values differ from current VM data
       const specDiffers = currentVMData && (
-        selectedRequest.vcpu !== currentVMData.vcpu ||
-        selectedRequest.ram_gb !== (currentVMData.ram_gb || currentVMData.ram) ||
-        selectedRequest.storage !== (currentVMData.storage_gb || currentVMData.storage)
+        (selectedRequest as any).vcpu !== currentVMData.vcpu ||
+        (selectedRequest as any).ram_gb !== (currentVMData.ram_gb || currentVMData.ram) ||
+        (selectedRequest as any).storage !== (currentVMData.storage_gb || currentVMData.storage)
       )
       const backupDiffers = currentVMData && (
-        selectedRequest.backup_enabled !== currentVMData.backup_enabled ||
-        (selectedRequest.backup_enabled && selectedRequest.backup_type !== currentVMData.backup_type)
+        (selectedRequest as any).backup_enabled !== currentVMData.backup_enabled ||
+        ((selectedRequest as any).backup_enabled && (selectedRequest as any).backup_type !== currentVMData.backup_type)
       )
 
       const instanceLines: InstanceLine[] = []
       const backupLines: BackupLine[] = []
 
       if (isSpecChange || specDiffers) {
-        if (selectedRequest.vcpu) {
+        if ((selectedRequest as any).vcpu) {
           // Calculate vCPU monthly price
           const vcpuMonthlyPrice = (currentVMData.priceMonth || 0) / currentVMData.vcpu
 
           instanceLines.push({
-            spec: `vCPU|${selectedRequest.vcpu} cores`,
+            spec: `vCPU|${(selectedRequest as any).vcpu} cores`,
             vcpu: 0,
             ram: 0,
             storage: 0,
             qty: 1,
             unit: vcpuMonthlyPrice,
-            term: billingTerm
+            term: String(billingTerm)
           })
         }
-        if (selectedRequest.ram_gb) {
+        if ((selectedRequest as any).ram_gb) {
           // Calculate RAM monthly price
           const ramMonthlyPrice = (currentVMData.priceMonth || 0) * (currentVMData.ram_gb / currentVMData.vcpu)
 
           instanceLines.push({
-            spec: `RAM|${selectedRequest.ram_gb} GB`,
+            spec: `RAM|${(selectedRequest as any).ram_gb} GB`,
             vcpu: 0,
             ram: 0,
             storage: 0,
             qty: 1,
             unit: ramMonthlyPrice,
-            term: billingTerm
+            term: String(billingTerm)
           })
         }
-        if (selectedRequest.storage) {
+        if ((selectedRequest as any).storage) {
           // Calculate Storage monthly price
           const storageMonthlyPrice = (currentVMData.priceMonth || 0) * (currentVMData.storage_gb / currentVMData.vcpu)
 
           instanceLines.push({
-            spec: `Storage|${selectedRequest.storage} GB`,
+            spec: `Storage|${(selectedRequest as any).storage} GB`,
             vcpu: 0,
             ram: 0,
             storage: 0,
             qty: 1,
             unit: storageMonthlyPrice,
-            term: billingTerm
+            term: String(billingTerm)
           })
         }
       }
 
-      if ((isBackupChange || backupDiffers) && selectedRequest.backup_enabled) {
+      if ((isBackupChange || backupDiffers) && (selectedRequest as any).backup_enabled) {
         // Calculate backup monthly price (assuming backup is 20% of monthly price)
         const backupMonthlyPrice = (currentVMData.priceMonth || 0) * 0.2
 
         backupLines.push({
-          spec: selectedRequest.backup_type === 'daily' ? 'Daily Backup' : 'Weekly Backup',
-          storage: selectedRequest.storage || 0,
+          spec: (selectedRequest as any).backup_type === 'daily' ? 'Daily Backup' : 'Weekly Backup',
+          storage: (selectedRequest as any).storage || 0,
           unit: backupMonthlyPrice,
-          term: billingTerm
+          term: String(billingTerm)
         })
       }
 
@@ -379,7 +379,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
         storage: currentVMData.storage_gb || 0,
         qty: 1,
         unit: 0,
-        term: billingTerm
+        term: String(billingTerm)
       })
 
       // Add backup if enabled on current VM
@@ -388,7 +388,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
           spec: currentVMData.backup_type === 'daily' ? 'Daily Backup' : 'Weekly Backup',
           storage: currentVMData.storage_gb || 0,
           unit: 0,
-          term: billingTerm
+          term: String(billingTerm)
         })
       }
 
@@ -397,7 +397,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
         publicIPLines.push({
           spec: 'Public IP',
           unit: 0,
-          term: billingTerm
+          term: String(billingTerm)
         })
       }
 
@@ -408,14 +408,14 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
           addonServiceLines.push({
             spec: 'CPFS',
             unit: 0,
-            term: billingTerm
+            term: String(billingTerm)
           })
         }
         if (addons.ccis) {
           addonServiceLines.push({
             spec: 'CCIS',
             unit: 0,
-            term: billingTerm
+            term: String(billingTerm)
           })
         }
       }
@@ -432,7 +432,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
         
         // Convert duration to standard billing term format
         if (addon.duration) {
-          const match = addon.duration.match(/(\d+)/)
+          const match = String(addon.duration).match(/(\d+)/)
           if (match) {
             const months = parseInt(match[1])
             if (months === 1) addonTerm = 'Monthly'
@@ -447,14 +447,14 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
           addonServiceLines.push({
             spec: `CPFS (${addon.cpfs_package || 'Standard'})`,
             unit: 0,
-            term: addonTerm
+            term: String(addonTerm)
           })
         }
         if (addon.ccis_enabled) {
           addonServiceLines.push({
             spec: `CCIS (${addon.ccis_package || 'Standard'})`,
             unit: 0,
-            term: addonTerm
+            term: String(addonTerm)
           })
         }
       }
@@ -506,7 +506,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                 spec: request.backup_type === 'daily' ? 'Daily Backup' : 'Weekly Backup',
                 storage: request.storage || 0,
                 unit: 0,
-                term: billingTerm
+                term: String(billingTerm)
               })
             }
             const publicIPLines: PublicIPLine[] = []
@@ -514,7 +514,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
               publicIPLines.push({
                 spec: 'Public IP',
                 unit: 0,
-                term: billingTerm
+                term: String(billingTerm)
               })
             }
             setSheet(s => ({
@@ -527,7 +527,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                   storage: request.storage,
                   qty: request.qty,
                   unit: 0,
-                  term: billingTerm
+                  term: String(billingTerm)
                 }
               ],
               backup: backupLines.map(l => ({
@@ -555,7 +555,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
               storage: 0,
               qty: 1,
               unit: 0,
-              term: billingTerm
+              term: String(billingTerm)
             })
           }
           if (request.ccis_enabled) {
@@ -566,7 +566,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
               storage: 0,
               qty: 1,
               unit: 0,
-              term: billingTerm
+              term: String(billingTerm)
             })
           }
           setSheet(s => ({ ...s, instance: instanceLines }))
@@ -700,9 +700,6 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
           <h1 className="page-title">Quotes</h1>
           <p className="page-subtitle">{quotes.length} quotes · {quotes.filter(q => q.status === 'Accepted').length} accepted this month</p>
         </div>
-        <div className="page-actions">
-          <button className="btn primary" onClick={() => setBuilding(true)}><Icon name="plus" size={13} />New quote</button>
-        </div>
       </div>
 
       {building && (
@@ -747,8 +744,8 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                   {customerRequests.map(r => (
                     <option key={r.id} value={r.id}>
                       {requestType === 'vm'
-                        ? `${(r.legacy_id || r.id)} · ${(r.hostname || '')} · [${(r.task_type || 'new')}]`
-                        : `${(r.legacy_id || r.id)} · ${r.cpfs_enabled ? 'CPFS' : ''}${r.cpfs_enabled && r.ccis_enabled ? ' + ' : ''}${r.ccis_enabled ? 'CCIS' : ''}`
+                        ? `${(r.legacy_id || r.id)} · ${((r as any).hostname || '')} · [${((r as any).task_type || 'new')}]`
+                        : `${(r.legacy_id || r.id)} · ${((r as any).cpfs_enabled ? 'CPFS' : '')}${((r as any).cpfs_enabled && (r as any).ccis_enabled ? ' + ' : '')}${((r as any).ccis_enabled ? 'CCIS' : '')}`
                       }
                     </option>
                   ))}
@@ -1131,7 +1128,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                       const addonVM = isAddon && addonReq?.vm_id ? vmMap.get(addonReq.vm_id) : null
                       const vmByReq = vmByRequestIdMap.get((q as any).vm_request_id)
                       const requestHostname = isAddon
-                        ? request?.hostname || vmByReq?.hostname || addonVM?.hostname || addonReq?.description || '—'
+                        ? request?.hostname || vmByReq?.hostname || addonVM?.hostname || (addonReq as any)?.description || '—'
                         : request?.hostname || request?.sizing || '—'
                       return (
                         <tr key={q.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedQuote(q)}>

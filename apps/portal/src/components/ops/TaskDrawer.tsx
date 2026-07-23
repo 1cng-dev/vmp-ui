@@ -411,7 +411,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                           </>
                         ) : requestType === 'vm' ? (
                           <>
-                            {active && i === 0 && t && (
+                            {active && i === 0 && t && userRole !== 'Finance' && (
                               <>
                                 <button 
                                   className="btn sm accent mt-2" 
@@ -428,7 +428,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                 )}
                               </>
                             )}
-                            {active && i === 2 && t && !(t as any).createdVmId && (t as any).task_type !== 'Renewal' && userRole !== 'Sales' && (
+                            {active && i === 2 && t && !(t as any).createdVmId && (t as any).task_type !== 'Renewal' && userRole !== 'Sales' && userRole !== 'Finance' && (
                               <button 
                                 className="btn sm primary mt-2" 
                                 onClick={() => setShowVMFormModal(true)}
@@ -438,7 +438,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                 <Icon name="plus" size={11} />Add VM Details
                               </button>
                             )}
-                            {active && t && i > 0 && i !== 2 && (i !== WF.length - 1 && i !== 4 || t.status !== 'Completed') && (
+                            {active && t && i > 0 && i !== 2 && (i !== WF.length - 1 && i !== 4 || t.status !== 'Completed') && userRole !== 'Finance' && (
                               <button
                                 className="btn sm accent mt-2"
                                 disabled={!isPaymentReceived || (userRole === 'Sales' && i > 1)}
@@ -495,7 +495,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                           </>
                         ) : (
                           <>
-                            {active && i === 0 && (
+                            {active && i === 0 && userRole !== 'Finance' && (
                               <>
                                 <button 
                                   className="btn sm accent mt-2" 
@@ -512,7 +512,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                 )}
                               </>
                             )}
-                            {active && i === 2 && userRole !== 'Sales' && (
+                            {active && i === 2 && userRole !== 'Sales' && userRole !== 'Finance' && (
                               <button className="btn sm ok mt-2" onClick={() => { updateAddonRequest(request.id, { status: 'Completed' }); toast('Add-on provisioning completed', 'ok') }}>
                                 <Icon name="check" size={11} />Complete
                               </button>
@@ -536,7 +536,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                   <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Customer</div>
                   <dl className="dl">
                     <dt>Customer</dt><dd>{c?.org_name || c?.name}</dd>
-                    <dt>Contact</dt><dd>{c?.name}</dd>
+                    <dt>Contact Person</dt><dd>{c?.name}</dd>
                     <dt>Email</dt><dd className="mono text-sm">{c?.email}</dd>
                   </dl>
                 </div>

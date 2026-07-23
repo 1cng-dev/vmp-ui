@@ -13,9 +13,10 @@ interface InvoiceDrawerProps {
   onClose: () => void
   openCust: (id: string) => void
   openModal: (kind: string, props?: any) => void
+  role?: string
 }
 
-export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, openModal }) => {
+export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, openModal, role }) => {
   const { invoices, markPaid, updateInvoice, loadInvoices } = useInvoiceStore()
   const { customers } = useCustomerStore()
   const { toast } = useUIStore()
@@ -63,9 +64,7 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
         </div>
         <div className="page-actions">
           <button className="btn" onClick={async () => await exportInvoiceToPDF(live, c)}><Icon name="download" size={12}/>PDF</button>
-          <button className="btn" onClick={() => openModal('email', { to: c.email, template: 'invoice' })}><Icon name="mail" size={12}/>Email</button>
-          {live.status !== 'Payment Received' && <button className="btn accent" onClick={() => markPaid(live.id, `RCT-${live.id.slice(0, 8)}`)}><Icon name="check" size={12}/>Mark paid</button>}
-          {live.status === 'Pending' && <button className="btn" onClick={() => setShowConfirm(true)}>Transfer received</button>}
+          {live.status !== 'Payment Received' && role !== 'Sales' && <button className="btn accent" onClick={() => markPaid(live.id, `RCT-${live.id.slice(0, 8)}`)}><Icon name="check" size={12}/>Mark paid</button>}
         </div>
       </div>
 
@@ -188,15 +187,6 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
                   <Icon name="check" size={12}/>Mark as Payment Received
                 </button>
               )}
-            </div>
-          </div>
-          <div className="card">
-            <div className="card-head"><h3 className="card-title">Quick actions</h3></div>
-            <div className="card-body">
-              <div className="flex col gap-2">
-                <button className="btn" onClick={async () => await exportInvoiceToPDF(live, c)}><Icon name="download" size={12}/>Download PDF</button>
-                <button className="btn" onClick={() => openModal('email', { to: c.email, template: 'invoice' })}><Icon name="mail" size={12}/>Email customer</button>
-              </div>
             </div>
           </div>
           <div className="card">

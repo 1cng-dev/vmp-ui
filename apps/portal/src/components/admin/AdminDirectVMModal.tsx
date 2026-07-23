@@ -15,8 +15,7 @@ const AdminDirectVMModal: React.FC<AdminDirectVMModalProps> = ({ onClose }) => {
   const { createAddonRequest } = useAddonRequestStore()
   const { customers } = useCustomerStore()
   const { toast } = useUIStore()
-  const [step, setStep] = useState(1)
-
+  
   const [f, setF] = useState({
     // Step 1: Customer & Basic Info
     customer: '',
@@ -163,9 +162,7 @@ const AdminDirectVMModal: React.FC<AdminDirectVMModalProps> = ({ onClose }) => {
     }
   }
 
-  const stepLabels = ['Customer & Basic', 'OS', 'Specs', 'Network', 'Backup', 'Engineer Data', 'Addons', 'Review']
-  const totalSteps = stepLabels.length
-
+  
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 900, maxHeight: '90vh', overflow: 'auto' }}>

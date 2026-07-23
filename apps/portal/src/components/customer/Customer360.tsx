@@ -37,12 +37,26 @@ export const Customer360: React.FC<Customer360Props> = ({ customer, onClose, ope
 
   const c = customers.find((x: any) => x.id === customer.id) || customer
   const customerVMs = vms.filter((v: any) => v.customer_id === c.id)
-  const customerInvoices = invoices.filter((i: any) => i.customer === c.id)
+  const customerInvoices = invoices.filter((i: any) => i.customer_id === c.id)
   const customerTickets = tickets.filter((t: any) => t.customer === c.id || t.customer_id === c.id)
   const customerVMRequests = vmRequests.filter((r: any) => r.customer_id === c.id)
 
-  const ltv = c.totalSpend
-  const mrr = customerVMs.filter((v: any) => v.status === 'Active').reduce((a: number, v: any) => a + v.priceMonth, 0)
+  const ltv = customerInvoices.filter((i: any) => i.status === 'Payment Received').reduce((sum: number, i: any) => {
+    const amount = typeof i.amount === 'string' ? parseFloat(i.amount) : (i.amount || 0)
+    return sum + amount
+  }, 0)
+
+  const now = new Date()
+  const currentMonth = now.getMonth()
+  const currentYear = now.getFullYear()
+  const mrr = customerInvoices.filter((i: any) => {
+    if (!i.invoice_date || i.status !== 'Payment Received') return false
+    const invDate = new Date(i.invoice_date)
+    return invDate.getMonth() === currentMonth && invDate.getFullYear() === currentYear
+  }).reduce((sum: number, i: any) => {
+    const amount = typeof i.amount === 'string' ? parseFloat(i.amount) : (i.amount || 0)
+    return sum + amount
+  }, 0)
   const openTickets = customerTickets.filter((t: any) => {
     const status = t.status?.toLowerCase()
     return status === 'open' || status === 'in progress'
@@ -79,39 +93,41 @@ export const Customer360: React.FC<Customer360Props> = ({ customer, onClose, ope
           </div>
 
           {/* Account actions */}
-          <div className="card mb-4">
-            <div className="card-head"><h3 className="card-title">Account actions</h3></div>
-            <div className="card-body">
-              <div className="flex gap-2 wrap">
-                <button className="btn" onClick={() => setResetPasswordUser({ id: c.id, name: c.name, email: c.email })}><Icon name="key" size={12} />Reset password</button>
-                {c.kyc_status === 'Pending' && <>
-                  <button className="btn accent" onClick={() => setKYC(c.id, 'Approved')}><Icon name="check" size={12} />Approve KYC</button>
-                  <button className="btn danger" onClick={() => setKYC(c.id, 'Rejected')}><Icon name="x" size={12} />Reject KYC</button>
-                </>}
-                {c.status === 'Active'
-                  ? <button className="btn" onClick={() => { updateCustomer(c.id, { status: 'Inactive' }); toast(`${c.name} suspended`, 'warn'); }}><Icon name="pause" size={12} />Suspend account</button>
-                  : <button className="btn primary" onClick={() => { updateCustomer(c.id, { status: 'Active' }); toast(`${c.name} reactivated`, 'ok'); }}><Icon name="play" size={12} />Reactivate</button>
-                }
-                <button className="btn danger" onClick={() => {
-                  if (openModal) {
-                    openModal('confirm', {
-                      title: 'Delete Customer',
-                      message: `Delete customer ${c.name}? This will permanently remove their account and all associated data.`,
-                      onConfirm: async () => {
-                        try {
-                          await deleteCustomer(c.id)
-                          toast(`Customer ${c.name} deleted`, 'ok')
-                          onClose()
-                        } catch (error) {
-                          toast('Failed to delete customer', 'error')
-                        }
-                      }
-                    })
+          {role !== 'Sales' && role !== 'Finance' && (
+            <div className="card mb-4">
+              <div className="card-head"><h3 className="card-title">Account actions</h3></div>
+              <div className="card-body">
+                <div className="flex gap-2 wrap">
+                  <button className="btn" onClick={() => setResetPasswordUser({ id: c.id, name: c.name, email: c.email })}><Icon name="key" size={12} />Reset password</button>
+                  {c.kyc_status === 'Pending' && <>
+                    <button className="btn accent" onClick={() => setKYC(c.id, 'Approved')}><Icon name="check" size={12} />Approve KYC</button>
+                    <button className="btn danger" onClick={() => setKYC(c.id, 'Rejected')}><Icon name="x" size={12} />Reject KYC</button>
+                  </>}
+                  {c.status === 'Active'
+                    ? <button className="btn" onClick={() => { updateCustomer(c.id, { status: 'Inactive' }); toast(`${c.name} suspended`, 'warn'); }}><Icon name="pause" size={12} />Suspend account</button>
+                    : <button className="btn primary" onClick={() => { updateCustomer(c.id, { status: 'Active' }); toast(`${c.name} reactivated`, 'ok'); }}><Icon name="play" size={12} />Reactivate</button>
                   }
-                }}><Icon name="trash" size={12} />Delete account</button>
+                  <button className="btn danger" onClick={() => {
+                    if (openModal) {
+                      openModal('confirm', {
+                        title: 'Delete Customer',
+                        message: `Delete customer ${c.name}? This will permanently remove their account and all associated data.`,
+                        onConfirm: async () => {
+                          try {
+                            await deleteCustomer(c.id)
+                            toast(`Customer ${c.name} deleted`, 'ok')
+                            onClose()
+                          } catch (error) {
+                            toast('Failed to delete customer', 'error')
+                          }
+                        }
+                      })
+                    }
+                  }}><Icon name="trash" size={12} />Delete account</button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* All-data tabs as collapsed lists */}
           <div className="grid-2" style={{ gap: 14 }}>
@@ -142,7 +158,7 @@ export const Customer360: React.FC<Customer360Props> = ({ customer, onClose, ope
                   <thead><tr><th>Invoice</th><th>Amount</th><th>Status</th></tr></thead>
                   <tbody>
                     {customerInvoices.slice(0, 5).map((i: any) => (
-                      <tr key={i.id}><td className="mono text-xs">{i.id}</td><td className="tnum text-xs">MMK {formatMMK(i.amount)}</td><td><StatusPill status={i.status} /></td></tr>
+                      <tr key={i.id}><td className="mono text-xs">{i.legacy_id || i.id}</td><td className="tnum text-xs">MMK {formatMMK(i.amount)}</td><td><StatusPill status={i.status} /></td></tr>
                     ))}
                     {customerInvoices.length === 0 && <tr><td colSpan={3}><div className="text-mute text-sm" style={{ padding: 12, textAlign: 'center' }}>No invoices</div></td></tr>}
                   </tbody>

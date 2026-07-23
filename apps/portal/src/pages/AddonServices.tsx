@@ -18,14 +18,17 @@ interface AddonServicesViewProps {
 const AddonServicesView: React.FC<AddonServicesViewProps> = ({ openTask, setView, setAutoOpenQuote, setPrefillCustomerId, setPrefillRequestId, setPrefillRequestType, userRole }) => {
   const { addonRequests, addonRequestsLoading, loadAddonRequests } = useAddonRequestStore()
   const { customers } = useCustomerStore()
-  const { vms } = useVMStore()
+  const { vms, loadVMs } = useVMStore()
   const [filter, setFilter] = React.useState<'all' | 'Pending' | 'In Progress' | 'Completed' | 'Rejected'>('all')
 
   React.useEffect(() => {
     if (addonRequests.length === 0) {
       loadAddonRequests()
     }
-  }, [loadAddonRequests, addonRequests.length])
+    if (vms.length === 0) {
+      loadVMs()
+    }
+  }, [loadAddonRequests, addonRequests.length, loadVMs, vms.length])
 
   // Create a map of VM data for quick lookup
   const vmData = React.useMemo(() => {
@@ -73,7 +76,7 @@ const AddonServicesView: React.FC<AddonServicesViewProps> = ({ openTask, setView
           <div style={{ flex: 1 }} />
         </div>
 
-        <div className="card-body flush">
+        <div className="card-body" style={{ overflowX: 'auto' }}>
           <table className="tbl">
             <thead>
               <tr>
@@ -111,15 +114,17 @@ const AddonServicesView: React.FC<AddonServicesViewProps> = ({ openTask, setView
                     <td>{svc}</td>
                     <td className="tnum text-sm">{t.start_date ? new Date(t.start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}</td>
                     <td><ExpiryCell date={t.expiry || ''} /></td>
-                    <td className="text-sm">{t.duration || 'N/A'}</td>
+                    <td className="text-sm">{typeof t.duration === 'string' ? t.duration : t.duration === 1 ? 'Monthly' : t.duration === 3 ? 'Quarterly' : t.duration === 6 ? 'Half Yearly' : t.duration === 12 ? 'Yearly' : t.duration ? `${t.duration} month${t.duration > 1 ? 's' : ''}` : 'N/A'}</td>
                     <td><StatusPill status={t.status} /></td>
                     <td><StatusPill status={t.operational_status || 'Active'} expiry={t.expiry} /></td>
                     <td className="right">
                       <div className="flex center gap-1" onClick={e => e.stopPropagation()}>
-                        <button className="btn" style={{ padding: '4px 10px', fontSize: 11 }}
-                          onClick={() => { setPrefillCustomerId(t.customer_id); setPrefillRequestId(t.id); setPrefillRequestType('addon'); setAutoOpenQuote(true); setView('quotes') }}>
-                          Quotation
-                        </button>
+                        {userRole !== 'Engineer' && (
+                          <button className="btn" style={{ padding: '4px 10px', fontSize: 11 }}
+                            onClick={() => { setPrefillCustomerId(t.customer_id); setPrefillRequestId(t.id); setPrefillRequestType('addon'); setAutoOpenQuote(true); setView('quotes') }}>
+                            Quotation
+                          </button>
+                        )}
                         <Icon name="chevron-right" size={12} className="text-mute" />
                       </div>
                     </td>

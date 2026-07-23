@@ -12,6 +12,7 @@ export interface Announcement {
   created_by_name?: string
   created_at: string
   updated_at: string
+  read?: boolean
 }
 
 export interface AnnouncementStoreValue {
@@ -21,6 +22,8 @@ export interface AnnouncementStoreValue {
   addAnnouncement: (announcement: Omit<Announcement, 'id' | 'created_at' | 'updated_at'>) => Promise<string>
   updateAnnouncement: (id: string, patch: Partial<Announcement>) => Promise<void>
   deleteAnnouncement: (id: string) => Promise<void>
+  markAnnouncementRead: (id: string) => Promise<void>
+  markAllAnnouncementsRead: () => Promise<void>
 }
 
 const AnnouncementContext = createContext<AnnouncementStoreValue | null>(null)
@@ -29,6 +32,11 @@ export const AnnouncementProvider: React.FC<{ children: ReactNode }> = ({ childr
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [announcementsLoading, setAnnouncementsLoading] = useState(false)
   const { logActivity } = useActivityStore()
+
+  // Load announcements on mount
+  useEffect(() => {
+    loadAnnouncements()
+  }, [])
 
   const loadAnnouncements = useCallback(async () => {
     setAnnouncementsLoading(true)
@@ -67,7 +75,35 @@ export const AnnouncementProvider: React.FC<{ children: ReactNode }> = ({ childr
           created_by_name: a.created_by ? staffMap.get(a.created_by) || 'System' : 'System'
         }))
 
-        setAnnouncements(announcementsWithCreator)
+        // Fetch read status for current customer (if logged in as customer)
+        let readAnnouncementIds: string[] = []
+        try {
+          const { data: { user: authUser } } = await supabase.auth.getUser()
+          if (authUser) {
+            const customerId = authUser.user_metadata?.customerId
+            if (customerId) {
+              const { data: reads } = await supabase
+                .from('announcement_reads')
+                .select('announcement_id')
+                .eq('customer_id', customerId)
+              
+              if (reads) {
+                readAnnouncementIds = reads.map(r => r.announcement_id)
+              }
+            }
+          }
+        } catch (e) {
+          // User might not be authenticated, that's fine
+          console.log('Could not get user for announcement reads:', e)
+        }
+
+        // Mark announcements as read/unread
+        const announcementsWithReadStatus = announcementsWithCreator.map(a => ({
+          ...a,
+          read: readAnnouncementIds.includes(a.id)
+        }))
+
+        setAnnouncements(announcementsWithReadStatus)
       }
     } finally {
       setAnnouncementsLoading(false)
@@ -173,6 +209,61 @@ export const AnnouncementProvider: React.FC<{ children: ReactNode }> = ({ childr
     // Don't call loadAnnouncements - real-time subscription will handle it
   }, [])
 
+  const markAnnouncementRead = useCallback(async (id: string) => {
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      if (!authUser) return
+
+      const customerId = authUser.user_metadata?.customerId
+      if (!customerId) return
+
+      // Insert read record
+      await supabase
+        .from('announcement_reads')
+        .upsert({
+          announcement_id: id,
+          customer_id: customerId
+        }, { onConflict: 'announcement_id,customer_id' })
+
+      // Update local state
+      setAnnouncements(prev => prev.map(a => 
+        a.id === id ? { ...a, read: true } : a
+      ))
+    } catch (error) {
+      console.error('Failed to mark announcement as read:', error)
+    }
+  }, [])
+
+  const markAllAnnouncementsRead = useCallback(async () => {
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      if (!authUser) return
+
+      const customerId = authUser.user_metadata?.customerId
+      if (!customerId) return
+
+      // Get all unread sent announcements
+      const unreadAnnouncements = announcements.filter(a => a.status === 'Sent' && !a.read)
+      
+      // Mark all as read
+      for (const announcement of unreadAnnouncements) {
+        await supabase
+          .from('announcement_reads')
+          .upsert({
+            announcement_id: announcement.id,
+            customer_id: customerId
+          }, { onConflict: 'announcement_id,customer_id' })
+      }
+
+      // Update local state
+      setAnnouncements(prev => prev.map(a => 
+        a.status === 'Sent' ? { ...a, read: true } : a
+      ))
+    } catch (error) {
+      console.error('Failed to mark all announcements as read:', error)
+    }
+  }, [announcements])
+
   // Real-time subscription
   useEffect(() => {
     const channel = supabase
@@ -184,6 +275,29 @@ export const AnnouncementProvider: React.FC<{ children: ReactNode }> = ({ childr
           setAnnouncements(prev => prev.map(a => a.id === payload.new.id ? { ...a, ...payload.new } as Announcement : a))
         } else if (payload.eventType === 'DELETE') {
           setAnnouncements(prev => prev.filter(a => a.id !== payload.old.id))
+        }
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'announcement_reads' }, async () => {
+        // Reload read status when a new read record is inserted
+        try {
+          const { data: { user: authUser } } = await supabase.auth.getUser()
+          if (authUser) {
+            const customerId = authUser.user_metadata?.customerId
+            if (customerId) {
+              const { data: reads } = await supabase
+                .from('announcement_reads')
+                .select('announcement_id')
+                .eq('customer_id', customerId)
+              
+              const readAnnouncementIds = reads ? reads.map(r => r.announcement_id) : []
+              setAnnouncements(prev => prev.map(a => ({
+                ...a,
+                read: readAnnouncementIds.includes(a.id)
+              })))
+            }
+          }
+        } catch (e) {
+          console.log('Could not update read status:', e)
         }
       })
       .subscribe()
@@ -200,6 +314,8 @@ export const AnnouncementProvider: React.FC<{ children: ReactNode }> = ({ childr
     addAnnouncement,
     updateAnnouncement,
     deleteAnnouncement,
+    markAnnouncementRead,
+    markAllAnnouncementsRead,
   }
 
   return React.createElement(AnnouncementContext.Provider, { value }, children as any)

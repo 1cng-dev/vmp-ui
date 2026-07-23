@@ -25,7 +25,7 @@ const CustomerDrawer: React.FC<CustomerDrawerProps> = ({ custId, onClose, openVM
   const c = customers.find((cust: any) => cust.id === custId)
 
   const customerVMs = vms.filter((v: any) => v.customer_id === custId)
-  const customerInvoices = invoices.filter((i: any) => i.customer === custId)
+  const customerInvoices = invoices.filter((i: any) => i.customer_id === custId)
   const [tab, setTab] = useState('overview')
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState<Customer | undefined>(c)
@@ -64,15 +64,11 @@ const CustomerDrawer: React.FC<CustomerDrawerProps> = ({ custId, onClose, openVM
                 <StatusPill status={c.status} />
               </div>
             </div>
-            <div className="flex gap-2">
-              <button className="btn" onClick={() => openModal('email', { to: c.email })}><Icon name="mail" size={12} />Email</button>
-              <button className="btn primary" onClick={() => openModal('newvm', { customer: c.id })}><Icon name="plus" size={12} />New VM</button>
-            </div>
           </div>
         </div>
 
         <div className="tabs">
-          {['overview', 'customerVMs', 'kyc', 'billing', 'comms'].map(t => (
+          {['overview', 'customerVMs', 'kyc', 'billing'].map(t => (
             <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
               {t === 'overview' ? 'Overview' : t === 'customerVMs' ? 'VMs' : t === 'kyc' ? 'KYC' : t === 'billing' ? 'Billing' : 'Communication'}
               {t === 'customerVMs' && <span className="count">{customerVMs.length}</span>}
@@ -253,12 +249,12 @@ const CustomerDrawer: React.FC<CustomerDrawerProps> = ({ custId, onClose, openVM
             <div className="card">
               <div className="card-body flush">
                 <table className="tbl">
-                  <thead><tr><th>Invoice</th><th>Issued</th><th className="right">Amount</th><th>Status</th></tr></thead>
+                  <thead><tr><th>Invoice</th><th>Invoice Date</th><th className="right">Amount</th><th>Status</th></tr></thead>
                   <tbody>
                     {customerInvoices.map((i: any) => (
                       <tr key={i.id}>
-                        <td className="mono">{i.id}</td>
-                        <td className="tnum text-sm">{i.issued}</td>
+                        <td className="mono">{i.legacy_id || i.id}</td>
+                        <td className="tnum text-sm">{i.invoice_date ? new Date(i.invoice_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : (i.issued ? new Date(i.issued).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—')}</td>
                         <td className="right tnum fw-6">MMK {formatMMK(i.amount)}</td>
                         <td><StatusPill status={i.status} /></td>
                       </tr>
@@ -266,24 +262,6 @@ const CustomerDrawer: React.FC<CustomerDrawerProps> = ({ custId, onClose, openVM
                     {customerInvoices.length === 0 && <tr><td colSpan={4}><div className="empty"><div className="sub">No invoices yet.</div></div></td></tr>}
                   </tbody>
                 </table>
-              </div>
-            </div>
-          )}
-
-          {tab === 'comms' && (
-            <div className="card">
-              <div className="card-head">
-                <h3 className="card-title">Communication history</h3>
-                <button className="btn sm" onClick={() => openModal('email', { to: c.email })}><Icon name="mail" size={11} />Send email</button>
-              </div>
-              <div className="card-body" style={{ padding: '6px 18px' }}>
-                {[
-                ].map((a: any, i: number) => (
-                  <div key={i} className="feed-item">
-                    <span className="dot customer" />
-                    <div className="body"><span className="fw-6 text-sm">{a[2]}</span> — {a[3]}<div className="meta">{a[1]} · {a[0]}</div></div>
-                  </div>
-                ))}
               </div>
             </div>
           )}

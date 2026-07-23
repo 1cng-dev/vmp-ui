@@ -9,7 +9,7 @@ import VMDrawer from './components/vm/VMDrawer'
 import { NewVMModal, RenewModal, SpecModal, TerminateModal, DeleteModal, NewTaskModal, NewCustomerModal, TempPasswordModal, EmailModal, NewInvoiceModal, InviteMemberModal, ConfirmModal } from './components/modals/AdminVMModals'
 import CustomersView from './pages/Customers'
 import CustomerDrawer from './components/customer/CustomerDrawer'
-import { TeamView, SettingsView } from './pages/Team'
+import { TeamView } from './pages/Team'
 import { FinanceView, ReportsView } from './pages/Finance'
 import { ReceiptsView } from './pages/ReceiptsView'
 import { TasksView, ActivityView, AlertsView, NetworkView, TaskDrawer } from './pages/Ops'
@@ -275,7 +275,6 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
               theme={tw.theme}
               setTheme={(t) => setTweak('theme' as keyof TweakState, t)}
               onBellClick={() => setNotifOpen(!notifOpen)}
-              onSearchClick={() => { }}
               onHelpClick={() => { }}
               unread={unread}
             />
@@ -287,7 +286,7 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
             {view === 'activity' && <ActivityView />}
             {view === 'direct-vm-create' && <AdminDirectVMCreate />}
             {view === 'vms' && <VMList openVM={openVM} openModal={openModal} setView={handleSetView} userRole={tw.role} />}
-            {drawerVmId && <VMDrawer vmId={drawerVmId} onClose={closeDrawer} openCust={openCust} openModal={openModal} />}
+            {drawerVmId && <VMDrawer vmId={drawerVmId} onClose={closeDrawer} openCust={openCust} openModal={openModal} userRole={tw.role} />}
             {view === 'tasks' && <TasksView openTask={openTask} setView={handleSetView} setAutoOpenQuote={setAutoOpenQuote} setPrefillCustomerId={setPrefillCustomerId} setPrefillRequestId={setPrefillRequestId} setPrefillRequestType={setPrefillRequestType} userRole={tw.role} />}
             {view === 'addons' && <AddonServicesView openTask={openTask} setView={handleSetView} setAutoOpenQuote={setAutoOpenQuote} setPrefillCustomerId={setPrefillCustomerId} setPrefillRequestId={setPrefillRequestId} setPrefillRequestType={setPrefillRequestType} userRole={tw.role} />}
             {drawerTaskId && <TaskDrawer requestId={drawerTaskId} onClose={closeTaskDrawer} userRole={tw.role} />}
@@ -309,7 +308,7 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
             {view === 'followups' && <PlaceholderView title="Follow-ups" description="Sales follow-ups - coming soon" />}
             {view === 'trials' && <PlaceholderView title="Trial Conversions" description="Trial conversion tracking - coming soon" />}
             {view === 'tickets' && <SupportTicketsView openModal={openModal} />}
-            {view === 'finance' && <FinanceView openCust={(_id: string) => { }} openModal={openModal} />}
+            {view === 'finance' && <FinanceView openCust={(_id: string) => { }} openModal={openModal} userRole={tw.role} />}
             {view === 'receipts' && <ReceiptsView openCust={openCust} />}
             {view === 'reports' && <ReportsView />}
             {view === 'aging' && <AgingView />}
@@ -317,7 +316,6 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
             {view === 'recurring' && <RecurringView openModal={openModal} />}
             {view === 'tax' && <TaxView />}
             {view === 'team' && <TeamView openModal={openModal} />}
-            {view === 'settings' && <SettingsView />}
             {view === 'health' && <SystemHealthView />}
             {view === 'audit' && <AuditLogView />}
             {view === 'announcements' && <AnnouncementsView />}

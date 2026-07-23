@@ -106,7 +106,7 @@ export const AgingView: React.FC = () => {
         <div className="card-head"><h3 className="card-title">All unpaid invoices</h3></div>
         <div className="card-body flush">
           <table className="tbl">
-            <thead><tr><th>Invoice</th><th>Customer</th><th>Due</th><th>Age</th><th className="right">Net Amount</th><th className="right">Discount</th><th className="right">VAT</th><th className="right">Gross Amount</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>Invoice</th><th>Customer</th><th>Due</th><th>Age</th><th className="right">Net Amount</th><th className="right">Discount</th><th className="right">VAT</th><th className="right">Gross Amount</th><th>Status</th></tr></thead>
             <tbody>
               {all.map((i: any) => {
                 const c = customers.find((c: any) => c.id === i.customer_id)
@@ -123,13 +123,10 @@ export const AgingView: React.FC = () => {
                     <td className="right tnum text-sm">MMK {formatMMK(i.vat || 0)}</td>
                     <td className="right tnum fw-6 text-sm">MMK {formatMMK(i.gross_amount || i.amount)}</td>
                     <td><StatusPill status={i.status} /></td>
-                    <td className="right">
-                      <button className="btn sm" onClick={() => toast(`Reminder sent to ${c?.company}`, 'info')}>Remind</button>
-                    </td>
                   </tr>
                 )
               })}
-              {all.length === 0 && <tr><td colSpan={10}><div className="empty"><div className="title">No unpaid invoices</div><div className="sub">All invoices have been paid.</div></div></td></tr>}
+              {all.length === 0 && <tr><td colSpan={9}><div className="empty"><div className="title">No unpaid invoices</div><div className="sub">All invoices have been paid.</div></div></td></tr>}
             </tbody>
           </table>
         </div>

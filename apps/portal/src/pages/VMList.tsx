@@ -240,9 +240,11 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal, setView, userRole })
                   <td className="text-sm mono">{(v as any).start_date ? new Date((v as any).start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}</td>
                   <td className="text-sm mono">{(v as any).end_date ? new Date((v as any).end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}</td>
                   <td onClick={e => e.stopPropagation()} style={{ position: 'relative' }}>
-                    <button className="icon-btn" onClick={(e) => { e.stopPropagation(); setMenu(menu === v.id ? null : v.id); }}>
-                      <Icon name="more" />
-                    </button>
+                    {userRole !== 'Finance' && userRole !== 'Sales' && (
+                      <button className="icon-btn" onClick={(e) => { e.stopPropagation(); setMenu(menu === v.id ? null : v.id); }}>
+                        <Icon name="more" />
+                      </button>
+                    )}
                     {menu === v.id && (
                       <div onClick={e => e.stopPropagation()} style={{
                         position: 'absolute', right: 14, top: 36, zIndex: 20,
@@ -251,16 +253,19 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal, setView, userRole })
                         minWidth: 180, padding: 4,
                       }}>
                         <button className="nav-item" onClick={() => { openVM(v.id); setMenu(null); }}><Icon name="eye" size={13} />View details</button>
-                        {v.status === 'Active' ? (
+                        {v.status === 'Active' && userRole !== 'Sales' ? (
                           <>
-                            <button className="nav-item" onClick={() => { updateVM(v.id, { status: 'Suspended' as any }); setMenu(null); toast(`VM ${v.hostname} suspended`, 'warn'); }}><Icon name="pause" size={13} />Suspend</button>
                             <button className="nav-item" onClick={() => { openModal('terminate', { vm: v }); setMenu(null); }}><Icon name="trash" size={13} />Terminate</button>
                           </>
                         ) : (
-                          <button className="nav-item" onClick={() => { handleActivate(v); setMenu(null); }}><Icon name="play" size={13} />Activate</button>
+                          v.status !== 'Active' && <button className="nav-item" onClick={() => { handleActivate(v); setMenu(null); }}><Icon name="play" size={13} />Activate</button>
                         )}
-                        <div style={{ height: 1, background: 'var(--line)', margin: '4px 0' }} />
-                        <button className="nav-item" style={{ color: 'var(--bad)' }} onClick={() => { openModal('delete', { vm: v }); setMenu(null); }}><Icon name="x" size={13} />Delete</button>
+                        {userRole !== 'Sales' && (
+                          <>
+                            <div style={{ height: 1, background: 'var(--line)', margin: '4px 0' }} />
+                            <button className="nav-item" style={{ color: 'var(--bad)' }} onClick={() => { openModal('delete', { vm: v }); setMenu(null); }}><Icon name="x" size={13} />Delete</button>
+                          </>
+                        )}
                       </div>
                     )}
                   </td>

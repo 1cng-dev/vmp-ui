@@ -23,7 +23,13 @@ export interface AuthStoreValue {
     name: string
     type: 'Individual' | 'Organization'
     phone: string
-    customerData: Omit<Customer, 'id'>
+    customerData: Omit<Customer, 'id'> & {
+      nrcFrontFile?: File | null
+      nrcBackFile?: File | null
+      orgCertFile?: File | null
+      orgTaxIdFile?: File | null
+      dirIdFile?: File | null
+    }
   }) => Promise<{ success: boolean; error?: string; customerId?: string }>
   signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
   signOut: () => Promise<void>

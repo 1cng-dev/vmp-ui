@@ -62,16 +62,12 @@ async function checkVMExpiry(supabase: any) {
 
     if (existingAlerts && existingAlerts.length > 0) continue
 
-    // Create alerts at specific thresholds: 14, 7, 1, 0 days and grace period
-    if (daysUntilExpiry === 14 || daysUntilExpiry === 7 || daysUntilExpiry === 1 || 
-        daysUntilExpiry === 0 || (daysUntilExpiry < 0 && daysUntilExpiry >= -30)) {
-      
-      const severity = daysUntilExpiry <= 1 || daysUntilExpiry < 0 ? 'urgent' : 
-                      daysUntilExpiry === 7 ? 'warn' : 'info'
+    // Create alerts for expiring within next 14 days or expired within last 30 days
+    if (daysUntilExpiry >= 0 && daysUntilExpiry <= 14) {
+      // Expiring soon
+      const severity = daysUntilExpiry <= 1 ? 'urgent' : daysUntilExpiry <= 7 ? 'warn' : 'info'
 
-      const title = daysUntilExpiry < 0 
-        ? `VM Expired - Grace Period`
-        : daysUntilExpiry === 0
+      const title = daysUntilExpiry === 0 
         ? `VM Expiring Today`
         : `VM Expiring in ${daysUntilExpiry} Day${daysUntilExpiry > 1 ? 's' : ''}`
 
@@ -83,11 +79,43 @@ async function checkVMExpiry(supabase: any) {
       })
 
       // Build message with days
-      const daysMessage = daysUntilExpiry < 0 
-        ? `expired ${Math.abs(daysUntilExpiry)} day${Math.abs(daysUntilExpiry) > 1 ? 's' : ''} ago`
-        : daysUntilExpiry === 0 
+      const daysMessage = daysUntilExpiry === 0 
         ? 'expiring today'
         : `expiring in ${daysUntilExpiry} day${daysUntilExpiry > 1 ? 's' : ''}`
+
+      const insertResult = await supabase.from('alerts').insert({
+        sev: severity,
+        title,
+        body: `VM ${vm.hostname} (${vm.legacy_id || vm.id}) is ${daysMessage}. Expiry: ${formattedExpiry}`,
+        type: 'vm',
+        related_entity_id: vm.id,
+        related_entity_type: 'vm',
+        actor_id: null,
+        actor_name: 'System',
+        customer_id: vm.customer_id,
+        metadata: { vm_id: vm.legacy_id || vm.id, hostname: vm.hostname, expiry_date: vm.expiry, days_until_expiry: daysUntilExpiry }
+      })
+
+      if (insertResult.error) {
+        console.error('Error inserting VM alert:', insertResult.error)
+        continue
+      }
+      alertsCreated++
+    } else if (daysUntilExpiry < 0 && daysUntilExpiry >= -30) {
+      // Grace period - expired
+      const severity = 'urgent'
+
+      const title = `VM Expired - Grace Period`
+
+      // Format expiry date for readability
+      const formattedExpiry = expiryDate.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+      })
+
+      // Build message with days
+      const daysMessage = `expired ${Math.abs(daysUntilExpiry)} day${Math.abs(daysUntilExpiry) > 1 ? 's' : ''} ago`
 
       const insertResult = await supabase.from('alerts').insert({
         sev: severity,
@@ -150,16 +178,12 @@ async function checkAddonExpiry(supabase: any) {
 
     if (existingAlerts && existingAlerts.length > 0) continue
 
-    // Create alerts at specific thresholds: 14, 7, 1, 0 days and grace period
-    if (daysUntilExpiry === 14 || daysUntilExpiry === 7 || daysUntilExpiry === 1 || 
-        daysUntilExpiry === 0 || (daysUntilExpiry < 0 && daysUntilExpiry >= -30)) {
-      
-      const severity = daysUntilExpiry <= 1 || daysUntilExpiry < 0 ? 'urgent' : 
-                      daysUntilExpiry === 7 ? 'warn' : 'info'
+    // Create alerts for expiring within next 14 days or expired within last 30 days
+    if (daysUntilExpiry >= 0 && daysUntilExpiry <= 14) {
+      // Expiring soon
+      const severity = daysUntilExpiry <= 1 ? 'urgent' : daysUntilExpiry <= 7 ? 'warn' : 'info'
 
-      const title = daysUntilExpiry < 0 
-        ? `Add-on Service Expired - Grace Period`
-        : daysUntilExpiry === 0
+      const title = daysUntilExpiry === 0 
         ? `Add-on Service Expiring Today`
         : `Add-on Service Expiring in ${daysUntilExpiry} Day${daysUntilExpiry > 1 ? 's' : ''}`
 
@@ -171,11 +195,43 @@ async function checkAddonExpiry(supabase: any) {
       })
 
       // Build message with days
-      const daysMessage = daysUntilExpiry < 0 
-        ? `expired ${Math.abs(daysUntilExpiry)} day${Math.abs(daysUntilExpiry) > 1 ? 's' : ''} ago`
-        : daysUntilExpiry === 0 
+      const daysMessage = daysUntilExpiry === 0 
         ? 'expiring today'
         : `expiring in ${daysUntilExpiry} day${daysUntilExpiry > 1 ? 's' : ''}`
+
+      const insertResult = await supabase.from('alerts').insert({
+        sev: severity,
+        title,
+        body: `Add-on service ${addon.legacy_id || addon.id} is ${daysMessage}. Expiry: ${formattedExpiry}`,
+        type: 'expiry',
+        related_entity_id: addon.id,
+        related_entity_type: 'addon_request',
+        actor_id: null,
+        actor_name: 'System',
+        customer_id: addon.customer_id,
+        metadata: { addon_id: addon.legacy_id || addon.id, vm_id: addon.vm_id, expiry_date: addon.expiry, days_until_expiry: daysUntilExpiry }
+      })
+
+      if (insertResult.error) {
+        console.error('Error inserting add-on alert:', insertResult.error)
+        continue
+      }
+      alertsCreated++
+    } else if (daysUntilExpiry < 0 && daysUntilExpiry >= -30) {
+      // Grace period - expired
+      const severity = 'urgent'
+
+      const title = `Add-on Service Expired - Grace Period`
+
+      // Format expiry date for readability
+      const formattedExpiry = expiryDate.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+      })
+
+      // Build message with days
+      const daysMessage = `expired ${Math.abs(daysUntilExpiry)} day${Math.abs(daysUntilExpiry) > 1 ? 's' : ''} ago`
 
       const insertResult = await supabase.from('alerts').insert({
         sev: severity,

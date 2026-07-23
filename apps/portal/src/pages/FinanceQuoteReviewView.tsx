@@ -91,7 +91,6 @@ const FinanceQuoteReviewView = () => {
                 const vmReq = vmRequests.find(r => r.id === q.vm_request_id)
                 const addonReq = addonRequests.find(a => a.id === (q as any).addon_request_id)
                 const isAddon = !!(q as any).addon_request_id
-                const vm = vms.find(v => v.vm_request_id === q.vm_request_id)
                 const canApproveReject = q.status === 'Sent'
                 return (
                   <tr key={q.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedQuote(q)}>

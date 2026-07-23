@@ -4,7 +4,7 @@ import { Spinner } from '../ui/ui'
 import Icon from '../../lib/icons'
 
 export const CustomerNotificationsView: React.FC = () => {
-  const { alerts, alertsLoading, markAlertRead, markAllAlertsRead, loadAlerts } = useAlertStore()
+  const { alerts, alertsLoading, markAlertRead, markAllAlertsRead } = useAlertStore()
   const [filter, setFilter] = useState('All')
   const [sev, setSev] = useState('All')
   const [search, setSearch] = useState('')

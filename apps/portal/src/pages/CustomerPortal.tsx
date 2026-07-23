@@ -11,6 +11,7 @@ import useInvoiceStore from '../store/invoiceStore'
 import useTicketStore from '../store/ticketStore'
 import useUIStore from '../store/uiStore'
 import useAlertStore from '../store/alertStore'
+import useAnnouncementStore from '../store/announcementStore'
 import Spinner from '../components/ui/Spinner'
 import { useVMRequestStore } from '../store/vmRequestStore'
 import { useAddonRequestStore } from '../store/addonRequestStore'
@@ -51,6 +52,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
   const { tickets } = useTicketStore()
     const { toast } = useUIStore()
   const { alerts } = useAlertStore()
+  const { announcements } = useAnnouncementStore()
   const { vmRequests, loadVMRequests } = useVMRequestStore()
   const { addonRequests, loadAddonRequests } = useAddonRequestStore()
   const auth = useAuth()
@@ -144,26 +146,43 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
   const expiredVMs = myVMs.filter((v: any) => {
     if (!v.expiry || v.expiry === '—') return false
     const d = (new Date(v.expiry).getTime() - new Date().getTime()) / 86400000
-    // VMs that have already expired, with Active or Suspended status only
-    return d < 0 && (v.status === 'Active' || v.status === 'Suspended')
+    // VMs that have already expired within the last 30 days, excluding terminated ones
+    return d < 0 && d >= -30 && v.status !== 'Terminated'
   })
 
   const expiringSoonVMs = myVMs.filter((v: any) => {
     if (!v.expiry || v.expiry === '—') return false
     const d = (new Date(v.expiry).getTime() - new Date().getTime()) / 86400000
-    // VMs expiring within the next 14 days, with Active or Suspended status only
-    return d >= 0 && d <= 14 && (v.status === 'Active' || v.status === 'Suspended')
+    // VMs expiring within the next 14 days (not yet expired), excluding terminated ones
+    return d >= 0 && d <= 14 && v.status !== 'Terminated'
+  })
+
+  const expiredAddons = myAddonRequests.filter((a: any) => {
+    if (!a.expiry || a.expiry === '—') return false
+    const d = (new Date(a.expiry).getTime() - new Date().getTime()) / 86400000
+    // Add-ons that have already expired within the last 30 days, excluding terminated ones
+    return d < 0 && d >= -30 && a.operational_status !== 'Terminated'
   })
 
   const expiringSoonAddons = myAddonRequests.filter((a: any) => {
     if (!a.expiry || a.expiry === '—') return false
     const d = (new Date(a.expiry).getTime() - new Date().getTime()) / 86400000
-    // Add-ons expiring within the next 14 days, excluding terminated ones
+    // Add-ons expiring within the next 14 days (not yet expired), excluding terminated ones
     return d >= 0 && d <= 14 && a.operational_status !== 'Terminated'
   })
 
   // Get VM information for expiring add-ons
   const expiringAddonVMs = expiringSoonAddons.map((addon: any) => {
+    const vm = myVMs.find((v: any) => v.id === addon.vm_id)
+    return {
+      ...addon,
+      vm_hostname: vm?.hostname || 'Unknown VM',
+      vm_legacy_id: vm?.legacy_id || vm?.id
+    }
+  })
+
+  // Get VM information for expired add-ons
+  const expiredAddonVMs = expiredAddons.map((addon: any) => {
     const vm = myVMs.find((v: any) => v.id === addon.vm_id)
     return {
       ...addon,
@@ -179,6 +198,9 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
   const myAlerts = alerts.filter((a: any) => a.customer_id === safeMe.id || !a.customer_id)
   const unreadAlerts = myAlerts.filter((a: any) => !a.read).length
 
+  const sentAnnouncements = announcements.filter((a: any) => a.status === 'Sent')
+  const unreadAnnouncements = sentAnnouncements.filter((a: any) => !a.read).length
+
   const items = [
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
     { id: 'request', label: 'Request VM', icon: 'plus', lockedByKyc: true },
@@ -188,7 +210,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
     { id: 'addons', label: 'Add-on Services', icon: 'plus', lockedByKyc: true },
     { id: 'invoices', label: 'Invoices', icon: 'invoice', badge: pendingInv.length || null, lockedByKyc: true },
     { id: 'receipts', label: 'Receipts', icon: 'check', lockedByKyc: true },
-    { id: 'cust-announcements', label: 'Announcements', icon: 'mail' },
+    { id: 'cust-announcements', label: 'Announcements', icon: 'mail', badge: unreadAnnouncements || null },
     { id: 'tickets', label: 'Support tickets', icon: 'mail', badge: openTickets.length || null, lockedByKyc: true },
   ]
 
@@ -332,6 +354,15 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
             <Icon name="alert" size={16} style={{ color: 'oklch(0.55 0.16 75)' }} />
             <div className="text-sm" style={{ color: 'oklch(0.4 0.13 75)' }}>
               <span className="fw-6">{expiringSoonVMs.map((v: any) => `${v.hostname}(${v.legacy_id})`).join(', ')} expiring soon.</span> Renew now to avoid service interruption.
+            </div>
+          </div>
+        )}
+
+        {expiredAddonVMs.length > 0 && !detailVm && view !== 'request' && safeMe.kyc_status === 'Approved' && (
+          <div style={{ padding: '12px 28px', background: 'var(--bad-soft)', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Icon name="alert" size={16} style={{ color: 'var(--bad)' }} />
+            <div className="text-sm" style={{ color: 'var(--bad)' }}>
+              <span className="fw-6">Add-on service(s) for {expiredAddonVMs.map((a: any) => `${a.vm_hostname}(${a.vm_legacy_id})`).join(', ')} expired.</span> Renew immediately to restore service.
             </div>
           </div>
         )}

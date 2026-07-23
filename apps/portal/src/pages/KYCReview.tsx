@@ -25,6 +25,7 @@ export const KYCReviewView: React.FC = () => {
   const [selected, setSelected] = useState<any>(null)
   const [note, setNote] = useState('')
   const [showReopenConfirm, setShowReopenConfirm] = useState(false)
+  const [previewDoc, setPreviewDoc] = useState<Doc | null>(null)
 
   const auth = useAuth()
   const reviewerName = auth?.user?.name || auth?.user?.email || 'Unknown'
@@ -165,6 +166,7 @@ export const KYCReviewView: React.FC = () => {
     sel.nrc_front_url && { name: 'NRC — front', url: sel.nrc_front_url, tone: 'oklch(0.6 0.16 30)' },
     sel.nrc_back_url && { name: 'NRC — back', url: sel.nrc_back_url, tone: 'oklch(0.55 0.16 230)' },
     sel.org_cert_url && { name: 'Company registration', url: sel.org_cert_url, tone: 'oklch(0.55 0.17 285)' },
+    sel.org_tax_id_url && { name: 'Tax registration', url: sel.org_tax_id_url, tone: 'oklch(0.55 0.16 150)' },
     sel.director_id_url && { name: 'Director ID / selfie', url: sel.director_id_url, tone: 'var(--ok)' },
   ].filter(Boolean) as Doc[] : []
 
@@ -258,7 +260,7 @@ export const KYCReviewView: React.FC = () => {
                 <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Submitted documents</div>
                 <div className="grid-2" style={{ gap: 8 }}>
                   {docs.map(d => (
-                    <div key={d.name} onClick={() => window.open(d.url, '_blank')} style={{
+                    <div key={d.name} onClick={() => setPreviewDoc(d)} style={{
                       border: '1px solid var(--line)', borderRadius: 8, overflow: 'hidden', cursor: 'pointer',
                     }}>
                       <div style={{ height: 56, background: `${d.tone}14`, display: 'grid', placeItems: 'center', color: d.tone }}>
@@ -266,7 +268,7 @@ export const KYCReviewView: React.FC = () => {
                       </div>
                       <div style={{ padding: '7px 9px' }}>
                         <div className="fw-6" style={{ fontSize: 11.5 }}>{d.name}</div>
-                        <div className="text-xs text-mute">View document</div>
+                        <div className="text-xs text-mute">Click to preview</div>
                       </div>
                     </div>
                   ))}
@@ -282,7 +284,6 @@ export const KYCReviewView: React.FC = () => {
                     <div className="flex gap-2 mt-3" style={{ flexWrap: 'wrap' }}>
                       <button className="btn accent" style={{ flex: 1 }} onClick={() => decide(sel.id, 'Approved')}><Icon name="check" size={12} />Approve</button>
                       <button className="btn danger" style={{ flex: 1 }} onClick={() => decide(sel.id, 'Rejected')}><Icon name="x" size={12} />Reject</button>
-                      <button className="btn" style={{ width: '100%', marginTop: 8, justifyContent: 'center' }} onClick={() => { setNote(''); decide(sel.id, 'Pending'); }}><Icon name="refresh" size={12} />Request Re-upload</button>
                     </div>
                   </>
                 )}
@@ -351,6 +352,26 @@ export const KYCReviewView: React.FC = () => {
                   setShowReopenConfirm(false)
                 }}>Confirm</button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Document preview modal */}
+      {previewDoc && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000,
+          display: 'grid', placeItems: 'center', padding: 20
+        }} onClick={() => setPreviewDoc(null)}>
+          <div className="card" style={{ maxWidth: 800, width: '100%', maxHeight: '90vh', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+            <div className="card-head">
+              <h3 className="card-title">{previewDoc.name}</h3>
+              <button className="icon-btn" onClick={() => setPreviewDoc(null)}>
+                <Icon name="x" size={14} />
+              </button>
+            </div>
+            <div className="card-body" style={{ padding: 16, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+              <img src={previewDoc.url} alt={previewDoc.name} style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: 4 }} />
             </div>
           </div>
         </div>

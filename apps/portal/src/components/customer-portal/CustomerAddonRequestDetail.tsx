@@ -63,7 +63,7 @@ export const CustomerAddonRequestDetail: React.FC<CustomerAddonRequestDetailProp
                     <dd className="mono">Cloud Container Image Service - {t.ccis_package || 'standard'}</dd>
                   </>
                 )}
-                <dt>Billing Term</dt><dd className="mono">{t.duration || 'N/A'}</dd>
+                <dt>Billing Term</dt><dd className="mono">{typeof t.duration === 'string' ? t.duration : t.duration === 1 ? 'Monthly' : t.duration === 3 ? 'Quarterly' : t.duration === 6 ? 'Half Yearly' : t.duration === 12 ? 'Yearly' : t.duration ? `${t.duration} month${t.duration > 1 ? 's' : ''}` : 'N/A'}</dd>
                 {t.start_date && <><dt>Start Date</dt><dd className="mono tnum">{new Date(t.start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
                 {t.end_date && <><dt>End Date</dt><dd className="mono tnum">{new Date(t.end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
                 {t.expiry && <><dt>Expiry</dt><dd className="mono tnum">{new Date(t.expiry).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}

@@ -11,9 +11,10 @@ interface VMDrawerProps {
   onClose: () => void
   openCust: (id: string) => void
   openModal: (kind: string, props?: any) => void
+  userRole?: string
 }
 
-const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal }) => {
+const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal, userRole }) => {
   const { vms, updateVM, getVMRequest, getAddonRequestsForVM } = useVMStore()
   const { customers } = useCustomerStore()
   const { updateAddonRequest, addonRequests: allAddonRequests } = useAddonRequestStore()
@@ -78,12 +79,12 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal 
               </div>
             </div>
             <div className="flex gap-2">
-              {v.status === 'Active' ? (
+              {v.status === 'Active' && userRole !== 'Sales' && userRole !== 'Finance' ? (
                 <button className="btn" onClick={() => openModal('terminate', { vm: v })}><Icon name="trash" size={12}/>Terminate</button>
               ) : (
-                <button className="btn primary" onClick={handleActivate}><Icon name="play" size={12}/>Activate</button>
+                v.status !== 'Active' && <button className="btn primary" onClick={handleActivate}><Icon name="play" size={12}/>Activate</button>
               )}
-              <button className="btn danger" onClick={() => openModal('delete', { vm: v })}><Icon name="x" size={12}/>Delete</button>
+              {userRole !== 'Sales' && userRole !== 'Finance' && <button className="btn danger" onClick={() => openModal('delete', { vm: v })}><Icon name="x" size={12}/>Delete</button>}
             </div>
           </div>
         </div>
