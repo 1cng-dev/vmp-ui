@@ -1037,7 +1037,7 @@ const EmailModal: React.FC<EmailModalProps> = ({ onClose, to, template }) => {
   const templates: Record<string, { subject: string; body: string }> = {
     receipt: { subject: 'Payment receipt', body: `Hi,\n\nThank you for your payment. Your receipt is attached for your records.\n\nIf you have any questions, please don't hesitate to contact us.\n\n— ${companyName} Team` },
   }
-  const [tmpl, setTmpl] = useState(template || 'receipt')
+  const [tmpl, _setTmpl] = useState(template || 'receipt')
   const [f, setF] = useState({ to: to || '', subject: templates[tmpl].subject, body: templates[tmpl].body })
   const set = (k: string, v: any) => setF(x => ({ ...x, [k]: v }))
 

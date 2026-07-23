@@ -16,7 +16,7 @@ interface InvoiceDrawerProps {
   role?: string
 }
 
-export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, openModal, role }) => {
+export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, openModal: _openModal, role }) => {
   const { invoices, markPaid, updateInvoice, loadInvoices } = useInvoiceStore()
   const { customers } = useCustomerStore()
   const { toast } = useUIStore()

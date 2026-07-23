@@ -15,7 +15,7 @@ interface CustomerDrawerProps {
   openModal: (kind: string, props?: any) => void
 }
 
-const CustomerDrawer: React.FC<CustomerDrawerProps> = ({ custId, onClose, openVM, openModal }) => {
+const CustomerDrawer: React.FC<CustomerDrawerProps> = ({ custId, onClose, openVM, openModal: _openModal }) => {
   const navigate = useNavigate()
   const { customers, updateCustomer } = useCustomerStore()
   const { vms } = useVMStore()
