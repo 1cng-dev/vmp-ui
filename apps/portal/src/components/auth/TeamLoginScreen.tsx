@@ -17,6 +17,17 @@ const TeamLoginScreen: React.FC = () => {
 
   const submit = async (e: React.FormEvent) => {
     e?.preventDefault()
+
+    // Password validation
+    if (f.password.length < 8) {
+      toast('Password must be at least 8 characters', 'bad')
+      return
+    }
+    if (f.password.length > 64) {
+      toast('Password must be at most 64 characters', 'bad')
+      return
+    }
+
     setLoading(true)
 
     const { data, error } = await supabase.auth.signInWithPassword({

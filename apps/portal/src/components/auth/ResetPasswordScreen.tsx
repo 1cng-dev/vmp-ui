@@ -30,6 +30,7 @@ const ResetPasswordScreen: React.FC = () => {
 
     const validatePassword = () => {
         if (password.length < 8) return 'Password must be at least 8 characters'
+        if (password.length > 64) return 'Password must be at most 64 characters'
         if (!/[A-Z]/.test(password)) return 'Password must contain at least one uppercase letter'
         if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) return 'Password must contain at least one special character'
         if (password !== confirmPassword) return 'Passwords do not match'

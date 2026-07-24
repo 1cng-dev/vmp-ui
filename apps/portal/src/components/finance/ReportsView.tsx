@@ -68,7 +68,7 @@ export const ReportsView: React.FC = () => {
       .map(c => {
         const lifetimeSpend = allInvoices
           .filter(inv => inv.customer_id === c.id && inv.status === 'Payment Received')
-          .reduce((sum, inv) => sum + inv.amount, 0)
+          .reduce((sum, inv) => sum + (inv.gross_amount || 0), 0)
 
         if (lifetimeSpend === 0) return null
 
@@ -118,7 +118,7 @@ export const ReportsView: React.FC = () => {
       .map(c => {
         const lifetimeSpend = allInvoices
           .filter(inv => inv.customer_id === c.id && inv.status === 'Payment Received')
-          .reduce((sum, inv) => sum + inv.amount, 0)
+          .reduce((sum, inv) => sum + (inv.gross_amount || 0), 0)
 
         if (lifetimeSpend === 0) return null
 
@@ -169,7 +169,7 @@ export const ReportsView: React.FC = () => {
         const fiscalEnd = new Date(endDate)
         return invoiceDate >= fiscalStart && invoiceDate <= fiscalEnd
       })
-      .reduce((sum, inv) => sum + inv.amount, 0)
+      .reduce((sum, inv) => sum + (inv.gross_amount || 0), 0)
   }
 
   return (
@@ -230,7 +230,7 @@ export const ReportsView: React.FC = () => {
                       .map(c => {
                         const lifetimeSpend = allInvoices
                           .filter(inv => inv.customer_id === c.id && inv.status === 'Payment Received')
-                          .reduce((sum, inv) => sum + inv.amount, 0)
+                          .reduce((sum, inv) => sum + (inv.gross_amount || 0), 0)
 
                         if (lifetimeSpend === 0) return null
 
@@ -286,12 +286,12 @@ export const ReportsView: React.FC = () => {
                 <tr style={{ background: 'var(--surface-2)' }}>
                   <td className="fw-7">Total</td>
                   <td className="right tnum fw-7">{[...displayCustomers].reduce((sum, c) => {
-                    const lifetimeSpend = allInvoices.filter(inv => inv.customer_id === c.id && inv.status === 'Payment Received').reduce((s, inv) => s + inv.amount, 0)
+                    const lifetimeSpend = allInvoices.filter(inv => inv.customer_id === c.id && inv.status === 'Payment Received').reduce((s, inv) => s + (inv.gross_amount || 0), 0)
                     if (lifetimeSpend === 0) return sum
                     return sum + displayVMs.filter(v => v.customer_id === c.id).length
                   }, 0)}</td>
                   <td className="right tnum fw-7">MMK {formatMMK([...displayCustomers].reduce((sum, c) => {
-                    const lifetimeSpend = allInvoices.filter(inv => inv.customer_id === c.id && inv.status === 'Payment Received').reduce((s, inv) => s + inv.amount, 0)
+                    const lifetimeSpend = allInvoices.filter(inv => inv.customer_id === c.id && inv.status === 'Payment Received').reduce((s, inv) => s + (inv.gross_amount || 0), 0)
                     return sum + lifetimeSpend
                   }, 0))}</td>
                   <td className="right tnum fw-7">

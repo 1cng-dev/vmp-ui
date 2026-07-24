@@ -88,6 +88,10 @@ const SetupPassword = () => {
       toast('Password must be at least 8 characters', 'bad')
       return
     }
+    if (password.length > 64) {
+      toast('Password must be at most 64 characters', 'bad')
+      return
+    }
     if (!/[A-Z]/.test(password)) {
       toast('Password must contain at least one uppercase letter', 'bad')
       return

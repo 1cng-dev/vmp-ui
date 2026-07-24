@@ -22,6 +22,11 @@ const ChangePasswordPage: React.FC = () => {
       setLoading(false)
       return
     }
+    if (f.newPassword.length > 64) {
+      toast('Password must be at most 64 characters', 'bad')
+      setLoading(false)
+      return
+    }
     if (!/[A-Z]/.test(f.newPassword)) {
       toast('Password must contain at least one uppercase letter', 'bad')
       setLoading(false)

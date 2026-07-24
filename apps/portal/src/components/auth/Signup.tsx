@@ -72,6 +72,7 @@ const SignupScreen: React.FC<{ onComplete: (email: string) => void; onSwitchToLo
     if (!f.name.trim()) return 'Enter your name'
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) return 'Enter a valid email'
     if (f.password.length < 8) return 'Password must be at least 8 characters'
+    if (f.password.length > 64) return 'Password must be at most 64 characters'
     if (!/[A-Z]/.test(f.password)) return 'Password must contain at least one uppercase letter'
     if (!/[!@#$%^&*(),.?":{}|<>]/.test(f.password)) return 'Password must contain at least one special character'
     if (f.password !== f.confirmPassword) return 'Passwords do not match'
