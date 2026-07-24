@@ -299,8 +299,8 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
             {view === 'maintenance' && <PlaceholderView title="Maintenance Windows" description="Maintenance scheduling - coming soon" />}
             {view === 'patches' && <PlaceholderView title="Patch Queue" description="OS patch management - coming soon" />}
             {view === 'firewall' && <PlaceholderView title="Firewall Rules" description="Firewall configuration - coming soon" />}
-            {view === 'customers' && <CustomersView openCust={openCust} openModal={openModal} userRole={tw.role} />}
-            {drawerCustId && <CustomerDrawer custId={drawerCustId} onClose={closeCustDrawer} openVM={openVM} openModal={openModal} />}
+            {view === 'customers' && <CustomersView openCust={openCust} />}
+            {drawerCustId && <CustomerDrawer custId={drawerCustId} onClose={closeCustDrawer} openVM={openVM} />}
             {view === 'customer-accounts' && <CustomerAccountManagementView openCust={openCust} openModal={openModal} setView={handleSetView} role={tw.role} />}
             {view === 'kyc' && <KYCReviewView />}
             {view === 'pipeline' && <PlaceholderView title="Sales Pipeline" description="Sales pipeline view - coming soon" />}

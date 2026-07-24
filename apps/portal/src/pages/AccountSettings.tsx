@@ -25,17 +25,11 @@ export const AccountSettingsView: React.FC<AccountSettingsViewProps> = ({ role }
   const [showCurrentPw, setShowCurrentPw] = useState(false)
   const [showPw, setShowPw] = useState(false)
   const [showConfirmPw, setShowConfirmPw] = useState(false)
+  const [updatingPassword, setUpdatingPassword] = useState(false)
 
 
   const [security, setSecurity] = useState({
     twoFA: true, sessionTimeout: 30, currentPassword: '', newPassword: '', confirmPassword: '',
-  })
-  const [notif, setNotif] = useState({
-    emailExpiry: true, emailInvoice: true, emailTask: true, emailKYC: role === 'Admin',
-    inappAll: true, weeklyDigest: false,
-  })
-  const [prefs, setPrefs] = useState({
-    densityCompact: false, showOnboarding: false, defaultLanding: 'dashboard',
   })
 
   useEffect(() => { if (me?.id) setProfile(p => ({ ...p, name: me.name, email: me.email })); }, [me?.id])
@@ -56,10 +50,12 @@ export const AccountSettingsView: React.FC<AccountSettingsViewProps> = ({ role }
   const savePassword = async () => {
     if (!security.currentPassword) return toast('Enter current password', 'warn')
     if (security.newPassword.length < 8) return toast('Password must be at least 8 characters', 'warn')
+    if (security.newPassword.length > 64) return toast('Password must be at most 64 characters', 'warn')
     if (!/[A-Z]/.test(security.newPassword)) return toast('Password must contain at least one uppercase letter', 'warn')
     if (!/[!@#$%^&*(),.?":{}|<>]/.test(security.newPassword)) return toast('Password must contain at least one special character', 'warn')
     if (security.newPassword !== security.confirmPassword) return toast('Passwords do not match', 'bad')
 
+    setUpdatingPassword(true)
     try {
       // Get current user's email from session
       const { data: { user } } = await supabase.auth.getUser()
@@ -88,18 +84,18 @@ export const AccountSettingsView: React.FC<AccountSettingsViewProps> = ({ role }
     } catch (error) {
       toast('Failed to change password', 'bad')
       console.error('Password update error:', error)
+    } finally {
+      setUpdatingPassword(false)
     }
   }
 
-  const saveNotif = () => toast('Notification preferences saved', 'ok')
-  const savePrefs = () => toast('Preferences saved', 'ok')
 
   return (
     <div className="content">
       <div className="page-head">
         <div>
           <h1 className="page-title">Account settings</h1>
-          <p className="page-subtitle">Manage your profile, security, and notification preferences</p>
+          <p className="page-subtitle">Manage your profile and security</p>
         </div>
       </div>
 
@@ -202,7 +198,7 @@ export const AccountSettingsView: React.FC<AccountSettingsViewProps> = ({ role }
                   </div>
                 </div>
               </div>
-              <button className="btn" onClick={savePassword}><Icon name="key" size={12} />Update password</button>
+              <button className="btn" onClick={savePassword} disabled={updatingPassword}>{updatingPassword ? 'Updating...' : <><Icon name="key" size={12} />Update password</>}</button>
               {/* <div className="divider" />
               <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Active sessions</div>
               <div className="flex center between text-sm">
@@ -225,69 +221,6 @@ export const AccountSettingsView: React.FC<AccountSettingsViewProps> = ({ role }
         </div>
       </div>
 
-      <div className="grid-2">
-        {/* Notifications */}
-        <div className="card">
-          <div className="card-head">
-            <h3 className="card-title">Notification preferences</h3>
-            <button className="btn sm accent" onClick={saveNotif}><Icon name="check" size={11} />Save</button>
-          </div>
-          <div className="card-body">
-            <div className="flex col gap-3">
-              <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Email me when</div>
-              {[
-                ['emailExpiry', 'A VM is expiring within 7 days'],
-                ['emailInvoice', 'An invoice becomes overdue'],
-                ['emailTask', 'A task is assigned to me'],
-                ['emailKYC', 'A new KYC submission arrives'],
-              ].map(([key, label]) => (
-                <div key={key} className="flex center between">
-                  <span className="text-sm">{label}</span>
-                  <span className={`toggle ${(notif as any)[key] ? 'on' : ''}`} onClick={() => setNotif({ ...notif, [key]: !(notif as any)[key] })} />
-                </div>
-              ))}
-              <div className="divider" />
-              <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>In-app</div>
-              <div className="flex center between"><span className="text-sm">Show all in-app notifications</span><span className={`toggle ${notif.inappAll ? 'on' : ''}`} onClick={() => setNotif({ ...notif, inappAll: !notif.inappAll })} /></div>
-              <div className="flex center between"><span className="text-sm">Weekly digest email (Mondays)</span><span className={`toggle ${notif.weeklyDigest ? 'on' : ''}`} onClick={() => setNotif({ ...notif, weeklyDigest: !notif.weeklyDigest })} /></div>
-            </div>
-          </div>
-        </div>
-
-        {/* Preferences */}
-        <div className="card">
-          <div className="card-head">
-            <h3 className="card-title">Preferences</h3>
-            <button className="btn sm accent" onClick={savePrefs}><Icon name="check" size={11} />Save</button>
-          </div>
-          <div className="card-body">
-            <div className="flex col gap-3">
-              <div className="flex center between">
-                <div><div className="fw-6 text-sm">Compact density</div><div className="text-xs text-mute">Tighter table rows and cards</div></div>
-                <span className={`toggle ${prefs.densityCompact ? 'on' : ''}`} onClick={() => setPrefs({ ...prefs, densityCompact: !prefs.densityCompact })} />
-              </div>
-              <div className="flex center between">
-                <div><div className="fw-6 text-sm">Show onboarding tips</div><div className="text-xs text-mute">Tooltips and feature highlights</div></div>
-                <span className={`toggle ${prefs.showOnboarding ? 'on' : ''}`} onClick={() => setPrefs({ ...prefs, showOnboarding: !prefs.showOnboarding })} />
-              </div>
-              <div className="field">
-                <label>Default landing page</label>
-                <select value={prefs.defaultLanding} onChange={e => setPrefs({ ...prefs, defaultLanding: e.target.value })}>
-                  <option value="dashboard">Dashboard</option>
-                  <option value="vms">VM records</option>
-                  <option value="tasks">Provisioning</option>
-                  <option value="customers">Customers</option>
-                  <option value="finance">Invoices</option>
-                </select>
-              </div>
-              <div className="divider" />
-              <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Data</div>
-              <button className="btn" onClick={() => toast('Account export queued · email link will arrive shortly', 'info')}><Icon name="download" size={12} />Download my data</button>
-              <button className="btn danger" onClick={() => toast('Account deletion request submitted to admin', 'bad')}><Icon name="trash" size={12} />Delete account</button>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   )
 }

@@ -7,12 +7,10 @@ import { StatusPill, Avatar, CircularSpinner } from '../components/ui/ui'
 
 interface CustomersViewProps {
   openCust: (id: string) => void
-  openModal: (kind: string, props?: any) => void
-  userRole?: string
 }
 
-const CustomersView: React.FC<CustomersViewProps> = ({ openCust, openModal: _openModal, userRole: _userRole }) => {
-  const { customers, customersLoading, updateCustomer: _updateCustomer, loadCustomers, deleteCustomer: _deleteCustomer } = useCustomerStore()
+const CustomersView: React.FC<CustomersViewProps> = ({ openCust }) => {
+  const { customers, customersLoading, loadCustomers } = useCustomerStore()
   const { vms } = useVMStore()
   const { toast } = useUIStore()
   const [filter, setFilter] = useState('all')

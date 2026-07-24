@@ -126,10 +126,10 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal, userRole
     return true
   })
 
-  const total = invoices.reduce((a, i) => a + i.amount, 0)
-  const received = invoices.filter(i => i.status === 'Payment Received').reduce((a, i) => a + i.amount, 0)
-  const pending = invoices.filter(i => i.status === 'Pending' || i.status === 'Customer Transferred').reduce((a, i) => a + i.amount, 0)
-  const overdue = invoices.filter(i => i.status === 'Overdue').reduce((a, i) => a + i.amount, 0)
+  const total = invoices.reduce((a, i) => a + (i.gross_amount || 0), 0)
+  const received = invoices.filter(i => i.status === 'Payment Received').reduce((a, i) => a + (i.gross_amount || 0), 0)
+  const pending = invoices.filter(i => i.status === 'Pending' || i.status === 'Customer Transferred').reduce((a, i) => a + (i.gross_amount || 0), 0)
+  const overdue = invoices.filter(i => i.status === 'Overdue').reduce((a, i) => a + (i.gross_amount || 0), 0)
 
   return (
     <div className="content">
@@ -449,7 +449,7 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal, userRole
           </div>
         </>
       ) : (
-        <InvoiceDrawer invoice={selectedInvoice} onClose={() => setView('list')} openCust={openCust} openModal={openModal} role={userRole} />
+        <InvoiceDrawer invoice={selectedInvoice} onClose={() => setView('list')} openCust={openCust} role={userRole} />
       )}
     </div>
   )

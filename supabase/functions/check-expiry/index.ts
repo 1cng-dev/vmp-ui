@@ -1,5 +1,5 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { serve } from "https://deno.land/std@0.208.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0'
 
 serve(async (req) => {
   try {
@@ -67,7 +67,7 @@ async function checkVMExpiry(supabase: any) {
       // Expiring soon
       const severity = daysUntilExpiry <= 1 ? 'urgent' : daysUntilExpiry <= 7 ? 'warn' : 'info'
 
-      const title = daysUntilExpiry === 0 
+      const title = daysUntilExpiry === 0
         ? `VM Expiring Today`
         : `VM Expiring in ${daysUntilExpiry} Day${daysUntilExpiry > 1 ? 's' : ''}`
 

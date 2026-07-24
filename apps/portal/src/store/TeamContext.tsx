@@ -66,8 +66,16 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const authUser = await supabase.auth.getUser()
     const invitedBy = authUser.data.user?.id
 
-    // Generate temporary password (will be shown to admin)
-    const tempPassword = Math.random().toString(36).slice(-12) + Math.random().toString(36).slice(-12)
+    // Generate temporary password that meets validation requirements
+    const generateTempPassword = () => {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*'
+      let password = ''
+      for (let i = 0; i < 16; i++) {
+        password += chars.charAt(Math.floor(Math.random() * chars.length))
+      }
+      return password
+    }
+    const tempPassword = generateTempPassword()
 
     // Create Supabase auth user first
     const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({

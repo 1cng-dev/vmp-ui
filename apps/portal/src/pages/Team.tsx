@@ -65,7 +65,7 @@ const TeamView: React.FC<TeamViewProps> = () => {
       </div>
 
       <>
-      <div className="grid-2 mb-4">
+      <div className="mb-4">
           <div className="card">
             <div className="card-head"><h3 className="card-title">Team members</h3></div>
             <div className="card-body flush" style={{ overflowX: 'auto' }}>
@@ -118,7 +118,9 @@ const TeamView: React.FC<TeamViewProps> = () => {
                 </table>
             </div>
           </div>
+      </div>
 
+      <div className="mb-4">
           <div className="card">
             <div className="card-head"><h3 className="card-title">Role permissions (RBAC)</h3></div>
             <div className="card-body" style={{ padding: '12px 0' }}>
@@ -152,7 +154,7 @@ const TeamView: React.FC<TeamViewProps> = () => {
             </div>
             <div className="modal-body">
               <p style={{ margin: 0, color: 'var(--text-mute)' }}>
-                Are you sure you want to remove <strong>{confirmDelete.name}</strong>? This will delete their account from auth.users and revoke all access.
+                Are you sure you want to remove <strong>{confirmDelete.name}</strong>?
               </p>
             </div>
             <div className="modal-foot">
@@ -206,6 +208,10 @@ const TeamView: React.FC<TeamViewProps> = () => {
                 onClick={async () => {
                   if (!newPassword || newPassword.length < 8) {
                     toast('Password must be at least 8 characters', 'warn')
+                    return
+                  }
+                  if (newPassword.length > 64) {
+                    toast('Password must be at most 64 characters', 'warn')
                     return
                   }
                   if (!/[A-Z]/.test(newPassword)) {

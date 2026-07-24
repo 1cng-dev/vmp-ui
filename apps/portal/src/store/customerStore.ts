@@ -72,11 +72,25 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
           }
         }
 
-        const enriched = (data as Customer[]).map((c: any) => ({
-          ...c,
-          last_login_at: c.last_login_at || usersMap[c.id]
-        })) as Customer[]
-        setCustomers(enriched)
+        // Calculate totalSpend for each customer from invoices
+        const customersWithSpend = await Promise.all(
+          (data as Customer[]).map(async (c: any) => {
+            const { data: invoices } = await supabase
+              .from('invoices')
+              .select('gross_amount')
+              .eq('customer_id', c.id)
+              .eq('status', 'Payment Received')
+
+            const totalSpend = invoices?.reduce((sum: number, inv: any) => sum + (inv.gross_amount || 0), 0) || 0
+            return {
+              ...c,
+              totalSpend,
+              last_login_at: c.last_login_at || usersMap[c.id],
+              since: c.created_at
+            }
+          })
+        )
+        setCustomers(customersWithSpend)
       }
     } finally {
       setCustomersLoading(false)

@@ -52,6 +52,7 @@ export const CustomerAccountView: React.FC<CustomerAccountViewProps> = ({ me }) 
   const [showCurrentPw, setShowCurrentPw] = useState(false)
   const [showPw, setShowPw] = useState(false)
   const [showConfirmPw, setShowConfirmPw] = useState(false)
+  const [updatingPassword, setUpdatingPassword] = useState(false)
 
   const [security, setSecurity] = useState({
     currentPassword: '',
@@ -107,10 +108,12 @@ export const CustomerAccountView: React.FC<CustomerAccountViewProps> = ({ me }) 
   const savePassword = async () => {
     if (!security.currentPassword) return toast('Enter current password', 'warn')
     if (security.newPassword.length < 8) return toast('Password must be at least 8 characters', 'warn')
+    if (security.newPassword.length > 64) return toast('Password must be at most 64 characters', 'warn')
     if (!/[A-Z]/.test(security.newPassword)) return toast('Password must contain at least one uppercase letter', 'warn')
     if (!/[!@#$%^&*(),.?":{}|<>]/.test(security.newPassword)) return toast('Password must contain at least one special character', 'warn')
     if (security.newPassword !== security.confirmPassword) return toast('Passwords do not match', 'bad')
 
+    setUpdatingPassword(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user?.email) {
@@ -137,6 +140,8 @@ export const CustomerAccountView: React.FC<CustomerAccountViewProps> = ({ me }) 
     } catch (error) {
       toast('Failed to change password', 'bad')
       console.error('Password update error:', error)
+    } finally {
+      setUpdatingPassword(false)
     }
   }
 
@@ -348,7 +353,7 @@ export const CustomerAccountView: React.FC<CustomerAccountViewProps> = ({ me }) 
                   </div>
                 </div>
               </div>
-              <button className="btn" onClick={savePassword}><Icon name="key" size={12} />Update password</button>
+              <button className="btn" onClick={savePassword} disabled={updatingPassword}>{updatingPassword ? 'Updating...' : <><Icon name="key" size={12} />Update password</>}</button>
             </div>
           </div>
         </div>

@@ -9,6 +9,7 @@
 import React, { useState } from 'react'
 import useCustomerStore from '../store/customerStore'
 import useVMStore from '../store/vmStore'
+import useInvoiceStore from '../store/invoiceStore'
 import useUIStore from '../store/uiStore'
 import Icon from '../lib/icons'
 import { Avatar, StatusPill, formatMMK } from '../components/ui/ui'
@@ -24,10 +25,17 @@ interface CustomerAccountManagementViewProps {
 export const CustomerAccountManagementView: React.FC<CustomerAccountManagementViewProps> = ({ openCust, openModal, setView, role }) => {
   const { customers } = useCustomerStore()
   const { vms } = useVMStore()
+  const { invoices } = useInvoiceStore()
   const { toast } = useUIStore()
   const [segment, setSegment] = useState('all')
   const [search, setSearch] = useState('')
   const [view360, setView360] = useState<any>(null)
+
+  // Calculate real KPI data
+  const pendingKYCCount = customers.filter((c: any) => c.kyc_status === 'Pending').length
+  const paidInvoices = invoices.filter((i: any) => i.status === 'Payment Received')
+  const lifetimeValue = paidInvoices.reduce((sum: number, i: any) => sum + (i.gross_amount || 0), 0)
+  const avgResponseTime = '4.2h' // TODO: Calculate from KYC review timestamps
 
   // Feature 5: Saved segments
   const segments = [
@@ -84,8 +92,8 @@ export const CustomerAccountManagementView: React.FC<CustomerAccountManagementVi
         {[
           { label: 'Total customers', value: customers.length, sub: `+${customers.filter((c: any) => (new Date().getTime() - new Date(c.since).getTime()) / 86400000 <= 30).length} new this month`, icon: 'users', accent: 'oklch(0.6 0.13 250)' },
           { label: 'Active', value: customers.filter((c: any) => c.status === 'Active').length, sub: `${customers.filter((c: any) => c.status === 'Inactive').length} inactive`, icon: 'check', accent: 'var(--ok)' },
-          { label: 'Pending KYC', value: customers.filter((c: any) => c.kyc === 'Pending').length, sub: 'avg 4.2h response', icon: 'shield', accent: 'oklch(0.55 0.16 75)' },
-          { label: 'Lifetime value', value: `${formatMMK(Math.round(customers.reduce((a: number, c: any) => a + c.totalSpend, 0) / 1000000))}M`, sub: 'MMK total', icon: 'invoice', accent: 'oklch(0.55 0.18 285)' },
+          { label: 'Pending KYC', value: pendingKYCCount, sub: `${avgResponseTime} response`, icon: 'shield', accent: 'oklch(0.55 0.16 75)' },
+          { label: 'Lifetime value', value: `MMK ${formatMMK(lifetimeValue)}`, sub: 'from paid invoices', icon: 'invoice', accent: 'oklch(0.55 0.18 285)' },
         ].map((m, i) => (
           <div key={i} className="metric" style={{ animation: `fadeIn ${0.2 + i * 0.05}s ease-out` }}>
             <div className="label flex center gap-2">
