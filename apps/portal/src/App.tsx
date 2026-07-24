@@ -8,6 +8,7 @@ import AdminDirectVMCreate from './pages/AdminDirectVMCreate'
 import VMDrawer from './components/vm/VMDrawer'
 import { NewVMModal, RenewModal, SpecModal, TerminateModal, DeleteModal, NewTaskModal, NewCustomerModal, TempPasswordModal, EmailModal, NewInvoiceModal, InviteMemberModal, ConfirmModal } from './components/modals/AdminVMModals'
 import CustomersView from './pages/Customers'
+import { SettingsView } from './components/admin/SettingsView'
 import CustomerDrawer from './components/customer/CustomerDrawer'
 import { TeamView } from './pages/Team'
 import { FinanceView, ReportsView } from './pages/Finance'
@@ -322,6 +323,7 @@ const AppInner = ({ tw, setTweak }: { tw: TweakState; setTweak: (keyOrEdits: key
             {view === 'announcements' && <AnnouncementsView />}
             {view === 'apikeys' && <ApiKeysView openModal={openModal} />}
             {view === 'backups' && <BackupCenterView />}
+            {view === 'settings' && <SettingsView />}
             {view === 'account' && <AccountSettingsView role={tw.role} setView={handleSetView} />}
           </div>
 
