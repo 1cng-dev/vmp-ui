@@ -67,7 +67,7 @@ const TeamLoginScreen: React.FC = () => {
           .from('team_members')
           .select('force_password_change')
           .eq('user_id', data.user.id)
-          .single()
+          .maybeSingle()
 
         if (teamMember?.force_password_change) {
           navigate('/team-change-password')

@@ -78,24 +78,24 @@ const useTaskStore = (): TaskStoreValue => {
       return
     }
     console.log('Processing task:', t)
-    
+
     // Calculate expiry using VM's created_at (service provision date)
     // Formula: created_at + 1 day + duration (in months)
     let expiry: string | undefined
     let durationValue: number | undefined
-    
+
     // Handle trial requests - set expiry but no duration
     if (t.request_type === 'trial') {
       // Trial defaults to 14 days
       if (t.created_at) {
         const startDate = new Date(t.created_at)
         startDate.setDate(startDate.getDate() + 1) // Add 1 day
-        
+
         const expiryDate = new Date(startDate)
         expiryDate.setDate(expiryDate.getDate() + 14) // Add 14 days for trial
-        
+
         expiry = expiryDate.toISOString()
-        
+
         console.log('Trial expiry calculated:', {
           created_at: t.created_at,
           startDate,
@@ -106,16 +106,16 @@ const useTaskStore = (): TaskStoreValue => {
     } else if (t.duration) {
       // Paid requests use duration from request
       durationValue = parseInt(String(t.duration)) || 3
-      
+
       if (t.created_at) {
         const startDate = new Date(t.created_at)
         startDate.setDate(startDate.getDate() + 1) // Add 1 day
-        
+
         const expiryDate = new Date(startDate)
         expiryDate.setMonth(expiryDate.getMonth() + durationValue)
-        
+
         expiry = expiryDate.toISOString()
-        
+
         console.log('Paid expiry calculated:', {
           created_at: t.created_at,
           startDate,
@@ -128,7 +128,7 @@ const useTaskStore = (): TaskStoreValue => {
       console.log('No duration found in task, expiry will be null')
       console.log('Task object keys:', Object.keys(t))
     }
-    
+
     const qty = t.qty || 1
     const vmIds: string[] = []
 
@@ -138,7 +138,7 @@ const useTaskStore = (): TaskStoreValue => {
       .select('legacy_id')
       .order('created_at', { ascending: false })
       .limit(1)
-    
+
     const lastLegacyId = existingVMs?.[0]?.legacy_id
     let nextNum = 1001
     if (lastLegacyId) {
@@ -157,8 +157,8 @@ const useTaskStore = (): TaskStoreValue => {
         username: vmDetails.username,
         password: vmDetails.password,
         vcpu: t.vcpu,
-        ram_gb: t.ram,
-        storage_gb: t.storage,
+        ram_gb: t.ram_gb ?? t.ram,
+        storage_gb: t.storage_gb ?? t.storage,
         status: 'Active',
         power_state: 'Running',
         customer_id: t.customer_id,
@@ -208,13 +208,13 @@ const useTaskStore = (): TaskStoreValue => {
   // Function to update VM expiry when quotation is created
   const updateVMExpiryForRequest = useCallback(async (vmRequestId: string, durationMonths: number = 3, updateVM?: (id: string, patch: any) => Promise<void>) => {
     console.log('updateVMExpiryForRequest called:', { vmRequestId, durationMonths })
-    
+
     // Get VMs for this request to get their created_at
     const { data: vms } = await supabase
       .from('vms')
       .select('id, created_at')
       .eq('vm_request_id', vmRequestId)
-    
+
     if (vms && vms.length > 0) {
       console.log(`Found ${vms.length} VMs to update expiry for`)
       // Update each VM with expiry calculated from its created_at
@@ -226,7 +226,7 @@ const useTaskStore = (): TaskStoreValue => {
           const expiryDate = new Date(startDate)
           expiryDate.setMonth(expiryDate.getMonth() + durationMonths)
           const expiry = expiryDate.toISOString()
-          
+
           if (updateVM) {
             await updateVM(vm.id, { expiry })
           } else {
@@ -243,20 +243,20 @@ const useTaskStore = (): TaskStoreValue => {
   // Function to update add-on service duration when renewal is complete
   const updateAddonExpiryForVM = useCallback(async (vmId: string, durationMonths: number) => {
     console.log('updateAddonExpiryForVM called:', { vmId, durationMonths })
-    
+
     // Get ALL add-on requests for this VM (both pending and completed)
     const { data: allAddonRequests } = await supabase
       .from('addon_requests')
       .select('id, duration, status')
       .eq('vm_id', vmId)
       .in('status', ['Pending', 'Completed'])
-    
+
     if (allAddonRequests && allAddonRequests.length > 0) {
       console.log(`Found ${allAddonRequests.length} add-on requests to update`)
-      
+
       for (const addon of allAddonRequests) {
         let newDuration: string
-        
+
         if (addon.status === 'Pending') {
           // New add-on from renewal: just use the renewal duration
           newDuration = `${durationMonths} months`
@@ -264,26 +264,26 @@ const useTaskStore = (): TaskStoreValue => {
           // Existing add-on: parse current duration and add renewal months
           let currentMonths = 0
           let currentDays = 0
-          
+
           if (addon.duration) {
             // Parse "5 months 29 days" format
             const monthsMatch = addon.duration.match(/(\d+)\s*months?/i)
             const daysMatch = addon.duration.match(/(\d+)\s*days?/i)
-            
+
             if (monthsMatch) currentMonths = parseInt(monthsMatch[1])
             if (daysMatch) currentDays = parseInt(daysMatch[1])
           }
-          
+
           // Add renewal months
           currentMonths += durationMonths
-          
+
           // Convert excess days to months if needed
           if (currentDays > 28) {
             const extraMonths = Math.floor(currentDays / 30)
             currentMonths += extraMonths
             currentDays = currentDays % 30
           }
-          
+
           // Build new duration string
           if (currentDays > 0) {
             newDuration = `${currentMonths} months ${currentDays} days`
@@ -291,9 +291,9 @@ const useTaskStore = (): TaskStoreValue => {
             newDuration = `${currentMonths} months`
           }
         }
-        
+
         // Update add-on request with new duration only (no expiry field)
-        await supabase.from('addon_requests').update({ 
+        await supabase.from('addon_requests').update({
           duration: newDuration
         }).eq('id', addon.id)
         console.log(`Updated add-on request ${addon.id} (status: ${addon.status}) with new duration ${newDuration}`)
@@ -311,7 +311,7 @@ const useTaskStore = (): TaskStoreValue => {
     // Convert stage number to status string
     const stageToStatus: Record<number, string> = {
       0: 'Pending',
-      1: 'In Progress', 
+      1: 'In Progress',
       2: 'In Progress',
       3: 'In Progress',
       4: 'In Progress',

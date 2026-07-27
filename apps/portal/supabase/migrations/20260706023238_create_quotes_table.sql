@@ -117,6 +117,7 @@ ALTER TABLE public.quotes
 DROP COLUMN IF EXISTS subtotal_monthly,
 DROP COLUMN IF EXISTS subtotal_annual,
 DROP COLUMN IF EXISTS total_annual,
+
 ADD COLUMN IF NOT EXISTS instance_total NUMERIC DEFAULT 0,
 ADD COLUMN IF NOT EXISTS public_ip_total NUMERIC DEFAULT 0,
 ADD COLUMN IF NOT EXISTS backup_total NUMERIC DEFAULT 0,
@@ -125,3 +126,6 @@ ADD COLUMN IF NOT EXISTS tax_amount NUMERIC DEFAULT 0,
 ADD COLUMN IF NOT EXISTS net_amount NUMERIC DEFAULT 0,
 ADD COLUMN IF NOT EXISTS grand_total NUMERIC DEFAULT 0,
 ADD COLUMN IF NOT EXISTS billing_term TEXT DEFAULT 'Monthly';
+
+alter table public.quotes
+add column if not exists discount_pct numeric default 0;

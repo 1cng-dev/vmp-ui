@@ -163,8 +163,8 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   }, [vmRequests])
 
   const getAddonRequestsForVM = useCallback((vmId: string): AddonRequest[] => {
-    return addonRequests.filter(req => 
-      req.vm_id === vmId && 
+    return addonRequests.filter(req =>
+      req.vm_id === vmId &&
       req.status === 'Completed' &&
       req.operational_status !== 'Terminated'
     )
@@ -253,9 +253,7 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   }, [loadVMs, loadVMRequests, loadAddonRequests])
 
   const addVM = useCallback(async (vm: NewVMInput) => {
-    const id = crypto.randomUUID()
-    const newVM: VM = {
-      id,
+    const newVM = {
       hostname: vm.hostname,
       public_ip: vm.public_ip,
       private_ip: vm.private_ip,
@@ -279,7 +277,6 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       end_date: vm.end_date || null,
       backup_enabled: (vm as any).backup_enabled || false,
       backup_type: (vm as any).backup_type || 'weekly',
-      // Fields for direct VM creation
       os_name: vm.os_name,
       os_version: vm.os_version,
       custom_os_name: vm.custom_os_name,
@@ -295,14 +292,19 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       provision_status: vm.provision_status || 'completed',
     }
 
-    // Persist to Supabase
-    const { error } = await supabase.from('vms').insert(newVM).select()
+    const { data, error } = await supabase
+      .from('vms')
+      .insert(newVM)
+      .select()
+      .single()
+
     if (error) {
       throw error
     }
-    setVms(s => [newVM, ...s])
-    
-    // Get current user (staff member) who created the VM
+
+    const insertedVM = data as VM
+    setVms(s => [insertedVM, ...s])
+
     const { data: { user } } = await supabase.auth.getUser()
     let actorName = 'System'
     if (user) {
@@ -314,18 +316,18 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       if (staff) {
         actorName = `${staff.name} (${staff.staff_code})`
       } else {
-        // Fallback to user's name or email if not in team_members
         actorName = user.user_metadata?.name || user.email || 'System'
       }
     }
-    
+
     await logActivity(
-      `Created VM: ${newVM.hostname}`,
+      `Created VM: ${insertedVM.hostname}`,
       'vm',
       actorName,
-      { vmId: newVM.legacy_id || newVM.id, hostname: newVM.hostname, customerId: newVM.customer_id }
+      { vmId: insertedVM.legacy_id || insertedVM.id, hostname: insertedVM.hostname, customerId: insertedVM.customer_id }
     )
-    return id
+
+    return insertedVM.id
   }, [logActivity])
 
   const updateVM = useCallback(async (id: string, patch: Partial<VM>) => {
@@ -333,7 +335,7 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const { error } = await supabase.from('vms').update(patch).eq('id', id)
     if (error) throw error
     await loadVMs()
-    
+
     // Get current user (staff member) who made the change
     const { data: { user } } = await supabase.auth.getUser()
     let actorName = 'System'
@@ -350,7 +352,7 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         actorName = user.user_metadata?.name || user.email || 'System'
       }
     }
-    
+
     // Create notification and activity log for status change
     if (patch.status && previousVM && patch.status !== previousVM.status) {
       await logActivity(
@@ -359,10 +361,10 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         actorName,
         { vmId: previousVM.legacy_id || previousVM.id, hostname: previousVM.hostname, previousStatus: previousVM.status, newStatus: patch.status }
       )
-      
+
       let actorId = previousVM.customer_id
       if (user) actorId = user.id
-      
+
       await createAlert({
         sev: 'info',
         title: 'VM Status Changed',
@@ -387,7 +389,7 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const startVM = useCallback(async (id: string) => {
     const vm = vms.find(v => v.id === id)
     const previousPowerState = vm?.power_state || 'Unknown'
-    
+
     const { error } = await supabase.from('vms').update({ power_state: 'Running' }).eq('id', id)
     if (error) throw error
     await loadVMs()
@@ -408,7 +410,7 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
           actorName = user.user_metadata?.name || user.email || 'System'
         }
       }
-      
+
       await logActivity(
         `Started VM ${vm.hostname} (power state changed from ${previousPowerState} to Running)`,
         'vm',
@@ -421,7 +423,7 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const stopVM = useCallback(async (id: string) => {
     const vm = vms.find(v => v.id === id)
     const previousPowerState = vm?.power_state || 'Unknown'
-    
+
     const { error } = await supabase.from('vms').update({ power_state: 'Stopped' }).eq('id', id)
     if (error) throw error
     await loadVMs()
@@ -442,7 +444,7 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
           actorName = user.user_metadata?.name || user.email || 'System'
         }
       }
-      
+
       await logActivity(
         `Stopped VM ${vm.hostname} (power state changed from ${previousPowerState} to Stopped)`,
         'vm',
@@ -454,7 +456,7 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
   const restartVM = useCallback(async (id: string) => {
     const vm = vms.find(v => v.id === id)
-    
+
     // In the future, this will call Proxmox API to restart the VM
     // For now, we'll just update the power state
     await stopVM(id)
@@ -477,7 +479,7 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
           actorName = user.user_metadata?.name || user.email || 'System'
         }
       }
-      
+
       await logActivity(
         `Restarted VM ${vm.hostname}`,
         'vm',

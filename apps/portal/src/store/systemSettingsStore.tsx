@@ -28,7 +28,7 @@ export const SystemSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
       const { data, error } = await supabase
         .from('system_settings')
         .select('*')
-        .single()
+        .maybeSingle()
       if (error) throw error
       setSettings(data as SystemSettings)
     } finally {
