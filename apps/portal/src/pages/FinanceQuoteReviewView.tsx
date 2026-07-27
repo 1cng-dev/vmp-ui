@@ -14,7 +14,8 @@ import type { DBQuote } from '../types'
 const FinanceQuoteReviewView = () => {
   const { quotes, quotesLoading, updateQuote, loadQuotes } = useQuoteStore()
   const { customers } = useCustomerStore()
-  const { vmRequests, vmRequestsLoading, loadVMRequests } = useVMRequestStore()  const { vms, loadVMs } = useVMStore()
+  const { vmRequests, vmRequestsLoading, loadVMRequests } = useVMRequestStore()  
+  const { vms, loadVMs } = useVMStore()
   const { addonRequests, loadAddonRequests } = useAddonRequestStore()
   const { toast } = useUIStore()
   const [selectedQuote, setSelectedQuote] = useState<DBQuote | null>(null)
