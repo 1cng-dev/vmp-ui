@@ -14,8 +14,7 @@ import type { DBQuote } from '../types'
 const FinanceQuoteReviewView = () => {
   const { quotes, quotesLoading, updateQuote, loadQuotes } = useQuoteStore()
   const { customers } = useCustomerStore()
-  const { vmRequests } = useVMRequestStore()
-  const { vms, loadVMs } = useVMStore()
+  const { vmRequests, vmRequestsLoading, loadVMRequests } = useVMRequestStore()  const { vms, loadVMs } = useVMStore()
   const { addonRequests, loadAddonRequests } = useAddonRequestStore()
   const { toast } = useUIStore()
   const [selectedQuote, setSelectedQuote] = useState<DBQuote | null>(null)
@@ -36,7 +35,10 @@ const FinanceQuoteReviewView = () => {
     if (vms.length === 0) {
       loadVMs()
     }
-  }, [addonRequests.length, vms.length, loadAddonRequests, loadVMs])
+    if (vmRequests.length === 0) {
+      loadVMRequests()
+    }
+  }, [addonRequests.length, vms.length, vmRequests.length, loadAddonRequests, loadVMs, loadVMRequests])
 
   // Filter quotes for finance to see history (Sent, Accepted, Rejected)
   const financeQuotes = quotes.filter(q => ['Sent', 'Accepted', 'Rejected'].includes(q.status))
@@ -87,47 +89,52 @@ const FinanceQuoteReviewView = () => {
                 <tr><td colSpan={9}><div className="empty"><div className="title">No quotes yet</div><div className="sub">Quotes will appear here when customers request pricing.</div></div></td></tr>
               ) : (
                 financeQuotes.map((q: DBQuote) => {
-                const cust = customers.find(c => c.id === q.customer_id)
-                const vmReq = vmRequests.find(r => r.id === q.vm_request_id)
-                const addonReq = addonRequests.find(a => a.id === (q as any).addon_request_id)
-                const isAddon = !!(q as any).addon_request_id
-                const canApproveReject = q.status === 'Sent'
-                return (
-                  <tr key={q.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedQuote(q)}>
-                    <td className="mono fw-6">{q.legacy_id || q.id.slice(0, 8)}</td>
-                    <td>{cust?.org_name || cust?.name || '—'}</td>
-                    <td><span className="pill subtle"><span className="dot" />{isAddon ? 'Add-on Service' : (vmReq?.task_type || 'new')}</span></td>
-                    <td>
-                      {isAddon
-                        ? `${addonReq?.legacy_id || addonReq?.id?.slice(0, 8) || (q as any).addon_request_id?.slice?.(0, 8) || '—'} · ${addonReq ? `${addonReq.cpfs_enabled ? 'CPFS' : ''}${addonReq.cpfs_enabled && addonReq.ccis_enabled ? ' + ' : ''}${addonReq.ccis_enabled ? 'CCIS' : ''}` : '—'}`
-                        : `${vmReq?.legacy_id || vmReq?.id?.slice(0, 8) || q.vm_request_id?.slice?.(0, 8) || '—'} · ${vmReq?.hostname || '—'}`}
-                    </td>
-                    <td className="tnum text-sm">{(q as any).billing_term || '—'}</td>
-                    <td className="right tnum">{(q.line_items || []).length}</td>
-                    <td className="right tnum fw-6">MMK {formatMMK((q as any).grand_total)}</td>
-                    <td className="tnum text-sm">{new Date(q.validity_date).toLocaleDateString()}</td>
-                    <td className="right">
-                      <div className="flex gap-1" onClick={e => e.stopPropagation()}>
-                        {canApproveReject && (
-                          <>
-                            <button className="btn sm ok" onClick={() => handleApprove(q.id)}>
-                              <Icon name="check" size={11} /> Approve
+                  const cust = customers.find(c => c.id === q.customer_id)
+                  const vmReq = vmRequests.find(r => r.id === q.vm_request_id)
+                  const addonReq = addonRequests.find(a => a.id === (q as any).addon_request_id)
+                  const isAddon = !!(q as any).addon_request_id
+                  const canApproveReject = q.status === 'Sent'
+                  return (
+                    <tr key={q.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedQuote(q)}>
+                      <td className="mono fw-6">{q.legacy_id || q.id.slice(0, 8)}</td>
+                      <td>{cust?.org_name || cust?.name || '—'}</td>
+                      <td><span className="pill subtle"><span className="dot" />{isAddon ? 'Add-on Service' : (vmReq?.task_type || 'new')}</span></td>
+                      <td>
+                        {isAddon
+                          ? `${addonReq?.legacy_id || addonReq?.id?.slice(0, 8) || (q as any).addon_request_id?.slice?.(0, 8) || '—'} · ${addonReq ? `${addonReq.cpfs_enabled ? 'CPFS' : ''}${addonReq.cpfs_enabled && addonReq.ccis_enabled ? ' + ' : ''}${addonReq.ccis_enabled ? 'CCIS' : ''}` : '—'}`
+                          : vmReq
+                            ? `${vmReq.legacy_id || vmReq.id.slice(0, 8)} · ${vmReq.hostname || '—'}`
+                            : vmRequestsLoading
+                              ? 'Loading request...'
+                              : `${q.vm_request_id?.slice?.(0, 8) || '—'} · —`
+                        }
+                      </td>
+                      <td className="tnum text-sm">{(q as any).billing_term || '—'}</td>
+                      <td className="right tnum">{(q.line_items || []).length}</td>
+                      <td className="right tnum fw-6">MMK {formatMMK((q as any).grand_total)}</td>
+                      <td className="tnum text-sm">{new Date(q.validity_date).toLocaleDateString()}</td>
+                      <td className="right">
+                        <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+                          {canApproveReject && (
+                            <>
+                              <button className="btn sm ok" onClick={() => handleApprove(q.id)}>
+                                <Icon name="check" size={11} /> Approve
+                              </button>
+                              <button className="btn sm danger" onClick={() => handleReject(q.id)}>
+                                <Icon name="x" size={11} /> Reject
+                              </button>
+                            </>
+                          )}
+                          {q.status === 'Accepted' && (
+                            <button className="btn sm accent" onClick={(e) => { e.stopPropagation(); handleCreateInvoice(q); }}>
+                              <Icon name="file" size={11} /> Create Invoice
                             </button>
-                            <button className="btn sm danger" onClick={() => handleReject(q.id)}>
-                              <Icon name="x" size={11} /> Reject
-                            </button>
-                          </>
-                        )}
-                        {q.status === 'Accepted' && (
-                          <button className="btn sm accent" onClick={(e) => { e.stopPropagation(); handleCreateInvoice(q); }}>
-                            <Icon name="file" size={11} /> Create Invoice
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })
               )}
             </tbody>
           </table>
@@ -135,8 +142,8 @@ const FinanceQuoteReviewView = () => {
       </div>
       {selectedQuote && <QuoteDrawer quote={selectedQuote} onClose={() => setSelectedQuote(null)} />}
       {quoteForInvoice && (
-        <NewInvoiceModal 
-          onClose={() => setQuoteForInvoice(null)} 
+        <NewInvoiceModal
+          onClose={() => setQuoteForInvoice(null)}
           presetCustomer={quoteForInvoice.customer_id}
           presetQuote={quoteForInvoice}
         />
@@ -146,4 +153,3 @@ const FinanceQuoteReviewView = () => {
 }
 
 export default FinanceQuoteReviewView
-    

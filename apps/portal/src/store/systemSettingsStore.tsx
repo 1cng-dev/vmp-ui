@@ -40,7 +40,7 @@ export const SystemSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
     if (!settings) return
 
     const { data: { user } } = await supabase.auth.getUser()
-    
+
     const { data, error } = await supabase
       .from('system_settings')
       .update({
@@ -50,10 +50,14 @@ export const SystemSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
       })
       .eq('id', settings.id)
       .select()
-      .single()
-    
+      .maybeSingle()
+
     if (error) throw error
+    if (!data) {
+      throw new Error('System settings update affected 0 rows. The row may not exist or RLS may be blocking the update.')
+    }
     setSettings(data as SystemSettings)
+
   }, [settings])
 
   useEffect(() => {
@@ -62,7 +66,7 @@ export const SystemSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
     const ch = supabase
       .channel(`system-settings-${Date.now()}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'system_settings' }, async () => {
-        const { data, error } = await supabase.from('system_settings').select('*').single()
+        const { data, error } = await supabase.from('system_settings').select('*').maybeSingle()
         if (!error) {
           setSettings(data as SystemSettings)
         }
