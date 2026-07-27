@@ -15,11 +15,20 @@ interface LoginScreenProps {
 const LoginScreen: React.FC<LoginScreenProps> = ({ onSwitchToSignup, prefillEmail }) => {
   const { toast } = useUIStore()
   const navigate = useNavigate()
-  const { settings } = useSystemSettingsStore()
+  const { settings, loading: settingsLoading } = useSystemSettingsStore()
   const [f, setF] = useState({ email: prefillEmail || '', password: '', remember: true })
   const [showPw, setShowPw] = useState(false)
   const [showForgotPassword, setShowForgotPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+
+  // Wait for settings to load before rendering
+  if (settingsLoading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg)' }}>
+        <div style={{ width: 40, height: 40, border: '3px solid var(--line-weak)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      </div>
+    )
+  }
 
   const submit = async (e: React.FormEvent) => {
     e?.preventDefault()

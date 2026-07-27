@@ -48,7 +48,17 @@ interface SignupFormState {
 const SignupScreen: React.FC<{ onComplete: (email: string) => void; onSwitchToLogin: () => void }> = ({ onComplete, onSwitchToLogin }) => {
   const { signUp } = useAuthStore()
   const { toast } = useUIStore()
+  const { settings, loading: settingsLoading } = useSystemSettingsStore()
   const [step, setStep] = useState(1)
+
+  // Wait for settings to load before rendering
+  if (settingsLoading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg)' }}>
+        <div style={{ width: 40, height: 40, border: '3px solid var(--line-weak)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      </div>
+    )
+  }
   const [f, setF] = useState<SignupFormState>({
     name: '', email: '', password: '', confirmPassword: '',
     type: 'Individual',
@@ -166,15 +176,13 @@ const SignupScreen: React.FC<{ onComplete: (email: string) => void; onSwitchToLo
         padding: '14px 32px', display: 'flex', alignItems: 'center', gap: 16,
       }}>
         <div className="flex center gap-3">
-          {(() => { const { settings } = useSystemSettingsStore(); return settings?.logo_url ? (
+          {settings?.logo_url ? (
             <img src={settings.logo_url} alt="Logo" style={{ width: 32, height: 32, objectFit: 'contain', borderRadius: 7 }} />
           ) : (
             <div className="brand-mark" style={{ width: 32, height: 32, fontSize: 14, borderRadius: 7 }}>V</div>
-          )})()}
+          )}
           <div>
-            {(() => { const { settings } = useSystemSettingsStore(); return (
-              <div className="fw-7 text-sm">{settings?.company_name || 'VPS Myanmar'}</div>
-            )})()}
+            <div className="fw-7 text-sm">{settings?.company_name || 'VPS Myanmar'}</div>
             <div className="text-xs text-mute" style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>Cloud infrastructure</div>
           </div>
         </div>
