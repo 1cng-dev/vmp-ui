@@ -205,7 +205,7 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [minDisplayTimeElapsed, setMinDisplayTimeElapsed] = useState(false)
-  const initialRoleSetRef = React.useRef(false)
+  const [roleLoaded, setRoleLoaded] = useState(false)
 
   // Set minimum display time
   useEffect(() => {
@@ -276,7 +276,29 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
         const userData = session.user.user_metadata
-        const userRole = userData.role || 'Admin'
+
+        // Fetch role from database (source of truth)
+        const { data: teamMember, error } = await supabase
+          .from('team_members')
+          .select('role, name, team')
+          .eq('user_id', session.user.id)
+          .maybeSingle()
+
+        // If database fetch fails, keep existing user and don't sign out
+        if (error) {
+          console.error('Failed to fetch team member role:', error)
+          setLoading(false)
+          return
+        }
+
+        // Only sign out if role is explicitly invalid, not if fetch failed
+        if (!teamMember?.role) {
+          await supabase.auth.signOut()
+          setLoading(false)
+          return
+        }
+
+        const userRole = teamMember.role
 
         // Validate role - only allow team roles, reject Customer
         const allowedRoles = ['Admin', 'Sales', 'Engineer', 'Finance']
@@ -293,15 +315,13 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
           id: session.user.id,
           email: session.user.email!,
           role: userRole,
-          name: userData.name || session.user.email!,
-          avatar: userData.name || session.user.email!,
+          name: teamMember?.name || userData.name || session.user.email!,
+          avatar: teamMember?.name || userData.name || session.user.email!,
           customerId: userData.customerId,
         })
 
-        if (!initialRoleSetRef.current) {
-          setRole(userData.role || 'Admin')
-          initialRoleSetRef.current = true
-        }
+        setRole(userRole)
+        setRoleLoaded(true)
       }
       setLoading(false)
     })
@@ -310,7 +330,29 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
         const userData = session.user.user_metadata
-        const userRole = userData.role || 'Admin'
+
+        // Fetch role from database (source of truth)
+        const { data: teamMember, error } = await supabase
+          .from('team_members')
+          .select('role, name, team')
+          .eq('user_id', session.user.id)
+          .maybeSingle()
+
+        // If database fetch fails, keep existing user and don't sign out
+        if (error) {
+          console.error('Failed to fetch team member role:', error)
+          setLoading(false)
+          return
+        }
+
+        // Only sign out if role is explicitly invalid, not if fetch failed
+        if (!teamMember?.role) {
+          await supabase.auth.signOut()
+          setLoading(false)
+          return
+        }
+
+        const userRole = teamMember.role
 
         // Validate role - only allow team roles, reject Customer
         const allowedRoles = ['Admin', 'Sales', 'Engineer', 'Finance']
@@ -329,14 +371,12 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
           id: session.user.id,
           email: session.user.email!,
           role: userRole,
-          name: userData.name || session.user.email!,
-          avatar: userData.name || session.user.email!,
+          name: teamMember?.name || userData.name || session.user.email!,
+          avatar: teamMember?.name || userData.name || session.user.email!,
           customerId: userData.customerId,
         })
-        if (!initialRoleSetRef.current) {
-          setRole(userData.role || 'Admin')
-          initialRoleSetRef.current = true
-        }
+        setRole(userRole)
+        setRoleLoaded(true)
       } else {
         setUser(null)
       }
@@ -360,7 +400,7 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
     )
   }
 
-  if (!user) {
+  if (!user || !roleLoaded) {
     return <TeamLoginScreen />
   }
 

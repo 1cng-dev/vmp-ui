@@ -285,12 +285,11 @@ const AdminDirectVMCreate: React.FC = () => {
         return;
       }
 
-      // Calculate expiry date using same logic as customer VM request: start_date + 1 day + duration
+      // Calculate expiry date: start_date + duration + 1 day
       const startDate = new Date(f.start_date);
-      startDate.setDate(startDate.getDate() + 1); // Add 1 day to match customer logic
-
       const expiryDate = new Date(startDate);
       expiryDate.setMonth(expiryDate.getMonth() + f.duration);
+      expiryDate.setDate(expiryDate.getDate() + 1); // Add 1 day to expiry
 
       const vmId = await addVM({
         hostname: f.hostname,
@@ -342,12 +341,11 @@ const AdminDirectVMCreate: React.FC = () => {
 
       // Create single addon request for both CPFS and CCIS if enabled
       if (f.cpfs_enabled || f.ccis_enabled) {
-        // Calculate addon expiry using addon-specific start_date and duration
+        // Calculate addon expiry: start_date + duration + 1 day
         const startDate = new Date(f.addon_start_date);
-        startDate.setDate(startDate.getDate() + 1); // Add 1 day to match customer logic
-
         const expiryDate = new Date(startDate);
         expiryDate.setMonth(expiryDate.getMonth() + f.addon_duration);
+        expiryDate.setDate(expiryDate.getDate() + 1); // Add 1 day to expiry
 
         await createAddonRequest({
           vm_id: vmId,

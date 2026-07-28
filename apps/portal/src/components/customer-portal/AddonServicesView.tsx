@@ -6,10 +6,11 @@ import useUIStore from '../../store/uiStore'
 
 interface AddonServicesViewProps {
   myVMs: any[]
+  myAddonServices: any[]
 }
 
-export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs }) => {
-  const { createAddonRequest, addonRequests } = useAddonRequestStore()
+export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs, myAddonServices }) => {
+  const { createAddonRequest } = useAddonRequestStore()
   const { toast } = useUIStore()
   const [selectedVM, setSelectedVM] = useState<string>('')
   const [cpfsEnabled, setCpfsEnabled] = useState(false)
@@ -30,14 +31,14 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs }) =
     })
   }, [myVMs])
 
-  // Get existing addon requests for selected VM (Completed status means active, and not terminated)
+  // Get existing addon services for selected VM from addon_services table
   const existingAddons = useMemo(() => {
-    return addonRequests.filter(a => 
-      a.vm_id === selectedVM && 
-      a.status === 'Completed' &&
+    return myAddonServices.filter(a =>
+      a.vm_id === selectedVM &&
+      a.status === 'Active' &&
       a.operational_status !== 'Terminated'
     )
-  }, [addonRequests, selectedVM])
+  }, [myAddonServices, selectedVM])
 
   // Calculate remaining duration from VM expiry
   const calculateRemainingDuration = (vm: any) => {
@@ -90,9 +91,9 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs }) =
         }
       }
 
-      const currentExistingAddons = addonRequests.filter(a => 
-        a.vm_id === selectedVM && 
-        a.status === 'Completed' &&
+      const currentExistingAddons = myAddonServices.filter(a =>
+        a.vm_id === selectedVM &&
+        a.status === 'Active' &&
         a.operational_status !== 'Terminated'
       )
       if (currentExistingAddons.length > 0) {
@@ -116,7 +117,7 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs }) =
       setCcisEnabled(false)
       setDuration('12 months')
     }
-  }, [selectedVM, activeVMs, addonRequests])
+  }, [selectedVM, activeVMs, myAddonServices])
 
   const canSubmit = () => {
     if (!selectedVM || (!cpfsEnabled && !ccisEnabled)) return false
@@ -315,15 +316,15 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs }) =
             
             // Calculate start_date, end_date, and expiry for addon request using VM's start_date
             const vmStartDate = vm?.start_date ? new Date(vm.start_date) : new Date()
-            vmStartDate.setDate(vmStartDate.getDate() + 1) // Add 1 day to match VM logic
-            
+            // Don't modify start_date - add +1 day to expiry instead
+
             // Parse duration to get months and days
             const durationMonths = remainingDuration ? remainingDuration.months : parseInt(duration)
             const durationDays = remainingDuration ? remainingDuration.days : 0
-            
+
             const expiryDate = new Date(vmStartDate)
             expiryDate.setMonth(expiryDate.getMonth() + durationMonths)
-            expiryDate.setDate(expiryDate.getDate() + durationDays)
+            expiryDate.setDate(expiryDate.getDate() + durationDays + 1) // Add 1 day to expiry
             
             const addonRequest = {
               customer_id: vm?.customer_id,

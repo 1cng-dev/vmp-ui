@@ -2,6 +2,7 @@ import React from 'react'
 import Icon from '../lib/icons'
 import { StatusPill, CircularSpinner, ExpiryCell } from '../components/ui/ui'
 import useAddonRequestStore from '../store/addonRequestStore'
+import useAddonServiceStore from '../store/addonServiceStore'
 import useCustomerStore from '../store/customerStore'
 import useVMStore from '../store/vmStore'
 
@@ -17,18 +18,22 @@ interface AddonServicesViewProps {
 
 const AddonServicesView: React.FC<AddonServicesViewProps> = ({ openTask, setView, setAutoOpenQuote, setPrefillCustomerId, setPrefillRequestId, setPrefillRequestType, userRole }) => {
   const { addonRequests, addonRequestsLoading, loadAddonRequests } = useAddonRequestStore()
+  const { addonServices, loadAddonServices } = useAddonServiceStore()
   const { customers } = useCustomerStore()
   const { vms, loadVMs } = useVMStore()
-  const [filter, setFilter] = React.useState<'all' | 'Pending' | 'In Progress' | 'Completed' | 'Rejected'>('all')
+  const [filter, setFilter] = React.useState<'all' | 'Pending' | 'In Progress' | 'Completed' | 'Rejected' | 'Active'>('all')
 
   React.useEffect(() => {
     if (addonRequests.length === 0) {
       loadAddonRequests()
     }
+    if (addonServices.length === 0) {
+      loadAddonServices()
+    }
     if (vms.length === 0) {
       loadVMs()
     }
-  }, [loadAddonRequests, addonRequests.length, loadVMs, vms.length])
+  }, [loadAddonRequests, addonRequests.length, loadAddonServices, addonServices.length, loadVMs, vms.length])
 
   // Create a map of VM data for quick lookup
   const vmData = React.useMemo(() => {
@@ -41,6 +46,7 @@ const AddonServicesView: React.FC<AddonServicesViewProps> = ({ openTask, setView
 
   const filters = [
     { id: 'all', label: 'All' },
+    { id: 'Active', label: 'Active Services' },
     ...(userRole === 'Sales' || userRole === 'Admin' ? [{ id: 'Pending', label: 'Pending' }] : []),
     { id: 'In Progress', label: 'In Progress' },
     { id: 'Completed', label: 'Completed' },
@@ -53,8 +59,13 @@ const AddonServicesView: React.FC<AddonServicesViewProps> = ({ openTask, setView
     filteredByRole = filteredByRole.filter(r => ['In Progress', 'Network', 'Testing', 'Completed'].includes(r.status))
   }
 
-  const list = filteredByRole
-    .filter(r => filter === 'all' ? true : r.status === filter)
+  // Combine addon_services (active) and addon_requests (pending/completed)
+  const combinedList = filter === 'Active'
+    ? addonServices.map(s => ({ ...s, isService: true }))
+    : filteredByRole.map(r => ({ ...r, isService: false }))
+
+  const list = combinedList
+    .filter(r => filter === 'all' || filter === 'Active' ? true : r.status === filter)
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
   return (

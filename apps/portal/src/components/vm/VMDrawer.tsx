@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import useVMStore from '../../store/vmStore'
 import useCustomerStore from '../../store/customerStore'
-import useAddonRequestStore from '../../store/addonRequestStore'
+import useAddonServiceStore from '../../store/addonServiceStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { StatusPill, ExpiryCell } from '../ui/ui'
@@ -15,9 +15,9 @@ interface VMDrawerProps {
 }
 
 const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal, userRole }) => {
-  const { vms, updateVM, getVMRequest, getAddonRequestsForVM } = useVMStore()
+  const { vms, updateVM, getVMRequest } = useVMStore()
   const { customers } = useCustomerStore()
-  const { updateAddonRequest, addonRequests: allAddonRequests } = useAddonRequestStore()
+  const { getAddonServicesForVM } = useAddonServiceStore()
   const { toast } = useUIStore()
   const v = vms.find((x: any) => x.id === vmId)
   if (!v) return null
@@ -26,29 +26,21 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
 
   // Get data from store instead of fetching directly
   const vmRequest = v.vm_request_id ? getVMRequest(v.vm_request_id) : null
-  const addonRequests = getAddonRequestsForVM(v.id)
+  const addonServices = getAddonServicesForVM(v.id)
 
   const creds = v.username && v.password ? [
     { type: 'SSH', user: v.username, pass: v.password }
   ] : []
 
   const handleActivate = async () => {
-    // Find all add-on requests for this VM
-    const vmAddonRequests = allAddonRequests.filter(a => a.vm_id === v.id && a.status === 'Completed')
-    
-    // Activate all associated add-on services
-    for (const addon of vmAddonRequests) {
-      await updateAddonRequest(addon.id, { operational_status: 'Active' })
-    }
-    
     // Activate the VM and set power state to Running
     updateVM(v.id, { status: 'Active' as any, power_state: 'Running' as any })
-    
-    const addonCount = vmAddonRequests.length
-    const message = addonCount > 0 
-      ? `VM ${v.hostname} activated along with ${addonCount} associated add-on service(s)`
+
+    const addonCount = addonServices.length
+    const message = addonCount > 0
+      ? `VM ${v.hostname} activated with ${addonCount} active add-on service(s)`
       : `VM ${v.hostname} activated`
-    
+
     toast(message, 'ok')
   }
 
@@ -225,31 +217,31 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
           {tab === 'addons' && (
             <div className="card">
               <div className="card-body">
-                {addonRequests.length === 0 ? (
-                  <div className="empty"><div className="sub">No completed add-on services for this VM.</div></div>
+                {addonServices.length === 0 ? (
+                  <div className="empty"><div className="sub">No active add-on services for this VM.</div></div>
                 ) : (
                   <div className="grid-2" style={{ gap: 14 }}>
-                    {addonRequests.map((ar: any) => (
-                      <div key={ar.id}>
-                        <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>{ar.legacy_id || ar.id}</div>
+                    {addonServices.map((as: any) => (
+                      <div key={as.id}>
+                        <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>{as.legacy_id || as.id}</div>
                         <dl className="dl">
                           <dt>Services</dt>
                           <dd>
                             <div className="flex gap-1">
-                              {ar.cpfs_enabled && <span className="pill subtle">CPFS</span>}
-                              {ar.ccis_enabled && <span className="pill subtle">CCIS</span>}
+                              {as.cpfs_enabled && <span className="pill subtle">CPFS</span>}
+                              {as.ccis_enabled && <span className="pill subtle">CCIS</span>}
                             </div>
                           </dd>
                           <dt>Package</dt><dd>{[
-                            ar.cpfs_enabled && ar.cpfs_package ? `CPFS ${ar.cpfs_package}` : null,
-                            ar.ccis_enabled && ar.ccis_package ? `CCIS ${ar.ccis_package}` : null
+                            as.cpfs_enabled && as.cpfs_package ? `CPFS ${as.cpfs_package}` : null,
+                            as.ccis_enabled && as.ccis_package ? `CCIS ${as.ccis_package}` : null
                           ].filter(Boolean).join(', ') || '—'}</dd>
-                          <dt>Duration</dt><dd>{ar.duration || 'N/A'}</dd>
-                          {ar.start_date && <><dt>Start Date</dt><dd className="tnum">{new Date(ar.start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
-                          {ar.end_date && <><dt>End Date</dt><dd className="tnum">{new Date(ar.end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
-                          {ar.expiry && <><dt>Expiry</dt><dd><ExpiryCell date={ar.expiry || ''} /></dd></>}
-                          <dt>Status</dt><dd><StatusPill status={ar.status}/></dd>
-                          <dt>Completed</dt><dd className="tnum">{ar.updated_at ? new Date(ar.updated_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</dd>
+                          <dt>Duration</dt><dd>{as.duration || 'N/A'}</dd>
+                          {as.start_date && <><dt>Start Date</dt><dd className="tnum">{new Date(as.start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
+                          {as.end_date && <><dt>End Date</dt><dd className="tnum">{new Date(as.end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
+                          {as.expiry && <><dt>Expiry</dt><dd><ExpiryCell date={as.expiry || ''} /></dd></>}
+                          <dt>Status</dt><dd><StatusPill status={as.status}/></dd>
+                          <dt>Operational Status</dt><dd><StatusPill status={as.operational_status || 'Active'} expiry={as.expiry}/></dd>
                         </dl>
                       </div>
                     ))}

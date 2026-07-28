@@ -11,11 +11,9 @@ import { StatusPill, formatMMK, ExpiryCell, Donut, CircularSpinner } from '../co
 interface DashboardProps {
   openVM: (id: string) => void
   setView: (view: string) => void
-  openModal: (type: string, data?: any) => void
-  userRole?: string
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal, userRole }) => {
+const Dashboard: React.FC<DashboardProps> = ({ openVM, setView }) => {
   const { customers } = useCustomerStore()
   const { vms, vmsLoading, loadVMs } = useVMStore()
   const { invoices, loadInvoices } = useInvoiceStore()
@@ -120,7 +118,6 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView, openModal, userR
           <h1 className="page-title">{greeting}, {auth?.user?.name || auth?.user?.email?.split('@')[0] || 'User'}</h1>
           <p className="page-subtitle">{new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} — here's what needs attention today.</p>        </div>
         <div className="page-actions">
-          {userRole === 'Admin' && <button className="btn primary" onClick={() => openModal('newvm')}><Icon name="plus" size={13} />New VM</button>}
         </div>
       </div>
 

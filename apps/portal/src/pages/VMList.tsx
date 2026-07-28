@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import useVMStore from '../store/vmStore'
 import useCustomerStore from '../store/customerStore'
-import useAddonRequestStore from '../store/addonRequestStore'
+import useAddonServiceStore from '../store/addonServiceStore'
 import useUIStore from '../store/uiStore'
 import Icon from '../lib/icons'
 import { StatusPill, ExpiryCell, CircularSpinner } from '../components/ui/ui'
@@ -16,29 +16,24 @@ interface VMListProps {
 const VMList: React.FC<VMListProps> = ({ openVM, openModal, setView, userRole }) => {
   const { vms, vmsLoading, loadVMs, updateVM } = useVMStore()
   const { customers } = useCustomerStore()
-  const { updateAddonRequest, addonRequests } = useAddonRequestStore()
+  const { getAddonServicesForVM } = useAddonServiceStore()
   const { toast } = useUIStore()
   const [filter, setFilter] = useState<Set<string>>(new Set(['all']))
   const [search, setSearch] = useState('')
   const [menu, setMenu] = useState<string | null>(null)
 
   const handleActivate = async (vm: any) => {
-    // Find all add-on requests for this VM
-    const vmAddonRequests = addonRequests.filter(a => a.vm_id === vm.id && a.status === 'Completed')
-    
-    // Activate all associated add-on services
-    for (const addon of vmAddonRequests) {
-      await updateAddonRequest(addon.id, { operational_status: 'Active' })
-    }
-    
+    // Get active addon services for this VM
+    const addonServices = getAddonServicesForVM(vm.id)
+
     // Activate the VM and set power state to Running
     updateVM(vm.id, { status: 'Active' as any, power_state: 'Running' as any })
-    
-    const addonCount = vmAddonRequests.length
-    const message = addonCount > 0 
-      ? `VM ${vm.hostname} activated along with ${addonCount} associated add-on service(s)`
+
+    const addonCount = addonServices.length
+    const message = addonCount > 0
+      ? `VM ${vm.hostname} activated with ${addonCount} active add-on service(s)`
       : `VM ${vm.hostname} activated`
-    
+
     toast(message, 'ok')
   }
 

@@ -12,7 +12,7 @@ interface EngineerVMCreateFormProps {
     password: string;
     node: string;
     pmx_type: string;
-  }) => void;
+  }) => Promise<void>;
 }
 
 const EngineerVMCreateForm = ({
@@ -33,6 +33,7 @@ const EngineerVMCreateForm = ({
   const [password, setPassword] = useState<string>("");
   const [node, setNode] = useState<string>("pve1");
   const [pmx_type, setPmxType] = useState<string>("qemu");
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   useEffect(() => {
     setPublicIps(Array(qty).fill(""));
@@ -58,7 +59,7 @@ const EngineerVMCreateForm = ({
     setAssigned_vmids(newIds);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!username || !password) {
       alert("Please fill in username and password");
       return;
@@ -75,7 +76,12 @@ const EngineerVMCreateForm = ({
       alert("Please fill in Proxmox Node");
       return;
     }
-    onSubmit({ publicIps, privateIps, assigned_vmids, username, password, node, pmx_type });
+    setIsSubmitting(true);
+    try {
+      await onSubmit({ publicIps, privateIps, assigned_vmids, username, password, node, pmx_type });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -184,9 +190,8 @@ const EngineerVMCreateForm = ({
       </div>
 
       <div className="flex gap-2">
-        <button className="btn primary" onClick={handleSubmit}>
-          <Icon name="check" size={12} />
-          Create VM Records
+        <button className="btn primary" onClick={handleSubmit} disabled={isSubmitting}>
+          {isSubmitting ? <><Icon name="loader" size={12} className="spin" /> Creating...</> : <><Icon name="check" size={12} /> Create VM Records</>}
         </button>
       </div>
     </div>

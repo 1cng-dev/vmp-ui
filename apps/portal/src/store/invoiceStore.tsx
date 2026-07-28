@@ -289,19 +289,19 @@ export const InvoiceProvider: React.FC<{ children: ReactNode }> = ({ children })
               .single()
             
             const vmStartDate = vmData?.start_date ? new Date(vmData.start_date) : new Date()
-            vmStartDate.setDate(vmStartDate.getDate() + 1) // Add 1 day to match VM logic
-            
+            // Don't modify start_date - add +1 day to expiry instead
+
             // Calculate addon expiry using billing term (parse both months and days)
             const term = invoice.billing_term || '12'
             const monthsMatch = term.match(/(\d+)\s*months?/i)
             const daysMatch = term.match(/(\d+)\s*days?/i)
-            
+
             const durationMonths = monthsMatch ? parseInt(monthsMatch[1]) : 12
             const durationDays = daysMatch ? parseInt(daysMatch[1]) : 0
-            
+
             const expiryDate = new Date(vmStartDate)
             expiryDate.setMonth(expiryDate.getMonth() + durationMonths)
-            expiryDate.setDate(expiryDate.getDate() + durationDays)
+            expiryDate.setDate(expiryDate.getDate() + durationDays + 1) // Add 1 day to expiry
             
             await createAddonRequest({
               vm_id: vm.id,

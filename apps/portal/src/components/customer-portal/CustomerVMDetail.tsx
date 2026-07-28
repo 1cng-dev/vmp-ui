@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import useVMStore from '../../store/vmStore'
+import useAddonServiceStore from '../../store/addonServiceStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { StatusPill, ExpiryCell } from '../ui/ui'
@@ -14,7 +15,8 @@ interface CustomerVMDetailProps {
 }
 
 export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialVm, onClose, onRenew, me }) => {
-  const { vms, startVM, stopVM, restartVM, snapshotVM, getVMRequest, getAddonRequestsForVM } = useVMStore()
+  const { vms, startVM, stopVM, restartVM, snapshotVM, getVMRequest } = useVMStore()
+  const { getAddonServicesForVM } = useAddonServiceStore()
   const { toast } = useUIStore()
   const vm = vms.find((v: any) => v.id === initialVm.id) || initialVm
   const [tab, setTab] = useState('overview')
@@ -22,10 +24,10 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
   const [snapName, setSnapName] = useState('')
   const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [convertToPaidOpen, setConvertToPaidOpen] = useState(false)
-  
+
   // Get data from store instead of fetching directly
   const vmRequest = vm.vm_request_id ? getVMRequest(vm.vm_request_id) : null
-  const addonRequests = getAddonRequestsForVM(vm.id)
+  const addonServices = getAddonServicesForVM(vm.id)
 
   const isRunning = vm.power_state === 'Running'
 
@@ -330,34 +332,34 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
 
         {tab === 'addons' && (
           <div className="card-body">
-            {addonRequests.length === 0 ? (
+            {addonServices.length === 0 ? (
               <div className="empty">
                 <div className="title">No add-on services</div>
-                <div className="sub">No completed add-on services for this VM. Contact your account manager to add services.</div>
+                <div className="sub">No active add-on services for this VM. Contact your account manager to add services.</div>
               </div>
             ) : (
               <div className="grid-2" style={{ gap: 14 }}>
-                {addonRequests.map((ar: any) => (
-                  <div key={ar.id}>
-                    <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>{ar.legacy_id || ar.id}</div>
+                {addonServices.map((as: any) => (
+                  <div key={as.id}>
+                    <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>{as.legacy_id || as.id}</div>
                     <dl className="dl">
                       <dt>Services</dt>
                       <dd>
                         <div className="flex gap-1">
-                          {ar.cpfs_enabled && <span className="pill subtle">CPFS</span>}
-                          {ar.ccis_enabled && <span className="pill subtle">CCIS</span>}
+                          {as.cpfs_enabled && <span className="pill subtle">CPFS</span>}
+                          {as.ccis_enabled && <span className="pill subtle">CCIS</span>}
                         </div>
                       </dd>
                       <dt>Package</dt><dd>{[
-                        ar.cpfs_enabled && ar.cpfs_package ? `CPFS ${ar.cpfs_package}` : null,
-                        ar.ccis_enabled && ar.ccis_package ? `CCIS ${ar.ccis_package}` : null
+                        as.cpfs_enabled && as.cpfs_package ? `CPFS ${as.cpfs_package}` : null,
+                        as.ccis_enabled && as.ccis_package ? `CCIS ${as.ccis_package}` : null
                       ].filter(Boolean).join(', ') || '—'}</dd>
-                      <dt>Duration</dt><dd>{ar.duration || 'N/A'}</dd>
-                      {ar.start_date && <><dt>Start Date</dt><dd className="tnum">{new Date(ar.start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
-                      {ar.end_date && <><dt>End Date</dt><dd className="tnum">{new Date(ar.end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
-                      {ar.expiry && <><dt>Expiry</dt><dd><ExpiryCell date={ar.expiry || ''} /></dd></>}
-                      <dt>Status</dt><dd><StatusPill status={ar.status}/></dd>
-                      <dt>Completed</dt><dd className="tnum">{ar.updated_at ? new Date(ar.updated_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</dd>
+                      <dt>Duration</dt><dd>{as.duration || 'N/A'}</dd>
+                      {as.start_date && <><dt>Start Date</dt><dd className="tnum">{new Date(as.start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
+                      {as.end_date && <><dt>End Date</dt><dd className="tnum">{new Date(as.end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
+                      {as.expiry && <><dt>Expiry</dt><dd><ExpiryCell date={as.expiry || ''} /></dd></>}
+                      <dt>Status</dt><dd><StatusPill status={as.status}/></dd>
+                      <dt>Operational Status</dt><dd><StatusPill status={as.operational_status || 'Active'} expiry={as.expiry}/></dd>
                     </dl>
                   </div>
                 ))}

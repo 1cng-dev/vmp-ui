@@ -151,21 +151,23 @@ const useTaskStore = (): TaskStoreValue => {
       console.log("Processing task:", t);
 
       // Calculate expiry using VM's created_at (service provision date)
-      // Formula: created_at + 1 day + duration (in months)
+      // Formula: created_at + duration + 1 day
       let expiry: string | undefined;
       let durationValue: number | undefined;
+      let start_date: string | undefined;
+      let end_date: string | undefined;
 
       // Handle trial requests - set expiry but no duration
       if (t.request_type === "trial") {
         // Trial defaults to 14 days
         if (t.created_at) {
           const startDate = new Date(t.created_at);
-          startDate.setDate(startDate.getDate() + 1); // Add 1 day
-
+          start_date = startDate.toISOString();
           const expiryDate = new Date(startDate);
-          expiryDate.setDate(expiryDate.getDate() + 14); // Add 14 days for trial
+          expiryDate.setDate(expiryDate.getDate() + 14 + 1); // Add 14 days for trial + 1 day
 
           expiry = expiryDate.toISOString();
+          end_date = expiry;
 
           console.log("Trial expiry calculated:", {
             created_at: t.created_at,
@@ -180,12 +182,13 @@ const useTaskStore = (): TaskStoreValue => {
 
         if (t.created_at) {
           const startDate = new Date(t.created_at);
-          startDate.setDate(startDate.getDate() + 1); // Add 1 day
-
+          start_date = startDate.toISOString();
           const expiryDate = new Date(startDate);
           expiryDate.setMonth(expiryDate.getMonth() + durationValue);
+          expiryDate.setDate(expiryDate.getDate() + 1); // Add 1 day to expiry
 
           expiry = expiryDate.toISOString();
+          end_date = expiry;
 
           console.log("Paid expiry calculated:", {
             created_at: t.created_at,
@@ -255,7 +258,8 @@ const useTaskStore = (): TaskStoreValue => {
           task_type: t.task_type,
           expiry: expiry,
           duration: durationValue,
-          end_date: t.request_type === "trial" ? expiry : undefined, // For trials, end_date should match expiry
+          start_date: start_date,
+          end_date: end_date,
           legacy_id: legacyId,
           assigned_vmid: vmDetails.assigned_vmids[i] || null,
           node: vmDetails.node || "pve1", // ADD THIS
@@ -347,17 +351,17 @@ const useTaskStore = (): TaskStoreValue => {
         // Update each VM with expiry calculated from its created_at
         for (const vm of vms) {
           if (vm.created_at) {
-            // Calculate expiry: created_at + 1 day + duration
+            // Calculate expiry: created_at + duration + 1 day
             const startDate = new Date(vm.created_at);
-            startDate.setDate(startDate.getDate() + 1);
             const expiryDate = new Date(startDate);
             expiryDate.setMonth(expiryDate.getMonth() + durationMonths);
+            expiryDate.setDate(expiryDate.getDate() + 1); // Add 1 day to expiry
             const expiry = expiryDate.toISOString();
 
             if (updateVM) {
-              await updateVM(vm.id, { expiry });
+              await updateVM(vm.id, { expiry, end_date: expiry });
             } else {
-              await supabase.from("vms").update({ expiry }).eq("id", vm.id);
+              await supabase.from("vms").update({ expiry, end_date: expiry }).eq("id", vm.id);
             }
             console.log(`Updated VM ${vm.id} with expiry ${expiry}`);
           }
@@ -377,7 +381,7 @@ const useTaskStore = (): TaskStoreValue => {
       // Get ALL add-on requests for this VM (both pending and completed)
       const { data: allAddonRequests } = await supabase
         .from("addon_requests")
-        .select("id, duration, status")
+        .select("*")
         .eq("vm_id", vmId)
         .in("status", ["Pending", "Completed"]);
 
@@ -388,6 +392,12 @@ const useTaskStore = (): TaskStoreValue => {
 
         for (const addon of allAddonRequests) {
           let newDuration: string;
+
+          // Calculate new expiry from addon's current expiry, not VM's expiry
+          const currentAddonExpiry = addon.expiry ? new Date(addon.expiry) : new Date();
+          const newExpiry = new Date(currentAddonExpiry);
+          newExpiry.setMonth(newExpiry.getMonth() + durationMonths);
+          newExpiry.setDate(newExpiry.getDate() + 1); // Add 1 day to expiry
 
           if (addon.status === "Pending") {
             // New add-on from renewal: just use the renewal duration
@@ -424,15 +434,84 @@ const useTaskStore = (): TaskStoreValue => {
             }
           }
 
-          // Update add-on request with new duration only (no expiry field)
+          // Check if addon service exists for this VM
+          const { data: existingService } = await supabase
+            .from("addon_services")
+            .select("*")
+            .eq("vm_id", vmId)
+            .maybeSingle()
+
+          if (existingService) {
+            // Calculate new duration based on existing service duration + renewal months
+            let currentMonths = 0;
+            let currentDays = 0;
+
+            if (existingService.duration) {
+              // Parse "5 months 29 days" format from existing service
+              const monthsMatch = existingService.duration.match(/(\d+)\s*months?/i);
+              const daysMatch = existingService.duration.match(/(\d+)\s*days?/i);
+
+              if (monthsMatch) currentMonths = parseInt(monthsMatch[1]);
+              if (daysMatch) currentDays = parseInt(daysMatch[1]);
+            }
+
+            // Add renewal months to existing duration
+            currentMonths += durationMonths;
+
+            // Convert excess days to months if needed
+            if (currentDays > 28) {
+              const extraMonths = Math.floor(currentDays / 30);
+              currentMonths += extraMonths;
+              currentDays = currentDays % 30;
+            }
+
+            // Build new duration string
+            let finalDuration: string;
+            if (currentDays > 0) {
+              finalDuration = `${currentMonths} months ${currentDays} days`;
+            } else {
+              finalDuration = `${currentMonths} months`;
+            }
+
+            // Update existing addon service with new duration and expiry
+            await supabase
+              .from("addon_services")
+              .update({
+                duration: finalDuration,
+                end_date: newExpiry.toISOString(),
+                expiry: newExpiry.toISOString()
+              })
+              .eq("id", existingService.id)
+            console.log(`Updated addon_service ${existingService.id} for renewal with duration: ${finalDuration}`)
+          } else {
+            // Create new addon service record
+            await supabase
+              .from("addon_services")
+              .insert({
+                vm_id: vmId,
+                cpfs_enabled: addon.cpfs_enabled,
+                cpfs_package: addon.cpfs_package,
+                ccis_enabled: addon.ccis_enabled,
+                ccis_package: addon.ccis_package,
+                start_date: addon.start_date,
+                end_date: newExpiry.toISOString(),
+                expiry: newExpiry.toISOString(),
+                duration: newDuration,
+                status: 'Active',
+                operational_status: 'Active'
+              })
+            console.log(`Created addon_service for vm ${vmId}`)
+          }
+
+          // Update add-on request status to Completed
           await supabase
             .from("addon_requests")
             .update({
-              duration: newDuration,
+              status: "Completed"
             })
             .eq("id", addon.id);
           console.log(
-            `Updated add-on request ${addon.id} (status: ${addon.status}) with new duration ${newDuration}`,
+            `Marked add-on request ${addon.id} as Completed`,
           );
         }
       } else {

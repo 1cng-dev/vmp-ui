@@ -111,7 +111,6 @@ export interface VMStoreValue {
   loadVMRequests: () => Promise<void>;
   loadAddonRequests: () => Promise<void>;
   getVMRequest: (vmRequestId: string) => VMRequest | undefined;
-  getAddonRequestsForVM: (vmId: string) => AddonRequest[];
   getVMById: (vmId: string) => VM | undefined;
   getVMByHostname: (hostname: string) => VM | undefined;
   addVM: (vm: NewVMInput) => Promise<string>;
@@ -182,18 +181,6 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     [vmRequests],
   );
 
-  const getAddonRequestsForVM = useCallback(
-    (vmId: string): AddonRequest[] => {
-      return addonRequests.filter(
-        (req) =>
-          req.vm_id === vmId &&
-          req.status === "Completed" &&
-          req.operational_status !== "Terminated",
-      );
-    },
-    [addonRequests],
-  );
-
   const getVMById = useCallback(
     (vmId: string): VM | undefined => {
       return vms.find((vm) => vm.id === vmId);
@@ -252,28 +239,6 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       supabase.removeChannel(channel);
     };
   }, [loadVMRequests]);
-
-  // Real-time subscription for addon requests
-  useEffect(() => {
-    const channel = supabase
-      .channel(`addon-requests-changes-${Date.now()}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "addon_requests",
-        },
-        () => {
-          loadAddonRequests();
-        },
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [loadAddonRequests]);
 
   // Initial load
   useEffect(() => {
@@ -723,7 +688,6 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     loadVMRequests,
     loadAddonRequests,
     getVMRequest,
-    getAddonRequestsForVM,
     getVMById,
     getVMByHostname,
     addVM,

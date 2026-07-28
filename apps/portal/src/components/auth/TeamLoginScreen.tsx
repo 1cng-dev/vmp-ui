@@ -49,9 +49,22 @@ const TeamLoginScreen: React.FC = () => {
       toast(error.message, 'bad')
       setLoading(false)
     } else {
-      // Validate role immediately after login
-      const userData = data.user?.user_metadata
-      const userRole = userData?.role || 'Admin'
+      // Fetch role from database (source of truth) instead of auth metadata
+      const { data: teamMember } = await supabase
+        .from('team_members')
+        .select('role, force_password_change')
+        .eq('user_id', data.user.id)
+        .maybeSingle()
+
+      // No default fallback - if no role in database, sign out
+      if (!teamMember?.role) {
+        await supabase.auth.signOut()
+        toast('Invalid login credentials', 'bad')
+        setLoading(false)
+        return
+      }
+
+      const userRole = teamMember.role
       const allowedRoles = ['Admin', 'Sales', 'Engineer', 'Finance']
 
       if (!allowedRoles.includes(userRole)) {
@@ -62,18 +75,10 @@ const TeamLoginScreen: React.FC = () => {
       }
 
       // Check if team member needs to change password
-      if (data.user && data.user.id) {
-        const { data: teamMember } = await supabase
-          .from('team_members')
-          .select('force_password_change')
-          .eq('user_id', data.user.id)
-          .maybeSingle()
-
-        if (teamMember?.force_password_change) {
-          navigate('/team-change-password')
-          setLoading(false)
-          return
-        }
+      if (teamMember?.force_password_change) {
+        navigate('/team-change-password')
+        setLoading(false)
+        return
       }
 
       toast('Welcome back!', 'ok')

@@ -17,6 +17,7 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
   const [showSummary, setShowSummary] = useState(false)
   const [customDuration, setCustomDuration] = useState('')
   const [isCustomDuration, setIsCustomDuration] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const getDurationLabel = (months: number) => {
     const labels: Record<number, string> = {
@@ -117,6 +118,7 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
   }
 
   const confirmSubmit = async () => {
+    setIsSubmitting(true)
     try {
       await addVMRequest({
         customer_id: me.id,
@@ -159,6 +161,8 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
     } catch (err) {
       toast('Failed to submit request. Please try again.', 'error')
       console.error(err)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -769,8 +773,10 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
               )}
 
               <div className="flex gap-2 mt-4" style={{ justifyContent: 'flex-end' }}>
-                <button className="btn" onClick={() => setShowSummary(false)} style={{ padding: '10px 20px', fontSize: 13 }}>Cancel</button>
-                <button className="btn accent" onClick={confirmSubmit} style={{ padding: '10px 20px', fontSize: 13 }}><Icon name="check" size={12} />Confirm & Submit</button>
+                <button className="btn" onClick={() => setShowSummary(false)} disabled={isSubmitting} style={{ padding: '10px 20px', fontSize: 13 }}>Cancel</button>
+                <button className="btn accent" onClick={confirmSubmit} disabled={isSubmitting} style={{ padding: '10px 20px', fontSize: 13 }}>
+                  {isSubmitting ? <><Icon name="loader" size={12} className="spin" /> Submitting...</> : <><Icon name="check" size={12} />Confirm & Submit</>}
+                </button>
               </div>
             </div>
           </div>

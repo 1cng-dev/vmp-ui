@@ -7,6 +7,8 @@ import useCustomerStore from '../store/customerStore'
 import useVMRequestStore from '../store/vmRequestStore'
 import useAuthStore from '../store/authStore'
 import useVMStore from '../store/vmStore'
+import useAddonRequestStore from '../store/addonRequestStore'
+import useAddonServiceStore from '../store/addonServiceStore'
 import { supabase } from '../lib/supabase'
 import { exportQuoteToPDF } from '../lib/pdfExport'
 import QuoteDrawer from '../components/quote/QuoteDrawer'
@@ -45,7 +47,9 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
 
   const { customers } = useCustomerStore()
   const { vmRequests, loadVMRequests } = useVMRequestStore()
-  const { vms, loadVMs, addonRequests, loadAddonRequests } = useVMStore()
+  const { vms, loadVMs } = useVMStore()
+  const { addonRequests, loadAddonRequests } = useAddonRequestStore()
+  const { addonServices, loadAddonServices } = useAddonServiceStore()
 
   const vmMap = useMemo(() => {
     const map = new Map<string, any>()
@@ -79,13 +83,16 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
     if (addonRequests.length === 0) {
       loadAddonRequests()
     }
+    if (addonServices.length === 0) {
+      loadAddonServices()
+    }
     if (vms.length === 0) {
       loadVMs()
     }
     if (vmRequests.length === 0) {
       loadVMRequests()
     }
-  }, [addonRequests.length, loadAddonRequests, loadVMs, loadVMRequests, vms.length, vmRequests.length])
+  }, [addonRequests.length, loadAddonRequests, addonServices.length, loadAddonServices, vms.length, loadVMs, vmRequests.length, loadVMRequests])
 
   // Helper function to parse billing term string to number of months
   // const parseBillingTermToMonths = (term: string): number => {
@@ -401,35 +408,18 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
         })
       }
 
-      // Add add-on services from renewal request metadata
-      const addons = (selectedRequest as any).metadata?.addons
-      if (addons) {
-        if (addons.cpfs) {
-          addonServiceLines.push({
-            spec: 'CPFS',
-            unit: 0,
-            term: String(billingTerm)
-          })
-        }
-        if (addons.ccis) {
-          addonServiceLines.push({
-            spec: 'CCIS',
-            unit: 0,
-            term: String(billingTerm)
-          })
-        }
-      }
-
-      // Also check for pending addon requests associated with this VM (from renewal)
-      const pendingAddons = addonRequests.filter((a: any) => 
-        a.vm_id === currentVMData.id && 
-        a.status === 'Pending' &&
-        a.notes?.includes('renewal')
+      // Fetch addon services from addon_services table using vm_id
+      const vmAddonServices = addonServices.filter((a: any) =>
+        a.vm_id === currentVMData.id &&
+        a.status === 'Active'
       )
-      
-      for (const addon of pendingAddons) {
+
+      // Track which services have been added to prevent duplicates
+      const addedServices = new Set<string>()
+
+      for (const addon of vmAddonServices) {
         let addonTerm = addon.duration || billingTerm
-        
+
         // Convert duration to standard billing term format
         if (addon.duration) {
           const match = String(addon.duration).match(/(\d+)/)
@@ -442,20 +432,22 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
             else addonTerm = addon.duration
           }
         }
-        
-        if (addon.cpfs_enabled) {
+
+        if (addon.cpfs_enabled && !addedServices.has('CPFS')) {
           addonServiceLines.push({
             spec: `CPFS (${addon.cpfs_package || 'Standard'})`,
             unit: 0,
             term: String(addonTerm)
           })
+          addedServices.add('CPFS')
         }
-        if (addon.ccis_enabled) {
+        if (addon.ccis_enabled && !addedServices.has('CCIS')) {
           addonServiceLines.push({
             spec: `CCIS (${addon.ccis_package || 'Standard'})`,
             unit: 0,
             term: String(addonTerm)
           })
+          addedServices.add('CCIS')
         }
       }
 

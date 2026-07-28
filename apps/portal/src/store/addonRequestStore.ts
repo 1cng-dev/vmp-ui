@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import type { AddonRequest } from '../types'
 import useActivityStore from './activityStore'
 import { createAlert } from '../services/notificationService'
+import useAddonServiceStore from './addonServiceStore'
 
 export interface AddonRequestStoreValue {
   addonRequests: AddonRequest[]
@@ -19,6 +20,7 @@ export const AddonRequestProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [addonRequests, setAddonRequests] = useState<AddonRequest[]>([])
   const [addonRequestsLoading, setAddonRequestsLoading] = useState(false)
   const { logActivity } = useActivityStore()
+  const { addAddonService } = useAddonServiceStore()
 
   const loadAddonRequests = useCallback(async () => {
     setAddonRequestsLoading(true)
@@ -130,7 +132,7 @@ export const AddonRequestProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const { error } = await supabase.from('addon_requests').update(patch).eq('id', id)
     if (error) throw error
     // Real-time subscription will handle data update, no need to call loadAddonRequests
-    
+
     // Log status changes
     if (patch.status && previousRequest && patch.status !== previousRequest.status) {
       const { data: { user } } = await supabase.auth.getUser()
@@ -150,14 +152,14 @@ export const AddonRequestProvider: React.FC<{ children: React.ReactNode }> = ({ 
           actorName = user.user_metadata?.name || user.email || 'System'
         }
       }
-      
+
       await logActivity(
         `Changed addon request status from ${previousRequest.status} to ${patch.status}`,
         'task',
         actorName,
         { addonRequestId: id, vmId: previousRequest.vm_id, previousStatus: previousRequest.status, newStatus: patch.status }
       )
-      
+
       // Create alert for customer (customer_id set so customer sees it)
       await createAlert({
         sev: 'info',
@@ -176,8 +178,80 @@ export const AddonRequestProvider: React.FC<{ children: React.ReactNode }> = ({ 
           customer_id: previousRequest.customer_id
         }
       })
+
+      // When status changes to "Completed", create or update addon_services table
+      if (patch.status === 'Completed' && previousRequest) {
+        try {
+          // Check if addon service already exists for this request
+          const { data: existingService } = await supabase
+            .from('addon_services')
+            .select('*')
+            .eq('vm_id', previousRequest.vm_id)
+            .maybeSingle()
+
+          // Calculate dates based on duration
+          const startDate = new Date()
+          const endDate = new Date(startDate)
+          const expiryDate = new Date(startDate)
+
+          if (previousRequest.duration) {
+            const durationMonths = parseInt(previousRequest.duration.toString())
+            if (!isNaN(durationMonths)) {
+              endDate.setMonth(endDate.getMonth() + durationMonths)
+              expiryDate.setMonth(expiryDate.getMonth() + durationMonths)
+            }
+          }
+
+          if (existingService) {
+            // Update existing addon service with new duration and dates (like VM renewal)
+            await supabase
+              .from('addon_services')
+              .update({
+                duration: previousRequest.duration,
+                end_date: endDate.toISOString(),
+                expiry: expiryDate.toISOString(),
+                cpfs_enabled: previousRequest.cpfs_enabled || false,
+                cpfs_package: previousRequest.cpfs_package || 'standard',
+                ccis_enabled: previousRequest.ccis_enabled || false,
+                ccis_package: previousRequest.ccis_package || 'standard',
+              })
+              .eq('id', existingService.id)
+
+            await logActivity(
+              `Updated addon service for VM ${previousRequest.vm_id} with new duration and expiry`,
+              'vm',
+              actorName,
+              { vmId: previousRequest.vm_id, addonRequestId: id, services: previousRequest }
+            )
+          } else {
+            // Create new addon service record
+            await addAddonService({
+              vm_id: previousRequest.vm_id,
+              cpfs_enabled: previousRequest.cpfs_enabled || false,
+              cpfs_package: previousRequest.cpfs_package || 'standard',
+              ccis_enabled: previousRequest.ccis_enabled || false,
+              ccis_package: previousRequest.ccis_package || 'standard',
+              start_date: startDate.toISOString(),
+              end_date: endDate.toISOString(),
+              expiry: expiryDate.toISOString(),
+              duration: previousRequest.duration,
+              status: 'Active',
+              operational_status: 'Active',
+            })
+
+            await logActivity(
+              `Created addon service for VM ${previousRequest.vm_id}`,
+              'vm',
+              actorName,
+              { vmId: previousRequest.vm_id, addonRequestId: id, services: previousRequest }
+            )
+          }
+        } catch (err) {
+          console.error('Error creating/updating addon service record:', err)
+        }
+      }
     }
-  }, [addonRequests, logActivity])
+  }, [addonRequests, logActivity, addAddonService])
 
   const deleteAddonRequest = useCallback(async (id: string) => {
     const { error } = await supabase.from('addon_requests').delete().eq('id', id)

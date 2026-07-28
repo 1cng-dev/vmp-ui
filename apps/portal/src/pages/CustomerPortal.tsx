@@ -15,6 +15,7 @@ import useAnnouncementStore from '../store/announcementStore'
 import Spinner from '../components/ui/Spinner'
 import { useVMRequestStore } from '../store/vmRequestStore'
 import { useAddonRequestStore } from '../store/addonRequestStore'
+import { useAddonServiceStore } from '../store/addonServiceStore'
 import Icon from '../lib/icons'
 import { supabase } from '../lib/supabase'
 import { Avatar } from '../components/ui/ui'
@@ -55,6 +56,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
   const { announcements } = useAnnouncementStore()
   const { vmRequests, loadVMRequests } = useVMRequestStore()
   const { addonRequests, loadAddonRequests } = useAddonRequestStore()
+  const { addonServices, loadAddonServices } = useAddonServiceStore()
   const auth = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
@@ -118,6 +120,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
   // Filter requests for current customer
   const myVMRequests = vmRequests.filter((r: any) => r.customer_id === safeMe.id)
   const myAddonRequests = addonRequests.filter((r: any) => r.customer_id === safeMe.id)
+  const myAddonServices = addonServices.filter((s: any) => s.customer_id === safeMe.id)
 
   useEffect(() => {
     if (me && me.kyc_status !== 'Approved' && ['request', 'vms', 'requests', 'invoices'].includes(view)) {
@@ -157,14 +160,14 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
     return d >= 0 && d <= 14 && v.status !== 'Terminated'
   })
 
-  const expiredAddons = myAddonRequests.filter((a: any) => {
+  const expiredAddons = myAddonServices.filter((a: any) => {
     if (!a.expiry || a.expiry === '—') return false
     const d = (new Date(a.expiry).getTime() - new Date().getTime()) / 86400000
     // Add-ons that have already expired within the last 30 days, excluding terminated ones
     return d < 0 && d >= -30 && a.operational_status !== 'Terminated'
   })
 
-  const expiringSoonAddons = myAddonRequests.filter((a: any) => {
+  const expiringSoonAddons = myAddonServices.filter((a: any) => {
     if (!a.expiry || a.expiry === '—') return false
     const d = (new Date(a.expiry).getTime() - new Date().getTime()) / 86400000
     // Add-ons expiring within the next 14 days (not yet expired), excluding terminated ones
@@ -398,7 +401,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
                     {view === 'notifications' && <CustomerNotificationsView />}
                     {view === 'cust-announcements' && <CustomerAnnouncementsView />}
                     {view === 'tickets' && <CustomerTicketsView me={safeMe} setOpenTicket={setOpenTicket} />}
-                    {view === 'addons' && <AddonServicesView myVMs={myVMs} />}
+                    {view === 'addons' && <AddonServicesView myVMs={myVMs} myAddonServices={myAddonServices} />}
                     {view === 'account' && <CustomerAccountView me={safeMe} />}
                   </>
                 )

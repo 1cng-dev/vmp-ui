@@ -9,6 +9,7 @@ import EngineerVMCreateForm from '../engineer/EngineerVMCreateForm'
 import useTaskStore from '../../store/taskStore'
 import useVMStore from '../../store/vmStore'
 import useAddonRequestStore from '../../store/addonRequestStore'
+import useAddonServiceStore from '../../store/addonServiceStore'
 import { supabase } from '../../lib/supabase'
 
 interface TaskDrawerProps {
@@ -24,6 +25,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
   const { addVM, vms, getVMById, getVMByHostname, updateVM, getVMRequest } = useVMStore()
   const { vmRequests, updateVMRequest } = useVMRequestStore()
   const { addonRequests, updateAddonRequest, deleteAddonRequest } = useAddonRequestStore()
+  const { getAddonServicesForVM } = useAddonServiceStore()
   const { invoices } = useInvoiceStore()
   const [showVMFormModal, setShowVMFormModal] = useState(false)
   const [salesData, setSalesData] = useState({
@@ -301,11 +303,11 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                   const renewalDuration = t.duration || 12
                                   const newDuration = currentDuration + renewalDuration
 
-                                  // Calculate new end_date as created_at + 1 day + new total duration (same as expiry calculation)
+                                  // Calculate new end_date as created_at + new total duration + 1 day (same as expiry calculation)
                                   const startDate = vmData.created_at ? new Date(vmData.created_at) : new Date()
                                   const newEndDate = new Date(startDate)
-                                  newEndDate.setDate(newEndDate.getDate() + 1) // Add 1 day to match expiry calculation
                                   newEndDate.setMonth(newEndDate.getMonth() + newDuration)
+                                  newEndDate.setDate(newEndDate.getDate() + 1) // Add 1 day to expiry
 
                                   // Update VM expiry, end_date, and duration using store
                                   try {
@@ -367,10 +369,9 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                     vmId = vmData.id
                                     // Calculate new expiry date using same logic as other flows
                                     const startDate = vmData.created_at ? new Date(vmData.created_at) : new Date()
-                                    startDate.setDate(startDate.getDate() + 1) // Add 1 day
-
                                     const endDate = new Date(startDate)
                                     endDate.setMonth(endDate.getMonth() + (t.duration || 12))
+                                    endDate.setDate(endDate.getDate() + 1) // Add 1 day to expiry
                                     const newExpiry = endDate.toISOString()
 
                                     // Update VM expiry, duration, and end_date using store
@@ -465,8 +466,8 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                           // Trigger handles start_date automatically, only update end_date here
                                           const startDate = matchingVMs[0].created_at ? new Date(matchingVMs[0].created_at) : new Date()
                                           const endDate = new Date(startDate)
-                                          endDate.setDate(endDate.getDate() + 1) // Add 1 day
                                           endDate.setMonth(endDate.getMonth() + (t.duration || 12))
+                                          endDate.setDate(endDate.getDate() + 1) // Add 1 day to expiry
 
                                           // Update all VMs associated with this request - only set end_date
                                           for (const vm of matchingVMs) {
@@ -552,98 +553,167 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
               <div className="divider" />
               {requestType === 'vm' ? (
                 <>
-                  <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>VM Configuration</div>
-                  <div className="grid-2" style={{ gap: 16 }}>
-                    <div>
-                      <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>General</div>
+                  {isRenewal ? (
+                    <>
+                      <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>VM Renewal Details</div>
                       <dl className="dl">
-                        <dt>Request ID</dt><dd className="mono">{t?.legacy_id || t?.id}</dd>
-                        {(isUpgrade || isRenewal) && currentVMData && (
+                        <dt>Hostname</dt><dd className="mono">{t?.hostname}</dd>
+                        {currentVMData && (
                           <>
                             <dt>VM ID</dt><dd className="mono">{currentVMData.legacy_id || currentVMData.id}</dd>
                           </>
                         )}
-                        <dt>Hostname</dt><dd className="mono">{t?.hostname}</dd>
-                        <dt>Purpose</dt><dd>{t?.purpose || '—'}</dd>
-                        <dt>Quantity</dt><dd className="mono">{t?.qty}</dd>
-                        {t?.duration && <><dt>Billing Term</dt><dd className="mono">{t?.duration === 1 ? 'Monthly' : t?.duration === 3 ? 'Quarterly' : t?.duration === 6 ? 'Half Yearly' : t?.duration === 12 ? 'Yearly' : `${t?.duration} months`}</dd></>}
-                        <dt>Spec Type</dt><dd className="mono" style={{ color: t?.sizing === 'Standard' ? 'var(--ok)' : 'var(--accent-strong)' }}>{t?.sizing}</dd>
-                        <dt>OS</dt><dd className="mono">{t?.os_name} {t?.os_version}</dd>
+                        <dt>Billing Term</dt><dd className="mono">{t?.duration === 1 ? 'Monthly' : t?.duration === 3 ? 'Quarterly' : t?.duration === 6 ? 'Half Yearly' : t?.duration === 12 ? 'Yearly' : `${t?.duration} months`}</dd>
+                        {t?.notes && <><dt>Notes</dt><dd>{t?.notes}</dd></>}
                       </dl>
 
-                      {!isUpgrade || isSpecChange ? (
+                      {currentVMData && (
                         <>
-                          <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Compute</div>
-                          <dl className="dl">
-                            <dt>vCPU</dt><dd className="mono">{t?.vcpu} cores</dd>
-                            <dt>Memory</dt><dd className="mono">{t?.ram_gb} GB</dd>
-                            <dt>Storage</dt><dd className="mono">{t?.storage} GB</dd>
-                          </dl>
-                        </>
-                      ) : null}
-                    </div>
-
-                    <div>
-                      <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Network</div>
-                      <dl className="dl">
-                        <dt>Zone</dt><dd className="mono">{t?.zone}</dd>
-                        <dt>Public IP</dt><dd className="mono">{t?.public_ip_required ? 'Yes' : 'No'}</dd>
-                        {t?.nics && t.nics.length > 0 && (
-                          <>
-                            <dt>NICs</dt>
-                            <dd className="mono">{t.nics.map((n: any) => n.description ? `${n.label} (${n.description})` : n.label).join(', ')}</dd>
-                          </>
-                        )}
-                        {t?.firewall_ports && t.firewall_ports.length > 0 && (
-                          <>
-                            <dt>Firewall Ports</dt>
-                            <dd className="mono">{t.firewall_ports.join(', ')}</dd>
-                          </>
-                        )}
-                      </dl>
-
-                      {t?.storage_partitions && (
-                        <>
-                          <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Storage</div>
-                          <dl className="dl">
-                            <dt>Storage Partitions</dt>
-                            <dd className="mono">{t.storage_partitions}</dd>
-                          </dl>
+                          <div className="divider" />
+                          <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Add-on Services</div>
+                          {(() => {
+                            const addonServices = getAddonServicesForVM(currentVMData.id)
+                            if (addonServices.length === 0) {
+                              return <div className="text-sm text-mute">No active add-on services for this VM</div>
+                            }
+                            return addonServices.map((as: any) => (
+                              <div key={as.id} style={{ marginBottom: 8 }}>
+                                <dl className="dl">
+                                  <dt>Service ID</dt><dd className="mono">{as.legacy_id || as.id}</dd>
+                                  <dt>Services</dt><dd>
+                                    <div className="flex gap-1">
+                                      {as.cpfs_enabled && <span className="pill subtle">CPFS</span>}
+                                      {as.ccis_enabled && <span className="pill subtle">CCIS</span>}
+                                    </div>
+                                  </dd>
+                                  <dt>Billing Term</dt><dd className="mono">{t?.duration === 1 ? 'Monthly' : t?.duration === 3 ? 'Quarterly' : t?.duration === 6 ? 'Half Yearly' : t?.duration === 12 ? 'Yearly' : `${t?.duration} months`}</dd>
+                                </dl>
+                              </div>
+                            ))
+                          })()}
                         </>
                       )}
-
-                      {(!isUpgrade || isBackupChange) && (
-                        <>
-                          <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Backup</div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>VM Configuration</div>
+                      <div className="grid-2" style={{ gap: 16 }}>
+                        <div>
+                          <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>General</div>
                           <dl className="dl">
-                            <dt>Backup</dt>
-                            <dd className="mono">
-                              {isUpgrade && currentVMData ? (
-                                <>
-                                  {currentVMData.backup_enabled ? `${currentVMData.backup_type === 'daily' ? 'Daily' : 'Weekly'} Backup` : 'Disabled'}
-                                  <span style={{ color: 'var(--accent-strong)', margin: '0 4px' }}>→</span>
-                                  <span style={{ color: 'var(--accent-strong)', fontWeight: 600 }}>
-                                    {t?.backup_enabled ? `${t?.backup_type === 'daily' ? 'Daily' : 'Weekly'} Backup` : 'Disabled'}
-                                  </span>
-                                </>
-                              ) : (
-                                t?.backup_enabled ? `${t?.backup_type === 'daily' ? 'Daily' : 'Weekly'} Backup` : 'Disabled'
-                              )}
-                            </dd>
+                            <dt>Request ID</dt><dd className="mono">{t?.legacy_id || t?.id}</dd>
+                            {isUpgrade && currentVMData && (
+                              <>
+                                <dt>VM ID</dt><dd className="mono">{currentVMData.legacy_id || currentVMData.id}</dd>
+                              </>
+                            )}
+                            <dt>Hostname</dt><dd className="mono">{t?.hostname}</dd>
+                            <dt>Purpose</dt><dd>{t?.purpose || '—'}</dd>
+                            <dt>Quantity</dt><dd className="mono">{t?.qty}</dd>
+                            {t?.duration && <><dt>Billing Term</dt><dd className="mono">{t?.duration === 1 ? 'Monthly' : t?.duration === 3 ? 'Quarterly' : t?.duration === 6 ? 'Half Yearly' : t?.duration === 12 ? 'Yearly' : `${t?.duration} months`}</dd></>}
+                            <dt>Spec Type</dt><dd className="mono" style={{ color: t?.sizing === 'Standard' ? 'var(--ok)' : 'var(--accent-strong)' }}>{t?.sizing}</dd>
+                            <dt>OS</dt><dd className="mono">{t?.os_name} {t?.os_version}</dd>
                           </dl>
-                        </>
-                      )}
 
-                      {t?.notes && (
-                        <>
-                          <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Notes</div>
+                          {!isUpgrade || isSpecChange ? (
+                            <>
+                              <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Compute</div>
+                              <dl className="dl">
+                                <dt>vCPU</dt><dd className="mono">
+                                  {isUpgrade && currentVMData ? (
+                                    <>
+                                      {currentVMData.vcpu} cores <span style={{ color: 'var(--accent-strong)', margin: '0 4px' }}>→</span> <span style={{ color: 'var(--accent-strong)', fontWeight: 600 }}>{t?.vcpu} cores</span>
+                                    </>
+                                  ) : (
+                                    `${t?.vcpu} cores`
+                                  )}
+                                </dd>
+                                <dt>Memory</dt><dd className="mono">
+                                  {isUpgrade && currentVMData ? (
+                                    <>
+                                      {currentVMData.ram_gb} GB <span style={{ color: 'var(--accent-strong)', margin: '0 4px' }}>→</span> <span style={{ color: 'var(--accent-strong)', fontWeight: 600 }}>{t?.ram_gb} GB</span>
+                                    </>
+                                  ) : (
+                                    `${t?.ram_gb} GB`
+                                  )}
+                                </dd>
+                                <dt>Storage</dt><dd className="mono">
+                                  {isUpgrade && currentVMData ? (
+                                    <>
+                                      {currentVMData.storage_gb} GB <span style={{ color: 'var(--accent-strong)', margin: '0 4px' }}>→</span> <span style={{ color: 'var(--accent-strong)', fontWeight: 600 }}>{t?.storage} GB</span>
+                                    </>
+                                  ) : (
+                                    `${t?.storage} GB`
+                                  )}
+                                </dd>
+                              </dl>
+                            </>
+                          ) : null}
+                        </div>
+
+                        <div>
+                          <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Network</div>
                           <dl className="dl">
-                            <dt>Notes</dt><dd>{t?.notes}</dd>
+                            <dt>Zone</dt><dd className="mono">{t?.zone}</dd>
+                            <dt>Public IP</dt><dd className="mono">{t?.public_ip_required ? 'Yes' : 'No'}</dd>
+                            {t?.nics && t.nics.length > 0 && (
+                              <>
+                                <dt>NICs</dt>
+                                <dd className="mono">{t.nics.map((n: any) => n.description ? `${n.label} (${n.description})` : n.label).join(', ')}</dd>
+                              </>
+                            )}
+                            {t?.firewall_ports && t.firewall_ports.length > 0 && (
+                              <>
+                                <dt>Firewall Ports</dt>
+                                <dd className="mono">{t.firewall_ports.join(', ')}</dd>
+                              </>
+                            )}
                           </dl>
-                        </>
-                      )}
-                    </div>
-                  </div>
+
+                          {t?.storage_partitions && (
+                            <>
+                              <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Storage</div>
+                              <dl className="dl">
+                                <dt>Storage Partitions</dt>
+                                <dd className="mono">{t.storage_partitions}</dd>
+                              </dl>
+                            </>
+                          )}
+
+                          {(!isUpgrade || isBackupChange) && (
+                            <>
+                              <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Backup</div>
+                              <dl className="dl">
+                                <dt>Backup</dt>
+                                <dd className="mono">
+                                  {isUpgrade && currentVMData ? (
+                                    <>
+                                      {currentVMData.backup_enabled ? `${currentVMData.backup_type === 'daily' ? 'Daily' : 'Weekly'} Backup` : 'Disabled'}
+                                      <span style={{ color: 'var(--accent-strong)', margin: '0 4px' }}>→</span>
+                                      <span style={{ color: 'var(--accent-strong)', fontWeight: 600 }}>
+                                        {t?.backup_enabled ? `${t?.backup_type === 'daily' ? 'Daily' : 'Weekly'} Backup` : 'Disabled'}
+                                      </span>
+                                    </>
+                                  ) : (
+                                    t?.backup_enabled ? `${t?.backup_type === 'daily' ? 'Daily' : 'Weekly'} Backup` : 'Disabled'
+                                  )}
+                                </dd>
+                              </dl>
+                            </>
+                          )}
+
+                          {t?.notes && (
+                            <>
+                              <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Notes</div>
+                              <dl className="dl">
+                                <dt>Notes</dt><dd>{t?.notes}</dd>
+                              </dl>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </>
               ) : (
                 <>
