@@ -266,7 +266,7 @@ const AdminDirectVMCreate: React.FC = () => {
         })
       }
 
-      window.location.href = '/vms'
+      window.location.href = '/admin'
     } catch (err: any) {
       toast(err.message || 'Failed to create VM', 'bad')
       setIsSubmitting(false)
