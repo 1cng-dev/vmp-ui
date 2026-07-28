@@ -119,6 +119,8 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
                       <dl className="dl mt-3">
                         <dt>VM ID</dt><dd className="mono">{v.legacy_id || v.id}</dd>
                         <dt>Assigned VM ID</dt><dd className="mono">{(v as any).assigned_vmid || '—'}</dd>
+                        <dt>Proxmox Node</dt><dd className="mono">{(v as any).node || '—'}</dd>
+                        <dt>VM Type</dt><dd className="mono">{(v as any).pmx_type || '—'}</dd>
                         <dt>Request ID</dt><dd className="mono">{vmRequest?.legacy_id || v.vm_request_id || '—'}</dd>
                         <dt>Request Type</dt><dd>{vmRequest?.request_type || 'paid'}</dd>
                         <dt>Task Type</dt><dd>{v.task_type || 'New'}</dd>
@@ -270,6 +272,8 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
                       <dt>Status</dt><dd>{v.status}</dd>
                       <dt>Task Type</dt><dd>{v.task_type || 'New'}</dd>
                       <dt>Assigned VM ID</dt><dd>{(v as any).assigned_vmid || '—'}</dd>
+                      <dt>Proxmox Node</dt><dd>{(v as any).node || '—'}</dd>
+                      <dt>VM Type</dt><dd>{(v as any).pmx_type || '—'}</dd>
                       <dt>Created</dt><dd className="tnum">{v.created_at ? new Date(v.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</dd>
                       <dt>Updated</dt><dd className="tnum">{v.updated_at ? new Date(v.updated_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</dd>
                     </dl>

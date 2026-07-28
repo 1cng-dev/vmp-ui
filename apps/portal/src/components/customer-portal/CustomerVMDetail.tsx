@@ -118,6 +118,8 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
               <InfoCard icon="invoice" title="Subscription" rows={[
                 ['VM ID', vm.legacy_id || vm.id],
                 ['Assigned VM ID', (vm as any).assigned_vmid || '—'],
+                ['Proxmox Node', (vm as any).node || '—'],
+                ['VM Type', (vm as any).pmx_type || '—'],
                 ['Task Type', vm.task_type || 'New'],
                 ['Billing Term', (vm as any).duration ? ((vm as any).duration === 1 ? 'Monthly' : (vm as any).duration === 3 ? 'Quarterly' : (vm as any).duration === 6 ? 'Half Yearly' : (vm as any).duration === 12 ? 'Yearly' : `${(vm as any).duration} month${(vm as any).duration > 1 ? 's' : ''}`) : '—'],
                 ['Created', new Date(vm.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })],
@@ -277,6 +279,8 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
               <InfoCard icon="server" title="Instance" mono rows={[
                 ['VM ID', vm.legacy_id || vm.id],
                 ['Assigned VM ID', (vm as any).assigned_vmid || '—'],
+                ['Proxmox Node', (vm as any).node || '—'],
+                ['VM Type', (vm as any).pmx_type || '—'],
                 ['Hostname', vm.hostname],
                 ['Power state', vm.power_state],
                 ['Request ID', vmRequest?.legacy_id || vm.vm_request_id],

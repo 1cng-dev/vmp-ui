@@ -1,333 +1,483 @@
-import { useState, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
-import type { Task } from '../types'
+import { useState, useCallback } from "react";
+import { supabase } from "../lib/supabase";
+import type { Task } from "../types";
 
 export interface TaskStoreValue {
-  tasks: Task[]
-  addTask: (t: any) => string
-  updateTask: (id: string, patch: Partial<Task>) => void
-  removeTask: (id: string) => void
-  moveTask: (id: string, to: number) => void
-  advanceProvision: (id: string, parsedSpec?: any, addVM?: (vm: any) => string, updateVM?: (id: string, patch: any) => void) => void
-  createVMManually: (taskId: string, vmDetails: {
-    publicIps: string[]
-    privateIps: string[]
-    assigned_vmids: number[]
-    username: string
-    password: string
-  }, addVM: (vm: any) => Promise<string>) => Promise<void>
-  setTasks: (tasks: Task[]) => void
-  updateVMExpiryForRequest: (vmRequestId: string, durationMonths?: number, updateVM?: (id: string, patch: any) => Promise<void>) => Promise<void>
-  updateAddonExpiryForVM: (vmId: string, durationMonths: number) => Promise<void>
+  tasks: Task[];
+  addTask: (t: any) => string;
+  updateTask: (id: string, patch: Partial<Task>) => void;
+  removeTask: (id: string) => void;
+  moveTask: (id: string, to: number) => void;
+  advanceProvision: (
+    id: string,
+    parsedSpec?: any,
+    addVM?: (vm: any) => string,
+    updateVM?: (id: string, patch: any) => void,
+  ) => void;
+  createVMManually: (
+    taskId: string,
+    vmDetails: {
+      publicIps: string[];
+      privateIps: string[];
+      assigned_vmids: number[];
+      username: string;
+      password: string;
+      node?: string  // ADD THIS
+      pmx_type?: string  // ADD THIS
+    },
+    addVM: (vm: any) => Promise<string>,
+  ) => Promise<void>;
+  setTasks: (tasks: Task[]) => void;
+  updateVMExpiryForRequest: (
+    vmRequestId: string,
+    durationMonths?: number,
+    updateVM?: (id: string, patch: any) => Promise<void>,
+  ) => Promise<void>;
+  updateAddonExpiryForVM: (
+    vmId: string,
+    durationMonths: number,
+  ) => Promise<void>;
 }
 
 const useTaskStore = (): TaskStoreValue => {
-  const [tasks, setTasks] = useState<Task[]>([])
+  const [tasks, setTasks] = useState<Task[]>([]);
 
   const addTask = useCallback((t: any) => {
-    const id = `TSK-${3300 + Math.floor(Math.random() * 600)}`
+    const id = `TSK-${3300 + Math.floor(Math.random() * 600)}`;
     const newT = {
-      id, status: 'Pending', priority: 'Normal', assignee: '—', team: 'Provisioning',
+      id,
+      status: "Pending",
+      priority: "Normal",
+      assignee: "—",
+      team: "Provisioning",
       created: new Date().toISOString().slice(0, 10),
-      notes: '',
+      notes: "",
       ...t,
-    }
-    setTasks(s => [newT, ...s])
-    return id
-  }, [])
+    };
+    setTasks((s) => [newT, ...s]);
+    return id;
+  }, []);
 
   const updateTask = useCallback((id: string, patch: any) => {
-    setTasks(s => s.map(t => t.id === id ? { ...t, ...patch } : t))
-  }, [])
+    setTasks((s) => s.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+  }, []);
 
-  const advanceProvision = useCallback((id: string, _parsedSpec?: any, _addVM?: (vm: any) => string, _updateVM?: (id: string, patch: any) => void) => {
-    const t = tasks.find(x => x.id === id)
-    if (!t) return
-    const stage = (t.wfStage || 0) + 1
-    const notes: any = {
-      1: { team: 'Sales', msg: `Sales reviewing ${t.id} — KYC check in progress`, kind: 'task', status: 'In Progress' },
-      2: { team: 'Engineering', msg: `KYC approved — Engineering notified`, kind: 'customer', status: 'In Progress' },
-      3: { team: 'Engineer', msg: `Engineer creating VM in Proxmox`, kind: 'vm', status: 'In Progress' },
-      4: { team: 'Network', msg: `Network team configuring firewall rules`, kind: 'vm', status: 'In Progress' },
-      5: { team: 'Engineering', msg: `Testing VM & uploading credentials`, kind: 'vm', status: 'In Progress' },
-      6: { team: 'Customer', msg: `VM is ready — customer notified ✓`, kind: 'customer', status: 'Done' },
-    }[stage]
+  const advanceProvision = useCallback(
+    (
+      id: string,
+      _parsedSpec?: any,
+      _addVM?: (vm: any) => string,
+      _updateVM?: (id: string, patch: any) => void,
+    ) => {
+      const t = tasks.find((x) => x.id === id);
+      if (!t) return;
+      const stage = (t.wfStage || 0) + 1;
+      const notes: any = {
+        1: {
+          team: "Sales",
+          msg: `Sales reviewing ${t.id} — KYC check in progress`,
+          kind: "task",
+          status: "In Progress",
+        },
+        2: {
+          team: "Engineering",
+          msg: `KYC approved — Engineering notified`,
+          kind: "customer",
+          status: "In Progress",
+        },
+        3: {
+          team: "Engineer",
+          msg: `Engineer creating VM in Proxmox`,
+          kind: "vm",
+          status: "In Progress",
+        },
+        4: {
+          team: "Network",
+          msg: `Network team configuring firewall rules`,
+          kind: "vm",
+          status: "In Progress",
+        },
+        5: {
+          team: "Engineering",
+          msg: `Testing VM & uploading credentials`,
+          kind: "vm",
+          status: "In Progress",
+        },
+        6: {
+          team: "Customer",
+          msg: `VM is ready — customer notified ✓`,
+          kind: "customer",
+          status: "Done",
+        },
+      }[stage];
 
-    let patch: any = { wfStage: stage, status: notes?.status || t.status }
+      let patch: any = { wfStage: stage, status: notes?.status || t.status };
 
-
-    if (stage === 6 && t.createdVmId) {
-      // TODO: Update VM status to Active when updateVM is available
-      console.log('VM created, would update status to Active')
-    }
-
-    setTasks(s => s.map(x => x.id === id ? { ...x, ...patch } : x))
-  }, [tasks])
-
-  const createVMManually = useCallback(async (task: any, vmDetails: {
-    publicIps: string[]
-    privateIps: string[]
-    assigned_vmids: number[]
-    username: string
-    password: string
-  }, addVM: (vm: any) => Promise<string>) => {
-    console.log('createVMManually called with task:', task, 'vmDetails:', vmDetails)
-    const t = task
-    if (!t) {
-      console.error('Task is null/undefined')
-      return
-    }
-    console.log('Processing task:', t)
-
-    // Calculate expiry using VM's created_at (service provision date)
-    // Formula: created_at + 1 day + duration (in months)
-    let expiry: string | undefined
-    let durationValue: number | undefined
-
-    // Handle trial requests - set expiry but no duration
-    if (t.request_type === 'trial') {
-      // Trial defaults to 14 days
-      if (t.created_at) {
-        const startDate = new Date(t.created_at)
-        startDate.setDate(startDate.getDate() + 1) // Add 1 day
-
-        const expiryDate = new Date(startDate)
-        expiryDate.setDate(expiryDate.getDate() + 14) // Add 14 days for trial
-
-        expiry = expiryDate.toISOString()
-
-        console.log('Trial expiry calculated:', {
-          created_at: t.created_at,
-          startDate,
-          trialDays: 14,
-          expiry
-        })
+      if (stage === 6 && t.createdVmId) {
+        // TODO: Update VM status to Active when updateVM is available
+        console.log("VM created, would update status to Active");
       }
-    } else if (t.duration) {
-      // Paid requests use duration from request
-      durationValue = parseInt(String(t.duration)) || 3
 
-      if (t.created_at) {
-        const startDate = new Date(t.created_at)
-        startDate.setDate(startDate.getDate() + 1) // Add 1 day
+      setTasks((s) => s.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+    },
+    [tasks],
+  );
 
-        const expiryDate = new Date(startDate)
-        expiryDate.setMonth(expiryDate.getMonth() + durationValue)
-
-        expiry = expiryDate.toISOString()
-
-        console.log('Paid expiry calculated:', {
-          created_at: t.created_at,
-          startDate,
-          duration: t.duration,
-          durationValue,
-          expiry
-        })
+  const createVMManually = useCallback(
+    async (
+      task: any,
+      vmDetails: {
+        publicIps: string[];
+        privateIps: string[];
+        assigned_vmids: number[];
+        username: string;
+        password: string;
+        node?: string; // ADD THIS
+        pmx_type?: string; // ADD THIS
+      },
+      addVM: (vm: any) => Promise<string>,
+    ) => {
+      console.log(
+        "createVMManually called with task:",
+        task,
+        "vmDetails:",
+        vmDetails,
+      );
+      const t = task;
+      if (!t) {
+        console.error("Task is null/undefined");
+        return;
       }
-    } else {
-      console.log('No duration found in task, expiry will be null')
-      console.log('Task object keys:', Object.keys(t))
-    }
+      console.log("Processing task:", t);
 
-    const qty = t.qty || 1
-    const vmIds: string[] = []
+      // Calculate expiry using VM's created_at (service provision date)
+      // Formula: created_at + 1 day + duration (in months)
+      let expiry: string | undefined;
+      let durationValue: number | undefined;
 
-    // Generate legacy_id for VMs (format: VM-XXXX)
-    const { data: existingVMs } = await supabase
-      .from('vms')
-      .select('legacy_id')
-      .order('created_at', { ascending: false })
-      .limit(1)
+      // Handle trial requests - set expiry but no duration
+      if (t.request_type === "trial") {
+        // Trial defaults to 14 days
+        if (t.created_at) {
+          const startDate = new Date(t.created_at);
+          startDate.setDate(startDate.getDate() + 1); // Add 1 day
 
-    const lastLegacyId = existingVMs?.[0]?.legacy_id
-    let nextNum = 1001
-    if (lastLegacyId) {
-      const match = lastLegacyId.match(/VM-(\d+)/)
-      if (match) {
-        nextNum = parseInt(match[1]) + 1
+          const expiryDate = new Date(startDate);
+          expiryDate.setDate(expiryDate.getDate() + 14); // Add 14 days for trial
+
+          expiry = expiryDate.toISOString();
+
+          console.log("Trial expiry calculated:", {
+            created_at: t.created_at,
+            startDate,
+            trialDays: 14,
+            expiry,
+          });
+        }
+      } else if (t.duration) {
+        // Paid requests use duration from request
+        durationValue = parseInt(String(t.duration)) || 3;
+
+        if (t.created_at) {
+          const startDate = new Date(t.created_at);
+          startDate.setDate(startDate.getDate() + 1); // Add 1 day
+
+          const expiryDate = new Date(startDate);
+          expiryDate.setMonth(expiryDate.getMonth() + durationValue);
+
+          expiry = expiryDate.toISOString();
+
+          console.log("Paid expiry calculated:", {
+            created_at: t.created_at,
+            startDate,
+            duration: t.duration,
+            durationValue,
+            expiry,
+          });
+        }
+      } else {
+        console.log("No duration found in task, expiry will be null");
+        console.log("Task object keys:", Object.keys(t));
       }
-    }
 
-    for (let i = 0; i < qty; i++) {
-      const legacyId = `VM-${nextNum + i}`
-      const vmData = {
-        hostname: `${t.hostname}-${i + 1}`,
-        public_ip: vmDetails.publicIps[i] || vmDetails.publicIps[0],
-        private_ip: vmDetails.privateIps[i] || vmDetails.privateIps[0],
-        username: vmDetails.username,
-        password: vmDetails.password,
-        vcpu: t.vcpu,
-        ram_gb: t.ram_gb ?? t.ram,
-        storage_gb: t.storage_gb ?? t.storage,
-        status: 'Active',
-        power_state: 'Running',
-        customer_id: t.customer_id,
-        vm_request_id: t.id,
-        task_type: t.task_type,
-        expiry: expiry,
-        duration: durationValue,
-        end_date: t.request_type === 'trial' ? expiry : undefined, // For trials, end_date should match expiry
-        legacy_id: legacyId,
-        assigned_vmid: vmDetails.assigned_vmids[i] || null,
-        backup_enabled: t.backup_enabled || false,
-        backup_type: t.backup_type || 'weekly',
-        // Copy request_type from vm_request
-        request_type: t.request_type,
-        // Copy OS fields from vm_request
-        os_name: t.os_name,
-        os_version: t.os_version,
-        custom_os_name: t.custom_os_name,
-        custom_os_version: t.custom_os_version,
-        // Copy network fields from vm_request
-        zone: t.zone,
-        nics: t.nics,
-        public_ip_required: t.public_ip_required,
-        firewall_ports: t.firewall_ports,
-        // Copy other fields from vm_request
-        purpose: t.purpose,
-        sizing: t.sizing,
-        storage_partitions: t.storage_partitions,
-        qty: t.qty,
-        // Set provision_status to 'completed' for provisioned VMs
-        provision_status: 'completed',
-      }
-      console.log(`About to call addVM for VM ${i + 1}:`, vmData)
-      try {
-        const vmId = await addVM(vmData)
-        console.log(`addVM returned ID for VM ${i + 1}:`, vmId)
-        vmIds.push(vmId)
-      } catch (error: any) {
-        console.error(`Error calling addVM for VM ${i + 1}:`, error)
-        throw error
-      }
-    }
+      const qty = t.qty || 1;
+      const vmIds: string[] = [];
 
-    console.log('All VMs created with IDs:', vmIds)
-  }, [])
+      // Generate legacy_id for VMs (format: VM-XXXX) with retry for race conditions
+      const generateLegacyId = async (attempt = 0): Promise<string> => {
+        const { data: existingVMs } = await supabase
+          .from("vms")
+          .select("legacy_id")
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+        const lastLegacyId = existingVMs?.[0]?.legacy_id;
+        let nextNum = 1001;
+        if (lastLegacyId) {
+          const match = lastLegacyId.match(/VM-(\d+)/);
+          if (match) {
+            nextNum = parseInt(match[1]) + 1;
+          }
+        }
+
+        const legacyId = `VM-${nextNum + attempt}`;
+
+        // Check if this legacy_id already exists
+        const { data: existing } = await supabase
+          .from("vms")
+          .select("id")
+          .eq("legacy_id", legacyId)
+          .maybeSingle();
+
+        if (existing) {
+          // Retry with incremented number
+          return generateLegacyId(attempt + 1);
+        }
+
+        return legacyId;
+      };
+
+      for (let i = 0; i < qty; i++) {
+        const legacyId = await generateLegacyId(i);
+        const vmData = {
+          hostname: `${t.hostname}-${i + 1}`,
+          public_ip: vmDetails.publicIps[i] || vmDetails.publicIps[0],
+          private_ip: vmDetails.privateIps[i] || vmDetails.privateIps[0],
+          username: vmDetails.username,
+          password: vmDetails.password,
+          vcpu: t.vcpu,
+          ram_gb: t.ram_gb ?? t.ram,
+          storage_gb: t.storage_gb ?? t.storage,
+          status: "Active",
+          power_state: "Running",
+          customer_id: t.customer_id,
+          vm_request_id: t.id,
+          task_type: t.task_type,
+          expiry: expiry,
+          duration: durationValue,
+          end_date: t.request_type === "trial" ? expiry : undefined, // For trials, end_date should match expiry
+          legacy_id: legacyId,
+          assigned_vmid: vmDetails.assigned_vmids[i] || null,
+          node: vmDetails.node || "pve1", // ADD THIS
+          pmx_type: vmDetails.pmx_type || "qemu", // ADD THIS
+          backup_enabled: t.backup_enabled || false,
+          backup_type: t.backup_type || "weekly",
+          // Copy request_type from vm_request
+          request_type: t.request_type,
+          // Copy OS fields from vm_request
+          os_name: t.os_name,
+          os_version: t.os_version,
+          custom_os_name: t.custom_os_name,
+          custom_os_version: t.custom_os_version,
+          // Copy network fields from vm_request
+          zone: t.zone,
+          nics: t.nics,
+          public_ip_required: t.public_ip_required,
+          firewall_ports: t.firewall_ports,
+          // Copy other fields from vm_request
+          purpose: t.purpose,
+          sizing: t.sizing,
+          storage_partitions: t.storage_partitions,
+          qty: t.qty,
+          // Set provision_status to 'completed' for provisioned VMs
+          provision_status: "completed",
+        };
+        console.log(`About to call addVM for VM ${i + 1}:`, vmData);
+        try {
+          const vmId = await addVM(vmData);
+          vmIds.push(vmId);
+
+          // Insert into vm_ownership with Proxmox details
+          try {
+            console.log('Inserting into vm_ownership:', {
+              user_id: t.customer_id,
+              customer_id: t.customer_id,
+              vmid: vmDetails.assigned_vmids[i] || null,
+              node: vmDetails.node || "pve1",
+              pmx_type: vmDetails.pmx_type || "qemu",
+            });
+            await supabase.from("vm_ownership").insert({
+              user_id: t.customer_id,
+              customer_id: t.customer_id,
+              vmid: vmDetails.assigned_vmids[i] || null,
+              node: vmDetails.node || "pve1",
+              pmx_type: vmDetails.pmx_type || "qemu",
+            });
+            console.log('vm_ownership insert successful');
+          } catch (ownershipError: any) {
+            console.error('vm_ownership insert failed:', ownershipError);
+            // Rollback VM creation if ownership insert fails
+            await supabase.from("vms").delete().eq("id", vmId);
+            if (ownershipError.code === "23505") {
+              throw new Error(`VM ID ${vmDetails.assigned_vmids[i]} on node ${vmDetails.node || "pve1"} is already in use. Please use a different VM ID.`);
+            }
+            throw new Error(`Failed to create VM ownership: ${ownershipError.message}`);
+          }
+
+        } catch (error: any) {
+          throw error;
+        }
+      }
+
+      console.log("All VMs created with IDs:", vmIds);
+    },
+    [],
+  );
 
   // Function to update VM expiry when quotation is created
-  const updateVMExpiryForRequest = useCallback(async (vmRequestId: string, durationMonths: number = 3, updateVM?: (id: string, patch: any) => Promise<void>) => {
-    console.log('updateVMExpiryForRequest called:', { vmRequestId, durationMonths })
+  const updateVMExpiryForRequest = useCallback(
+    async (
+      vmRequestId: string,
+      durationMonths: number = 3,
+      updateVM?: (id: string, patch: any) => Promise<void>,
+    ) => {
+      console.log("updateVMExpiryForRequest called:", {
+        vmRequestId,
+        durationMonths,
+      });
 
-    // Get VMs for this request to get their created_at
-    const { data: vms } = await supabase
-      .from('vms')
-      .select('id, created_at')
-      .eq('vm_request_id', vmRequestId)
+      // Get VMs for this request to get their created_at
+      const { data: vms } = await supabase
+        .from("vms")
+        .select("id, created_at")
+        .eq("vm_request_id", vmRequestId);
 
-    if (vms && vms.length > 0) {
-      console.log(`Found ${vms.length} VMs to update expiry for`)
-      // Update each VM with expiry calculated from its created_at
-      for (const vm of vms) {
-        if (vm.created_at) {
-          // Calculate expiry: created_at + 1 day + duration
-          const startDate = new Date(vm.created_at)
-          startDate.setDate(startDate.getDate() + 1)
-          const expiryDate = new Date(startDate)
-          expiryDate.setMonth(expiryDate.getMonth() + durationMonths)
-          const expiry = expiryDate.toISOString()
+      if (vms && vms.length > 0) {
+        console.log(`Found ${vms.length} VMs to update expiry for`);
+        // Update each VM with expiry calculated from its created_at
+        for (const vm of vms) {
+          if (vm.created_at) {
+            // Calculate expiry: created_at + 1 day + duration
+            const startDate = new Date(vm.created_at);
+            startDate.setDate(startDate.getDate() + 1);
+            const expiryDate = new Date(startDate);
+            expiryDate.setMonth(expiryDate.getMonth() + durationMonths);
+            const expiry = expiryDate.toISOString();
 
-          if (updateVM) {
-            await updateVM(vm.id, { expiry })
-          } else {
-            await supabase.from('vms').update({ expiry }).eq('id', vm.id)
+            if (updateVM) {
+              await updateVM(vm.id, { expiry });
+            } else {
+              await supabase.from("vms").update({ expiry }).eq("id", vm.id);
+            }
+            console.log(`Updated VM ${vm.id} with expiry ${expiry}`);
           }
-          console.log(`Updated VM ${vm.id} with expiry ${expiry}`)
         }
+      } else {
+        console.log("No VMs found for this request");
       }
-    } else {
-      console.log('No VMs found for this request')
-    }
-  }, [])
+    },
+    [],
+  );
 
   // Function to update add-on service duration when renewal is complete
-  const updateAddonExpiryForVM = useCallback(async (vmId: string, durationMonths: number) => {
-    console.log('updateAddonExpiryForVM called:', { vmId, durationMonths })
+  const updateAddonExpiryForVM = useCallback(
+    async (vmId: string, durationMonths: number) => {
+      console.log("updateAddonExpiryForVM called:", { vmId, durationMonths });
 
-    // Get ALL add-on requests for this VM (both pending and completed)
-    const { data: allAddonRequests } = await supabase
-      .from('addon_requests')
-      .select('id, duration, status')
-      .eq('vm_id', vmId)
-      .in('status', ['Pending', 'Completed'])
+      // Get ALL add-on requests for this VM (both pending and completed)
+      const { data: allAddonRequests } = await supabase
+        .from("addon_requests")
+        .select("id, duration, status")
+        .eq("vm_id", vmId)
+        .in("status", ["Pending", "Completed"]);
 
-    if (allAddonRequests && allAddonRequests.length > 0) {
-      console.log(`Found ${allAddonRequests.length} add-on requests to update`)
+      if (allAddonRequests && allAddonRequests.length > 0) {
+        console.log(
+          `Found ${allAddonRequests.length} add-on requests to update`,
+        );
 
-      for (const addon of allAddonRequests) {
-        let newDuration: string
+        for (const addon of allAddonRequests) {
+          let newDuration: string;
 
-        if (addon.status === 'Pending') {
-          // New add-on from renewal: just use the renewal duration
-          newDuration = `${durationMonths} months`
-        } else {
-          // Existing add-on: parse current duration and add renewal months
-          let currentMonths = 0
-          let currentDays = 0
-
-          if (addon.duration) {
-            // Parse "5 months 29 days" format
-            const monthsMatch = addon.duration.match(/(\d+)\s*months?/i)
-            const daysMatch = addon.duration.match(/(\d+)\s*days?/i)
-
-            if (monthsMatch) currentMonths = parseInt(monthsMatch[1])
-            if (daysMatch) currentDays = parseInt(daysMatch[1])
-          }
-
-          // Add renewal months
-          currentMonths += durationMonths
-
-          // Convert excess days to months if needed
-          if (currentDays > 28) {
-            const extraMonths = Math.floor(currentDays / 30)
-            currentMonths += extraMonths
-            currentDays = currentDays % 30
-          }
-
-          // Build new duration string
-          if (currentDays > 0) {
-            newDuration = `${currentMonths} months ${currentDays} days`
+          if (addon.status === "Pending") {
+            // New add-on from renewal: just use the renewal duration
+            newDuration = `${durationMonths} months`;
           } else {
-            newDuration = `${currentMonths} months`
-          }
-        }
+            // Existing add-on: parse current duration and add renewal months
+            let currentMonths = 0;
+            let currentDays = 0;
 
-        // Update add-on request with new duration only (no expiry field)
-        await supabase.from('addon_requests').update({
-          duration: newDuration
-        }).eq('id', addon.id)
-        console.log(`Updated add-on request ${addon.id} (status: ${addon.status}) with new duration ${newDuration}`)
+            if (addon.duration) {
+              // Parse "5 months 29 days" format
+              const monthsMatch = addon.duration.match(/(\d+)\s*months?/i);
+              const daysMatch = addon.duration.match(/(\d+)\s*days?/i);
+
+              if (monthsMatch) currentMonths = parseInt(monthsMatch[1]);
+              if (daysMatch) currentDays = parseInt(daysMatch[1]);
+            }
+
+            // Add renewal months
+            currentMonths += durationMonths;
+
+            // Convert excess days to months if needed
+            if (currentDays > 28) {
+              const extraMonths = Math.floor(currentDays / 30);
+              currentMonths += extraMonths;
+              currentDays = currentDays % 30;
+            }
+
+            // Build new duration string
+            if (currentDays > 0) {
+              newDuration = `${currentMonths} months ${currentDays} days`;
+            } else {
+              newDuration = `${currentMonths} months`;
+            }
+          }
+
+          // Update add-on request with new duration only (no expiry field)
+          await supabase
+            .from("addon_requests")
+            .update({
+              duration: newDuration,
+            })
+            .eq("id", addon.id);
+          console.log(
+            `Updated add-on request ${addon.id} (status: ${addon.status}) with new duration ${newDuration}`,
+          );
+        }
+      } else {
+        console.log("No add-on requests found for this VM");
       }
-    } else {
-      console.log('No add-on requests found for this VM')
-    }
-  }, [])
+    },
+    [],
+  );
 
   const removeTask = useCallback((id: string) => {
-    setTasks(s => s.filter(t => t.id !== id))
-  }, [])
+    setTasks((s) => s.filter((t) => t.id !== id));
+  }, []);
 
-  const moveTask = useCallback((id: string, to: number) => {
-    // Convert stage number to status string
-    const stageToStatus: Record<number, string> = {
-      0: 'Pending',
-      1: 'In Progress',
-      2: 'In Progress',
-      3: 'In Progress',
-      4: 'In Progress',
-      5: 'In Progress',
-      6: 'Done'
-    }
-    const status = stageToStatus[to] || 'Pending'
-    const t = tasks.find(t => t.id === id)
-    if (!t || t.status === status) return
-    updateTask(id, { status })
-  }, [tasks, updateTask])
+  const moveTask = useCallback(
+    (id: string, to: number) => {
+      // Convert stage number to status string
+      const stageToStatus: Record<number, string> = {
+        0: "Pending",
+        1: "In Progress",
+        2: "In Progress",
+        3: "In Progress",
+        4: "In Progress",
+        5: "In Progress",
+        6: "Done",
+      };
+      const status = stageToStatus[to] || "Pending";
+      const t = tasks.find((t) => t.id === id);
+      if (!t || t.status === status) return;
+      updateTask(id, { status });
+    },
+    [tasks, updateTask],
+  );
 
   return {
     tasks,
-    addTask, updateTask, removeTask, moveTask, advanceProvision, createVMManually, setTasks, updateVMExpiryForRequest, updateAddonExpiryForVM,
-  }
-}
+    addTask,
+    updateTask,
+    removeTask,
+    moveTask,
+    advanceProvision,
+    createVMManually,
+    setTasks,
+    updateVMExpiryForRequest,
+    updateAddonExpiryForVM,
+  };
+};
 
-export default useTaskStore
+export default useTaskStore;

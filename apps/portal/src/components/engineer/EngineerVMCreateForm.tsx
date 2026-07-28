@@ -1,84 +1,116 @@
-import { useState, useEffect } from 'react'
-import Icon from '../../lib/icons'
-import type { Task } from '../../types'
+import { useState, useEffect } from "react";
+import Icon from "../../lib/icons";
+import type { Task } from "../../types";
 
 interface EngineerVMCreateFormProps {
-  task: Task
+  task: Task;
   onSubmit: (details: {
-    publicIps: string[]
-    privateIps: string[]
-    assigned_vmids: number[]
-    username: string
-    password: string
-  }) => void
+    publicIps: string[];
+    privateIps: string[];
+    assigned_vmids: number[];
+    username: string;
+    password: string;
+    node: string;
+    pmx_type: string;
+  }) => void;
 }
 
-const EngineerVMCreateForm = ({ task, onSubmit }: EngineerVMCreateFormProps) => {
-  const qty = (task as any).qty || 1
-  const [publicIps, setPublicIps] = useState<string[]>(() => Array(qty).fill(''))
-  const [privateIps, setPrivateIps] = useState<string[]>(() => Array(qty).fill(''))
-  const [assigned_vmids, setAssigned_vmids] = useState<number[]>(() => Array(qty).fill(0))
-  const [username, setUsername] = useState<string>('')
-  const [password, setPassword] = useState<string>('')
+const EngineerVMCreateForm = ({
+  task,
+  onSubmit,
+}: EngineerVMCreateFormProps) => {
+  const qty = (task as any).qty || 1;
+  const [publicIps, setPublicIps] = useState<string[]>(() =>
+    Array(qty).fill(""),
+  );
+  const [privateIps, setPrivateIps] = useState<string[]>(() =>
+    Array(qty).fill(""),
+  );
+  const [assigned_vmids, setAssigned_vmids] = useState<number[]>(() =>
+    Array(qty).fill(0),
+  );
+  const [username, setUsername] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [node, setNode] = useState<string>("pve1");
+  const [pmx_type, setPmxType] = useState<string>("qemu");
 
   useEffect(() => {
-    setPublicIps(Array(qty).fill(''))
-    setPrivateIps(Array(qty).fill(''))
-    setAssigned_vmids(Array(qty).fill(0))
-  }, [qty])
+    setPublicIps(Array(qty).fill(""));
+    setPrivateIps(Array(qty).fill(""));
+    setAssigned_vmids(Array(qty).fill(0));
+  }, [qty]);
 
   const handlePublicIpChange = (index: number, value: string) => {
-    const newIps = [...publicIps]
-    newIps[index] = value
-    setPublicIps(newIps)
-  }
+    const newIps = [...publicIps];
+    newIps[index] = value;
+    setPublicIps(newIps);
+  };
 
   const handlePrivateIpChange = (index: number, value: string) => {
-    const newIps = [...privateIps]
-    newIps[index] = value
-    setPrivateIps(newIps)
-  }
+    const newIps = [...privateIps];
+    newIps[index] = value;
+    setPrivateIps(newIps);
+  };
 
   const handleAssignedVmidChange = (index: number, value: string) => {
-    const newIds = [...assigned_vmids]
-    newIds[index] = value ? parseInt(value) : 0
-    setAssigned_vmids(newIds)
-  }
+    const newIds = [...assigned_vmids];
+    newIds[index] = value ? parseInt(value) : 0;
+    setAssigned_vmids(newIds);
+  };
 
   const handleSubmit = () => {
     if (!username || !password) {
-      alert('Please fill in username and password')
-      return
+      alert("Please fill in username and password");
+      return;
     }
-    if (publicIps.some(ip => !ip) || privateIps.some(ip => !ip)) {
-      alert('Please fill in all IP fields')
-      return
+    if (publicIps.some((ip) => !ip) || privateIps.some((ip) => !ip)) {
+      alert("Please fill in all IP fields");
+      return;
     }
-    if (assigned_vmids.some(id => id === 0)) {
-      alert('Please fill in all Assigned VM ID fields')
-      return
+    if (assigned_vmids.some((id) => id === 0)) {
+      alert("Please fill in all Assigned VM ID fields");
+      return;
     }
-    onSubmit({ publicIps, privateIps, assigned_vmids, username, password })
-  }
+    if (!node) {
+      alert("Please fill in Proxmox Node");
+      return;
+    }
+    onSubmit({ publicIps, privateIps, assigned_vmids, username, password, node, pmx_type });
+  };
 
   return (
     <div className="flex col gap-4">
       <div className="text-sm text-mute">
-        <div><strong>Request:</strong> {(task as any).hostname}</div>
-        <div><strong>Configuration:</strong> {(task as any).task_type || 'new'} · {qty} VM{qty > 1 ? 's' : ''} · {(task as any).vcpu} vCPU · {(task as any).ram}GB RAM · {(task as any).storage}GB Storage</div>
+        <div>
+          <strong>Request:</strong> {(task as any).hostname}
+        </div>
+        <div>
+          <strong>Configuration:</strong> {(task as any).task_type || "new"} ·{" "}
+          {qty} VM{qty > 1 ? "s" : ""} · {(task as any).vcpu} vCPU ·{" "}
+          {(task as any).ram}GB RAM · {(task as any).storage}GB Storage
+        </div>
       </div>
 
       {Array.from({ length: qty }).map((_, i) => (
-        <div key={i} style={{ padding: 12, background: 'var(--surface-2)', borderRadius: 4 }}>
-          <div className="fw-6 mb-3" style={{ fontSize: 14 }}>VM #{i + 1}: {(task as any).hostname}-{i + 1}</div>
+        <div
+          key={i}
+          style={{
+            padding: 12,
+            background: "var(--surface-2)",
+            borderRadius: 4,
+          }}
+        >
+          <div className="fw-6 mb-3" style={{ fontSize: 14 }}>
+            VM #{i + 1}: {(task as any).hostname}-{i + 1}
+          </div>
           <div className="grid-3" style={{ gap: 12 }}>
             <div className="field">
               <label>Public IP</label>
               <input
                 type="text"
                 className="input"
-                value={publicIps[i] ?? ''}
-                onChange={e => handlePublicIpChange(i, e.target.value)}
+                value={publicIps[i] ?? ""}
+                onChange={(e) => handlePublicIpChange(i, e.target.value)}
                 placeholder="e.g., 203.0.113.1"
               />
             </div>
@@ -87,8 +119,8 @@ const EngineerVMCreateForm = ({ task, onSubmit }: EngineerVMCreateFormProps) => 
               <input
                 type="text"
                 className="input"
-                value={privateIps[i] ?? ''}
-                onChange={e => handlePrivateIpChange(i, e.target.value)}
+                value={privateIps[i] ?? ""}
+                onChange={(e) => handlePrivateIpChange(i, e.target.value)}
                 placeholder="e.g., 10.0.0.1"
               />
             </div>
@@ -97,10 +129,32 @@ const EngineerVMCreateForm = ({ task, onSubmit }: EngineerVMCreateFormProps) => 
               <input
                 type="number"
                 className="input"
-                value={assigned_vmids[i] || ''}
-                onChange={e => handleAssignedVmidChange(i, e.target.value)}
+                value={assigned_vmids[i] || ""}
+                onChange={(e) => handleAssignedVmidChange(i, e.target.value)}
                 placeholder="e.g., 100"
               />
+            </div>
+
+            <div className="field">
+              <label>Proxmox Node <span style={{ color: "var(--bad)" }}>*</span></label>
+              <input
+                type="text"
+                className="input"
+                value={node}
+                onChange={(e) => setNode(e.target.value)}
+                placeholder="e.g., pve1"
+              />
+            </div>
+            <div className="field">
+              <label>VM Type <span style={{ color: "var(--bad)" }}>*</span></label>
+              <select
+                className="input"
+                value={pmx_type}
+                onChange={(e) => setPmxType(e.target.value)}
+              >
+                <option value="qemu">QEMU (KVM)</option>
+                <option value="lxc">LXC Container</option>
+              </select>
             </div>
           </div>
         </div>
@@ -113,7 +167,7 @@ const EngineerVMCreateForm = ({ task, onSubmit }: EngineerVMCreateFormProps) => 
             type="text"
             className="input"
             value={username}
-            onChange={e => setUsername(e.target.value)}
+            onChange={(e) => setUsername(e.target.value)}
             placeholder="e.g., root"
           />
         </div>
@@ -123,7 +177,7 @@ const EngineerVMCreateForm = ({ task, onSubmit }: EngineerVMCreateFormProps) => 
             type="password"
             className="input"
             value={password}
-            onChange={e => setPassword(e.target.value)}
+            onChange={(e) => setPassword(e.target.value)}
             placeholder="Initial password"
           />
         </div>
@@ -131,11 +185,12 @@ const EngineerVMCreateForm = ({ task, onSubmit }: EngineerVMCreateFormProps) => 
 
       <div className="flex gap-2">
         <button className="btn primary" onClick={handleSubmit}>
-          <Icon name="check" size={12} />Create VM Records
+          <Icon name="check" size={12} />
+          Create VM Records
         </button>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default EngineerVMCreateForm
+export default EngineerVMCreateForm;

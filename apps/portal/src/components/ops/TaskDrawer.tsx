@@ -697,7 +697,24 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                   } catch (error: any) {
                     console.error('Error creating VM records:', error)
                     console.error('Error stack:', error.stack)
-                    toast('Failed to create VM records: ' + (error.message || 'Unknown error'), 'error')
+
+                    // Parse database errors to user-friendly messages
+                    let userMessage = 'Unknown error'
+                    if (error.message) {
+                      if (error.message.includes('duplicate key value violates unique constraint "vms_legacy_id_key"')) {
+                        userMessage = 'Legacy ID already exists. Please use a different Legacy ID.'
+                      } else if (error.message.includes('duplicate key value violates unique constraint "vms_hostname_key"')) {
+                        userMessage = 'Hostname already exists. Please use a different hostname.'
+                      } else if (error.message.includes('duplicate key value violates unique constraint')) {
+                        userMessage = 'Duplicate record detected. Please check your inputs.'
+                      } else if (error.message.includes('is already in use')) {
+                        userMessage = error.message
+                      } else {
+                        userMessage = error.message
+                      }
+                    }
+
+                    toast('Failed to create VM records: ' + userMessage, 'error')
                   }
                 }}
               />
