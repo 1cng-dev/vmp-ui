@@ -75,6 +75,7 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
               <button className="btn" onClick={() => restartVM(vm.id)} disabled={!isRunning}><Icon name="refresh" size={12} />Restart</button>
               <button className="btn" onClick={openConsole} disabled={!isRunning} title={isRunning ? 'Open VNC console in new tab' : 'Start the VM to open console'}><Icon name="terminal" size={12} />Console<Icon name="external" size={10} /></button>
               {vmRequest?.request_type === 'trial' && <button className="btn primary" onClick={() => setConvertToPaidOpen(true)}><Icon name="credit-card" size={12} />Convert to Paid</button>}
+              <button className="btn" onClick={() => setUpgradeOpen(true)}><Icon name="arrow-up" size={12} />Change Plan</button>
               <button className="btn accent" onClick={onRenew}><Icon name="refresh" size={12} />Renew</button>
             </>
           )}
