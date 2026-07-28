@@ -487,7 +487,7 @@ const CustUpgradeModal: React.FC<CustUpgradeModalProps> = ({ vm, onClose, me }) 
           }`,
       }
 
-      const { data: insertedData, error } = await supabase.from('vm_requests').insert(requestData).select().single()
+      const { data: insertedData, error } = await supabase.from('vm_requests').insert(requestData).select().maybeSingle()
 
       if (error) throw error
 
