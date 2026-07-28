@@ -186,7 +186,7 @@ const AdminDirectVMCreate: React.FC = () => {
         .from('vms')
         .select('id')
         .eq('legacy_id', f.legacy_id)
-        .single()
+        .maybeSingle()
 
       if (existingVM) {
         toast('Legacy ID already exists. Please use a different ID.', 'bad')
