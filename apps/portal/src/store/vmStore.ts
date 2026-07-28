@@ -253,6 +253,7 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   }, [loadVMs, loadVMRequests, loadAddonRequests])
 
   const addVM = useCallback(async (vm: NewVMInput) => {
+    console.log('[addVM] Starting VM creation:', vm.hostname)
     const newVM = {
       hostname: vm.hostname,
       public_ip: vm.public_ip,
@@ -298,7 +299,10 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       .select()
       .maybeSingle()
 
+    console.log('[addVM] VM insert result:', { error, data })
+
     if (error) {
+      console.error('[addVM] Insert error:', error)
       throw error
     }
 
@@ -308,8 +312,9 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
     const insertedVM = data as VM
     setVms(s => [insertedVM, ...s])
-
+console.log('[addVM] Getting user for staff lookup')
     const { data: { user } } = await supabase.auth.getUser()
+    console.log('[addVM] User data:', user)
     let actorName = 'System'
     if (user) {
       const { data: staff } = await supabase
@@ -317,6 +322,8 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         .select('name, staff_code')
         .eq('user_id', user.id)
         .maybeSingle()
+
+        console.log('[addVM] Staff lookup result:', staff)
       if (staff) {
         actorName = `${staff.name} (${staff.staff_code})`
       } else {
@@ -331,6 +338,9 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       { vmId: insertedVM.legacy_id || insertedVM.id, hostname: insertedVM.hostname, customerId: insertedVM.customer_id }
     )
 
+    
+console.log('[addVM] Activity logged successfully')
+console.log('[addVM] Returning VM ID:', insertedVM.id)
     return insertedVM.id
   }, [logActivity])
 
