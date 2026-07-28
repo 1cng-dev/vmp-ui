@@ -1938,6 +1938,28 @@ const AdminDirectVMCreate: React.FC = () => {
               </div>
               <div className="field">
                 <label>
+                  Proxmox Node <span style={{ color: "var(--bad)" }}>*</span>
+                </label>
+                <input
+                  value={f.node}
+                  onChange={(e) => set("node", e.target.value)}
+                  placeholder="e.g. pve1"
+                />
+              </div>
+              <div className="field">
+                <label>
+                  VM Type <span style={{ color: "var(--bad)" }}>*</span>
+                </label>
+                <select
+                  value={f.pmx_type}
+                  onChange={(e) => set("pmx_type", e.target.value)}
+                >
+                  <option value="qemu">QEMU (KVM)</option>
+                  <option value="lxc">LXC Container</option>
+                </select>
+              </div>
+              <div className="field">
+                <label>
                   Public IPv4 <span style={{ color: "var(--bad)" }}>*</span>
                 </label>
                 <input
