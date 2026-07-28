@@ -181,6 +181,14 @@ const AdminDirectVMCreate: React.FC = () => {
         return
       }
 
+      const assignedVmid = Number.parseInt(f.assigned_vmid, 10)
+
+      if (!Number.isFinite(assignedVmid)) {
+        toast('Assigned VM ID must be a number', 'bad')
+        setIsSubmitting(false)
+        return
+      }
+
       // Check for duplicate legacy_id
       const { data: existingVM } = await supabase
         .from('vms')
@@ -193,21 +201,21 @@ const AdminDirectVMCreate: React.FC = () => {
         setIsSubmitting(false)
         return
       }
-      
+
       // Calculate expiry date using same logic as customer VM request: start_date + 1 day + duration
       const startDate = new Date(f.start_date)
       startDate.setDate(startDate.getDate() + 1) // Add 1 day to match customer logic
-      
+
       const expiryDate = new Date(startDate)
       expiryDate.setMonth(expiryDate.getMonth() + f.duration)
-      
+
       const vmId = await addVM({
         hostname: f.hostname,
         customer_id: f.customer,
         request_type: f.requestType,
         task_type: 'new',
         legacy_id: f.legacy_id,
-        assigned_vmid: parseInt(f.assigned_vmid),
+        assigned_vmid: assignedVmid,
         public_ip: f.public_ip,
         private_ip: f.private_ip,
         username: f.username,
@@ -247,10 +255,10 @@ const AdminDirectVMCreate: React.FC = () => {
         // Calculate addon expiry using addon-specific start_date and duration
         const startDate = new Date(f.addon_start_date)
         startDate.setDate(startDate.getDate() + 1) // Add 1 day to match customer logic
-        
+
         const expiryDate = new Date(startDate)
         expiryDate.setMonth(expiryDate.getMonth() + f.addon_duration)
-        
+
         await createAddonRequest({
           vm_id: vmId,
           customer_id: f.customer,
@@ -928,7 +936,7 @@ const AdminDirectVMCreate: React.FC = () => {
                           <IaaSCard selected={f.cpfs_package === 'standard'} onClick={() => set('cpfs_package', 'standard')} padding={16 as any}>
                             <div className="flex center between mb-2">
                               <h4 className="fw-6">CPFS - Standard Package</h4>
-                              {f.cpfs_package === 'standard' && <Icon name="check" size={14} style={{ color: 'var(--accent-strong)' }}/>}
+                              {f.cpfs_package === 'standard' && <Icon name="check" size={14} style={{ color: 'var(--accent-strong)' }} />}
                             </div>
                             <ul style={{ margin: 0, paddingLeft: 20, fontSize: 13, lineHeight: 1.8, color: 'var(--ink-2)' }}>
                               <li>1000 concurrent sessions per second</li>
@@ -938,7 +946,7 @@ const AdminDirectVMCreate: React.FC = () => {
                           <IaaSCard selected={f.cpfs_package === 'premium'} onClick={() => set('cpfs_package', 'premium')} padding={16 as any}>
                             <div className="flex center between mb-2">
                               <h4 className="fw-6">CPFS - Premium Package</h4>
-                              {f.cpfs_package === 'premium' && <Icon name="check" size={14} style={{ color: 'var(--accent-strong)' }}/>}
+                              {f.cpfs_package === 'premium' && <Icon name="check" size={14} style={{ color: 'var(--accent-strong)' }} />}
                             </div>
                             <ul style={{ margin: 0, paddingLeft: 20, fontSize: 13, lineHeight: 1.8, color: 'var(--ink-2)' }}>
                               <li>1500 concurrent sessions per second</li>
@@ -972,7 +980,7 @@ const AdminDirectVMCreate: React.FC = () => {
                             <IaaSCard key={plan.id} selected={f.ccis_package === plan.id} onClick={() => set('ccis_package', plan.id as 'basic' | 'standard' | 'professional' | 'enterprise')} padding={16 as any}>
                               <div className="flex center between mb-2">
                                 <div className="fw-6 text-sm">{plan.name}</div>
-                                {f.ccis_package === plan.id && <Icon name="check" size={14} style={{ color: 'var(--accent-strong)' }}/>}
+                                {f.ccis_package === plan.id && <Icon name="check" size={14} style={{ color: 'var(--accent-strong)' }} />}
                               </div>
                               <div className="text-mute text-xs">{plan.mb}</div>
                             </IaaSCard>
