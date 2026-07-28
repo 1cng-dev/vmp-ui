@@ -267,7 +267,7 @@ export const AnnouncementProvider: React.FC<{ children: ReactNode }> = ({ childr
   // Real-time subscription
   useEffect(() => {
     const channel = supabase
-      .channel('announcements-changes')
+      .channel(`announcements-changes-${Date.now()}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' }, () => {
         // Reload all announcements to ensure proper enrichment (staff names, read status)
         loadAnnouncements()
