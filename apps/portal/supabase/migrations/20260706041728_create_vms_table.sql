@@ -108,3 +108,17 @@ ALTER TABLE public.vms ADD COLUMN IF NOT EXISTS end_date TIMESTAMPTZ;
 -- Create indexes for date queries
 CREATE INDEX IF NOT EXISTS idx_vms_start_date ON public.vms(start_date);
 CREATE INDEX IF NOT EXISTS idx_vms_end_date ON public.vms(end_date);
+
+
+
+CREATE POLICY "Admins can delete VMs"
+ON vms
+FOR DELETE
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM team_members
+    WHERE team_members.user_id = auth.uid()
+    AND team_members.role = 'Admin'
+  )
+);

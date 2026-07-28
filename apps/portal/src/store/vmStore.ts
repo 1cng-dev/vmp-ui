@@ -296,10 +296,14 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       .from('vms')
       .insert(newVM)
       .select()
-      .single()
+      .maybeSingle()
 
     if (error) {
       throw error
+    }
+
+    if (!data) {
+      throw new Error('Failed to create VM - no data returned')
     }
 
     const insertedVM = data as VM
@@ -312,7 +316,7 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         .from('team_members')
         .select('name, staff_code')
         .eq('user_id', user.id)
-        .single()
+        .maybeSingle()
       if (staff) {
         actorName = `${staff.name} (${staff.staff_code})`
       } else {
