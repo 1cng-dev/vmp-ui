@@ -38,7 +38,7 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           .from('customers')
           .select('id')
           .eq('id', userId)
-          .single()
+          .maybeSingle()
 
         customerId = userData?.id || null
         isCustomer = !!customerId

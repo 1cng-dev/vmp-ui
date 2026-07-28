@@ -86,7 +86,7 @@ export const AnnouncementProvider: React.FC<{ children: ReactNode }> = ({ childr
                 .from('announcement_reads')
                 .select('announcement_id')
                 .eq('customer_id', customerId)
-              
+
               if (reads) {
                 readAnnouncementIds = reads.map(r => r.announcement_id)
               }
@@ -113,27 +113,27 @@ export const AnnouncementProvider: React.FC<{ children: ReactNode }> = ({ childr
   const addAnnouncement = useCallback(async (announcement: Omit<Announcement, 'id' | 'created_at' | 'updated_at'>) => {
     // Get current user for activity logging and created_by field
     const { data: { user }, error: userError } = await supabase.auth.getUser()
-    
+
     if (userError) {
       console.error('Error getting user:', userError)
     }
-    
+
     let actorName = 'System'
     let createdBy = user?.id || null
-    
+
     console.log('User data:', { userId: user?.id, email: user?.email, metadata: user?.user_metadata })
-    
+
     if (user) {
       const { data: staff, error: staffError } = await supabase
         .from('team_members')
         .select('name, staff_code')
         .eq('user_id', user.id)
         .single()
-      
+
       if (staffError) {
         console.error('Error fetching staff:', staffError)
       }
-      
+
       if (staff && !staffError) {
         actorName = `${staff.name} (${staff.staff_code})`
       } else {
@@ -161,18 +161,18 @@ export const AnnouncementProvider: React.FC<{ children: ReactNode }> = ({ childr
       console.error('Error inserting announcement:', error)
       throw error
     }
-    
+
     if (data) {
       console.log('Announcement inserted successfully:', data)
       // Don't call loadAnnouncements - real-time subscription handles updates
-      
+
       await logActivity(
         `Created announcement: ${announcement.title}`,
         'announcement',
         actorName,
         { title: announcement.title, status: announcement.status }
       )
-      
+
       return data.id
     }
     throw new Error('Failed to create announcement')
@@ -226,7 +226,7 @@ export const AnnouncementProvider: React.FC<{ children: ReactNode }> = ({ childr
         }, { onConflict: 'announcement_id,customer_id' })
 
       // Update local state
-      setAnnouncements(prev => prev.map(a => 
+      setAnnouncements(prev => prev.map(a =>
         a.id === id ? { ...a, read: true } : a
       ))
     } catch (error) {
@@ -244,7 +244,7 @@ export const AnnouncementProvider: React.FC<{ children: ReactNode }> = ({ childr
 
       // Get all unread sent announcements
       const unreadAnnouncements = announcements.filter(a => a.status === 'Sent' && !a.read)
-      
+
       // Mark all as read
       for (const announcement of unreadAnnouncements) {
         await supabase
@@ -256,7 +256,7 @@ export const AnnouncementProvider: React.FC<{ children: ReactNode }> = ({ childr
       }
 
       // Update local state
-      setAnnouncements(prev => prev.map(a => 
+      setAnnouncements(prev => prev.map(a =>
         a.status === 'Sent' ? { ...a, read: true } : a
       ))
     } catch (error) {
@@ -268,44 +268,20 @@ export const AnnouncementProvider: React.FC<{ children: ReactNode }> = ({ childr
   useEffect(() => {
     const channel = supabase
       .channel('announcements-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' }, (payload: any) => {
-        if (payload.eventType === 'INSERT') {
-          setAnnouncements(prev => [payload.new as Announcement, ...prev])
-        } else if (payload.eventType === 'UPDATE') {
-          setAnnouncements(prev => prev.map(a => a.id === payload.new.id ? { ...a, ...payload.new } as Announcement : a))
-        } else if (payload.eventType === 'DELETE') {
-          setAnnouncements(prev => prev.filter(a => a.id !== payload.old.id))
-        }
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' }, () => {
+        // Reload all announcements to ensure proper enrichment (staff names, read status)
+        loadAnnouncements()
       })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'announcement_reads' }, async () => {
-        // Reload read status when a new read record is inserted
-        try {
-          const { data: { user: authUser } } = await supabase.auth.getUser()
-          if (authUser) {
-            const customerId = authUser.user_metadata?.customerId
-            if (customerId) {
-              const { data: reads } = await supabase
-                .from('announcement_reads')
-                .select('announcement_id')
-                .eq('customer_id', customerId)
-              
-              const readAnnouncementIds = reads ? reads.map(r => r.announcement_id) : []
-              setAnnouncements(prev => prev.map(a => ({
-                ...a,
-                read: readAnnouncementIds.includes(a.id)
-              })))
-            }
-          }
-        } catch (e) {
-          console.log('Could not update read status:', e)
-        }
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'announcement_reads' }, () => {
+        // Reload to update read status
+        loadAnnouncements()
       })
       .subscribe()
 
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [])
+  }, [loadAnnouncements])
 
   const value: AnnouncementStoreValue = {
     announcements,
