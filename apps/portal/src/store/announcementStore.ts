@@ -128,7 +128,7 @@ export const AnnouncementProvider: React.FC<{ children: ReactNode }> = ({ childr
         .from('team_members')
         .select('name, staff_code')
         .eq('user_id', user.id)
-        .single()
+        .maybeSingle()
 
       if (staffError) {
         console.error('Error fetching staff:', staffError)
@@ -155,7 +155,7 @@ export const AnnouncementProvider: React.FC<{ children: ReactNode }> = ({ childr
         sent_at: announcement.status === 'Sent' ? new Date().toISOString() : null
       })
       .select()
-      .single()
+      .maybeSingle()
 
     if (error) {
       console.error('Error inserting announcement:', error)
