@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS public.vm_ownership (
   status_cache TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE (node, vmid)
+  UNIQUE (vmid)
 );
 
 CREATE INDEX IF NOT EXISTS idx_vm_ownership_user ON public.vm_ownership(user_id);

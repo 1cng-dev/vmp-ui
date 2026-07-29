@@ -313,7 +313,7 @@ const useTaskStore = (): TaskStoreValue => {
             // Rollback VM creation if ownership insert fails
             await supabase.from("vms").delete().eq("id", vmId);
             if (ownershipError.code === "23505") {
-              throw new Error(`VM ID ${vmDetails.assigned_vmids[i]} on node ${vmDetails.node || "pve1"} is already in use. Please use a different VM ID.`);
+              throw new Error(`VM ID ${vmDetails.assigned_vmids[i]} is already in use. Please use a different VM ID.`);
             }
             throw new Error(`Failed to create VM ownership: ${ownershipError.message}`);
           }

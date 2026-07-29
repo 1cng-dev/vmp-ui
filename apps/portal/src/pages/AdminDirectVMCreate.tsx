@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import useVMStore from "../store/vmStore";
+import useAddonServiceStore from "../store/addonServiceStore";
 import useCustomerStore from "../store/customerStore";
-import useAddonRequestStore from "../store/addonRequestStore";
 import useTeamStore from "../store/teamStore";
 import useUIStore from "../store/uiStore";
 import useActivityStore from "../store/activityStore";
@@ -11,8 +12,9 @@ import { IaaSCard } from "../components/customer-portal/VMHelperComponents";
 import { supabase } from "../lib/supabase";
 
 const AdminDirectVMCreate: React.FC = () => {
-  const { addVM } = useVMStore();
-  const { createAddonRequest } = useAddonRequestStore();
+  const navigate = useNavigate();
+  const { addVM, deleteVM } = useVMStore();
+  const { addAddonService } = useAddonServiceStore();
   const { customers } = useCustomerStore();
   const { team } = useTeamStore();
   const { toast } = useUIStore();
@@ -229,6 +231,7 @@ const AdminDirectVMCreate: React.FC = () => {
   };
 
   const confirmSubmit = async () => {
+    let vmId: string | null = null;
     try {
       setIsSubmitting(true);
 
@@ -291,7 +294,7 @@ const AdminDirectVMCreate: React.FC = () => {
       expiryDate.setMonth(expiryDate.getMonth() + f.duration);
       expiryDate.setDate(expiryDate.getDate() + 1); // Add 1 day to expiry
 
-      const vmId = await addVM({
+      vmId = await addVM({
         hostname: f.hostname,
         customer_id: f.customer,
         request_type: f.requestType,
@@ -347,23 +350,35 @@ const AdminDirectVMCreate: React.FC = () => {
         expiryDate.setMonth(expiryDate.getMonth() + f.addon_duration);
         expiryDate.setDate(expiryDate.getDate() + 1); // Add 1 day to expiry
 
-        await createAddonRequest({
-          vm_id: vmId,
-          customer_id: f.customer,
-          status: "Completed",
-          cpfs_enabled: f.cpfs_enabled,
-          cpfs_package: f.cpfs_enabled ? f.cpfs_package : undefined,
-          ccis_enabled: f.ccis_enabled,
-          ccis_package: f.ccis_enabled ? f.ccis_package : undefined,
-          duration: `${f.addon_duration} month${f.addon_duration > 1 ? "s" : ""}`,
-          start_date: f.addon_start_date + "T00:00:00.000Z",
-          end_date: expiryDate.toISOString(),
-          expiry: expiryDate.toISOString(),
-        });
+        try {
+          await addAddonService({
+            vm_id: vmId,
+            cpfs_enabled: f.cpfs_enabled,
+            cpfs_package: f.cpfs_enabled ? f.cpfs_package : undefined,
+            ccis_enabled: f.ccis_enabled,
+            ccis_package: f.ccis_enabled ? f.ccis_package : undefined,
+            duration: `${f.addon_duration} month${f.addon_duration > 1 ? "s" : ""}`,
+            start_date: f.addon_start_date + "T00:00:00.000Z",
+            end_date: expiryDate.toISOString(),
+            expiry: expiryDate.toISOString(),
+            status: "Active",
+            operational_status: "Active",
+          });
+        } catch (addonError: any) {
+          throw new Error(`Failed to create addon services: ${addonError.message}`);
+        }
       }
 
-      window.location.href = "/admin";
+      navigate("/admin/vms", { replace: true });
     } catch (err: any) {
+      if (typeof vmId === "string") {
+        try {
+          await deleteVM(vmId);
+        } catch (rollbackError) {
+          console.error("Failed to rollback VM after direct create error:", rollbackError);
+        }
+      }
+
       toast(err.message || "Failed to create VM", "bad");
       setIsSubmitting(false);
     }
@@ -2005,7 +2020,7 @@ const AdminDirectVMCreate: React.FC = () => {
         <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
           <button
             className="btn ghost"
-            onClick={() => (window.location.href = "/vms")}
+            onClick={() => navigate("/admin/vms")}
           >
             Cancel
           </button>

@@ -1,10 +1,11 @@
 import React, { useState } from 'react'
 import useVMStore from '../../store/vmStore'
+import useAddonServiceStore from '../../store/addonServiceStore'
 import useCustomerStore from '../../store/customerStore'
-import useAddonRequestStore from '../../store/addonRequestStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { Avatar } from '../ui/ui'
+import { supabase } from '../../lib/supabase'
 
 interface AdminDirectVMModalProps {
   onClose: () => void
@@ -12,10 +13,13 @@ interface AdminDirectVMModalProps {
 
 const AdminDirectVMModal: React.FC<AdminDirectVMModalProps> = ({ onClose }) => {
   const { addVM } = useVMStore()
-  const { createAddonRequest } = useAddonRequestStore()
+  const { addAddonService } = useAddonServiceStore()
   const { customers } = useCustomerStore()
   const { toast } = useUIStore()
-  
+
+  const [loading, setLoading] = useState(false)
+  const [submitError, setSubmitError] = useState('')
+
   const [f, setF] = useState({
     // Step 1: Customer & Basic Info
     customer: '',
@@ -100,9 +104,26 @@ const AdminDirectVMModal: React.FC<AdminDirectVMModalProps> = ({ onClose }) => {
   }
 
   const submit = async () => {
+    if (loading) return
+
+    if (!f.customer) {
+      setSubmitError('Please select a customer')
+      toast('Please select a customer', 'error')
+      return
+    }
+
+    if (!f.hostname.trim()) {
+      setSubmitError('Please enter a VM hostname')
+      toast('Please enter a VM hostname', 'error')
+      return
+    }
+
+    setSubmitError('')
+    setLoading(true)
+    let vmId: string | null = null
     try {
       // Step 1: Create VM first and get the vm_id
-      const vmId = await addVM({
+      vmId = await addVM({
         hostname: f.hostname,
         customer_id: f.customer,
         assigned_vmid: parseInt(f.assigned_vmid) || undefined,
@@ -139,26 +160,63 @@ const AdminDirectVMModal: React.FC<AdminDirectVMModalProps> = ({ onClose }) => {
         task_type: 'new',
       })
 
-      // Step 2: Create addon requests using the vm_id
+      // Step 2: Create addon services directly (skip request flow for admin direct creation)
       if (f.cpfs_enabled || f.ccis_enabled) {
-        await createAddonRequest({
-          customer_id: f.customer,
-          vm_id: vmId,
-          cpfs_enabled: f.cpfs_enabled,
-          cpfs_package: f.cpfs_package,
-          ccis_enabled: f.ccis_enabled,
-          ccis_package: f.ccis_package,
-          duration: f.addon_duration.toString(),
-          status: 'Completed', // Direct admin creation = completed status
-          notes: 'Direct admin addon creation',
-        })
+        try {
+          const startDate = new Date(f.start_date)
+          const endDate = new Date(startDate)
+          endDate.setMonth(endDate.getMonth() + f.addon_duration)
+          endDate.setDate(endDate.getDate() + 1) // Add 1 day to expiry
+
+          await addAddonService({
+            vm_id: vmId,
+            cpfs_enabled: f.cpfs_enabled,
+            cpfs_package: f.cpfs_package,
+            ccis_enabled: f.ccis_enabled,
+            ccis_package: f.ccis_package,
+            start_date: startDate.toISOString(),
+            end_date: endDate.toISOString(),
+            expiry: endDate.toISOString(),
+            duration: `${f.addon_duration} months`,
+            status: 'Active',
+            operational_status: 'Active',
+          })
+        } catch (addonError: any) {
+          // Rollback VM creation if addon creation fails
+
+          if (vmId) {
+            const { error: rollbackVmError } = await supabase.from('vms').delete().eq('id', vmId)
+            if (rollbackVmError) {
+              console.error('Failed to rollback VM after addon error:', rollbackVmError)
+            }
+          }
+
+          const assignedVmid = parseInt(f.assigned_vmid)
+          if (!Number.isNaN(assignedVmid) && assignedVmid > 0) {
+            const { error: rollbackOwnershipError } = await supabase
+              .from('vm_ownership')
+              .delete()
+              .eq('customer_id', f.customer)
+              .eq('vmid', assignedVmid)
+
+            if (rollbackOwnershipError) {
+              console.error('Failed to rollback vm_ownership after addon error:', rollbackOwnershipError)
+            }
+          }
+
+          throw new Error(`Failed to create addon services: ${addonError.message}`)
+        }
       }
 
       toast(`VM ${f.hostname} created successfully${f.cpfs_enabled || f.ccis_enabled ? ' with addons' : ''}`, 'ok')
       onClose()
-    } catch (error) {
-      toast('Failed to create VM', 'error')
+    } catch (error: any) {
+      const message = error.message || 'Failed to create VM'
+      setSubmitError(message)
+      toast(message, 'error')
       console.error(error)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -453,10 +511,18 @@ const AdminDirectVMModal: React.FC<AdminDirectVMModalProps> = ({ onClose }) => {
           </div>
         </div>
 
+        {submitError && (
+          <div style={{ margin: '0 16px 16px', padding: 12, borderRadius: 8, background: 'rgba(220, 38, 38, 0.12)', border: '1px solid rgba(220, 38, 38, 0.28)', color: '#fecaca', fontSize: 13 }}>
+            {submitError}
+          </div>
+        )}
+
         <div className="modal-foot">
-          <button className="btn ghost" onClick={onClose}>Cancel</button>
+          <button className="btn ghost" onClick={onClose} disabled={loading}>Cancel</button>
           <div style={{ flex: 1 }} />
-          <button className="btn accent" onClick={submit}><Icon name="check" size={12} />Create VM</button>
+          <button className="btn accent" onClick={submit} disabled={loading}>
+            {loading ? <><Icon name="loader" size={12} className="spin" />Creating...</> : <><Icon name="check" size={12} />Create VM</>}
+          </button>
         </div>
       </div>
     </div>

@@ -305,23 +305,33 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       }
 
       const insertedVM = data as VM;
-      setVms((s) => [insertedVM, ...s]);
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      let actorName = "System";
-
-      // Insert into vm_ownership with Proxmox details
       if (insertedVM.customer_id) {
-        await supabase.from("vm_ownership").insert({
+        const { error: ownershipError } = await supabase.from("vm_ownership").insert({
           user_id: insertedVM.customer_id,
           customer_id: insertedVM.customer_id,
           vmid: insertedVM.assigned_vmid,
           node: insertedVM.node || "pve1",
           pmx_type: insertedVM.pmx_type || "qemu",
         });
+
+        if (ownershipError) {
+          await supabase.from("vms").delete().eq("id", insertedVM.id);
+
+          if (ownershipError.code === "23505") {
+            throw new Error(`VM ID ${insertedVM.assigned_vmid ?? "Unknown"} is already in use. Please use a different VM ID.`);
+          }
+
+          throw new Error(`Failed to create VM ownership: ${ownershipError.message}`);
+        }
       }
+
+      setVms((s) => [insertedVM, ...s]);
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      let actorName = "System";
 
 
       if (user) {

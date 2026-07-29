@@ -52,6 +52,9 @@ export const AddonServiceProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const addAddonService = useCallback(async (service: Omit<AddonService, 'id' | 'legacy_id' | 'created_at' | 'updated_at'>) => {
     const { error, data } = await supabase.from('addon_services').insert(service).select()
     if (error) throw error
+    if (!data || data.length === 0) {
+      throw new Error('Addon service insert returned no data')
+    }
     // Real-time subscription will handle data update
     return data[0].id
   }, [])

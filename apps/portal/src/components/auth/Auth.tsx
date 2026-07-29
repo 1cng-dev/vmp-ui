@@ -206,6 +206,8 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
   const [loading, setLoading] = useState(true)
   const [minDisplayTimeElapsed, setMinDisplayTimeElapsed] = useState(false)
   const [roleLoaded, setRoleLoaded] = useState(false)
+  const loginSyncInFlightRef = React.useRef(false)
+  const lastSyncedUserIdRef = React.useRef<string | null>(null)
 
   // Set minimum display time
   useEffect(() => {
@@ -216,16 +218,22 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
   }, [])
 
   const updateTeamMemberLogin = async (userId: string, userData: any, email: string) => {
+    if (loginSyncInFlightRef.current || lastSyncedUserIdRef.current === userId) {
+      return
+    }
+
+    loginSyncInFlightRef.current = true
+
     try {
       // Check if team member exists
       const { data: existingMember, error: fetchError } = await supabase
         .from('team_members')
-        .select('*')
+        .select('user_id, name, email, role, team')
         .eq('user_id', userId)
-        .single()
+        .maybeSingle()
 
-      if (fetchError && fetchError.code !== 'PGRST116') {
-        console.error('Error fetching team member:', fetchError)
+      if (fetchError) {
+        throw fetchError
       }
 
       if (existingMember) {
@@ -234,7 +242,7 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
         const dbTeam = existingMember.team
         
         // Update last_login_at and sync metadata
-        await supabase
+        const { error: updateError } = await supabase
           .from('team_members')
           .update({ 
             last_login_at: new Date().toISOString(),
@@ -244,17 +252,13 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
             team: dbTeam
           })
           .eq('user_id', userId)
-        
-        // Update auth metadata to match database
-        await supabase.auth.updateUser({
-          data: {
-            role: dbRole,
-            team: dbTeam
-          }
-        })
+
+        if (updateError) {
+          throw updateError
+        }
       } else {
         // Create team member record if it doesn't exist
-        await supabase
+        const { error: insertError } = await supabase
           .from('team_members')
           .insert({
             user_id: userId,
@@ -265,9 +269,17 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
             status: 'Active',
             last_login_at: new Date().toISOString()
           })
+
+        if (insertError) {
+          throw insertError
+        }
       }
+
+      lastSyncedUserIdRef.current = userId
     } catch (error) {
       console.error('Failed to update team member login:', error)
+    } finally {
+      loginSyncInFlightRef.current = false
     }
   }
 
@@ -308,9 +320,6 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
           return
         }
 
-        // Update team member record
-        await updateTeamMemberLogin(session.user.id, userData, session.user.email!)
-
         setUser({
           id: session.user.id,
           email: session.user.email!,
@@ -328,6 +337,10 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (_event !== 'SIGNED_IN' && _event !== 'SIGNED_OUT') {
+        return
+      }
+
       if (session?.user) {
         const userData = session.user.user_metadata
 
@@ -363,7 +376,7 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
         }
 
         // Update team member record on login
-        if (_event === 'SIGNED_IN') {
+        if (_event === 'SIGNED_IN' && lastSyncedUserIdRef.current !== session.user.id) {
           await updateTeamMemberLogin(session.user.id, userData, session.user.email!)
         }
 
@@ -379,6 +392,7 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
         setRoleLoaded(true)
       } else {
         setUser(null)
+        lastSyncedUserIdRef.current = null
       }
       setLoading(false)
     })
