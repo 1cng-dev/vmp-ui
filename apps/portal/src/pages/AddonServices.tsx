@@ -16,13 +16,19 @@ interface AddonServicesViewProps {
   userRole?: string
 }
 
-// Helper function to format duration string, hiding "0 months" when months is 0
+// Helper function to format duration string
+// If duration already has units (e.g., "14 days", "1 month"), return as-is
+// If it's a number, convert to string with units
 const formatDuration = (duration: string | number | undefined): string => {
   if (!duration) return 'N/A'
 
-  // If it's already a string, parse and format it
+  // If it's already a string with units, return as-is
   if (typeof duration === 'string') {
-    // Parse "X months Y days" format
+    // Check if it already has units (day/days/month/months)
+    if (duration.match(/^\d+\s+(day|days|month|months)$/)) {
+      return duration
+    }
+    // Otherwise, parse and format it (for old format like "5 months 29 days")
     const monthsMatch = duration.match(/(\d+)\s*months?/i)
     const daysMatch = duration.match(/(\d+)\s*days?/i)
 
@@ -39,12 +45,12 @@ const formatDuration = (duration: string | number | undefined): string => {
     return duration
   }
 
-  // If it's a number, treat as months
+  // If it's a number, treat as months (backward compatibility)
   const numMonths = parseInt(String(duration))
-  if (numMonths === 1) return 'Monthly'
-  if (numMonths === 3) return 'Quarterly'
-  if (numMonths === 6) return 'Half Yearly'
-  if (numMonths === 12) return 'Yearly'
+  if (numMonths === 1) return '1 month'
+  if (numMonths === 3) return '3 months'
+  if (numMonths === 6) return '6 months'
+  if (numMonths === 12) return '12 months'
   return `${numMonths} month${numMonths > 1 ? 's' : ''}`
 }
 
@@ -162,11 +168,13 @@ const AddonServicesView: React.FC<AddonServicesViewProps> = ({ openTask, setView
                     <td><StatusPill status={t.operational_status || 'Active'} expiry={t.expiry} /></td>
                     <td className="right">
                       <div className="flex center gap-1" onClick={e => e.stopPropagation()}>
-                        {userRole !== 'Engineer' && (
+                        {userRole !== 'Engineer' && !t.notes?.toLowerCase().includes('renewal') ? (
                           <button className="btn" style={{ padding: '4px 10px', fontSize: 11 }}
                             onClick={() => { setPrefillCustomerId(t.customer_id); setPrefillRequestId(t.id); setPrefillRequestType('addon'); setAutoOpenQuote(true); setView('quotes') }}>
                             Quotation
                           </button>
+                        ) : (
+                          <div style={{ width: '80px' }}></div>
                         )}
                         <Icon name="chevron-right" size={12} className="text-mute" />
                       </div>

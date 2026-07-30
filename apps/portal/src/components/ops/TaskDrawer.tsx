@@ -3,6 +3,7 @@ import useCustomerStore from '../../store/customerStore'
 import useVMRequestStore from '../../store/vmRequestStore'
 import useInvoiceStore from '../../store/invoiceStore'
 import useUIStore from '../../store/uiStore'
+import useActivityStore from '../../store/activityStore'
 import Icon from '../../lib/icons'
 import { StatusPill, ExpiryCell } from '../ui/ui'
 import EngineerVMCreateForm from '../engineer/EngineerVMCreateForm'
@@ -18,13 +19,19 @@ interface TaskDrawerProps {
   userRole?: string
 }
 
-// Helper function to format duration string, hiding "0 months" when months is 0
+// Helper function to format duration string
+// If duration already has units (e.g., "14 days", "1 month"), return as-is
+// If it's a number, convert to string with units
 const formatDuration = (duration: string | number | undefined | null): string => {
   if (!duration) return 'N/A'
 
-  // If it's already a string, parse and format it
+  // If it's already a string with units, return as-is
   if (typeof duration === 'string') {
-    // Parse "X months Y days" format
+    // Check if it already has units (day/days/month/months)
+    if (duration.match(/^\d+\s+(day|days|month|months)$/)) {
+      return duration
+    }
+    // Otherwise, parse and format it (for old format like "5 months 29 days")
     const monthsMatch = duration.match(/(\d+)\s*months?/i)
     const daysMatch = duration.match(/(\d+)\s*days?/i)
 
@@ -41,18 +48,19 @@ const formatDuration = (duration: string | number | undefined | null): string =>
     return duration
   }
 
-  // If it's a number, treat as months
+  // If it's a number, treat as months (backward compatibility)
   const numMonths = parseInt(String(duration))
-  if (numMonths === 1) return 'Monthly'
-  if (numMonths === 3) return 'Quarterly'
-  if (numMonths === 6) return 'Half Yearly'
-  if (numMonths === 12) return 'Yearly'
+  if (numMonths === 1) return '1 month'
+  if (numMonths === 3) return '3 months'
+  if (numMonths === 6) return '6 months'
+  if (numMonths === 12) return '12 months'
   return `${numMonths} month${numMonths > 1 ? 's' : ''}`
 }
 
 export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, userRole }) => {
   const { customers, loadCustomers } = useCustomerStore()
   const { toast } = useUIStore()
+  const { logActivity } = useActivityStore()
   const { createVMManually, updateAddonExpiryForVM } = useTaskStore()
   const { addVM, vms, getVMById, getVMByHostname, updateVM, getVMRequest } = useVMStore()
   const { vmRequests, updateVMRequest } = useVMRequestStore()
@@ -87,15 +95,16 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
   }, [requestType, request, getVMById])
 
   // Check if payment is received for this request (via invoice)
-  // Skip payment validation for trial requests and all addon requests
+  // Skip payment validation for trial requests only
+  // All paid requests (new, renewal, addon) require payment before provisioning
   const invoice = invoices.find((i: any) =>
     requestType === 'vm'
       ? i.vm_request_ids?.includes(requestId)
       : i.addon_request_ids?.includes(requestId)
   )
-  // For addon requests, always skip payment check
-  // For VM requests, skip payment check only for trial VMs
-  const isPaymentReceived = (isTrial || requestType === 'addon') ? true : (invoice && invoice.status === 'Payment Received')
+  // Skip payment check only for trial VMs
+  // All other requests (new paid, renewal, addon) require payment before provisioning
+  const isPaymentReceived = isTrial ? true : (invoice && invoice.status === 'Payment Received')
   const isBackupChange = t?.backup_changed || false
 
   // Load customers if not loaded yet
@@ -327,32 +336,65 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                 const vmData = getVMByHostname(t.hostname)
                                 if (vmData) {
                                   vmId = vmData.id
+                                  // Parse renewal duration from string format
+                                  const parseDuration = (durationStr: string | number | null | undefined): { value: number; unit: 'days' | 'months' } | null => {
+                                    if (!durationStr) return null;
+                                    if (typeof durationStr === 'number') {
+                                      return { value: durationStr, unit: 'months' };
+                                    }
+                                    const match = String(durationStr).match(/^(\d+)\s+(day|days|month|months)$/);
+                                    if (match) {
+                                      const value = parseInt(match[1], 10);
+                                      const unitStr = match[2].toLowerCase();
+                                      const unit = unitStr.startsWith('day') ? 'days' : 'months';
+                                      return { value, unit };
+                                    }
+                                    const num = parseInt(String(durationStr), 10);
+                                    if (!isNaN(num)) {
+                                      return { value: num, unit: 'months' };
+                                    }
+                                    return null;
+                                  };
+
+                                  const parsedRenewalDuration = parseDuration(t.duration)
+                                  const renewalMonths = parsedRenewalDuration?.unit === 'months' ? parsedRenewalDuration.value : 0
+                                  const renewalDays = parsedRenewalDuration?.unit === 'days' ? parsedRenewalDuration.value : 0
+
+                                  // Parse existing VM duration
+                                  const parsedExistingDuration = parseDuration(vmData.duration)
+                                  const existingMonths = parsedExistingDuration?.unit === 'months' ? parsedExistingDuration.value : 0
+                                  const existingDays = parsedExistingDuration?.unit === 'days' ? parsedExistingDuration.value : 0
+
                                   // Calculate new expiry date
                                   const currentExpiry = vmData.expiry ? new Date(vmData.expiry) : new Date()
-                                  currentExpiry.setMonth(currentExpiry.getMonth() + (t.duration || 12))
+                                  currentExpiry.setMonth(currentExpiry.getMonth() + renewalMonths)
+                                  currentExpiry.setDate(currentExpiry.getDate() + renewalDays)
                                   const newExpiry = currentExpiry.toISOString()
 
-                                  // Calculate new duration (existing duration + renewal duration)
-                                  const currentDuration = vmData.duration || 0
-                                  const renewalDuration = t.duration || 12
-                                  const newDuration = currentDuration + renewalDuration
-
-                                  // Calculate new end_date as created_at + new total duration + 1 day (same as expiry calculation)
-                                  const startDate = vmData.created_at ? new Date(vmData.created_at) : new Date()
-                                  const newEndDate = new Date(startDate)
-                                  newEndDate.setMonth(newEndDate.getMonth() + newDuration)
-                                  newEndDate.setDate(newEndDate.getDate() + 1) // Add 1 day to expiry
+                                  // Calculate new duration by adding renewal to existing
+                                  const totalMonths = existingMonths + renewalMonths
+                                  const totalDays = existingDays + renewalDays
+                                  let newDurationString: string
+                                  if (totalMonths > 0 && totalDays > 0) {
+                                    newDurationString = `${totalMonths} month${totalMonths > 1 ? 's' : ''} ${totalDays} day${totalDays > 1 ? 's' : ''}`
+                                  } else if (totalMonths > 0) {
+                                    newDurationString = `${totalMonths} month${totalMonths > 1 ? 's' : ''}`
+                                  } else if (totalDays > 0) {
+                                    newDurationString = `${totalDays} day${totalDays > 1 ? 's' : ''}`
+                                  } else {
+                                    newDurationString = String(t.duration || '12 months')
+                                  }
 
                                   // Update VM expiry, end_date, and duration using store
                                   try {
                                     await updateVM(vmId, {
                                       expiry: newExpiry,
-                                      end_date: newEndDate.toISOString(),
-                                      duration: newDuration
+                                      end_date: newExpiry,
+                                      duration: newDurationString
                                     })
                                     
                                     // Update add-on service expiry for this VM
-                                    await updateAddonExpiryForVM(vmId, renewalDuration)
+                                    await updateAddonExpiryForVM(vmId, renewalMonths)
                                     
                                     updateVMRequest(t.id, { status: 'Completed' })
                                     toast('Renewal completed and VM expiry extended', 'ok')
@@ -401,19 +443,56 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                   const vmData = getVMByHostname(t.hostname)
                                   if (vmData) {
                                     vmId = vmData.id
-                                    // Calculate new expiry date using same logic as other flows
+                                    // Parse conversion duration from string format
+                                    const parseDuration = (durationStr: string | number | null | undefined): { value: number; unit: 'days' | 'months' } | null => {
+                                      if (!durationStr) return null;
+                                      if (typeof durationStr === 'number') {
+                                        return { value: durationStr, unit: 'months' };
+                                      }
+                                      const match = String(durationStr).match(/^(\d+)\s+(day|days|month|months)$/);
+                                      if (match) {
+                                        const value = parseInt(match[1], 10);
+                                        const unitStr = match[2].toLowerCase();
+                                        const unit = unitStr.startsWith('day') ? 'days' : 'months';
+                                        return { value, unit };
+                                      }
+                                      const num = parseInt(String(durationStr), 10);
+                                      if (!isNaN(num)) {
+                                        return { value: num, unit: 'months' };
+                                      }
+                                      return null;
+                                    };
+
+                                    const parsedDuration = parseDuration(t.duration)
+                                    const paidMonths = parsedDuration?.unit === 'months' ? parsedDuration.value : 12
+
+                                    // Calculate new expiry date: trial start + 14 days + paid duration
                                     const startDate = vmData.created_at ? new Date(vmData.created_at) : new Date()
                                     const endDate = new Date(startDate)
-                                    endDate.setMonth(endDate.getMonth() + (t.duration || 12))
+                                    // Add 14 days for trial period
+                                    endDate.setDate(endDate.getDate() + 14)
+                                    // Add paid duration in months
+                                    endDate.setMonth(endDate.getMonth() + paidMonths)
                                     endDate.setDate(endDate.getDate() + 1) // Add 1 day to expiry
                                     const newExpiry = endDate.toISOString()
 
-                                    // Update VM expiry, duration, and end_date using store
+                                    // Calculate total duration (14 days + paid months)
+                                    const totalDays = 14 + (paidMonths * 30) // Approximate months to days
+                                    // Format as "X months Y days" or just "X days"
+                                    let durationString: string
+                                    if (paidMonths > 0) {
+                                      durationString = `${paidMonths} month${paidMonths > 1 ? 's' : ''} 14 days`
+                                    } else {
+                                      durationString = `${totalDays} days`
+                                    }
+
+                                    // Update VM expiry, duration, end_date, and request_type using store
                                     try {
                                       await updateVM(vmId, {
                                         expiry: newExpiry,
-                                        duration: t.duration || 12,
-                                        end_date: newExpiry // For paid requests, end_date should match expiry
+                                        duration: durationString,
+                                        end_date: newExpiry, // For paid requests, end_date should match expiry
+                                        request_type: 'paid' // Update VM request_type to paid
                                       })
 
                                       // Update the original VM request from trial to paid
@@ -425,6 +504,20 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                           }).eq('id', vmData.vm_request_id)
                                         }
                                       }
+
+                                      // Log the trial to paid conversion
+                                      await logActivity(
+                                        `Converted trial VM ${vmData.hostname} to paid with ${durationString} duration`,
+                                        'vm',
+                                        'Engineer',
+                                        {
+                                          vmId: vmData.legacy_id || vmData.id,
+                                          hostname: vmData.hostname,
+                                          customerId: vmData.customer_id,
+                                          duration: t.duration || 12,
+                                          newExpiry: newExpiry
+                                        }
+                                      )
 
                                       updateVMRequest(t.id, { status: 'Completed' })
                                       toast('Trial converted to paid successfully', 'ok')
@@ -546,7 +639,78 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                               </>
                             )}
                             {active && i === 2 && userRole !== 'Sales' && userRole !== 'Finance' && (
-                              <button className="btn sm ok mt-2" onClick={() => { updateAddonRequest(request.id, { status: 'Completed' }); toast('Add-on provisioning completed', 'ok') }}>
+                              <button className="btn sm ok mt-2" onClick={async () => {
+                                // Update addon service with duration, end_date, and expiry from addon request
+                                const vmId = (request as any).vm_id
+                                if (vmId) {
+                                  try {
+                                    // Parse addon request duration
+                                    let durationMonths = 0
+                                    let durationDays = 0
+                                    if (request.duration) {
+                                      const monthsMatch = request.duration.match(/(\d+)\s*months?/i)
+                                      const daysMatch = request.duration.match(/(\d+)\s*days?/i)
+                                      if (monthsMatch) durationMonths = parseInt(monthsMatch[1])
+                                      if (daysMatch) durationDays = parseInt(daysMatch[1])
+                                    }
+
+                                    // Calculate new expiry from start date
+                                    const startDate = request.start_date ? new Date(request.start_date) : new Date()
+                                    const newExpiry = new Date(startDate)
+                                    newExpiry.setMonth(newExpiry.getMonth() + durationMonths)
+                                    newExpiry.setDate(newExpiry.getDate() + durationDays)
+                                    newExpiry.setDate(newExpiry.getDate() + 1) // Add 1 day to expiry
+
+                                    // Build duration string
+                                    let durationString: string
+                                    if (durationDays > 0) {
+                                      durationString = `${durationMonths} months ${durationDays} days`
+                                    } else {
+                                      durationString = `${durationMonths} months`
+                                    }
+
+                                    // Check if addon service exists
+                                    const { data: existingService } = await supabase
+                                      .from('addon_services')
+                                      .select('*')
+                                      .eq('vm_id', vmId)
+                                      .maybeSingle()
+
+                                    if (existingService) {
+                                      // Update existing addon service
+                                      await supabase
+                                        .from('addon_services')
+                                        .update({
+                                          duration: durationString,
+                                          end_date: newExpiry.toISOString(),
+                                          expiry: newExpiry.toISOString()
+                                        })
+                                        .eq('id', existingService.id)
+                                    } else {
+                                      // Create new addon service
+                                      await supabase
+                                        .from('addon_services')
+                                        .insert({
+                                          vm_id: vmId,
+                                          cpfs_enabled: (request as any).cpfs_enabled,
+                                          cpfs_package: (request as any).cpfs_package,
+                                          ccis_enabled: (request as any).ccis_enabled,
+                                          ccis_package: (request as any).ccis_package,
+                                          duration: durationString,
+                                          start_date: request.start_date,
+                                          end_date: newExpiry.toISOString(),
+                                          expiry: newExpiry.toISOString()
+                                        })
+                                    }
+                                  } catch (error) {
+                                    console.error('Error updating addon service:', error)
+                                    toast('Failed to update addon service', 'error')
+                                  }
+                                }
+
+                                updateAddonRequest(request.id, { status: 'Completed' })
+                                toast('Add-on provisioning completed', 'ok')
+                              }}>
                                 <Icon name="check" size={11} />Complete
                               </button>
                             )}
@@ -604,24 +768,47 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                           <div className="divider" />
                           <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Add-on Services</div>
                           {(() => {
-                            const addonServices = getAddonServicesForVM(currentVMData.id)
-                            if (addonServices.length === 0) {
-                              return <div className="text-sm text-mute">No active add-on services for this VM</div>
+                            // For renewal requests, show addon request instead of existing addon services
+                            if (isRenewal) {
+                              const renewalAddonRequests = addonRequests.filter((ar: any) => ar.vm_id === currentVMData.id && ar.status === 'Pending')
+                              if (renewalAddonRequests.length === 0) {
+                                return <div className="text-sm text-mute">No add-on services selected for renewal</div>
+                              }
+                              return renewalAddonRequests.map((ar: any) => (
+                                <div key={ar.id} style={{ marginBottom: 8 }}>
+                                  <dl className="dl">
+                                    <dt>Request ID</dt><dd className="mono">{ar.legacy_id || ar.id}</dd>
+                                    <dt>Services</dt><dd>
+                                      <div className="flex gap-1">
+                                        {ar.cpfs_enabled && <span className="pill subtle">CPFS</span>}
+                                        {ar.ccis_enabled && <span className="pill subtle">CCIS</span>}
+                                      </div>
+                                    </dd>
+                                    <dt>Billing Term</dt><dd className="mono">{formatDuration(ar.duration)}</dd>
+                                  </dl>
+                                </div>
+                              ))
+                            } else {
+                              // For non-renewal, show existing addon services
+                              const addonServices = getAddonServicesForVM(currentVMData.id)
+                              if (addonServices.length === 0) {
+                                return <div className="text-sm text-mute">No active add-on services for this VM</div>
+                              }
+                              return addonServices.map((as: any) => (
+                                <div key={as.id} style={{ marginBottom: 8 }}>
+                                  <dl className="dl">
+                                    <dt>Service ID</dt><dd className="mono">{as.legacy_id || as.id}</dd>
+                                    <dt>Services</dt><dd>
+                                      <div className="flex gap-1">
+                                        {as.cpfs_enabled && <span className="pill subtle">CPFS</span>}
+                                        {as.ccis_enabled && <span className="pill subtle">CCIS</span>}
+                                      </div>
+                                    </dd>
+                                    <dt>Billing Term</dt><dd className="mono">{formatDuration(as.duration)}</dd>
+                                  </dl>
+                                </div>
+                              ))
                             }
-                            return addonServices.map((as: any) => (
-                              <div key={as.id} style={{ marginBottom: 8 }}>
-                                <dl className="dl">
-                                  <dt>Service ID</dt><dd className="mono">{as.legacy_id || as.id}</dd>
-                                  <dt>Services</dt><dd>
-                                    <div className="flex gap-1">
-                                      {as.cpfs_enabled && <span className="pill subtle">CPFS</span>}
-                                      {as.ccis_enabled && <span className="pill subtle">CCIS</span>}
-                                    </div>
-                                  </dd>
-                                  <dt>Billing Term</dt><dd className="mono">{formatDuration(as.duration)}</dd>
-                                </dl>
-                              </div>
-                            ))
                           })()}
                         </>
                       )}

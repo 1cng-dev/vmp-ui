@@ -148,7 +148,7 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
         ram_gb: f.ram,
         storage: f.storage,
         qty: f.qty,
-        duration: f.requestType === 'paid' ? f.duration : null,
+        duration: f.requestType === 'paid' ? `${f.duration || 12} month${(f.duration || 12) > 1 ? 's' : ''}` : '14 days',
         sizing: f.sizing,
         storage_partitions: f.storagePartitions,
         os_name: f.os === 'custom' ? f.customOsName : selectedOS?.name,

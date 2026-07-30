@@ -5,6 +5,7 @@ import useTaskStore from '../../store/taskStore'
 import useCustomerStore from '../../store/customerStore'
 import useTicketStore from '../../store/ticketStore'
 import useUIStore from '../../store/uiStore'
+import useActivityStore from '../../store/activityStore'
 import { useAddonServiceStore } from '../../store/addonServiceStore'
 import useAddonRequestStore from '../../store/addonRequestStore'
 import { createAlert } from '../../services/notificationService'
@@ -73,6 +74,7 @@ const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, me }) => {
 
   // Get existing add-on services for this VM
   const existingAddons = getAddonServicesForVM(vm.id)
+  const hasExistingAddons = existingAddons.length > 0
 
   // Add-on service selection state
   const [selectedAddons, setSelectedAddons] = useState<{ cpfs: boolean; ccis: boolean }>({
@@ -134,7 +136,7 @@ const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, me }) => {
         ram_gb: (vm as any).ram_gb || vm.ram,
         storage: (vm as any).storage_gb || vm.storage,
         qty: 1,
-        duration: months,
+        duration: `${months} month${months > 1 ? 's' : ''}`,
         sizing: (vm as any).sizing || 'Standard',
         storage_partitions: (vm as any).storage_partitions || '',
         os_name: (vm as any).os_name || 'Linux',
@@ -287,77 +289,79 @@ const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, me }) => {
           </div>
 
           {/* Add-on Services Section */}
-          <div className="card" style={{ borderColor: 'var(--line)', marginTop: 12 }}>
-            <div className="card-body" style={{ padding: 14 }}>
-              <div className="flex center between mb-2">
-                <div className="flex center gap-2">
-                  <Icon name="box" size={13} />
-                  <span className="fw-7 text-sm">Add-on Services</span>
-                </div>
-                <div className="text-xs text-mute">Renew along with VM</div>
-              </div>
-
-              {/* CPFS */}
-              <div className="flex center between" style={{ padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
-                <div className="flex center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={selectedAddons.cpfs}
-                    onChange={(e) => setSelectedAddons(prev => ({ ...prev, cpfs: e.target.checked }))}
-                    style={{ cursor: 'pointer' }}
-                  />
-                  <div>
-                    <div className="fw-6 text-sm">CPFS</div>
-                    <div className="text-xs text-mute">Cloud Parallel File System</div>
+          {hasExistingAddons && (
+            <div className="card" style={{ borderColor: 'var(--line)', marginTop: 12 }}>
+              <div className="card-body" style={{ padding: 14 }}>
+                <div className="flex center between mb-2">
+                  <div className="flex center gap-2">
+                    <Icon name="box" size={13} />
+                    <span className="fw-7 text-sm">Add-on Services</span>
                   </div>
+                  <div className="text-xs text-mute">Renew along with VM</div>
                 </div>
-                {selectedAddons.cpfs && (
-                  <select
-                    value={cpfsPackage}
-                    onChange={(e) => setCpfsPackage(e.target.value as 'standard' | 'premium')}
-                    style={{ padding: '4px 8px', borderRadius: 4, fontSize: 12 }}
-                  >
-                    <option value="standard">Standard</option>
-                    <option value="premium">Premium</option>
-                  </select>
+
+                {/* CPFS */}
+                <div className="flex center between" style={{ padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
+                  <div className="flex center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedAddons.cpfs}
+                      onChange={(e) => setSelectedAddons(prev => ({ ...prev, cpfs: e.target.checked }))}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    <div>
+                      <div className="fw-6 text-sm">CPFS</div>
+                      <div className="text-xs text-mute">Cloud Parallel File System</div>
+                    </div>
+                  </div>
+                  {selectedAddons.cpfs && (
+                    <select
+                      value={cpfsPackage}
+                      onChange={(e) => setCpfsPackage(e.target.value as 'standard' | 'premium')}
+                      style={{ padding: '4px 8px', borderRadius: 4, fontSize: 12 }}
+                    >
+                      <option value="standard">Standard</option>
+                      <option value="premium">Premium</option>
+                    </select>
+                  )}
+                </div>
+
+                {/* CCIS */}
+                <div className="flex center between" style={{ padding: '8px 0' }}>
+                  <div className="flex center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedAddons.ccis}
+                      onChange={(e) => setSelectedAddons(prev => ({ ...prev, ccis: e.target.checked }))}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    <div>
+                      <div className="fw-6 text-sm">CCIS</div>
+                      <div className="text-xs text-mute">Cloud Container Image Service</div>
+                    </div>
+                  </div>
+                  {selectedAddons.ccis && (
+                    <select
+                      value={ccisPackage}
+                      onChange={(e) => setCcisPackage(e.target.value as 'basic' | 'standard' | 'professional' | 'enterprise')}
+                      style={{ padding: '4px 8px', borderRadius: 4, fontSize: 12 }}
+                    >
+                      <option value="basic">Basic</option>
+                      <option value="standard">Standard</option>
+                      <option value="professional">Professional</option>
+                      <option value="enterprise">Enterprise</option>
+                    </select>
+                  )}
+                </div>
+
+                {existingAddons.length > 0 && (
+                  <div className="text-xs text-mute mt-2" style={{ fontStyle: 'italic' }}>
+                    Currently active: {existingAddons.map((a: any) => a.cpfs_enabled ? 'CPFS' : a.ccis_enabled ? 'CCIS' : '').filter(Boolean).join(', ') || 'None'}
+                  </div>
                 )}
               </div>
-
-              {/* CCIS */}
-              <div className="flex center between" style={{ padding: '8px 0' }}>
-                <div className="flex center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={selectedAddons.ccis}
-                    onChange={(e) => setSelectedAddons(prev => ({ ...prev, ccis: e.target.checked }))}
-                    style={{ cursor: 'pointer' }}
-                  />
-                  <div>
-                    <div className="fw-6 text-sm">CCIS</div>
-                    <div className="text-xs text-mute">Cloud Container Image Service</div>
-                  </div>
-                </div>
-                {selectedAddons.ccis && (
-                  <select
-                    value={ccisPackage}
-                    onChange={(e) => setCcisPackage(e.target.value as 'basic' | 'standard' | 'professional' | 'enterprise')}
-                    style={{ padding: '4px 8px', borderRadius: 4, fontSize: 12 }}
-                  >
-                    <option value="basic">Basic</option>
-                    <option value="standard">Standard</option>
-                    <option value="professional">Professional</option>
-                    <option value="enterprise">Enterprise</option>
-                  </select>
-                )}
-              </div>
-
-              {existingAddons.length > 0 && (
-                <div className="text-xs text-mute mt-2" style={{ fontStyle: 'italic' }}>
-                  Currently active: {existingAddons.map((a: any) => a.cpfs_enabled ? 'CPFS' : a.ccis_enabled ? 'CCIS' : '').filter(Boolean).join(', ') || 'None'}
-                </div>
-              )}
             </div>
-          </div>
+          )}
         </div>
         <div className="modal-foot">
           <button className="btn ghost" onClick={onClose}>Cancel</button>
@@ -468,7 +472,7 @@ const CustUpgradeModal: React.FC<CustUpgradeModalProps> = ({ vm, onClose, me }) 
         ram_gb: spec.ram,
         storage: spec.storage,
         qty: 1, // Upgrade is always for a single VM
-        duration: originalRequest.duration || null,
+        duration: originalRequest.duration || '12 months',
         sizing: originalRequest.sizing || 'Standard',
         storage_partitions: originalRequest.storage_partitions || '',
         os_name: originalRequest.os_name || 'Linux',
@@ -770,6 +774,7 @@ const CustConvertToPaidModal: React.FC<CustConvertToPaidModalProps> = ({ vm, onC
   const { toast } = useUIStore()
   const { customers } = useCustomerStore()
   const { addTask } = useTaskStore()
+  const { logActivity } = useActivityStore()
   const me = customers.find((c: any) => c.id === (vm as any).customer_id)
 
   const [duration, setDuration] = useState(12)
@@ -819,7 +824,7 @@ const CustConvertToPaidModal: React.FC<CustConvertToPaidModalProps> = ({ vm, onC
         ram_gb: (vm as any).ram_gb || vm.ram,
         storage: (vm as any).storage_gb || vm.storage,
         qty: 1,
-        duration: duration,
+        duration: `${duration} month${duration > 1 ? 's' : ''}`,
         sizing: (vm as any).sizing || 'Standard',
         storage_partitions: (vm as any).storage_partitions || '',
         os_name: (vm as any).os_name || 'Linux',
@@ -831,7 +836,7 @@ const CustConvertToPaidModal: React.FC<CustConvertToPaidModalProps> = ({ vm, onC
         firewall_outbound_allow_all: (vm as any).firewall_outbound_allow_all !== undefined ? (vm as any).firewall_outbound_allow_all : true,
         firewall_outbound_custom_ports: (vm as any).firewall_outbound_custom_ports || [],
         backup_enabled: (vm as any).backup_enabled || false,
-        notes: `Trial to paid conversion for VM: ${vm.id}`,
+        notes: `Trial to paid conversion for VM: ${vm.legacy_id || vm.id}`,
       }).select().single()
 
       if (error) throw error
@@ -871,6 +876,20 @@ const CustConvertToPaidModal: React.FC<CustConvertToPaidModalProps> = ({ vm, onC
         notes: `Duration: ${getDurationLabel(duration)}`,
         vm_id: vm.id,
       })
+
+      // Log the trial to paid conversion request
+      await logActivity(
+        `Requested trial to paid conversion for VM ${(vm as any).hostname || vm.name} with ${getDurationLabel(duration)} duration`,
+        'vm',
+        me.name || 'Customer',
+        {
+          vmId: vm.id,
+          hostname: (vm as any).hostname || vm.name,
+          customerId: me.id,
+          duration: duration,
+          requestId: insertedData.id
+        }
+      )
 
       toast('Trial to paid conversion request submitted', 'ok')
       onClose()

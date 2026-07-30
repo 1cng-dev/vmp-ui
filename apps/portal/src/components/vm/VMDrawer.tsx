@@ -116,9 +116,9 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
                         <dt>Request ID</dt><dd className="mono">{vmRequest?.legacy_id || v.vm_request_id || '—'}</dd>
                         <dt>Request Type</dt><dd>{vmRequest?.request_type || 'paid'}</dd>
                         <dt>Task Type</dt><dd>{v.task_type || 'New'}</dd>
-                        <dt>Duration</dt><dd className="tnum">{(v as any).duration ? `${(v as any).duration} month${(v as any).duration > 1 ? 's' : ''}` : '—'}</dd>
+                        <dt>Duration</dt><dd className="tnum">{(v as any).duration || '—'}</dd>
                         <dt>Quantity</dt><dd className="tnum">{(v as any).qty || 1}</dd>
-                        <dt>Billing Term</dt><dd className="tnum">{(v as any).duration ? ((v as any).duration === 1 ? 'Monthly' : (v as any).duration === 3 ? 'Quarterly' : (v as any).duration === 6 ? 'Half Yearly' : (v as any).duration === 12 ? 'Yearly' : `${(v as any).duration} month${(v as any).duration > 1 ? 's' : ''}`) : '—'}</dd>
+                        <dt>Billing Term</dt><dd className="tnum">{(v as any).duration || '—'}</dd>
                         <dt>Start Date</dt><dd className="tnum">{(v as any).start_date ? new Date((v as any).start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</dd>
                         <dt>Expiry</dt><dd><ExpiryCell date={v.expiry || '—'}/></dd>
                       </dl>
@@ -307,7 +307,7 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
                       <dt>Request Type</dt><dd>{vmRequest?.request_type || 'paid'}</dd>
                       <dt>Request Status</dt><dd>{vmRequest?.status || '—'}</dd>
                       <dt>Quantity</dt><dd className="tnum">{(v as any).qty || 1}</dd>
-                      <dt>Billing Term</dt><dd className="tnum">{(v as any).duration ? ((v as any).duration === 1 ? 'Monthly' : (v as any).duration === 3 ? 'Quarterly' : (v as any).duration === 6 ? 'Half Yearly' : (v as any).duration === 12 ? 'Yearly' : `${(v as any).duration} month${(v as any).duration > 1 ? 's' : ''}`) : '—'}</dd>
+                      <dt>Billing Term</dt><dd className="tnum">{(v as any).duration || '—'}</dd>
                       <dt>Request Created</dt><dd className="tnum">{vmRequest?.created_at ? new Date(vmRequest.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</dd>
                       <dt>Request Updated</dt><dd className="tnum">{vmRequest?.updated_at ? new Date(vmRequest.updated_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</dd>
                     </dl>

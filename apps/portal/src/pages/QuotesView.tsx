@@ -359,19 +359,35 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
   }, [currentVMData, isUpgrade, selectedRequest])
   useEffect(() => {
     if (isRenewal && currentVMData && selectedRequest) {
-      let billingTerm: string
-      if (selectedRequest.duration === 1) {
-        billingTerm = 'Monthly'
-      } else if (selectedRequest.duration === 3) {
-        billingTerm = 'Quarterly'
-      } else if (selectedRequest.duration === 6) {
-        billingTerm = 'Half Yearly'
-      } else if (selectedRequest.duration === 12) {
-        billingTerm = 'Yearly'
-      } else {
-        // Show custom duration
-        billingTerm = `${selectedRequest.duration} months`
+      // Parse duration string to get billing term
+      // If duration already has units (e.g., "14 days", "1 month"), return as-is
+      const parseDurationToBillingTerm = (duration: string | number | null | undefined): string => {
+        if (!duration) return '1 month'
+        
+        // If it's already a string with units, return as-is
+        if (typeof duration === 'string') {
+          // Check if it already has units (day/days/month/months)
+          if (duration.match(/^\d+\s+(day|days|month|months)$/)) {
+            return duration
+          }
+          // Fallback: try to parse as integer
+          const num = parseInt(String(duration), 10)
+          if (!isNaN(num)) {
+            return `${num} month${num > 1 ? 's' : ''}`
+          }
+          return duration
+        }
+
+        // If it's a number, convert to string with units
+        const num = parseInt(String(duration))
+        if (!isNaN(num)) {
+          return `${num} month${num > 1 ? 's' : ''}`
+        }
+
+        return '1 month'
       }
+
+      const billingTerm = parseDurationToBillingTerm(selectedRequest.duration)
       
       const instanceLines: InstanceLine[] = []
       const backupLines: BackupLine[] = []
@@ -408,29 +424,21 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
         })
       }
 
-      // Fetch addon services from addon_services table using vm_id
-      const vmAddonServices = addonServices.filter((a: any) =>
+      // Fetch addon requests for this VM (for renewal)
+      const vmAddonRequests = addonRequests.filter((a: any) =>
         a.vm_id === currentVMData.id &&
-        a.status === 'Active'
+        a.status === 'Pending'
       )
 
       // Track which services have been added to prevent duplicates
       const addedServices = new Set<string>()
 
-      for (const addon of vmAddonServices) {
+      for (const addon of vmAddonRequests) {
         let addonTerm = addon.duration || billingTerm
 
-        // Convert duration to standard billing term format
+        // Convert duration to standard billing term format using the same parser
         if (addon.duration) {
-          const match = String(addon.duration).match(/(\d+)/)
-          if (match) {
-            const months = parseInt(match[1])
-            if (months === 1) addonTerm = 'Monthly'
-            else if (months === 3) addonTerm = 'Quarterly'
-            else if (months === 6) addonTerm = 'Half Yearly'
-            else if (months === 12) addonTerm = 'Yearly'
-            else addonTerm = addon.duration
-          }
+          addonTerm = parseDurationToBillingTerm(addon.duration)
         }
 
         if (addon.cpfs_enabled && !addedServices.has('CPFS')) {
@@ -466,19 +474,35 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
       if (requestType === 'vm') {
         const request = vmRequests.find(r => r.id === id)
         if (request) {
-          let billingTerm: string
-          if (request.duration === 1) {
-            billingTerm = 'Monthly'
-          } else if (request.duration === 3) {
-            billingTerm = 'Quarterly'
-          } else if (request.duration === 6) {
-            billingTerm = 'Half Yearly'
-          } else if (request.duration === 12) {
-            billingTerm = 'Yearly'
-          } else {
-            // Show custom duration
-            billingTerm = `${request.duration} months`
+          // Parse duration string to get billing term
+          // If duration already has units (e.g., "14 days", "1 month"), return as-is
+          const parseDurationToBillingTerm = (duration: string | number | null | undefined): string => {
+            if (!duration) return '1 month'
+            
+            // If it's already a string with units, return as-is
+            if (typeof duration === 'string') {
+              // Check if it already has units (day/days/month/months)
+              if (duration.match(/^\d+\s+(day|days|month|months)$/)) {
+                return duration
+              }
+              // Fallback: try to parse as integer
+              const num = parseInt(String(duration), 10)
+              if (!isNaN(num)) {
+                return `${num} month${num > 1 ? 's' : ''}`
+              }
+              return duration
+            }
+
+            // If it's a number, convert to string with units
+            const num = parseInt(String(duration))
+            if (!isNaN(num)) {
+              return `${num} month${num > 1 ? 's' : ''}`
+            }
+
+            return '1 month'
           }
+
+          const billingTerm = parseDurationToBillingTerm(request.duration)
           
           const isUpgradeRequest = request.task_type?.toLowerCase() === 'change-plan'
           const isRenewalRequest = request.task_type?.toLowerCase() === 'renewal'

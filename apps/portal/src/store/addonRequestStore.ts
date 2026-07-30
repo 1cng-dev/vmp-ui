@@ -194,11 +194,34 @@ export const AddonRequestProvider: React.FC<{ children: React.ReactNode }> = ({ 
           const endDate = new Date(startDate)
           const expiryDate = new Date(startDate)
 
-          if (previousRequest.duration) {
-            const durationMonths = parseInt(previousRequest.duration.toString())
-            if (!isNaN(durationMonths)) {
-              endDate.setMonth(endDate.getMonth() + durationMonths)
-              expiryDate.setMonth(expiryDate.getMonth() + durationMonths)
+          // Parse duration string to extract months
+          const parseDuration = (durationStr: string | number | null | undefined): { value: number; unit: 'days' | 'months' } | null => {
+            if (!durationStr) return null;
+            if (typeof durationStr === 'number') {
+              return { value: durationStr, unit: 'months' };
+            }
+            const match = String(durationStr).match(/^(\d+)\s+(day|days|month|months)$/);
+            if (match) {
+              const value = parseInt(match[1], 10);
+              const unitStr = match[2].toLowerCase();
+              const unit = unitStr.startsWith('day') ? 'days' : 'months';
+              return { value, unit };
+            }
+            const num = parseInt(String(durationStr), 10);
+            if (!isNaN(num)) {
+              return { value: num, unit: 'months' };
+            }
+            return null;
+          };
+
+          const parsedDuration = parseDuration(previousRequest.duration)
+          if (parsedDuration) {
+            if (parsedDuration.unit === 'days') {
+              endDate.setDate(endDate.getDate() + parsedDuration.value)
+              expiryDate.setDate(expiryDate.getDate() + parsedDuration.value)
+            } else {
+              endDate.setMonth(endDate.getMonth() + parsedDuration.value)
+              expiryDate.setMonth(expiryDate.getMonth() + parsedDuration.value)
             }
           }
 

@@ -352,6 +352,8 @@ const AdminDirectVMCreate: React.FC = () => {
       expiryDate.setMonth(expiryDate.getMonth() + f.duration);
       expiryDate.setDate(expiryDate.getDate() + 1); // Add 1 day to expiry
 
+      const durationString = f.requestType === 'trial' ? '14 days' : `${f.duration} month${f.duration > 1 ? 's' : ''}`;
+
       vmId = await addVM({
         hostname: f.hostname,
         customer_id: f.customer,
@@ -379,7 +381,7 @@ const AdminDirectVMCreate: React.FC = () => {
         backup_type: f.backupType,
         public_ip_required: f.publicIpRequired,
         start_date: f.start_date + "T00:00:00.000Z",
-        duration: f.duration,
+        duration: durationString,
         expiry: expiryDate.toISOString(),
         end_date: expiryDate.toISOString(),
         sizing: f.sizing,
@@ -758,7 +760,7 @@ const AdminDirectVMCreate: React.FC = () => {
                   <div className="flex col gap-2 mb-3">
                     <div className="text-sm fw-6">CPFS - {f.cpfs_package}</div>
                     <div className="text-xs text-mute">
-                      Duration: {f.addon_duration} months
+                      Duration: {f.addon_duration}
                     </div>
                   </div>
                 )}
@@ -766,7 +768,7 @@ const AdminDirectVMCreate: React.FC = () => {
                   <div className="flex col gap-2">
                     <div className="text-sm fw-6">CCIS - {f.ccis_package}</div>
                     <div className="text-xs text-mute">
-                      Duration: {f.addon_duration} months
+                      Duration: {f.addon_duration}
                     </div>
                   </div>
                 )}

@@ -28,7 +28,7 @@ export interface VM {
   vm_request_id?: string;
   task_type?: "new" | "change-plan" | "renewal" | "addon";
   expiry?: string;
-  duration?: number;
+  duration?: string | number;
   legacy_id?: string;
   assigned_vmid?: number;
   node?: string; // ADD THIS

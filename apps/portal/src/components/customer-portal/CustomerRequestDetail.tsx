@@ -61,7 +61,7 @@ export const CustomerRequestDetail: React.FC<CustomerRequestDetailProps> = ({ re
                 <dt>Quantity</dt><dd className="mono">{t.qty}</dd>
                 {t.duration && (
                   <>
-                    <dt>{t.task_type === 'renewal' ? 'Renewal Duration' : 'Billing Term'}</dt><dd className="mono">{t.duration === 1 ? 'Monthly' : t.duration === 3 ? 'Quarterly' : t.duration === 6 ? 'Half Yearly' : t.duration === 12 ? 'Yearly' : `${t.duration} month${t.duration > 1 ? 's' : ''}`}</dd>
+                    <dt>{t.task_type === 'renewal' ? 'Renewal Duration' : 'Billing Term'}</dt><dd className="mono">{t.duration}</dd>
                   </>
                 )}
                 <dt>Specification Type</dt><dd className="mono" style={{ color: t.sizing === 'Standard' ? 'var(--ok)' : 'var(--accent-strong)' }}>{t.sizing}</dd>
