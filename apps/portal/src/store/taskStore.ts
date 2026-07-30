@@ -307,7 +307,7 @@ const useTaskStore = (): TaskStoreValue => {
           duration: t.request_type === 'trial' ? '14 days' : (parsedDuration ? `${parsedDuration.value} month${parsedDuration.value > 1 ? 's' : ''}` : `${durationValue || 12} month${(durationValue || 12) > 1 ? 's' : ''}`),
           start_date: start_date,
           end_date: end_date,
-          legacy_id: undefined, // Let database trigger generate qemu/3xxx format
+          legacy_id: undefined, // Let database trigger generate VPS-TDC-{customer_id}-{vm_number}-{customer_name} format
           assigned_vmid: assignedVmid,
           node: vmDetails.node || "pve1", // ADD THIS
           pmx_type: vmDetails.pmx_type || "qemu", // ADD THIS
