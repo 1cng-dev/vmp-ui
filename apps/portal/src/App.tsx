@@ -457,8 +457,6 @@ const AppInner = ({
               <Dashboard
                 openVM={openVM}
                 setView={handleSetView}
-                openModal={openModal}
-                userRole={tw.role}
               />
             )}
             {view === "alerts" && <AlertsView />}

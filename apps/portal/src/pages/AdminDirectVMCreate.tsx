@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import useVMStore from "../store/vmStore";
 import useAddonServiceStore from "../store/addonServiceStore";
@@ -258,11 +258,6 @@ const AdminDirectVMCreate: React.FC = () => {
   const submit = async () => {
     setShowSummary(true);
   };
-
-  const validateLegacyIdFormat = (legacyId: string): boolean => {
-    const pattern = /^qemu\/\d{4}$/
-    return pattern.test(legacyId)
-  }
 
   const confirmSubmit = async () => {
     let vmId: string | null = null;

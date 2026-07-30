@@ -673,8 +673,8 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                               <dd className="mono">
                                 {t?.firewall_outbound_allow_all ? 'Allow All' : 'Custom'}
                                 {t?.firewall_outbound_allow_all
-                                  ? ` (${t.firewall_ports?.join(', ') || 'none'})`
-                                  : ` (${t.firewall_outbound_custom_ports?.join(', ') || 'none'})`}
+                                  ? ` (${t?.firewall_ports?.join(', ') || 'none'})`
+                                  : ` (${t?.firewall_outbound_custom_ports?.join(', ') || 'none'})`}
                               </dd>
                             </>
                           </dl>
