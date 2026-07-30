@@ -97,7 +97,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
     { section: 'Operations' },
     { id: 'vms', label: 'VM records', icon: 'server' },
     { id: 'tasks', label: 'Customer Requests', icon: 'tasks', badge: pendingRequestsCount > 0 ? pendingRequestsCount : undefined },
-    { id: 'addons', label: 'Add-on Services', icon: 'box', badge: (role === 'Sales' ? pendingAddonRequestsCount : inProgressAddonRequestsCount) > 0 ? (role === 'Sales' ? pendingAddonRequestsCount : inProgressAddonRequestsCount) : undefined },
+    { id: 'addons', label: 'Add-on Requests', icon: 'box', badge: (role === 'Sales' ? pendingAddonRequestsCount : inProgressAddonRequestsCount) > 0 ? (role === 'Sales' ? pendingAddonRequestsCount : inProgressAddonRequestsCount) : undefined },
     { id: 'network', label: 'Network & IPs', icon: 'network' },
     { section: 'Engineering' },
     { id: 'console', label: 'Web console', icon: 'cpu' },

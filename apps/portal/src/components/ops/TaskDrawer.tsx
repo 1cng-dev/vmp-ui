@@ -18,6 +18,38 @@ interface TaskDrawerProps {
   userRole?: string
 }
 
+// Helper function to format duration string, hiding "0 months" when months is 0
+const formatDuration = (duration: string | number | undefined | null): string => {
+  if (!duration) return 'N/A'
+
+  // If it's already a string, parse and format it
+  if (typeof duration === 'string') {
+    // Parse "X months Y days" format
+    const monthsMatch = duration.match(/(\d+)\s*months?/i)
+    const daysMatch = duration.match(/(\d+)\s*days?/i)
+
+    const months = monthsMatch ? parseInt(monthsMatch[1]) : 0
+    const days = daysMatch ? parseInt(daysMatch[1]) : 0
+
+    if (months === 0 && days > 0) {
+      return `${days} day${days > 1 ? 's' : ''}`
+    } else if (months > 0 && days === 0) {
+      return `${months} month${months > 1 ? 's' : ''}`
+    } else if (months > 0 && days > 0) {
+      return `${months} month${months > 1 ? 's' : ''} ${days} day${days > 1 ? 's' : ''}`
+    }
+    return duration
+  }
+
+  // If it's a number, treat as months
+  const numMonths = parseInt(String(duration))
+  if (numMonths === 1) return 'Monthly'
+  if (numMonths === 3) return 'Quarterly'
+  if (numMonths === 6) return 'Half Yearly'
+  if (numMonths === 12) return 'Yearly'
+  return `${numMonths} month${numMonths > 1 ? 's' : ''}`
+}
+
 export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, userRole }) => {
   const { customers, loadCustomers } = useCustomerStore()
   const { toast } = useUIStore()
@@ -45,15 +77,25 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
   const isRenewal = requestType === 'vm' && ((t as any)?.task_type === 'Renewal' || (t as any)?.task_type === 'renewal')
   const isSpecChange = t?.spec_changed || false
   const isTrial = requestType === 'vm' && t?.request_type === 'trial'
-  
+
+  // Get VM data for addon requests from store (must be before payment check)
+  const addonVMData = React.useMemo(() => {
+    if (requestType === 'addon' && (request as any)?.vm_id) {
+      return getVMById((request as any).vm_id)
+    }
+    return null
+  }, [requestType, request, getVMById])
+
   // Check if payment is received for this request (via invoice)
-  // Skip payment validation for trial requests
-  const invoice = invoices.find((i: any) => 
-    requestType === 'vm' 
+  // Skip payment validation for trial requests and all addon requests
+  const invoice = invoices.find((i: any) =>
+    requestType === 'vm'
       ? i.vm_request_ids?.includes(requestId)
       : i.addon_request_ids?.includes(requestId)
   )
-  const isPaymentReceived = isTrial ? true : (invoice && invoice.status === 'Payment Received')
+  // For addon requests, always skip payment check
+  // For VM requests, skip payment check only for trial VMs
+  const isPaymentReceived = (isTrial || requestType === 'addon') ? true : (invoice && invoice.status === 'Payment Received')
   const isBackupChange = t?.backup_changed || false
 
   // Load customers if not loaded yet
@@ -89,14 +131,6 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
       })
     }
   }, [request, requestType, t])
-
-  // Get VM data for addon requests from store
-  const addonVMData = React.useMemo(() => {
-    if (requestType === 'addon' && (request as any)?.vm_id) {
-      return getVMById((request as any).vm_id)
-    }
-    return null
-  }, [requestType, request, getVMById])
 
   if (!request) return null
   const c = customers.find((cust: any) => cust.id === request.customer_id)
@@ -455,10 +489,8 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                   updateVMRequest(t.id, { status: newStatus })
                                   if (newStatus === 'Completed') {
                                     try {
-                                      console.log('Provisioning completed for request:', t.id)
                                       // Get VMs from store that match this request
                                       const matchingVMs = vms.filter(vm => vm.vm_request_id === t.id)
-                                      console.log('VM Data result:', matchingVMs)
 
                                       if (matchingVMs.length > 0) {
                                         // Skip end_date update for trial requests (already set correctly in taskStore)
@@ -477,7 +509,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                           }
                                         }
                                       } else {
-                                        console.log('No VMs found for request:', t.id)
+                                        // No VMs found for request
                                       }
                                     } catch (error: any) {
                                       console.error('Error in provisioning completion:', error)
@@ -563,7 +595,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                             <dt>VM ID</dt><dd className="mono">{currentVMData.legacy_id || currentVMData.id}</dd>
                           </>
                         )}
-                        <dt>Billing Term</dt><dd className="mono">{t?.duration === 1 ? 'Monthly' : t?.duration === 3 ? 'Quarterly' : t?.duration === 6 ? 'Half Yearly' : t?.duration === 12 ? 'Yearly' : `${t?.duration} months`}</dd>
+                        <dt>Billing Term</dt><dd className="mono">{formatDuration(t?.duration)}</dd>
                         {t?.notes && <><dt>Notes</dt><dd>{t?.notes}</dd></>}
                       </dl>
 
@@ -586,7 +618,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                       {as.ccis_enabled && <span className="pill subtle">CCIS</span>}
                                     </div>
                                   </dd>
-                                  <dt>Billing Term</dt><dd className="mono">{t?.duration === 1 ? 'Monthly' : t?.duration === 3 ? 'Quarterly' : t?.duration === 6 ? 'Half Yearly' : t?.duration === 12 ? 'Yearly' : `${t?.duration} months`}</dd>
+                                  <dt>Billing Term</dt><dd className="mono">{formatDuration(as.duration)}</dd>
                                 </dl>
                               </div>
                             ))
@@ -610,7 +642,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                             <dt>Hostname</dt><dd className="mono">{t?.hostname}</dd>
                             <dt>Purpose</dt><dd>{t?.purpose || '—'}</dd>
                             <dt>Quantity</dt><dd className="mono">{t?.qty}</dd>
-                            {t?.duration && <><dt>Billing Term</dt><dd className="mono">{t?.duration === 1 ? 'Monthly' : t?.duration === 3 ? 'Quarterly' : t?.duration === 6 ? 'Half Yearly' : t?.duration === 12 ? 'Yearly' : `${t?.duration} months`}</dd></>}
+                            {t?.duration && <><dt>Billing Term</dt><dd className="mono">{formatDuration(t?.duration)}</dd></>}
                             <dt>Spec Type</dt><dd className="mono" style={{ color: t?.sizing === 'Standard' ? 'var(--ok)' : 'var(--accent-strong)' }}>{t?.sizing}</dd>
                             <dt>OS</dt><dd className="mono">{t?.os_name} {t?.os_version}</dd>
                           </dl>
@@ -739,7 +771,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                         <dt>CCIS</dt><dd className="mono">Cloud Container Image Service - {(request as any)?.ccis_package || 'standard'}</dd>
                       </>
                     )}
-                    {(request as any)?.duration && <><dt>Duration</dt><dd className="mono">{(request as any)?.duration || '—'}</dd></>}
+                    {(request as any)?.duration && <><dt>Duration</dt><dd className="mono">{formatDuration((request as any)?.duration)}</dd></>}
                     {(request as any)?.start_date && <><dt>Start Date</dt><dd className="mono tnum">{new Date((request as any)?.start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
                     {(request as any)?.end_date && <><dt>End Date</dt><dd className="mono tnum">{new Date((request as any)?.end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
                     {(request as any)?.expiry && <><dt>Expiry</dt><dd><ExpiryCell date={(request as any)?.expiry || ''} /></dd></>}
@@ -765,27 +797,33 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
               <EngineerVMCreateForm
                 task={t as any}
                 onSubmit={async (details) => {
-                  console.log('VM form submitted with details:', details)
                   try {
-                    console.log('Calling createVMManually for task:', t)
                     await createVMManually(t as any, details, addVM)
-                    console.log('createVMManually completed successfully')
                     updateVMRequest(t.id, { status: 'Network' })
                     setShowVMFormModal(false)
                     toast('VM records created successfully', 'ok')
                   } catch (error: any) {
                     console.error('Error creating VM records:', error)
                     console.error('Error stack:', error.stack)
+                    console.error('Full error details:', JSON.stringify(error, null, 2))
 
                     // Parse database errors to user-friendly messages
                     let userMessage = 'Unknown error'
                     if (error.message) {
                       if (error.message.includes('duplicate key value violates unique constraint "vms_legacy_id_key"')) {
                         userMessage = 'Legacy ID already exists. Please use a different Legacy ID.'
+                      } else if (error.message.includes('duplicate key value violates unique constraint "vms_hostname_unique"')) {
+                        userMessage = 'Hostname already exists. Please use a different hostname.'
                       } else if (error.message.includes('duplicate key value violates unique constraint "vms_hostname_key"')) {
                         userMessage = 'Hostname already exists. Please use a different hostname.'
                       } else if (error.message.includes('duplicate key value violates unique constraint')) {
-                        userMessage = 'Duplicate record detected. Please check your inputs.'
+                        // Try to extract the constraint name
+                        const constraintMatch = error.message.match(/unique constraint "([^"]+)"/)
+                        if (constraintMatch) {
+                          userMessage = `Duplicate record detected: ${constraintMatch[1]}. Please check your inputs.`
+                        } else {
+                          userMessage = 'Duplicate record detected. Please check your inputs.'
+                        }
                       } else if (error.message.includes('is already in use')) {
                         userMessage = error.message
                       } else {

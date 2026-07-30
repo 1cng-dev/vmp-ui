@@ -206,6 +206,25 @@ const useTaskStore = (): TaskStoreValue => {
       const qty = t.qty || 1;
       const vmIds: string[] = [];
 
+      // Find the next available hostname number by checking existing VMs
+      const { data: existingVMs } = await supabase
+        .from("vms")
+        .select("hostname")
+        .like("hostname", `${t.hostname}-%`);
+
+      let maxNumber = 0;
+      if (existingVMs) {
+        existingVMs.forEach((vm: any) => {
+          const match = vm.hostname.match(new RegExp(`^${t.hostname}-(\\d+)$`));
+          if (match) {
+            const num = parseInt(match[1], 10);
+            if (num > maxNumber) {
+              maxNumber = num;
+            }
+          }
+        });
+      }
+
       for (let i = 0; i < qty; i++) {
         const assignedVmid = vmDetails.assigned_vmids[i] || null;
 
@@ -233,7 +252,7 @@ const useTaskStore = (): TaskStoreValue => {
         }
 
         const vmData = {
-          hostname: `${t.hostname}-${i + 1}`,
+          hostname: `${t.hostname}-${maxNumber + i + 1}`,
           public_ip: vmDetails.publicIps[i] || vmDetails.publicIps[0],
           private_ip: vmDetails.privateIps[i] || vmDetails.privateIps[0],
           username: vmDetails.username,

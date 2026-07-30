@@ -14,6 +14,38 @@ interface CustomerVMDetailProps {
   me: any
 }
 
+// Helper function to format duration string, hiding "0 months" when months is 0
+const formatDuration = (duration: string | number | undefined | null): string => {
+  if (!duration) return 'N/A'
+
+  // If it's already a string, parse and format it
+  if (typeof duration === 'string') {
+    // Parse "X months Y days" format
+    const monthsMatch = duration.match(/(\d+)\s*months?/i)
+    const daysMatch = duration.match(/(\d+)\s*days?/i)
+
+    const months = monthsMatch ? parseInt(monthsMatch[1]) : 0
+    const days = daysMatch ? parseInt(daysMatch[1]) : 0
+
+    if (months === 0 && days > 0) {
+      return `${days} day${days > 1 ? 's' : ''}`
+    } else if (months > 0 && days === 0) {
+      return `${months} month${months > 1 ? 's' : ''}`
+    } else if (months > 0 && days > 0) {
+      return `${months} month${months > 1 ? 's' : ''} ${days} day${days > 1 ? 's' : ''}`
+    }
+    return duration
+  }
+
+  // If it's a number, treat as months
+  const numMonths = parseInt(String(duration))
+  if (numMonths === 1) return 'Monthly'
+  if (numMonths === 3) return 'Quarterly'
+  if (numMonths === 6) return 'Half Yearly'
+  if (numMonths === 12) return 'Yearly'
+  return `${numMonths} month${numMonths > 1 ? 's' : ''}`
+}
+
 export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialVm, onClose, onRenew, me }) => {
   const { vms, startVM, stopVM, restartVM, snapshotVM, getVMRequest } = useVMStore()
   const { getAddonServicesForVM } = useAddonServiceStore()
@@ -382,12 +414,11 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
                         as.cpfs_enabled && as.cpfs_package ? `CPFS ${as.cpfs_package}` : null,
                         as.ccis_enabled && as.ccis_package ? `CCIS ${as.ccis_package}` : null
                       ].filter(Boolean).join(', ') || '—'}</dd>
-                      <dt>Duration</dt><dd>{as.duration || 'N/A'}</dd>
+                      <dt>Duration</dt><dd>{formatDuration(as.duration)}</dd>
                       {as.start_date && <><dt>Start Date</dt><dd className="tnum">{new Date(as.start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
                       {as.end_date && <><dt>End Date</dt><dd className="tnum">{new Date(as.end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
                       {as.expiry && <><dt>Expiry</dt><dd><ExpiryCell date={as.expiry || ''} /></dd></>}
                       <dt>Status</dt><dd><StatusPill status={as.status}/></dd>
-                      <dt>Operational Status</dt><dd><StatusPill status={as.operational_status || 'Active'} expiry={as.expiry}/></dd>
                     </dl>
                   </div>
                 ))}
