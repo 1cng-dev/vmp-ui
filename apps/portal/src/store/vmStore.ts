@@ -122,6 +122,7 @@ export interface VMStoreValue {
   snapshotVM: (id: string, name: string) => Promise<void>;
   updateVMTags: (id: string, tags: string[]) => Promise<void>;
   updateVMNotes: (id: string, notes: string) => Promise<void>;
+  checkDuplicateLegacyId: (legacyId: string) => boolean
 }
 
 const VMContext = createContext<VMStoreValue | null>(null);
@@ -689,6 +690,11 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     [loadVMs],
   );
 
+  const checkDuplicateLegacyId = useCallback((legacyId: string): boolean => {
+    if (!legacyId) return false
+    return vms.some(v => v.legacy_id === legacyId)
+  }, [vms])
+
   const value: VMStoreValue = {
     vms,
     vmsLoading,
@@ -709,6 +715,7 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     snapshotVM,
     updateVMTags,
     updateVMNotes,
+    checkDuplicateLegacyId,
   };
   return React.createElement(VMContext.Provider, { value }, children as any);
 };

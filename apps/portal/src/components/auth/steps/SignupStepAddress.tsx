@@ -17,7 +17,7 @@ const SignupStepAddress: React.FC<SignupStepAddressProps> = ({ f, set }) => (
   <div className="flex col gap-3">
     <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Address</div>
     <div className="field"><label>Street address <span style={{ color: 'red' }}>*</span></label><input value={f.address} onChange={e => set('address', e.target.value)} placeholder="Building, street, township" autoFocus /></div>
-    <div className="grid-3" style={{ gap: 10 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr 1fr', gap: 10 }}>
       <div className="field"><label>City</label><input value={f.city} onChange={e => set('city', e.target.value)} /></div>
       <div className="field"><label>State / Region</label>
         <select value={f.state} onChange={e => set('state', e.target.value)}>

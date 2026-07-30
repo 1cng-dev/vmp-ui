@@ -14,6 +14,7 @@ export interface CustomerStoreValue {
   resetPassword: (id: string, password: string) => Promise<void>
   deleteCustomer: (id: string) => Promise<void>
   subscribeToCustomers: () => () => void
+  checkDuplicateLegacyId: (legacyId: string) => boolean
 }
 
 // ── Global Customer Context Store ─────────────────────────────────────────────
@@ -143,7 +144,7 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
     if (error) throw error
     if (data) {
       await loadCustomers()
-      
+
       // Get current user for activity logging
       const { data: { user } } = await supabase.auth.getUser()
       let actorName = 'System'
@@ -160,14 +161,14 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
           actorName = user.user_metadata?.name || user.email || 'System'
         }
       }
-      
+
       await logActivity(
         `Created customer account for ${c.name} (${c.org_name || c.company || 'Individual'})`,
         'customer',
         actorName,
         { customerId: data.id, customerName: c.name, orgName: c.org_name || c.company, accountType: c.account_type }
       )
-      
+
       return data.legacy_id || data.id
     }
     throw new Error('Failed to create customer')
@@ -234,18 +235,18 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
       // (tables with ON DELETE CASCADE will be handled automatically when customers is deleted)
       await supabase.from('tickets').delete().eq('customer', id)
       await supabase.from('alerts').delete().eq('customer', id)
-      
+
       // Delete from auth.users - this will cascade delete from customers table
       // and from tables that have ON DELETE CASCADE (vms, invoices, tasks)
       const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(id)
-      
+
       if (authError) {
         console.error('Failed to delete auth user:', authError)
         throw authError
       }
-      
+
       await loadCustomers()
-      
+
       // Log customer deletion
       if (customer) {
         const { data: { user } } = await supabase.auth.getUser()
@@ -263,7 +264,7 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
             actorName = user.user_metadata?.name || user.email || 'System'
           }
         }
-        
+
         await logActivity(
           `Deleted customer account for ${customer.name} (${customer.org_name || customer.company || 'Individual'})`,
           'customer',
@@ -276,6 +277,12 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
       throw error
     }
   }, [loadCustomers, customers, logActivity])
+
+
+  const checkDuplicateLegacyId = useCallback((legacyId: string): boolean => {
+    if (!legacyId) return false
+    return customers.some(c => c.legacy_id === legacyId)
+  }, [customers])
 
   const addCustomerWithAuth = useCallback(async (c: Omit<Customer, 'id'>, tempPassword: string) => {
     // Create auth user first
@@ -306,7 +313,7 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
     if (error) throw error
     if (data) {
       await loadCustomers()
-      
+
       // Get current user for activity logging
       const { data: { user } } = await supabase.auth.getUser()
       let actorName = 'System'
@@ -322,14 +329,14 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
           actorName = user.user_metadata?.name || user.email || 'System'
         }
       }
-      
+
       await logActivity(
         `Created customer account with temp password for ${c.name} (${c.org_name || c.company || 'Individual'})`,
         'customer',
         actorName,
         { customerId: data.id, customerName: c.name, orgName: c.org_name || c.company, accountType: c.account_type }
       )
-      
+
       return data.legacy_id || data.id
     }
     throw new Error('Failed to create customer')
@@ -346,6 +353,7 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
     resetPassword,
     deleteCustomer,
     subscribeToCustomers,
+    checkDuplicateLegacyId,
   }
 
   return React.createElement(CustomerContext.Provider, { value }, children as any)

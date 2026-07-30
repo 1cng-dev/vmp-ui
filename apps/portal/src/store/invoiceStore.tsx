@@ -2,6 +2,7 @@ import { useState, useCallback, createContext, useContext, useEffect, type React
 import { supabase } from '../lib/supabase'
 import type { DBInvoice, NewInvoiceInput } from '../types'
 import { createAlert } from '../services/notificationService'
+import { sendInvoiceEmail } from '../services/emailService'
 import useActivityStore from './activityStore'
 import useAddonRequestStore from './addonRequestStore'
 
@@ -128,16 +129,27 @@ export const InvoiceProvider: React.FC<{ children: ReactNode }> = ({ children })
       invoice.legacy_id = invoiceWithLegacy.legacy_id
     }
     
-    // Get customer name for notification
+    // Get customer information for notification and email
     const { data: customer } = await supabase
       .from('customers')
-      .select('name, org_name, account_type')
+      .select('name, org_name, account_type, email')
       .eq('id', invoice.customer_id)
       .single()
-    
+
     const customerName = customer?.account_type === 'Organization' && customer?.org_name
       ? `${customer.name} (${customer.org_name})`
       : (customer?.name || 'Unknown')
+
+    // Send invoice email to customer
+    if (customer?.email) {
+      await sendInvoiceEmail({
+        to: customer.email,
+        customerName: customerName,
+        invoiceId: invoice.legacy_id || invoice.id,
+        amount: invoice.gross_amount,
+        dueDate: invoice.due
+      })
+    }
     
     // Create notification and activity log for new invoice
     await logActivity(

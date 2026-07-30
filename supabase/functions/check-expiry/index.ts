@@ -14,17 +14,131 @@ serve(async (req) => {
     console.log('Add-on expiry check:', addonResult)
 
     return new Response(
-      JSON.stringify({ success: true, vm: vmResult, addon: addonResult }), 
+      JSON.stringify({ success: true, vm: vmResult, addon: addonResult }),
       { headers: { 'Content-Type': 'application/json' } }
     )
   } catch (error) {
     console.error('Error:', error)
     return new Response(
-      JSON.stringify({ success: false, error: error.message }), 
+      JSON.stringify({ success: false, error: error.message }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     )
   }
 })
+
+async function sendExpiryEmail(params: {
+  to: string
+  customerName: string
+  type: 'vm' | 'addon'
+  entityName: string
+  expiryDate: string
+  daysUntilExpiry: number
+  entityId: string
+}) {
+  const resendApiKey = Deno.env.get('RESEND_API_KEY')
+  const fromEmail = Deno.env.get('RESEND_FROM_EMAIL')
+
+  const subject = params.daysUntilExpiry < 0
+    ? `URGENT: ${params.type === 'vm' ? 'VM' : 'Add-on'} Expired - ${params.entityName}`
+    : params.daysUntilExpiry === 0
+      ? `URGENT: ${params.type === 'vm' ? 'VM' : 'Add-on'} Expiring Today - ${params.entityName}`
+      : `Reminder: ${params.type === 'vm' ? 'VM' : 'Add-on'} Expiring in ${params.daysUntilExpiry} days`
+
+  const html = buildEmailTemplate(params)
+
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${resendApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from: fromEmail,
+        to: params.to,
+        subject: subject,
+        html: html
+      })
+    })
+
+    if (!response.ok) {
+      const error = await response.text()
+      console.error('Resend API error:', error)
+      return { success: false, error }
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error sending email:', error)
+    return { success: false, error }
+  }
+}
+
+function buildEmailTemplate(params: {
+  customerName: string
+  type: 'vm' | 'addon'
+  entityName: string
+  expiryDate: string
+  daysUntilExpiry: number
+  entityId: string
+}): string {
+  const urgencyColor = params.daysUntilExpiry <= 1 || params.daysUntilExpiry < 0
+    ? '#dc2626' // red
+    : params.daysUntilExpiry <= 7
+      ? '#f59e0b' // orange
+      : '#3b82f6' // blue
+
+  const urgencyText = params.daysUntilExpiry < 0
+    ? `EXPIRED ${Math.abs(params.daysUntilExpiry)} days ago`
+    : params.daysUntilExpiry === 0
+      ? 'EXPIRING TODAY'
+      : `Expiring in ${params.daysUntilExpiry} days`
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: ${urgencyColor}; color: white; padding: 20px; text-align: center; }
+        .content { padding: 20px; background: #f9f9f9; }
+        .footer { padding: 20px; text-align: center; font-size: 12px; color: #666; }
+        .alert-box { border-left: 4px solid ${urgencyColor}; padding: 15px; background: white; margin: 20px 0; }
+        .button { display: inline-block; padding: 12px 24px; background: ${urgencyColor}; color: white; text-decoration: none; border-radius: 4px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>${urgencyText}</h1>
+        </div>
+        <div class="content">
+          <p>Dear ${params.customerName},</p>
+          <div class="alert-box">
+            <p><strong>${params.type === 'vm' ? 'VM' : 'Add-on Service'}:</strong> ${params.entityName}</p>
+            <p><strong>ID:</strong> ${params.entityId}</p>
+            <p><strong>Expiry Date:</strong> ${params.expiryDate}</p>
+            <p><strong>Status:</strong> ${urgencyText}</p>
+          </div>
+          <p>${params.daysUntilExpiry < 0
+      ? 'Your service has expired. Please renew as soon as possible to avoid service interruption.'
+      : params.daysUntilExpiry === 0
+        ? 'Your service expires today. Please renew immediately to avoid service interruption.'
+        : 'Your service will expire soon. Please renew to avoid service interruption.'}</p>
+          <p style="text-align: center; margin: 30px 0;">
+            <a href="${Deno.env.get('APP_URL')}/customer-portal" class="button">View in Portal</a>
+          </p>
+        </div>
+        <div class="footer">
+          <p>This is an automated message. Please do not reply to this email.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `
+}
 
 async function checkVMExpiry(supabase: any) {
   const { data: vms } = await supabase
@@ -72,16 +186,24 @@ async function checkVMExpiry(supabase: any) {
         : `VM Expiring in ${daysUntilExpiry} Day${daysUntilExpiry > 1 ? 's' : ''}`
 
       // Format expiry date for readability
-      const formattedExpiry = expiryDate.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric', 
-        year: 'numeric' 
+      const formattedExpiry = expiryDate.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
       })
 
       // Build message with days
-      const daysMessage = daysUntilExpiry === 0 
+      const daysMessage = daysUntilExpiry === 0
         ? 'expiring today'
         : `expiring in ${daysUntilExpiry} day${daysUntilExpiry > 1 ? 's' : ''}`
+
+
+      // Get customer email
+      const { data: customer } = await supabase
+        .from('customers')
+        .select('email, name')
+        .eq('id', vm.customer_id)
+        .single()
 
       const insertResult = await supabase.from('alerts').insert({
         sev: severity,
@@ -100,6 +222,20 @@ async function checkVMExpiry(supabase: any) {
         console.error('Error inserting VM alert:', insertResult.error)
         continue
       }
+
+      // Send email to customer
+      if (customer?.email) {
+        await sendExpiryEmail({
+          to: customer.email,
+          customerName: customer.name,
+          type: 'vm',
+          entityName: vm.hostname,
+          expiryDate: formattedExpiry,
+          daysUntilExpiry,
+          entityId: vm.legacy_id || vm.id
+        })
+      }
+      
       alertsCreated++
     } else if (daysUntilExpiry < 0 && daysUntilExpiry >= -30) {
       // Grace period - expired
@@ -108,14 +244,21 @@ async function checkVMExpiry(supabase: any) {
       const title = `VM Expired - Grace Period`
 
       // Format expiry date for readability
-      const formattedExpiry = expiryDate.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric', 
-        year: 'numeric' 
+      const formattedExpiry = expiryDate.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
       })
 
       // Build message with days
       const daysMessage = `expired ${Math.abs(daysUntilExpiry)} day${Math.abs(daysUntilExpiry) > 1 ? 's' : ''} ago`
+
+      // Get customer email
+      const { data: customer } = await supabase
+        .from('customers')
+        .select('email, name')
+        .eq('id', vm.customer_id)
+        .single()
 
       const insertResult = await supabase.from('alerts').insert({
         sev: severity,
@@ -134,6 +277,20 @@ async function checkVMExpiry(supabase: any) {
         console.error('Error inserting VM alert:', insertResult.error)
         continue
       }
+
+      // Send email to customer
+      if (customer?.email) {
+        await sendExpiryEmail({
+          to: customer.email,
+          customerName: customer.name,
+          type: 'vm',
+          entityName: vm.hostname,
+          expiryDate: formattedExpiry,
+          daysUntilExpiry,
+          entityId: vm.legacy_id || vm.id
+        })
+      }
+
       alertsCreated++
     }
   }
@@ -183,21 +340,28 @@ async function checkAddonExpiry(supabase: any) {
       // Expiring soon
       const severity = daysUntilExpiry <= 1 ? 'urgent' : daysUntilExpiry <= 7 ? 'warn' : 'info'
 
-      const title = daysUntilExpiry === 0 
+      const title = daysUntilExpiry === 0
         ? `Add-on Service Expiring Today`
         : `Add-on Service Expiring in ${daysUntilExpiry} Day${daysUntilExpiry > 1 ? 's' : ''}`
 
       // Format expiry date for readability
-      const formattedExpiry = expiryDate.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric', 
-        year: 'numeric' 
+      const formattedExpiry = expiryDate.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
       })
 
       // Build message with days
-      const daysMessage = daysUntilExpiry === 0 
+      const daysMessage = daysUntilExpiry === 0
         ? 'expiring today'
         : `expiring in ${daysUntilExpiry} day${daysUntilExpiry > 1 ? 's' : ''}`
+
+      // Get customer email
+      const { data: customer } = await supabase
+        .from('customers')
+        .select('email, name')
+        .eq('id', addon.customer_id)
+        .single()
 
       const insertResult = await supabase.from('alerts').insert({
         sev: severity,
@@ -216,6 +380,20 @@ async function checkAddonExpiry(supabase: any) {
         console.error('Error inserting add-on alert:', insertResult.error)
         continue
       }
+
+      // Send email to customer
+      if (customer?.email) {
+        await sendExpiryEmail({
+          to: customer.email,
+          customerName: customer.name,
+          type: 'addon',
+          entityName: `Add-on ${addon.legacy_id || addon.id}`,
+          expiryDate: formattedExpiry,
+          daysUntilExpiry,
+          entityId: addon.legacy_id || addon.id
+        })
+      }
+
       alertsCreated++
     } else if (daysUntilExpiry < 0 && daysUntilExpiry >= -30) {
       // Grace period - expired
@@ -224,14 +402,21 @@ async function checkAddonExpiry(supabase: any) {
       const title = `Add-on Service Expired - Grace Period`
 
       // Format expiry date for readability
-      const formattedExpiry = expiryDate.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric', 
-        year: 'numeric' 
+      const formattedExpiry = expiryDate.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
       })
 
       // Build message with days
       const daysMessage = `expired ${Math.abs(daysUntilExpiry)} day${Math.abs(daysUntilExpiry) > 1 ? 's' : ''} ago`
+
+      // Get customer email
+      const { data: customer } = await supabase
+        .from('customers')
+        .select('email, name')
+        .eq('id', addon.customer_id)
+        .single()
 
       const insertResult = await supabase.from('alerts').insert({
         sev: severity,
@@ -250,6 +435,20 @@ async function checkAddonExpiry(supabase: any) {
         console.error('Error inserting add-on alert:', insertResult.error)
         continue
       }
+
+      // Send email to customer
+      if (customer?.email) {
+        await sendExpiryEmail({
+          to: customer.email,
+          customerName: customer.name,
+          type: 'addon',
+          entityName: `Add-on ${addon.legacy_id || addon.id}`,
+          expiryDate: formattedExpiry,
+          daysUntilExpiry,
+          entityId: addon.legacy_id || addon.id
+        })
+      }
+
       alertsCreated++
     }
   }

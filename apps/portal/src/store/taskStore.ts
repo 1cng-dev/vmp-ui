@@ -206,42 +206,32 @@ const useTaskStore = (): TaskStoreValue => {
       const qty = t.qty || 1;
       const vmIds: string[] = [];
 
-      // Generate legacy_id for VMs (format: VM-XXXX) with retry for race conditions
-      const generateLegacyId = async (attempt = 0): Promise<string> => {
-        const { data: existingVMs } = await supabase
-          .from("vms")
-          .select("legacy_id")
-          .order("created_at", { ascending: false })
-          .limit(1);
+      for (let i = 0; i < qty; i++) {
+        const assignedVmid = vmDetails.assigned_vmids[i] || null;
 
-        const lastLegacyId = existingVMs?.[0]?.legacy_id;
-        let nextNum = 1001;
-        if (lastLegacyId) {
-          const match = lastLegacyId.match(/VM-(\d+)/);
-          if (match) {
-            nextNum = parseInt(match[1]) + 1;
+        // Check for duplicate assigned VM ID (Proxmox ID)
+        if (assignedVmid) {
+          const { data: existingVM } = await supabase
+            .from("vms")
+            .select("id")
+            .eq("assigned_vmid", assignedVmid)
+            .maybeSingle();
+
+          if (existingVM) {
+            throw new Error(`Proxmox VM ID ${assignedVmid} is already in use. Please use a different VM ID.`);
+          }
+
+          const { data: existingOwnership } = await supabase
+            .from("vm_ownership")
+            .select("id")
+            .eq("vmid", assignedVmid)
+            .maybeSingle();
+
+          if (existingOwnership) {
+            throw new Error(`Proxmox VM ID ${assignedVmid} is already assigned in ownership records. Please use a different VM ID.`);
           }
         }
 
-        const legacyId = `VM-${nextNum + attempt}`;
-
-        // Check if this legacy_id already exists
-        const { data: existing } = await supabase
-          .from("vms")
-          .select("id")
-          .eq("legacy_id", legacyId)
-          .maybeSingle();
-
-        if (existing) {
-          // Retry with incremented number
-          return generateLegacyId(attempt + 1);
-        }
-
-        return legacyId;
-      };
-
-      for (let i = 0; i < qty; i++) {
-        const legacyId = await generateLegacyId(i);
         const vmData = {
           hostname: `${t.hostname}-${i + 1}`,
           public_ip: vmDetails.publicIps[i] || vmDetails.publicIps[0],
@@ -260,8 +250,8 @@ const useTaskStore = (): TaskStoreValue => {
           duration: durationValue,
           start_date: start_date,
           end_date: end_date,
-          legacy_id: legacyId,
-          assigned_vmid: vmDetails.assigned_vmids[i] || null,
+          legacy_id: undefined, // Let database trigger generate qemu/3xxx format
+          assigned_vmid: assignedVmid,
           node: vmDetails.node || "pve1", // ADD THIS
           pmx_type: vmDetails.pmx_type || "qemu", // ADD THIS
           backup_enabled: t.backup_enabled || false,

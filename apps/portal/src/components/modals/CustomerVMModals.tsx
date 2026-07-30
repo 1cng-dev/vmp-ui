@@ -8,6 +8,7 @@ import useUIStore from '../../store/uiStore'
 import { useAddonServiceStore } from '../../store/addonServiceStore'
 import useAddonRequestStore from '../../store/addonRequestStore'
 import { createAlert } from '../../services/notificationService'
+import { sendVMRequestEmail } from '../../services/emailService'
 import Icon from '../../lib/icons'
 import { formatMMK } from '../ui/ui'
 import { supabase } from '@/lib/supabase'
@@ -150,6 +151,16 @@ const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, me }) => {
       }).select().single()
 
       if (error) throw error
+
+      // Send email to customer about VM request
+      await sendVMRequestEmail({
+        to: me.email,
+        customerName: me.name,
+        requestId: insertedData.legacy_id || insertedData.id,
+        requestType: 'Renewal',
+        hostname: (vm as any).hostname || vm.name,
+        details: `Your renewal request for ${months} month${months > 1 ? 's' : ''} has been received and is being processed.`
+      })
 
       // Create add-on request if selected (single record with both CPFS and CCIS)
       if (selectedAddons.cpfs || selectedAddons.ccis) {
@@ -481,6 +492,16 @@ const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, me }) => {
         const { data: insertedData, error } = await supabase.from('vm_requests').insert(requestData).select().maybeSingle()
 
         if (error) throw error
+
+        // Send email to customer about VM request
+        await sendVMRequestEmail({
+          to: me.email,
+          customerName: me.name,
+          requestId: insertedData.legacy_id || insertedData.id,
+          requestType: 'Change Plan',
+          hostname: currentHostname,
+          details: `Your change plan request for ${currentHostname} has been received and is being processed.`
+        })
 
         // Create alert for team roles (customer_id = NULL so customer doesn't see it)
         await createAlert({

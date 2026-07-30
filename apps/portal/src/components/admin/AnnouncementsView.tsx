@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import useUIStore from '../../store/uiStore'
 import useAnnouncementStore from '../../store/announcementStore'
+import { sendAnnouncementEmail } from '../../services/emailService'
+import { supabase } from '../../lib/supabase'
 import Icon from '../../lib/icons'
 import { CircularSpinner } from '../ui/ui'
 
@@ -20,13 +22,33 @@ export const AnnouncementsView: React.FC = () => {
   const submit = async () => {
     setSubmitting(true)
     try {
-      await addAnnouncement({
+      // Create announcement
+      const announcement = await addAnnouncement({
         title: form.title,
         body: form.body,
         status: 'Sent',
         sent_at: null,
         created_by: null,
       })
+
+      // Get all active customers with emails
+      const { data: customers } = await supabase
+        .from('customers')
+        .select('email, name')
+        .eq('status', 'Active')
+        .not('email', 'is', null)
+
+      // Send email to all customers
+      for (const customer of customers || []) {
+        await sendAnnouncementEmail({
+          to: customer.email,
+          customerName: customer.name,
+          title: form.title,
+          body: form.body,
+          announcementId: announcement
+        })
+      }
+
       toast('Announcement sent to all customers', 'ok')
       setComposing(false)
       setForm({ title: '', body: '' })

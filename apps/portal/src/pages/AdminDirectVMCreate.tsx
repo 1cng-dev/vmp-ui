@@ -13,7 +13,7 @@ import { supabase } from "../lib/supabase";
 
 const AdminDirectVMCreate: React.FC = () => {
   const navigate = useNavigate();
-  const { addVM, deleteVM } = useVMStore();
+  const { addVM, deleteVM, checkDuplicateLegacyId } = useVMStore();
   const { addAddonService } = useAddonServiceStore();
   const { customers } = useCustomerStore();
   const { team } = useTeamStore();
@@ -165,10 +165,10 @@ const AdminDirectVMCreate: React.FC = () => {
   const selectedOS =
     f.os === "custom"
       ? {
-          name: f.customOsName || "Other OS",
-          accent: "var(--accent)",
-          versions: [f.customOsVersion || "Custom version"],
-        }
+        name: f.customOsName || "Other OS",
+        accent: "var(--accent)",
+        versions: [f.customOsVersion || "Custom version"],
+      }
       : osCatalog.find((o) => o.id === f.os) || osCatalog[0];
   const selectedZone = zones.find((z) => z.id === f.zone) || zones[0];
   const hostValid = /^[a-z0-9][a-z0-9-]{1,30}$/i.test(f.hostname);
@@ -230,6 +230,11 @@ const AdminDirectVMCreate: React.FC = () => {
     setShowSummary(true);
   };
 
+  const validateLegacyIdFormat = (legacyId: string): boolean => {
+    const pattern = /^qemu\/\d{4}$/
+    return pattern.test(legacyId)
+  }
+
   const confirmSubmit = async () => {
     let vmId: string | null = null;
     try {
@@ -275,17 +280,41 @@ const AdminDirectVMCreate: React.FC = () => {
         return;
       }
 
-      // Check for duplicate legacy_id
-      const { data: existingVM } = await supabase
-        .from("vms")
-        .select("id")
-        .eq("legacy_id", f.legacy_id)
-        .maybeSingle();
+      // Check for duplicate assigned VM ID (Proxmox ID)
+      if (assignedVmid) {
+        const { data: existingVM } = await supabase
+          .from("vms")
+          .select("id")
+          .eq("assigned_vmid", assignedVmid)
+          .maybeSingle();
 
-      if (existingVM) {
-        toast("Legacy ID already exists. Please use a different ID.", "bad");
-        setIsSubmitting(false);
-        return;
+        if (existingVM) {
+          toast(`Proxmox VM ID ${assignedVmid} is already in use. Please use a different VM ID.`, "bad");
+          setIsSubmitting(false);
+          return;
+        }
+
+        const { data: existingOwnership } = await supabase
+          .from("vm_ownership")
+          .select("id")
+          .eq("vmid", assignedVmid)
+          .maybeSingle();
+
+        if (existingOwnership) {
+          toast(`Proxmox VM ID ${assignedVmid} is already assigned in ownership records. Please use a different VM ID.`, "bad");
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      // Check for duplicate legacy_id
+      if (f.legacy_id) {
+        const isDuplicate = checkDuplicateLegacyId(f.legacy_id);
+        if (isDuplicate) {
+          toast("Legacy ID already exists. Please use a different ID.", "bad");
+          setIsSubmitting(false);
+          return;
+        }
       }
 
       // Calculate expiry date: start_date + duration + 1 day
@@ -1891,10 +1920,10 @@ const AdminDirectVMCreate: React.FC = () => {
                                 set(
                                   "ccis_package",
                                   plan.id as
-                                    | "basic"
-                                    | "standard"
-                                    | "professional"
-                                    | "enterprise",
+                                  | "basic"
+                                  | "standard"
+                                  | "professional"
+                                  | "enterprise",
                                 )
                               }
                               padding={16 as any}

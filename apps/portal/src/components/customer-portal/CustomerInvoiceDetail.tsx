@@ -318,9 +318,9 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
               </div>
             </div>
             <div style={{ padding: 24, textAlign: 'center' }}>
-              <img 
-                src="/assets/SCAN ME!!.png" 
-                alt="Payment QR Code" 
+              <img
+                src="/assets/scan.png"
+                alt="Payment QR Code"
                 style={{ maxWidth: '100%', height: 'auto', marginBottom: 16 }}
               />
               <div className="text-sm text-mute mb-2">Scan to pay</div>

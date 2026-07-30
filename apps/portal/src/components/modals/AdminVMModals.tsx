@@ -36,7 +36,7 @@ interface NewVMModalProps {
 }
 
 const NewVMModal: React.FC<NewVMModalProps> = ({ onClose }) => {
-  const { addVM } = useVMStore()
+  const { addVM, checkDuplicateLegacyId } = useVMStore()
   const { customers } = useCustomerStore()
   const { toast } = useUIStore()
   const [step, setStep] = useState(1)
@@ -96,6 +96,7 @@ const NewVMModal: React.FC<NewVMModalProps> = ({ onClose }) => {
   const computedPrice = f.vcpu * 20000 + f.ram * 6000 + f.storage * 200 + (f.bandwidth === '1 Gbps' ? 30000 : f.bandwidth === '500 Mbps' ? 10000 : 0)
 
   const submit = () => {
+
     const expiry = new Date()
     const months: Record<string, number> = { '14-day trial': 0.5, '6 months': 6, '1 year': 12, '2 years': 24 }
     expiry.setMonth(expiry.getMonth() + (months[f.subscription] || 12))
@@ -104,8 +105,8 @@ const NewVMModal: React.FC<NewVMModalProps> = ({ onClose }) => {
       hostname: f.name || `vm-${Date.now()}`,
       status: 'Active',
       expiry: expiry.toISOString().slice(0, 10),
-                  public_ip: f.publicAccess ? (f.publicIp || `203.81.64.${100 + Math.floor(Math.random() * 100)}`) : '—',
-                })
+      public_ip: f.publicAccess ? (f.publicIp || `203.81.64.${100 + Math.floor(Math.random() * 100)}`) : '—',
+    })
     toast(`VM ${f.name} created and queued for provisioning`, 'ok')
     onClose()
   }
@@ -749,7 +750,7 @@ interface NewCustomerModalProps {
 }
 
 const NewCustomerModal: React.FC<NewCustomerModalProps> = ({ onClose, onPasswordGenerated }) => {
-  const { addCustomerWithAuth } = useCustomerStore()
+  const { addCustomerWithAuth, checkDuplicateLegacyId } = useCustomerStore()
   const { toast } = useUIStore()
   const [f, setF] = useState({
     legacyId: '',
@@ -786,8 +787,29 @@ const NewCustomerModal: React.FC<NewCustomerModalProps> = ({ onClose, onPassword
     return password
   }
 
+  const validateLegacyIdFormat = (legacyId: string): boolean => {
+    const pattern = /^1CNG-VPS-\d{4}$/
+    return pattern.test(legacyId)
+  }
+
   const submit = async () => {
+
+    if (f.legacyId && !validateLegacyIdFormat(f.legacyId)) {
+      toast('Legacy ID must be in format: 1CNG-VPS-00xx', 'error')
+      return
+    }
+
     setLoading(true)
+
+    if (f.legacyId) {
+      const isDuplicate = checkDuplicateLegacyId(f.legacyId)
+      if (isDuplicate) {
+        toast('Legacy ID already exists. Please use a different ID.', 'error')
+        setLoading(false)
+        return
+      }
+    }
+
     try {
       const tempPassword = generateTempPassword()
       await addCustomerWithAuth({
@@ -1214,7 +1236,7 @@ const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({ onClose, presetCustom
           initialMonths = vmRequest.duration
         }
       }
-      
+
       // Also check for addon_request_id (can coexist with vm_request_id for addon services)
       if ((presetQuote as any).addon_request_id) {
         initialAddonRequestIds = [(presetQuote as any).addon_request_id]
