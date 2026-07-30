@@ -44,6 +44,8 @@ const AdminDirectVMModal: React.FC<AdminDirectVMModalProps> = ({ onClose }) => {
     nics: [{ id: 1, label: 'NIC 1', type: 'Public', vlan: 'Auto-assign' }],
     public_ip_required: true,
     firewall_ports: ['22', '80', '443'],
+    firewall_outbound_allow_all: true,
+    firewall_outbound_custom_ports: [] as string[],
     // Step 5: Backup
     backup_enabled: false,
     backup_type: 'daily',
@@ -147,6 +149,8 @@ const AdminDirectVMModal: React.FC<AdminDirectVMModalProps> = ({ onClose }) => {
         zone: f.zone,
         public_ip_required: f.public_ip_required,
         firewall_ports: f.firewall_ports,
+        firewall_outbound_allow_all: f.firewall_outbound_allow_all,
+        firewall_outbound_custom_ports: f.firewall_outbound_custom_ports,
         // Other
         purpose: f.purpose,
         sizing: f.sizing,

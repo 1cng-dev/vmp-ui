@@ -91,9 +91,18 @@ export const CustomerRequestDetail: React.FC<CustomerRequestDetailProps> = ({ re
                 )}
                 {t.firewall_ports && t.firewall_ports.length > 0 && (
                   <>
-                    <dt>Firewall Ports</dt><dd className="mono">{t.firewall_ports.join(', ')}</dd>
+                    <dt>Firewall Ports (Inbound)</dt><dd className="mono">{t.firewall_ports.join(', ')}</dd>
                   </>
                 )}
+                <>
+                  <dt>Outbound Firewall</dt>
+                  <dd className="mono">
+                    {t?.firewall_outbound_allow_all ? 'Allow All' : 'Custom'}
+                    {t?.firewall_outbound_allow_all
+                      ? ` (${t.firewall_ports?.join(', ') || 'none'})`
+                      : ` (${t.firewall_outbound_custom_ports?.join(', ') || 'none'})`}
+                  </dd>
+                </>
                 {t.legacy_id && (
                   <>
                     <dt>Request ID</dt><dd className="mono">{t.legacy_id}</dd>

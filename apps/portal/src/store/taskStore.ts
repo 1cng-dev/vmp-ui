@@ -268,6 +268,8 @@ const useTaskStore = (): TaskStoreValue => {
           nics: t.nics,
           public_ip_required: t.public_ip_required,
           firewall_ports: t.firewall_ports,
+          firewall_outbound_allow_all: t.firewall_outbound_allow_all,
+          firewall_outbound_custom_ports: t.firewall_outbound_custom_ports,
           // Copy other fields from vm_request
           purpose: t.purpose,
           sizing: t.sizing,

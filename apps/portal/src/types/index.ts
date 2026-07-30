@@ -311,6 +311,8 @@ export interface NewVMInput {
   nics?: any[];
   public_ip_required?: boolean;
   firewall_ports?: string[];
+  firewall_outbound_allow_all?: boolean;
+  firewall_outbound_custom_ports?: string[];
   purpose?: string;
   sizing?: "Standard" | "High Performance";
   storage_partitions?: string;

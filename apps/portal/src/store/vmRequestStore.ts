@@ -24,6 +24,8 @@ export interface VMRequest {
   nics: any[]
   public_ip_required: boolean
   firewall_ports: string[]
+  firewall_outbound_allow_all: boolean
+  firewall_outbound_custom_ports: string[]
   backup_enabled: boolean
   backup_type: string
   notes: string

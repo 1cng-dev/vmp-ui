@@ -47,6 +47,8 @@ export interface VM {
   zone?: string;
   nics?: any;
   firewall_ports?: string[];
+  firewall_outbound_allow_all?: boolean;
+  firewall_outbound_custom_ports?: string[];
   public_ip_required?: boolean;
   purpose?: string;
   sizing?: string;
@@ -77,6 +79,8 @@ export interface VMRequest {
   nics?: any[];
   public_ip_required?: boolean;
   firewall_ports?: string[];
+  firewall_outbound_allow_all: boolean
+  firewall_outbound_custom_ports: string[]
   backup_enabled?: boolean;
   backup_type?: string;
   notes?: string;
@@ -284,6 +288,8 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         nics: vm.nics,
         public_ip_required: vm.public_ip_required,
         firewall_ports: vm.firewall_ports,
+        firewall_outbound_allow_all: vm.firewall_outbound_allow_all,
+        firewall_outbound_custom_ports: vm.firewall_outbound_custom_ports,
         purpose: vm.purpose,
         sizing: vm.sizing,
         storage_partitions: vm.storage_partitions,

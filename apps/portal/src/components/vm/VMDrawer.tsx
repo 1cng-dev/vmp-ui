@@ -19,10 +19,10 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
   const { customers } = useCustomerStore()
   const { getAddonServicesForVM } = useAddonServiceStore()
   const { toast } = useUIStore()
+  const [tab, setTab] = useState('overview')
   const v = vms.find((x: any) => x.id === vmId)
   if (!v) return null
   const c = customers.find((c: any) => c.id === v.customer_id)
-  const [tab, setTab] = useState('overview')
 
   // Get data from store instead of fetching directly
   const vmRequest = v.vm_request_id ? getVMRequest(v.vm_request_id) : null
@@ -150,7 +150,7 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
                 </dl>
               </div></div>
               <div className="card">
-                <div className="card-head"><h3 className="card-title">Allowed ports</h3></div>
+                <div className="card-head"><h3 className="card-title">Allowed ports (Inbound)</h3></div>
                 <div className="card-body flush">
                   <table className="tbl">
                     <thead><tr><th>Port</th><th>Protocol</th><th>Source</th></tr></thead>
@@ -165,6 +165,24 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
                       {(!(v as any).firewall_ports || (v as any).firewall_ports.length === 0) && (
                         <tr><td colSpan={3}><div className="empty"><div className="sub">No specific firewall ports defined.</div></div></td></tr>
                       )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div className="card">
+                <div className="card-head"><h3 className="card-title">Outbound firewall</h3></div>
+                <div className="card-body flush">
+                  <table className="tbl">
+                    <thead><tr><th>Policy</th><th>Ports</th></tr></thead>
+                    <tbody>
+                      <tr>
+                        <td className="fw-6">{(v as any).firewall_outbound_allow_all ? 'Allow All (Inbound Ports)' : 'Custom'}</td>
+                        <td className="mono">
+                          {(v as any).firewall_outbound_allow_all
+                            ? (v as any).firewall_ports?.join(', ') || '—'
+                            : (v as any).firewall_outbound_custom_ports?.join(', ') || '—'}
+                        </td>
+                      </tr>
                     </tbody>
                   </table>
                 </div>

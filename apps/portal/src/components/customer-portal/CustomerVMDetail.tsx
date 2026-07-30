@@ -135,7 +135,7 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
           <div className="card-body">
             <div className="grid-2" style={{ gap: 24 }}>
               <div>
-                <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Public access</div>
+                <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Network details</div>
                 <dl className="dl">
                   <dt>Public IPv4</dt><dd className="mono fw-6">{vm.public_ip || '—'}</dd>
                   <dt>Private IPv4</dt><dd className="mono">{vm.private_ip || '—'}</dd>
@@ -151,12 +151,10 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
                       return '—'
                     }
                   })()}</dd>
-                  <dt>Public access</dt><dd><span className="pill ok"><span className="dot" />Enabled</span></dd>
-                  <dt>Firewall policy</dt><dd className="mono">Default</dd>
                 </dl>
               </div>
               <div>
-                <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Allowed ports</div>
+                <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Firewall — Inbound</div>
                 <div className="card" style={{ borderColor: 'var(--line)' }}>
                   <div className="card-body flush">
                     <table className="tbl">
@@ -194,6 +192,36 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
                         })()}
                       </tbody>
                     </table>
+                  </div>
+                </div>
+                <div style={{ marginTop: 16 }}>
+                  <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Firewall — Outbound</div>
+                  <div className="card" style={{ borderColor: 'var(--line)' }}>
+                    <div className="card-body flush">
+                      <table className="tbl">
+                        <thead><tr><th>Policy</th><th>Ports</th></tr></thead>
+                        <tbody>
+                          <tr>
+                            <td className="fw-6">
+                              {(vm as any).firewall_outbound_allow_all ? 'Allow All (Inbound Ports)' : 'Custom'}
+                            </td>
+                            <td className="mono">
+                              {(vm as any).firewall_outbound_allow_all
+                                ? (() => {
+                                    try {
+                                      const src = vmRequest?.firewall_ports ?? (vm as any).firewall_ports
+                                      const arr = Array.isArray(src) ? src : (typeof src === 'string' ? JSON.parse(src) : [])
+                                      return arr?.join(', ') || '—'
+                                    } catch {
+                                      return '—'
+                                    }
+                                  })()
+                                : (vm as any).firewall_outbound_custom_ports?.join(', ') || '—'}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
               </div>

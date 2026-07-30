@@ -24,6 +24,7 @@ const AdminDirectVMCreate: React.FC = () => {
   const [customDuration, setCustomDuration] = useState("");
   const [isCustomDuration, setIsCustomDuration] = useState(false);
   const [customPort, setCustomPort] = useState("");
+  const [customOutboundPort, setCustomOutboundPort] = useState("");
 
   const getDurationLabel = (months: number) => {
     const labels: Record<number, string> = {
@@ -61,6 +62,9 @@ const AdminDirectVMCreate: React.FC = () => {
     zone: "yangon-dc1",
     nics: [{ id: 1, label: "NIC 1", description: "" }],
     firewallPorts: ["22", "80", "443"],
+    firewallOutboundAllowAll: true,
+    firewallOutboundCustomPorts: [] as string[],
+    customOutboundPort: "",
     start_date: new Date().toISOString().slice(0, 10),
     legacy_id: "",
     assigned_vmid: "",
@@ -226,6 +230,31 @@ const AdminDirectVMCreate: React.FC = () => {
     );
   };
 
+  const toggleOutboundPort = (port: string) => {
+    const ports = f.firewallOutboundCustomPorts;
+    set(
+      "firewallOutboundCustomPorts",
+      ports.includes(port)
+        ? ports.filter((p: string) => p !== port)
+        : [...ports, port],
+    );
+  };
+
+  const addCustomOutboundPort = () => {
+    const port = customOutboundPort.trim();
+    if (port && !f.firewallOutboundCustomPorts.includes(port)) {
+      set("firewallOutboundCustomPorts", [...f.firewallOutboundCustomPorts, port]);
+      setCustomOutboundPort("");
+    }
+  };
+
+  const removeCustomOutboundPort = (port: string) => {
+    set(
+      "firewallOutboundCustomPorts",
+      f.firewallOutboundCustomPorts.filter((p: string) => p !== port),
+    );
+  };
+
   const submit = async () => {
     setShowSummary(true);
   };
@@ -344,6 +373,8 @@ const AdminDirectVMCreate: React.FC = () => {
         os_version: f.os === "custom" ? f.customOsVersion : f.osVersion,
         nics: f.nics,
         firewall_ports: f.firewallPorts,
+        firewall_outbound_allow_all: f.firewallOutboundAllowAll,
+        firewall_outbound_custom_ports: f.firewallOutboundCustomPorts,
         backup_enabled: f.backupEnabled,
         backup_type: f.backupType,
         public_ip_required: f.publicIpRequired,
@@ -679,12 +710,26 @@ const AdminDirectVMCreate: React.FC = () => {
               </div>
               <div className="grid-2" style={{ gap: 12 }}>
                 <div>
-                  <div className="text-xs text-mute mb-1">Firewall ports</div>
+                  <div className="text-xs text-mute mb-1">Firewall inbound ports</div>
                   <div className="fw-6 text-sm">
                     {f.firewallPorts.join(", ") || "none"}
                   </div>
                 </div>
+                <div>
+                  <div className="text-xs text-mute mb-1">Firewall outbound</div>
+                  <div className="fw-6 text-sm">
+                    {f.firewallOutboundAllowAll ? 'Allow All (Inbound Ports)' : 'Custom'}
+                  </div>
+                </div>
               </div>
+              {!f.firewallOutboundAllowAll && (
+                <div>
+                  <div className="text-xs text-mute mb-1">Firewall outbound ports</div>
+                  <div className="fw-6 text-sm">
+                    {f.firewallOutboundCustomPorts.join(", ") || "none"}
+                  </div>
+                </div>
+              )}
             </div>
 
             {f.addon_enabled && (
@@ -1604,6 +1649,93 @@ const AdminDirectVMCreate: React.FC = () => {
           </div>
         </div>
 
+        {/* Firewall rules — outbound */}
+        <div className="card">
+          <div className="card-head">
+            <h3 className="card-title">Firewall rules — outbound</h3>
+          </div>
+          <div className="card-body">
+            <div className="text-xs text-mute fw-6 mb-3"
+              style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+              Outbound Configuration
+            </div>
+
+            {/* Allow All Toggle */}
+            <div className="flex center between" style={{ padding: '12px 0', borderBottom: '1px solid var(--line)' }}>
+              <div>
+                <div className="fw-6 text-sm">Allow All (Inbound Ports)</div>
+                <div className="text-xs text-mute">Allow outbound to all selected inbound ports: {f.firewallPorts.join(', ')}</div>
+              </div>
+              <span className={`toggle ${f.firewallOutboundAllowAll ? 'on' : ''}`}
+                onClick={() => set('firewallOutboundAllowAll', !f.firewallOutboundAllowAll)} />
+            </div>
+
+            {/* Custom Ports (shown when Allow All is OFF) */}
+            {!f.firewallOutboundAllowAll && (
+              <div style={{ marginTop: 16 }}>
+                <div className="text-xs text-mute fw-6 mb-3"
+                  style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                  Custom outbound ports
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                  {commonPorts.map((p) => {
+                    const active = f.firewallOutboundCustomPorts.includes(p.port);
+                    return (
+                      <button
+                        key={p.port}
+                        onClick={() => toggleOutboundPort(p.port)}
+                        style={{
+                          padding: '10px 12px',
+                          background: active ? 'var(--accent-soft)' : 'var(--surface)',
+                          border: active ? '1.5px solid var(--accent)' : '1px solid var(--line)',
+                          borderRadius: 8,
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        <div className="fw-6 text-sm">{p.port}</div>
+                        <div className="text-xs text-mute">{p.label}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex gap-2" style={{ marginTop: 12 }}>
+                  <input
+                    type="text"
+                    value={customOutboundPort}
+                    onChange={(e) => setCustomOutboundPort(e.target.value)}
+                    placeholder="Add custom port (e.g., 8080)"
+                    style={{ flex: 1, padding: '8px 12px', border: '1px solid var(--line)', borderRadius: 6 }}
+                  />
+                  <button
+                    className="btn sm"
+                    onClick={addCustomOutboundPort}
+                    disabled={!customOutboundPort.trim()}
+                  >
+                    Add
+                  </button>
+                </div>
+
+                {f.firewallOutboundCustomPorts.length > 0 && (
+                  <div style={{ marginTop: 16, padding: 12, background: 'var(--surface-2)', borderRadius: 8 }}>
+                    <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>Selected outbound ports</div>
+                    <div className="flex gap-1 wrap">
+                      {f.firewallOutboundCustomPorts.map((p) => (
+                        <span key={p} className="pill accent" style={{ paddingRight: 4 }}>
+                          <span className="mono">{p}</span>
+                          <button className="icon-btn" style={{ width: 16, height: 16, marginLeft: 2 }} onClick={() => removeCustomOutboundPort(p)}><Icon name="x" size={9} /></button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Backup */}
         <div className="card">
           <div className="card-head">
@@ -1965,7 +2097,7 @@ const AdminDirectVMCreate: React.FC = () => {
                 <input
                   value={f.legacy_id}
                   onChange={(e) => set("legacy_id", e.target.value)}
-                  placeholder="e.g. AD-1024"
+                  placeholder="e.g. qemu/0000"
                 />
               </div>
               <div className="field">

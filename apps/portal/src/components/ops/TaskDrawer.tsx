@@ -664,10 +664,19 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                             )}
                             {t?.firewall_ports && t.firewall_ports.length > 0 && (
                               <>
-                                <dt>Firewall Ports</dt>
+                                <dt>Firewall Ports (Inbound)</dt>
                                 <dd className="mono">{t.firewall_ports.join(', ')}</dd>
                               </>
                             )}
+                            <>
+                              <dt>Outbound Firewall</dt>
+                              <dd className="mono">
+                                {t?.firewall_outbound_allow_all ? 'Allow All' : 'Custom'}
+                                {t?.firewall_outbound_allow_all
+                                  ? ` (${t.firewall_ports?.join(', ') || 'none'})`
+                                  : ` (${t.firewall_outbound_custom_ports?.join(', ') || 'none'})`}
+                              </dd>
+                            </>
                           </dl>
 
                           {t?.storage_partitions && (
