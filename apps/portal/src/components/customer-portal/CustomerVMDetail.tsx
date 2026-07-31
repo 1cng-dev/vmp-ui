@@ -53,13 +53,12 @@ const formatDuration = (duration: string | number | undefined | null): string =>
 }
 
 export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialVm, onClose, onRenew, me }) => {
-  const { vms, startVM, stopVM, restartVM, snapshotVM, getVMRequest } = useVMStore()
+  const { vms, startVM, stopVM, restartVM, getVMRequest } = useVMStore()
   const { getAddonServicesForVM } = useAddonServiceStore()
   const { toast } = useUIStore()
   const vm = vms.find((v: any) => v.id === initialVm.id) || initialVm
   const [tab, setTab] = useState('overview')
   const [revealCreds, setRevealCreds] = useState(false)
-  const [snapName, setSnapName] = useState('')
   const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [convertToPaidOpen, setConvertToPaidOpen] = useState(false)
 
@@ -77,8 +76,6 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
   const creds = vm.username && vm.password ? [
     { type: 'SSH', user: vm.username, pass: vm.password }
   ] : []
-
-  const snapshots = Array.isArray((vm as any).snapshots) ? (vm as any).snapshots : []
 
   const openConsole = () => {
     const params = new URLSearchParams({
@@ -134,12 +131,11 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
 
       <div className="card">
         <div className="tabs">
-          {['overview', 'specs', 'network', 'backups', 'credentials', 'snapshots', 'usage', 'addons'].map(t => {
+          {['overview', 'specs', 'network', 'backups', 'credentials', 'usage', 'addons'].map(t => {
             const label = t === 'addons' ? 'Add-on Services' : t.charAt(0).toUpperCase() + t.slice(1)
             return (
               <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
                 {label}
-                {t === 'snapshots' && <span className="count">{snapshots.length}</span>}
               </button>
             )
           })}
@@ -309,35 +305,6 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
               <button className="btn" onClick={() => setRevealCreds(!revealCreds)}><Icon name="eye" size={12} />{revealCreds ? 'Hide' : 'Reveal'} all</button>
               <button className="btn" onClick={() => toast('Password rotation requested — Sales will contact you', 'info')}><Icon name="refresh" size={12} />Request rotation</button>
             </div>
-          </div>
-        )}
-
-        {tab === 'snapshots' && (
-          <div className="card-body">
-            <div className="flex gap-2 mb-3">
-              <input value={snapName} onChange={e => setSnapName(e.target.value)} placeholder="Snapshot name (optional)" style={{ flex: 1, padding: '7px 10px', border: '1px solid var(--line)', borderRadius: 6, fontSize: 12.5 }} />
-              <button className="btn primary" onClick={() => { snapshotVM(vm.id, snapName); setSnapName('') }}><Icon name="plus" size={12} />Create snapshot</button>
-            </div>
-            <table className="tbl">
-              <thead><tr><th>Snapshot ID</th><th>Created</th><th className="right">Size</th><th>Type</th><th></th></tr></thead>
-              <tbody>
-                {snapshots.map((s: any) => (
-                  <tr key={s.id}>
-                    <td className="mono text-xs">{s.id}</td>
-                    <td className="tnum text-sm">{s.date}</td>
-                    <td className="right tnum text-sm">{s.size} GB</td>
-                    <td><span className="pill subtle">{s.type}</span></td>
-                    <td className="right">
-                      <button className="btn sm" onClick={() => toast(`Restoring from ${s.id}…`, 'info')}>Restore</button>
-                      <button className="btn sm danger" style={{ marginLeft: 4 }} onClick={() => toast('Snapshot delete request submitted', 'info')}>Delete</button>
-                    </td>
-                  </tr>
-                ))}
-                {snapshots.length === 0 && (
-                  <tr><td colSpan={5}><div className="empty"><div className="sub">No snapshots found.</div></div></td></tr>
-                )}
-              </tbody>
-            </table>
           </div>
         )}
 
