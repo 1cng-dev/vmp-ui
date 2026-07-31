@@ -51,7 +51,6 @@ export function initSocketServer(httpServer: HttpServer) {
     await socket.join(room);
     customerSockets.set(customer.sub, room);
 
-    console.log(`[ws] Customer ${customer.sub} connected (${socket.id})`);
 
     // Register VM watchers
     for (const vmId of customer.vmIds) {
@@ -73,7 +72,6 @@ export function initSocketServer(httpServer: HttpServer) {
       for (const vmId of customer.vmIds) {
         watchers.get(vmId)?.delete(customer.sub);
       }
-      console.log(`[ws] Customer ${customer.sub} disconnected`);
     });
   });
 
@@ -116,7 +114,6 @@ export function initSocketServer(httpServer: HttpServer) {
       }
     } catch (err: any) {
       // Silently absorb polling errors — Proxmox may be temporarily unreachable
-      if (config.isDev) console.warn('[ws:poller]', err.message);
     }
   }, POLL_INTERVAL);
 

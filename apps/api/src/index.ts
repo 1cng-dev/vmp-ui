@@ -51,7 +51,6 @@ app.use((_req, res) => {
 
 // ── Error handler ────────────────────────────────────────────────────────
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error('[unhandled]', err.message);
   res.status(500).json({ ok: false, error: 'Internal server error' });
 });
 
@@ -64,15 +63,11 @@ async function start() {
   // Verify DB connection
   try {
     await pool.query('SELECT 1');
-    console.log('[db] PostgreSQL connected');
   } catch (err: any) {
-    console.error('[db] Connection failed:', err.message);
     process.exit(1);
   }
 
   server.listen(config.port, () => {
-    console.log(`[api] VMP Middleware running on port ${config.port} (${config.nodeEnv})`);
-    console.log(`[api] Proxmox target: ${config.proxmox.url}`);
   });
 }
 
@@ -80,7 +75,6 @@ start();
 
 // ── Graceful shutdown ─────────────────────────────────────────────────────
 process.on('SIGTERM', async () => {
-  console.log('[api] SIGTERM — shutting down gracefully');
   await pool.end();
   server.close(() => process.exit(0));
 });

@@ -60,7 +60,6 @@ router.get('/', async (req, res) => {
 
     res.json({ ok: true, data: vms });
   } catch (err: any) {
-    console.error('[vms/list]', err.message);
     res.status(502).json({ ok: false, error: 'Failed to fetch VM list from Proxmox' });
   }
 });
@@ -77,7 +76,6 @@ router.get('/:vmid', requireVMOwnership, async (req, res) => {
     const assignment  = assignments.find(a => a.vmId === vmid);
     res.json({ ok: true, data: { ...normalizeStatus(status, assignment), config } });
   } catch (err: any) {
-    console.error(`[vms/${vmid}]`, err.message);
     res.status(502).json({ ok: false, error: 'Failed to fetch VM status' });
   }
 });
@@ -100,10 +98,8 @@ router.post('/:vmid/:action(start|stop|reboot|shutdown|reset)',
         reset:    () => proxmox.resetVM(vmid),
       };
       const task = await actionMap[action]();
-      console.log(`[vm:${action}] Customer ${req.customer!.sub} → VM ${vmid} | task: ${task.upid}`);
       res.json({ ok: true, data: { upid: task.upid, action } });
     } catch (err: any) {
-      console.error(`[vms/${vmid}/${action}]`, err.message);
       res.status(502).json({ ok: false, error: `Failed to ${action} VM` });
     }
   },
@@ -180,7 +176,6 @@ router.post('/request', async (req, res) => {
     res.status(201).json({ ok: true, data: request });
   } catch (err: any) {
     if (err instanceof z.ZodError) return res.status(400).json({ ok: false, error: err.errors });
-    console.error('[vms/request]', err.message);
     res.status(500).json({ ok: false, error: 'Failed to submit VM request' });
   }
 });

@@ -8,10 +8,8 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
     const vmResult = await checkVMExpiry(supabase)
-    console.log('VM expiry check:', vmResult)
 
     const addonResult = await checkAddonExpiry(supabase)
-    console.log('Add-on expiry check:', addonResult)
 
     return new Response(
       JSON.stringify({ success: true, vm: vmResult, addon: addonResult }),

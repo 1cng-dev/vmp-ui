@@ -59,7 +59,6 @@ router.post('/:vmid/ticket', requireVMOwnership, vmActionLimiter, async (req, re
       expiresAt:     Date.now() + 30_000,   // 30 seconds to connect
     });
 
-    console.log(`[console] Token issued for VM ${vmid} by ${req.customer!.sub}`);
 
     res.json({
       ok: true,
@@ -70,7 +69,6 @@ router.post('/:vmid/ticket', requireVMOwnership, vmActionLimiter, async (req, re
       },
     });
   } catch (err: any) {
-    console.error(`[console/${vmid}]`, err.message);
     res.status(502).json({ ok: false, error: 'Failed to create console session' });
   }
 });
@@ -102,7 +100,6 @@ export function attachVNCProxy(server: http.Server) {
 
     // Proxy the WebSocket to Proxmox's VNC WebSocket port
     const target = `wss://${info.proxmoxHost}:${info.proxmoxPort}`;
-    console.log(`[vnc-proxy] VM ${info.vmid} → ${target}`);
 
     proxy.ws(req, socket, head, {
       target,
@@ -116,7 +113,6 @@ export function attachVNCProxy(server: http.Server) {
   });
 
   proxy.on('error', (err, req, res) => {
-    console.error('[vnc-proxy] error:', err.message);
   });
 
   return wss;

@@ -115,7 +115,7 @@ const TeamLoginScreen: React.FC = () => {
               <div className="field">
                 <div className="flex center between">
                   <label style={{ marginBottom: 0 }}>Password</label>
-                  <a onClick={() => setShowForgotPassword(true)} style={{ fontSize: 11, color: 'var(--accent-strong)', cursor: 'pointer', fontWeight: 600 }}>Forgot?</a>                </div>
+                  {/* <a onClick={() => setShowForgotPassword(true)} style={{ fontSize: 11, color: 'var(--accent-strong)', cursor: 'pointer', fontWeight: 600 }}>Forgot?</a> */}                </div>
                 <div style={{ position: 'relative' }}>
                   <input type={showPw ? 'text' : 'password'} required value={f.password} onChange={e => setF({ ...f, password: e.target.value })} style={{ paddingRight: 36, width: '100%' }} placeholder="••••••••" />
                   <button type="button" className="icon-btn" onClick={() => setShowPw(!showPw)} style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', width: 28, height: 28 }}>
