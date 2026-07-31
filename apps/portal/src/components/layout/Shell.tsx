@@ -169,9 +169,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
   ] : NAV).filter(it => it.section || (it.id && !HIDDEN.has(it.id)))
 
   const allowedFor: Record<string, Set<string> | null> = {
-    'Sales': new Set(['dashboard', 'alerts', 'calendar', 'activity', 'vms', 'tasks', 'addons', 'addon-services', 'customers', 'customer-accounts', 'kyc', 'quotes', 'finance', 'receipts', 'announcements']),
+    'Sales': new Set(['dashboard', 'alerts', 'calendar', 'activity', 'vms', 'tasks', 'addons', 'addon-services', 'customers', 'kyc', 'quotes', 'finance', 'receipts', 'announcements']),
     'Engineer': new Set(['dashboard', 'alerts', 'calendar', 'activity', 'vms', 'tasks', 'addons', 'addon-services', 'network', 'console', 'nodes', 'topology', 'snapshots', 'maintenance', 'patches', 'firewall', 'announcements']),
-    'Finance': new Set(['dashboard', 'alerts', 'calendar', 'vms', 'tasks', 'addon-services', 'finance', 'receipts', 'quote-review', 'reports', 'customers', 'customer-accounts', 'aging', 'announcements']),
+    'Finance': new Set(['dashboard', 'alerts', 'calendar', 'vms', 'tasks', 'addon-services', 'finance', 'receipts', 'quote-review', 'reports', 'customers', 'aging', 'announcements']),
     'Admin': null,
   }
   const allow = allowedFor[role]
