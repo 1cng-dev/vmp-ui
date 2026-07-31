@@ -6,6 +6,8 @@ import Icon from '../../lib/icons'
 import { StatusPill, ExpiryCell } from '../ui/ui'
 import { InfoCard, UsageCard, UsageDetailCard } from './VMHelperComponents'
 import { CustUpgradeModal, CustConvertToPaidModal } from '../modals/CustomerVMModals'
+import { useVMStatus, useVMStats } from '../../hooks/useVMLiveStatus'
+import { BYTES_PER_GB, pctSeries, ramPctSeries, netMbpsSeries, avgOf, peakOf, lastOf } from '../../lib/vmUsage'
 
 interface CustomerVMDetailProps {
   vm: any
@@ -68,10 +70,28 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
 
   const isRunning = vm.power_state === 'Running'
 
-  const cpu: number[] = []
-  const ram: number[] = []
-  const net: number[] = []
-  const disk = Math.round(vm.storage * 0.42)
+  // Live usage from proxmox-proxcy (never Proxmox directly). assignedVmid is
+  // undefined until the VM is actually provisioned on Proxmox — hooks no-op then.
+  const assignedVmid: number | undefined = (vm as any).assigned_vmid
+  const { status: liveStatus, error: statusError } = useVMStatus(assignedVmid)
+  const { data: statsData, error: statsError } = useVMStats(assignedVmid, 'day')
+  const liveError = statusError || statsError
+
+  const cpu = pctSeries(statsData, p => p.cpu)
+  const ram = ramPctSeries(statsData)
+  const net = netMbpsSeries(statsData)
+
+  const cpuNow = liveStatus?.cpu != null ? Math.round(liveStatus.cpu * 100) : lastOf(cpu)
+  const ramMaxBytes = liveStatus?.maxmem || (vm.ram_gb ? vm.ram_gb * BYTES_PER_GB : 0)
+  const ramUsedBytes = liveStatus?.mem ?? 0
+  const ramNow = ramMaxBytes ? Math.round((ramUsedBytes / ramMaxBytes) * 100) : lastOf(ram)
+  const ramUsedGB = ramMaxBytes ? Math.round((ramNow / 100) * (ramMaxBytes / BYTES_PER_GB)) : 0
+  const netNow = lastOf(net)
+
+  // Proxmox reports 0 for VM disk usage without a QEMU guest agent in the guest.
+  const diskTotalGB = vm.storage_gb || Math.round((liveStatus?.maxdisk || 0) / BYTES_PER_GB)
+  const diskGB = Math.round((liveStatus?.disk || 0) / BYTES_PER_GB)
+  const diskPct = diskTotalGB ? Math.round((diskGB / diskTotalGB) * 100) : 0
 
   const creds = vm.username && vm.password ? [
     { type: 'SSH', user: vm.username, pass: vm.password }
@@ -122,11 +142,16 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
         {convertToPaidOpen && <CustConvertToPaidModal vm={vm} onClose={() => setConvertToPaidOpen(false)} />}
       </div>
 
+      {liveError && (
+        <div style={{ padding: 10, background: 'var(--warn-soft)', borderRadius: 8, fontSize: 12, color: 'oklch(0.4 0.12 75)', marginBottom: 12 }}>
+          <Icon name="alert" size={13} /> Live usage unavailable: {liveError}
+        </div>
+      )}
       <div className="grid-4 mb-4">
-        <UsageCard label="CPU" value={`${cpu[23]}%`} data={cpu} color="var(--accent)" />
-        <UsageCard label="RAM" value={`${ram[23]}%`} data={ram} color="var(--info)" sub={`${Math.round(vm.ram * ram[23] / 100)} / ${vm.ram} GB`} />
-        <UsageCard label="Storage" value={`${Math.round(disk / vm.storage * 100)}%`} data={[disk, disk, disk, disk]} color="oklch(0.55 0.18 285)" sub={`${disk} / ${vm.storage} GB`} />
-        <UsageCard label="Network out" value={`${net[23]} Mbps`} data={net} color="var(--ok)" />
+        <UsageCard label="CPU" value={`${cpuNow}%`} data={cpu} color="var(--accent)" />
+        <UsageCard label="RAM" value={`${ramNow}%`} data={ram} color="var(--info)" sub={ramMaxBytes ? `${ramUsedGB} / ${Math.round(ramMaxBytes / BYTES_PER_GB)} GB` : undefined} />
+        <UsageCard label="Storage" value={`${diskPct}%`} data={[diskPct, diskPct, diskPct, diskPct]} color="oklch(0.55 0.18 285)" sub={diskTotalGB ? `${diskGB} / ${diskTotalGB} GB` : undefined} />
+        <UsageCard label="Network out" value={`${netNow} Mbps`} data={net} color="var(--ok)" />
       </div>
 
       <div className="card">
@@ -345,18 +370,18 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
         {tab === 'usage' && (
           <div className="card-body">
             <div className="grid-2" style={{ gap: 16 }}>
-              <UsageDetailCard label="CPU" data={cpu} color="var(--accent)" unit="%" avg={Math.round(cpu.reduce((a, b) => a + b, 0) / cpu.length)} peak={Math.max(...cpu)} />
-              <UsageDetailCard label="RAM" data={ram} color="var(--info)" unit="%" avg={Math.round(ram.reduce((a, b) => a + b, 0) / ram.length)} peak={Math.max(...ram)} />
-              <UsageDetailCard label="Network out" data={net} color="var(--ok)" unit=" Mbps" avg={Math.round(net.reduce((a, b) => a + b, 0) / net.length)} peak={Math.max(...net)} />
+              <UsageDetailCard label="CPU" data={cpu} color="var(--accent)" unit="%" avg={avgOf(cpu)} peak={peakOf(cpu)} />
+              <UsageDetailCard label="RAM" data={ram} color="var(--info)" unit="%" avg={avgOf(ram)} peak={peakOf(ram)} />
+              <UsageDetailCard label="Network out" data={net} color="var(--ok)" unit=" Mbps" avg={avgOf(net)} peak={peakOf(net)} />
               <div className="card" style={{ borderColor: 'var(--line)' }}>
                 <div className="card-body">
                   <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Storage</div>
                   <div className="flex center between mb-2">
-                    <span className="tnum fw-7" style={{ fontSize: 24 }}>{disk} GB</span>
-                    <span className="text-sm text-mute tnum">of {vm.storage} GB</span>
+                    <span className="tnum fw-7" style={{ fontSize: 24 }}>{diskGB} GB</span>
+                    <span className="text-sm text-mute tnum">of {diskTotalGB} GB</span>
                   </div>
-                  <div className="bar"><div className="fill" style={{ width: `${(disk / vm.storage) * 100}%`, background: 'oklch(0.55 0.18 285)' }} /></div>
-                  <div className="flex between text-xs mt-2"><span className="text-mute">Used</span><span className="text-mute tnum">{Math.round(disk / vm.storage * 100)}%</span></div>
+                  <div className="bar"><div className="fill" style={{ width: `${diskPct}%`, background: 'oklch(0.55 0.18 285)' }} /></div>
+                  <div className="flex between text-xs mt-2"><span className="text-mute">Used</span><span className="text-mute tnum">{diskPct}%</span></div>
                 </div>
               </div>
             </div>

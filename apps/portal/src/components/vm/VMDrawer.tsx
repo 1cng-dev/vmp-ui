@@ -5,6 +5,9 @@ import useAddonServiceStore from '../../store/addonServiceStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { StatusPill, ExpiryCell } from '../ui/ui'
+import { UsageCard, UsageDetailCard } from '../customer-portal/VMHelperComponents'
+import { useVMStatus, useVMStats } from '../../hooks/useVMLiveStatus'
+import { BYTES_PER_GB, pctSeries, ramPctSeries, netMbpsSeries, avgOf, peakOf, lastOf } from '../../lib/vmUsage'
 
 interface VMDrawerProps {
   vmId: string
@@ -27,6 +30,28 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
   // Get data from store instead of fetching directly
   const vmRequest = v.vm_request_id ? getVMRequest(v.vm_request_id) : null
   const addonServices = getAddonServicesForVM(v.id)
+
+  // Live usage from proxmox-proxcy — admins can view any VM's status here
+  // (the proxy's admin bypass on the read-only status/stats routes is what
+  // makes this work even though the logged-in admin doesn't own the VM).
+  const assignedVmid: number | undefined = (v as any).assigned_vmid
+  const { status: liveStatus, error: statusError } = useVMStatus(assignedVmid)
+  const { data: statsData, error: statsError } = useVMStats(assignedVmid, 'day')
+  const liveError = statusError || statsError
+
+  const cpu = pctSeries(statsData, p => p.cpu)
+  const ram = ramPctSeries(statsData)
+  const net = netMbpsSeries(statsData)
+
+  const cpuNow = liveStatus?.cpu != null ? Math.round(liveStatus.cpu * 100) : lastOf(cpu)
+  const ramMaxBytes = liveStatus?.maxmem || (v.ram_gb ? v.ram_gb * BYTES_PER_GB : 0)
+  const ramNow = ramMaxBytes ? Math.round(((liveStatus?.mem ?? 0) / ramMaxBytes) * 100) : lastOf(ram)
+  const ramUsedGB = ramMaxBytes ? Math.round((ramNow / 100) * (ramMaxBytes / BYTES_PER_GB)) : 0
+  const netNow = lastOf(net)
+
+  const diskTotalGB = v.storage_gb || Math.round((liveStatus?.maxdisk || 0) / BYTES_PER_GB)
+  const diskGB = Math.round((liveStatus?.disk || 0) / BYTES_PER_GB)
+  const diskPct = diskTotalGB ? Math.round((diskGB / diskTotalGB) * 100) : 0
 
   const creds = v.username && v.password ? [
     { type: 'SSH', user: v.username, pass: v.password }
@@ -82,9 +107,9 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
         </div>
 
         <div className="tabs">
-          {['overview','specs','network','backups','credentials','addons'].map(t => (
+          {['overview','specs','network','usage','backups','credentials','addons'].map(t => (
             <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
-              {t === 'overview' ? 'Overview' : t === 'specs' ? 'Specs' : t === 'network' ? 'Network' : t === 'backups' ? 'Backups' : t === 'credentials' ? 'Credentials' : 'Add-ons'}
+              {t === 'overview' ? 'Overview' : t === 'specs' ? 'Specs' : t === 'network' ? 'Network' : t === 'usage' ? 'Usage' : t === 'backups' ? 'Backups' : t === 'credentials' ? 'Credentials' : 'Add-ons'}
             </button>
           ))}
         </div>
@@ -187,6 +212,33 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
                   </table>
                 </div>
               </div>
+            </div>
+          )}
+
+          {tab === 'usage' && (
+            <div className="flex col gap-4">
+              {liveError && (
+                <div style={{ padding: 10, background: 'var(--warn-soft)', borderRadius: 8, fontSize: 12, color: 'oklch(0.4 0.12 75)' }}>
+                  <Icon name="alert" size={13}/> Live usage unavailable: {liveError}
+                </div>
+              )}
+              {!assignedVmid ? (
+                <div className="card"><div className="card-body"><div className="empty"><div className="sub">Not provisioned on Proxmox yet.</div></div></div></div>
+              ) : (
+                <>
+                  <div className="grid-4">
+                    <UsageCard label="CPU" value={`${cpuNow}%`} data={cpu} color="var(--accent)"/>
+                    <UsageCard label="RAM" value={`${ramNow}%`} data={ram} color="var(--info)" sub={ramMaxBytes ? `${ramUsedGB} / ${Math.round(ramMaxBytes / BYTES_PER_GB)} GB` : undefined}/>
+                    <UsageCard label="Storage" value={`${diskPct}%`} data={[diskPct, diskPct, diskPct, diskPct]} color="oklch(0.55 0.18 285)" sub={diskTotalGB ? `${diskGB} / ${diskTotalGB} GB` : undefined}/>
+                    <UsageCard label="Network out" value={`${netNow} Mbps`} data={net} color="var(--ok)"/>
+                  </div>
+                  <div className="grid-2" style={{ gap: 16 }}>
+                    <UsageDetailCard label="CPU" data={cpu} color="var(--accent)" unit="%" avg={avgOf(cpu)} peak={peakOf(cpu)}/>
+                    <UsageDetailCard label="RAM" data={ram} color="var(--info)" unit="%" avg={avgOf(ram)} peak={peakOf(ram)}/>
+                    <UsageDetailCard label="Network out" data={net} color="var(--ok)" unit=" Mbps" avg={avgOf(net)} peak={peakOf(net)}/>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
