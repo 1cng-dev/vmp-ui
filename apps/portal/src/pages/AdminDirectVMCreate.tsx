@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import useVMStore from "../store/vmStore";
 import useAddonServiceStore from "../store/addonServiceStore";
@@ -419,6 +419,7 @@ const AdminDirectVMCreate: React.FC = () => {
         try {
           await addAddonService({
             vm_id: vmId,
+            customer_id: f.customer,
             cpfs_enabled: f.cpfs_enabled,
             cpfs_package: f.cpfs_enabled ? f.cpfs_package : undefined,
             ccis_enabled: f.ccis_enabled,

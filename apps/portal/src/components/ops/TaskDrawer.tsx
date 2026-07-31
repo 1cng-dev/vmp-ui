@@ -648,14 +648,15 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                     let durationMonths = 0
                                     let durationDays = 0
                                     if (request.duration) {
-                                      const monthsMatch = request.duration.match(/(\d+)\s*months?/i)
-                                      const daysMatch = request.duration.match(/(\d+)\s*days?/i)
+                                      const durationStr = String(request.duration)
+                                      const monthsMatch = durationStr.match(/(\d+)\s*months?/i)
+                                      const daysMatch = durationStr.match(/(\d+)\s*days?/i)
                                       if (monthsMatch) durationMonths = parseInt(monthsMatch[1])
                                       if (daysMatch) durationDays = parseInt(daysMatch[1])
                                     }
 
-                                    // Calculate new expiry from start date
-                                    const startDate = request.start_date ? new Date(request.start_date) : new Date()
+                                    // Calculate new expiry from start date (for addon requests only)
+                                    const startDate = (request as any).start_date ? new Date((request as any).start_date) : new Date()
                                     const newExpiry = new Date(startDate)
                                     newExpiry.setMonth(newExpiry.getMonth() + durationMonths)
                                     newExpiry.setDate(newExpiry.getDate() + durationDays)
@@ -697,7 +698,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                           ccis_enabled: (request as any).ccis_enabled,
                                           ccis_package: (request as any).ccis_package,
                                           duration: durationString,
-                                          start_date: request.start_date,
+                                          start_date: (request as any).start_date,
                                           end_date: newExpiry.toISOString(),
                                           expiry: newExpiry.toISOString()
                                         })
@@ -892,8 +893,8 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                               <dd className="mono">
                                 {t?.firewall_outbound_allow_all ? 'Allow All' : 'Custom'}
                                 {t?.firewall_outbound_allow_all
-                                  ? ` (${t.firewall_ports?.join(', ') || 'none'})`
-                                  : ` (${t.firewall_outbound_custom_ports?.join(', ') || 'none'})`}
+                                  ? ` (${t?.firewall_ports?.join(', ') || 'none'})`
+                                  : ` (${t?.firewall_outbound_custom_ports?.join(', ') || 'none'})`}
                               </dd>
                             </>
                           </dl>

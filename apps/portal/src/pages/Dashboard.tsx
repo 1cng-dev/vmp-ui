@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react'
 import useCustomerStore from '../store/customerStore'
 import useVMStore from '../store/vmStore'
+import useAddonServiceStore from '../store/addonServiceStore'
 import useInvoiceStore from '../store/invoiceStore'
 import useActivityStore from '../store/activityStore'
 import { useAuth } from '../components/auth/Auth'
@@ -11,11 +12,14 @@ import { StatusPill, formatMMK, ExpiryCell, Donut, CircularSpinner } from '../co
 interface DashboardProps {
   openVM: (id: string) => void
   setView: (view: string) => void
+  openModal?: (kind: string, props?: any) => void
+  userRole?: string
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ openVM, setView }) => {
   const { customers } = useCustomerStore()
   const { vms, vmsLoading, loadVMs } = useVMStore()
+  const { addonServices, loadAddonServices } = useAddonServiceStore()
   const { invoices, loadInvoices } = useInvoiceStore()
   const { activity } = useActivityStore()
   const auth = useAuth()
@@ -37,6 +41,21 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView }) => {
     // VMs that have already expired or expire today, with Active status only
     return d <= 0 && v.status === 'Active'
   })
+  
+  // Add-on expiry checks
+  const expiringAddons = addonServices.filter(a => {
+    if (!a.expiry || a.expiry === '—') return false
+    const d = Math.ceil((new Date(a.expiry).getTime() - TODAY.getTime()) / 86400000)
+    // Add-ons expiring in the future (1-14 days), with Active status only
+    return d > 0 && d <= 14 && a.status === 'Active'
+  })
+  const expiredAddons = addonServices.filter(a => {
+    if (!a.expiry || a.expiry === '—') return false
+    const d = Math.ceil((new Date(a.expiry).getTime() - TODAY.getTime()) / 86400000)
+    // Add-ons that have already expired or expire today, with Active status only
+    return d <= 0 && a.status === 'Active'
+  })
+  
   // Calculate overdue based on due date, not status (to match AgingView logic)
   const overdueInvoices = invoices.filter(i => {
     if (i.status === 'Payment Received') return false
@@ -92,8 +111,11 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView }) => {
     if (invoices.length === 0) {
       loadInvoices()
     }
+    if (addonServices.length === 0) {
+      loadAddonServices()
+    }
     loadTeam() // Always load team as it's not state-persisted
-  }, [loadTeam, loadVMs, loadInvoices, vms.length, invoices.length])
+  }, [loadTeam, loadVMs, loadInvoices, loadAddonServices, vms.length, invoices.length, addonServices.length])
 
   // Check VM expiry and create notifications
   useEffect(() => {
@@ -129,8 +151,8 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView }) => {
         </div>
         <div className="metric">
           <div className="label"><Icon name="clock" size={13} /> Expiring ≤ 14 days</div>
-          <div className="value tnum" style={{ color: 'oklch(0.55 0.16 75)' }}>{expiringSoon.length}</div>
-          <div className="trend">{expiringSoon.length > 0 ? `${expiringSoon.length} need follow-up` : 'all clear'}</div>
+          <div className="value tnum" style={{ color: 'oklch(0.55 0.16 75)' }}>{expiringSoon.length + expiringAddons.length}</div>
+          <div className="trend">{expiringSoon.length > 0 || expiringAddons.length > 0 ? `${expiringSoon.length} VMs, ${expiringAddons.length} add-ons need follow-up` : 'all clear'}</div>
         </div>
         <div className="metric">
           <div className="label"><Icon name="invoice" size={13} /> Overdue payments</div>
@@ -149,7 +171,7 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView }) => {
           <div className="card-head">
             <div>
               <h2 className="card-title">Expiring soon</h2>
-              <div className="card-sub">VMs needing renewal action in the next 14 days</div>
+              <div className="card-sub">VMs and add-ons needing renewal action in the next 14 days</div>
             </div>
             <button className="btn sm" onClick={() => setView('vms')}>View all<Icon name="chevron-right" size={12} /></button>
           </div>
@@ -157,18 +179,19 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView }) => {
             <table className="tbl">
               <thead>
                 <tr>
-                  <th>VM</th><th>Customer</th><th>Expires</th><th>Status</th>
+                  <th>Type</th><th>Name</th><th>Customer</th><th>Expires</th><th>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {vmsLoading ? (
-                  <tr><td colSpan={4}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
+                  <tr><td colSpan={5}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
                 ) : (
                   <>
                     {expiringSoon.slice(0, 6).map(v => {
                       const c = customers.find(c => c.id === (v as any).customer_id)
                       return (
                         <tr key={v.id} onClick={() => openVM(v.id)}>
+                          <td><span className="text-xs fw-6" style={{ color: 'var(--accent)' }}>VM</span></td>
                           <td>
                             <div className="fw-6">{(v as any).hostname || v.id}</div>
                             <div className="text-xs text-mute mono">{(v as any).legacy_id || v.id}</div>
@@ -179,7 +202,23 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView }) => {
                         </tr>
                       )
                     })}
-                    {expiringSoon.length === 0 && <tr><td colSpan={4}><div className="empty"><div className="title">Nothing expiring soon</div><div className="sub">No VMs need renewal in the next 7 days.</div></div></td></tr>}
+                    {expiringAddons.slice(0, 6).map(a => {
+                      const c = customers.find(c => c.id === (a as any).customer_id)
+                      const vm = vms.find(v => v.id === (a as any).vm_id)
+                      return (
+                        <tr key={a.id}>
+                          <td><span className="text-xs fw-6" style={{ color: 'oklch(0.65 0.18 25)' }}>Add-on</span></td>
+                          <td>
+                            <div className="fw-6">{(a as any).legacy_id || a.id}</div>
+                            <div className="text-xs text-mute">VM: {(vm as any)?.hostname || 'Unknown'}</div>
+                          </td>
+                          <td>{c?.name}{c?.org_name || c?.company ? ` (${c?.org_name || c?.company})` : ''}</td>
+                          <td><ExpiryCell date={a.expiry || ''} /></td>
+                          <td><StatusPill status={a.status} expiry={a.expiry} /></td>
+                        </tr>
+                      )
+                    })}
+                    {expiringSoon.length === 0 && expiringAddons.length === 0 && <tr><td colSpan={5}><div className="empty"><div className="title">Nothing expiring soon</div><div className="sub">No VMs or add-ons need renewal in the next 14 days.</div></div></td></tr>}
                   </>
                 )}
               </tbody>

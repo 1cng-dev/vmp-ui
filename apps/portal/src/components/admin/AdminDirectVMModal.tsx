@@ -174,6 +174,7 @@ const AdminDirectVMModal: React.FC<AdminDirectVMModalProps> = ({ onClose }) => {
 
           await addAddonService({
             vm_id: vmId,
+            customer_id: f.customer,
             cpfs_enabled: f.cpfs_enabled,
             cpfs_package: f.cpfs_package,
             ccis_enabled: f.ccis_enabled,
@@ -224,7 +225,7 @@ const AdminDirectVMModal: React.FC<AdminDirectVMModalProps> = ({ onClose }) => {
     }
   }
 
-  
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 900, maxHeight: '90vh', overflow: 'auto' }}>

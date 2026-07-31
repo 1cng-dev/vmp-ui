@@ -56,7 +56,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
   const { announcements } = useAnnouncementStore()
   const { vmRequests, loadVMRequests } = useVMRequestStore()
   const { addonRequests, loadAddonRequests } = useAddonRequestStore()
-  const { addonServices, loadAddonServices } = useAddonServiceStore()
+  const { addonServices } = useAddonServiceStore()
   const auth = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
@@ -120,7 +120,6 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
   // Filter requests for current customer
   const myVMRequests = vmRequests.filter((r: any) => r.customer_id === safeMe.id)
   const myAddonRequests = addonRequests.filter((r: any) => r.customer_id === safeMe.id)
-  const myAddonServices = addonServices.filter((s: any) => s.customer_id === safeMe.id)
 
   useEffect(() => {
     if (me && me.kyc_status !== 'Approved' && ['request', 'vms', 'requests', 'invoices'].includes(view)) {
@@ -142,6 +141,11 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
   }
   return true
 })
+  // Filter addon services by customer's VMs (addon_services doesn't have customer_id directly)
+  const myAddonServices = addonServices.filter((s: any) => {
+    const vm = myVMs.find((v: any) => v.id === s.vm_id)
+    return vm !== undefined
+  })
   const myInvs = invoices.filter((i: any) => i.customer === safeMe.id || i.customer_id === safeMe.id)
   const myTickets = tickets.filter((t: any) => t.customer_id === safeMe.id)
   const myRequests = myVMRequests

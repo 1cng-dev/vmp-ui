@@ -836,7 +836,7 @@ const CustConvertToPaidModal: React.FC<CustConvertToPaidModalProps> = ({ vm, onC
         firewall_outbound_allow_all: (vm as any).firewall_outbound_allow_all !== undefined ? (vm as any).firewall_outbound_allow_all : true,
         firewall_outbound_custom_ports: (vm as any).firewall_outbound_custom_ports || [],
         backup_enabled: (vm as any).backup_enabled || false,
-        notes: `Trial to paid conversion for VM: ${vm.legacy_id || vm.id}`,
+        notes: `Trial to paid conversion for VM: ${(vm as any).legacy_id || vm.id}`,
       }).select().single()
 
       if (error) throw error

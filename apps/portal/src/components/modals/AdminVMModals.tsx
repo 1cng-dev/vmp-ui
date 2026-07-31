@@ -36,7 +36,7 @@ interface NewVMModalProps {
 }
 
 const NewVMModal: React.FC<NewVMModalProps> = ({ onClose }) => {
-  const { addVM, checkDuplicateLegacyId } = useVMStore()
+  const { addVM } = useVMStore()
   const { customers } = useCustomerStore()
   const { toast } = useUIStore()
   const [step, setStep] = useState(1)

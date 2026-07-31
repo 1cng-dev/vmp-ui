@@ -24,10 +24,10 @@ export const AddonRequestProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const loadAddonRequests = useCallback(async () => {
     setAddonRequestsLoading(true)
-    
+
     const MIN_LOADING_TIME = 400 // 400ms minimum loading time
     const startTime = Date.now()
-    
+
     try {
       const { data, error } = await supabase.from('addon_requests').select('*').order('created_at', { ascending: false })
       if (error) throw error
@@ -36,11 +36,11 @@ export const AddonRequestProvider: React.FC<{ children: React.ReactNode }> = ({ 
       // Ensure minimum loading time
       const elapsedTime = Date.now() - startTime
       const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime)
-      
+
       if (remainingTime > 0) {
         await new Promise(resolve => setTimeout(resolve, remainingTime))
       }
-      
+
       setAddonRequestsLoading(false)
     }
   }, [])
@@ -71,7 +71,7 @@ export const AddonRequestProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const { error, data } = await supabase.from('addon_requests').insert(request).select()
     if (error) throw error
     // Real-time subscription will handle data update, no need to call loadAddonRequests
-    
+
     // Get current user for activity logging
     const { data: { user } } = await supabase.auth.getUser()
     let actorName = 'System'
@@ -90,19 +90,19 @@ export const AddonRequestProvider: React.FC<{ children: React.ReactNode }> = ({ 
         actorName = user.user_metadata?.name || user.email || 'System'
       }
     }
-    
+
     await logActivity(
       `Created addon request for VM ${request.vm_id}`,
       'vm',
       actorName,
       { addonRequestId: data[0].id, vmId: request.vm_id, customerId: request.customer_id, status: request.status }
     )
-    
+
     // Create alert for team roles (customer_id = NULL so customer doesn't see it)
     const services = []
     if (request.cpfs_enabled) services.push(`CPFS (${request.cpfs_package})`)
     if (request.ccis_enabled) services.push(`CCIS (${request.ccis_package})`)
-    
+
     await createAlert({
       sev: 'info',
       title: 'Add-on Service Request',
@@ -123,7 +123,7 @@ export const AddonRequestProvider: React.FC<{ children: React.ReactNode }> = ({ 
         duration: request.duration
       }
     })
-    
+
     return data[0].id
   }, [logActivity])
 
@@ -250,6 +250,7 @@ export const AddonRequestProvider: React.FC<{ children: React.ReactNode }> = ({ 
             // Create new addon service record
             await addAddonService({
               vm_id: previousRequest.vm_id,
+              customer_id: previousRequest.customer_id,
               cpfs_enabled: previousRequest.cpfs_enabled || false,
               cpfs_package: previousRequest.cpfs_package || 'standard',
               ccis_enabled: previousRequest.ccis_enabled || false,

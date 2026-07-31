@@ -1,7 +1,3 @@
--- Add auto-generation for legacy_id in vms table
--- Format: VPS-TDC-{customer_id_digits}-{vm_seq_number}-{customer_name}
--- Example: VPS-TDC-0001-303-Aye Aye
-
 -- Create sequence for VMs starting from 3000
 CREATE SEQUENCE IF NOT EXISTS public.vm_seq START 3000;
 

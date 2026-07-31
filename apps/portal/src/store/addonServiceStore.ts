@@ -1,11 +1,11 @@
 import React, { useState, useCallback, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import useActivityStore from './activityStore'
 
 export interface AddonService {
   id: string
   legacy_id?: string
   vm_id: string
+  customer_id?: string
   cpfs_enabled: boolean
   cpfs_package?: string
   ccis_enabled: boolean
@@ -34,7 +34,6 @@ const AddonServiceContext = React.createContext<AddonServiceStoreValue | null>(n
 export const AddonServiceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [addonServices, setAddonServices] = useState<AddonService[]>([])
   const [addonServicesLoading, setAddonServicesLoading] = useState(false)
-  const { logActivity } = useActivityStore()
 
   const loadAddonServices = useCallback(async () => {
     setAddonServicesLoading(true)
