@@ -36,7 +36,7 @@ export const CustomerRequestsView: React.FC<CustomerRequestsViewProps> = ({ myRe
                 <td><span className="pill subtle">{t.request_type === 'trial' ? 'Trial' : 'Paid'}</span></td>
                 <td><span className={`pill ${t.task_type === 'change-plan' ? 'accent' : 'subtle'}`}>{t.task_type || 'new'}</span></td>
                 <td className="tnum text-sm">{new Date(t.created_at).toLocaleDateString()}</td>
-                <td className="text-sm">{t.duration ? (t.duration === 1 ? 'Monthly' : t.duration === 3 ? 'Quarterly' : t.duration === 6 ? 'Half Yearly' : t.duration === 12 ? 'Yearly' : `${t.duration} month${t.duration > 1 ? 's' : ''}`) : 'N/A'}</td>
+                <td className="text-sm">{t.duration || 'N/A'}</td>
                 <td className="text-sm" style={{ color: t.sizing === 'Standard' ? 'var(--ok)' : 'var(--accent-strong)' }}>{t.sizing}</td>
                 <td><StatusPill status={t.status} transformStatus={transformStatus}/></td>
                 <td className="right"><Icon name="chevron-right" size={12} className="text-mute"/></td>

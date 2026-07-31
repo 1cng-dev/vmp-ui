@@ -36,7 +36,7 @@ interface NewVMModalProps {
 }
 
 const NewVMModal: React.FC<NewVMModalProps> = ({ onClose }) => {
-  const { addVM, checkDuplicateLegacyId } = useVMStore()
+  const { addVM } = useVMStore()
   const { customers } = useCustomerStore()
   const { toast } = useUIStore()
   const [step, setStep] = useState(1)
@@ -632,7 +632,7 @@ interface TerminateModalProps {
 
 const TerminateModal: React.FC<TerminateModalProps> = ({ vm, onClose }) => {
   const { updateVM } = useVMStore()
-  const { getAddonServicesForVM } = useAddonServiceStore()
+  const { getAddonServicesForVM, updateAddonService } = useAddonServiceStore()
   const { toast } = useUIStore()
   const [inputValue, setInputValue] = useState('')
 
@@ -646,6 +646,11 @@ const TerminateModal: React.FC<TerminateModalProps> = ({ vm, onClose }) => {
 
     // Terminate the VM
     updateVM(vm.id, { status: 'Terminated' as any, power_state: 'Stopped' as any })
+
+    // Terminate associated addon services
+    for (const addon of addonServices) {
+      await updateAddonService(addon.id, { operational_status: 'Terminated' })
+    }
 
     const addonCount = addonServices.length
     const message = addonCount > 0
@@ -880,8 +885,8 @@ const NewCustomerModal: React.FC<NewCustomerModalProps> = ({ onClose, onPassword
             </div>
             <div className="field">
               <label>Legacy ID (optional - for existing customers from previous system)</label>
-              <input value={f.legacyId} onChange={e => set('legacyId', e.target.value)} placeholder="e.g., CUST-001" />
-              <div className="hint">Only enter a legacy ID if the customer already has one from the previous system</div>
+              <input value={f.legacyId} onChange={e => set('legacyId', e.target.value)} placeholder="e.g., 1CNG-VPS-0001" />
+              <div className="hint">Only enter a legacy ID if the customer already has one from the previous system. Format: 1CNG-VPS-00xx</div>
             </div>
 
             {/* Organization Details */}

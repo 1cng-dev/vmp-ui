@@ -16,6 +16,44 @@ interface AddonServicesViewProps {
   userRole?: string
 }
 
+// Helper function to format duration string
+// If duration already has units (e.g., "14 days", "1 month"), return as-is
+// If it's a number, convert to string with units
+const formatDuration = (duration: string | number | undefined): string => {
+  if (!duration) return 'N/A'
+
+  // If it's already a string with units, return as-is
+  if (typeof duration === 'string') {
+    // Check if it already has units (day/days/month/months)
+    if (duration.match(/^\d+\s+(day|days|month|months)$/)) {
+      return duration
+    }
+    // Otherwise, parse and format it (for old format like "5 months 29 days")
+    const monthsMatch = duration.match(/(\d+)\s*months?/i)
+    const daysMatch = duration.match(/(\d+)\s*days?/i)
+
+    const months = monthsMatch ? parseInt(monthsMatch[1]) : 0
+    const days = daysMatch ? parseInt(daysMatch[1]) : 0
+
+    if (months === 0 && days > 0) {
+      return `${days} day${days > 1 ? 's' : ''}`
+    } else if (months > 0 && days === 0) {
+      return `${months} month${months > 1 ? 's' : ''}`
+    } else if (months > 0 && days > 0) {
+      return `${months} month${months > 1 ? 's' : ''} ${days} day${days > 1 ? 's' : ''}`
+    }
+    return duration
+  }
+
+  // If it's a number, treat as months (backward compatibility)
+  const numMonths = parseInt(String(duration))
+  if (numMonths === 1) return '1 month'
+  if (numMonths === 3) return '3 months'
+  if (numMonths === 6) return '6 months'
+  if (numMonths === 12) return '12 months'
+  return `${numMonths} month${numMonths > 1 ? 's' : ''}`
+}
+
 const AddonServicesView: React.FC<AddonServicesViewProps> = ({ openTask, setView, setAutoOpenQuote, setPrefillCustomerId, setPrefillRequestId, setPrefillRequestType, userRole }) => {
   const { addonRequests, addonRequestsLoading, loadAddonRequests } = useAddonRequestStore()
   const { addonServices, loadAddonServices } = useAddonServiceStore()
@@ -125,16 +163,18 @@ const AddonServicesView: React.FC<AddonServicesViewProps> = ({ openTask, setView
                     <td>{svc}</td>
                     <td className="tnum text-sm">{t.start_date ? new Date(t.start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}</td>
                     <td><ExpiryCell date={t.expiry || ''} /></td>
-                    <td className="text-sm">{typeof t.duration === 'string' ? t.duration : t.duration === 1 ? 'Monthly' : t.duration === 3 ? 'Quarterly' : t.duration === 6 ? 'Half Yearly' : t.duration === 12 ? 'Yearly' : t.duration ? `${t.duration} month${t.duration > 1 ? 's' : ''}` : 'N/A'}</td>
+                    <td className="text-sm">{formatDuration(t.duration)}</td>
                     <td><StatusPill status={t.status} /></td>
                     <td><StatusPill status={t.operational_status || 'Active'} expiry={t.expiry} /></td>
                     <td className="right">
                       <div className="flex center gap-1" onClick={e => e.stopPropagation()}>
-                        {userRole !== 'Engineer' && (
+                        {userRole !== 'Engineer' && !t.notes?.toLowerCase().includes('renewal') ? (
                           <button className="btn" style={{ padding: '4px 10px', fontSize: 11 }}
                             onClick={() => { setPrefillCustomerId(t.customer_id); setPrefillRequestId(t.id); setPrefillRequestType('addon'); setAutoOpenQuote(true); setView('quotes') }}>
                             Quotation
                           </button>
+                        ) : (
+                          <div style={{ width: '80px' }}></div>
                         )}
                         <Icon name="chevron-right" size={12} className="text-mute" />
                       </div>

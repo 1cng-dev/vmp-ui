@@ -24,14 +24,15 @@ export const CustomerVMListView: React.FC<CustomerVMListViewProps> = ({ myVMs, s
     <div className="card">
       <div className="card-body flush">
         <table className="tbl">
-          <thead><tr><th>VM</th><th>Status</th><th>Power</th><th>Spec</th><th>Public IP</th><th>Expires</th><th></th></tr></thead>
+          <thead><tr><th>VM</th><th>Status</th><th>Type</th><th>Power</th><th>Spec</th><th>Public IP</th><th>Expires</th><th></th></tr></thead>
           <tbody>
-            {myVMs.length === 0 && <tr><td colSpan={7}><div className="empty"><div className="title">No VMs yet</div><div className="sub">Click "Request VM" in the sidebar to deploy your first virtual machine.</div></div></td></tr>}
+            {myVMs.length === 0 && <tr><td colSpan={8}><div className="empty"><div className="title">No VMs yet</div><div className="sub">Click "Request VM" in the sidebar to deploy your first virtual machine.</div></div></td></tr>}
             {myVMs.map((v: any) => (
               <tr key={v.id} onClick={() => setDetailVm(v)}>
                 <td><div className="fw-6">{v.hostname}</div><div className="text-xs text-mute mono">{v.legacy_id || v.id}</div></td>
                 <td><StatusPill status={v.status} expiry={v.expiry}/></td>
-                <td><span className="pill"><Icon name={v.power_state === 'Running' ? 'play' : 'pause'} size={10}/>{v.power_state}</span></td>
+                <td><span className={`pill ${v.request_type === 'trial' ? 'accent' : 'subtle'}`}>{v.request_type === 'trial' ? 'Trial' : 'Paid'}</span></td>
+                <td><span className={`pill ${v.power_state === 'Stopped' ? 'bad' : ''}`}><Icon name={v.power_state === 'Running' ? 'play' : 'pause'} size={10}/>{v.power_state}</span></td>
                 <td className="mono text-xs">{v.vcpu}c · {v.ram_gb}GB · {v.storage_gb}GB</td>
                 <td className="mono">{v.public_ip || '—'}</td>
                 <td><ExpiryCell date={v.expiry}/></td>

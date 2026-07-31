@@ -76,6 +76,7 @@ export interface VM {
   notes: string;
   subscription: string;
   priceMonth: number;
+  legacy_id?: string;
   assigned_vmid?: number;
   start_date?: string;
   end_date?: string;
@@ -297,7 +298,7 @@ export interface NewVMInput {
   vm_request_id?: string;
   task_type?: string;
   expiry?: string;
-  duration?: number;
+  duration?: string | number;
   legacy_id?: string;
   backup_enabled?: boolean;
   backup_type?: string;

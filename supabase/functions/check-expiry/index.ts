@@ -235,7 +235,7 @@ async function checkVMExpiry(supabase: any) {
           entityId: vm.legacy_id || vm.id
         })
       }
-      
+
       alertsCreated++
     } else if (daysUntilExpiry < 0 && daysUntilExpiry >= -30) {
       // Grace period - expired
@@ -300,10 +300,10 @@ async function checkVMExpiry(supabase: any) {
 
 async function checkAddonExpiry(supabase: any) {
   const { data: addons } = await supabase
-    .from('addon_requests')
+    .from('addon_services')
     .select('id, legacy_id, expiry, customer_id, vm_id, cpfs_enabled, ccis_enabled, status, operational_status')
     .not('expiry', 'is', null)
-    .eq('status', 'Completed')
+    .eq('status', 'Active')
     .neq('operational_status', 'Terminated')
 
   if (!addons) return { totalChecked: 0, alertsCreated: 0 }
@@ -327,7 +327,7 @@ async function checkAddonExpiry(supabase: any) {
       .from('alerts')
       .select('id')
       .eq('related_entity_id', addon.id)
-      .eq('related_entity_type', 'addon_request')
+      .eq('related_entity_type', 'addon_service')
       .eq('type', 'expiry')
       .gte('created_at', today.toISOString())
       .lt('created_at', tomorrow.toISOString())
@@ -369,7 +369,7 @@ async function checkAddonExpiry(supabase: any) {
         body: `Add-on service ${addon.legacy_id || addon.id} is ${daysMessage}. Expiry: ${formattedExpiry}`,
         type: 'expiry',
         related_entity_id: addon.id,
-        related_entity_type: 'addon_request',
+        related_entity_type: 'addon_service',
         actor_id: null,
         actor_name: 'System',
         customer_id: addon.customer_id,
@@ -424,7 +424,7 @@ async function checkAddonExpiry(supabase: any) {
         body: `Add-on service ${addon.legacy_id || addon.id} is ${daysMessage}. Expiry: ${formattedExpiry}`,
         type: 'expiry',
         related_entity_id: addon.id,
-        related_entity_type: 'addon_request',
+        related_entity_type: 'addon_service',
         actor_id: null,
         actor_name: 'System',
         customer_id: addon.customer_id,

@@ -1,11 +1,11 @@
+
 -- Enable pg_cron extension if not already enabled
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 
 -- Enable pg_net extension for HTTP requests
 CREATE EXTENSION IF NOT EXISTS pg_net;
 
-
--- Remove existing job if it exists
+-- Remove existing job
 SELECT cron.unschedule('check-expiry-job');
 
 -- Create a cron job to call the check-expiry function daily at 9 AM Myanmar time (2:30 AM UTC)
@@ -13,13 +13,13 @@ SELECT cron.unschedule('check-expiry-job');
 -- Set search path to include net schema
 SELECT cron.schedule(
   'check-expiry-job',
-  '30 2 * * *',
+  '30 2 * * *',  -- 2:30 AM UTC = 9:00 AM Myanmar time (production)
   $$
   SET search_path TO public, net;
   SELECT net.http_post(
-    url := 'https://pivjokgbztjahbvvyzce.supabase.co/functions/v1/check-expiry',
+    url := 'http://10.0.111.23:8000/functions/v1/check-expiry',
     headers := jsonb_build_object(
-      'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpdmpva2dienRqYWhidnZ5emNlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjgwMjMzNiwiZXhwIjoyMDk4Mzc4MzM2fQ.K_JPm2s8CunNc-8q2q_m8g1hCXalZt3IO23J9lJMotQ',
+      'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3ODI4OTY0MjksImV4cCI6MTk0MDU3NjQyOX0.PPm-_z8lJSNWOFqsE5UbyVhqToxPZbPVpZL8oVY8-7g',
       'Content-Type', 'application/json'
     ),
     body := '{"name":"daily-reminder"}'::jsonb,

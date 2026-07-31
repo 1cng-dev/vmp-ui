@@ -12,13 +12,13 @@ DROP POLICY IF EXISTS "Admins can update alerts" ON alerts;
 DROP POLICY IF EXISTS "Admins can delete alerts" ON alerts;
 
 -- Create new policies
-CREATE POLICY "Admins can view all alerts" ON alerts
+CREATE POLICY "Staff can view all alerts" ON alerts
   FOR SELECT TO authenticated
-  USING (true);
+  USING (public.is_staff());
 
 CREATE POLICY "Customers can view their own alerts" ON alerts
   FOR SELECT TO authenticated
-  USING (customer_id IS NULL OR customer_id IN (SELECT id FROM customers WHERE id = auth.uid()));
+  USING (customer_id = auth.uid());
 
 CREATE POLICY "Admins can insert alerts" ON alerts
   FOR INSERT TO authenticated

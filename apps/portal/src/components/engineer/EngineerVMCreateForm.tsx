@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import Icon from "../../lib/icons";
 import type { Task } from "../../types";
+import { supabase } from "../../lib/supabase";
 
 interface EngineerVMCreateFormProps {
   task: Task;
@@ -34,6 +35,33 @@ const EngineerVMCreateForm = ({
   const [node, setNode] = useState<string>("pve1");
   const [pmx_type, setPmxType] = useState<string>("qemu");
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [nextHostnameNumber, setNextHostnameNumber] = useState<number>(1);
+
+  // Calculate next available hostname number
+  useEffect(() => {
+    const calculateNextHostnameNumber = async () => {
+      const { data: existingVMs } = await supabase
+        .from("vms")
+        .select("hostname")
+        .like("hostname", `${(task as any).hostname}-%`);
+
+      let maxNumber = 0;
+      if (existingVMs) {
+        existingVMs.forEach((vm: any) => {
+          const match = vm.hostname.match(new RegExp(`^${(task as any).hostname}-(\\d+)$`));
+          if (match) {
+            const num = parseInt(match[1], 10);
+            if (num > maxNumber) {
+              maxNumber = num;
+            }
+          }
+        });
+      }
+      setNextHostnameNumber(maxNumber + 1);
+    };
+
+    calculateNextHostnameNumber();
+  }, [(task as any).hostname]);
 
   useEffect(() => {
     setPublicIps(Array(qty).fill(""));
@@ -107,7 +135,7 @@ const EngineerVMCreateForm = ({
           }}
         >
           <div className="fw-6 mb-3" style={{ fontSize: 14 }}>
-            VM #{i + 1}: {(task as any).hostname}-{i + 1}
+            VM #{i + 1}: {(task as any).hostname}-{nextHostnameNumber + i}
           </div>
           <div className="grid-3" style={{ gap: 12 }}>
             <div className="field">

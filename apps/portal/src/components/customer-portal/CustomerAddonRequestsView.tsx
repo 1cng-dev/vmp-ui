@@ -7,6 +7,38 @@ interface CustomerAddonRequestsViewProps {
   setDetailRequest: (request: any) => void
 }
 
+// Helper function to format duration string, hiding "0 months" when months is 0
+const formatDuration = (duration: string | number | undefined): string => {
+  if (!duration) return 'N/A'
+
+  // If it's already a string, parse and format it
+  if (typeof duration === 'string') {
+    // Parse "X months Y days" format
+    const monthsMatch = duration.match(/(\d+)\s*months?/i)
+    const daysMatch = duration.match(/(\d+)\s*days?/i)
+
+    const months = monthsMatch ? parseInt(monthsMatch[1]) : 0
+    const days = daysMatch ? parseInt(daysMatch[1]) : 0
+
+    if (months === 0 && days > 0) {
+      return `${days} day${days > 1 ? 's' : ''}`
+    } else if (months > 0 && days === 0) {
+      return `${months} month${months > 1 ? 's' : ''}`
+    } else if (months > 0 && days > 0) {
+      return `${months} month${months > 1 ? 's' : ''} ${days} day${days > 1 ? 's' : ''}`
+    }
+    return duration
+  }
+
+  // If it's a number, treat as months
+  const numMonths = parseInt(String(duration))
+  if (numMonths === 1) return 'Monthly'
+  if (numMonths === 3) return 'Quarterly'
+  if (numMonths === 6) return 'Half Yearly'
+  if (numMonths === 12) return 'Yearly'
+  return `${numMonths} month${numMonths > 1 ? 's' : ''}`
+}
+
 export const CustomerAddonRequestsView: React.FC<CustomerAddonRequestsViewProps> = ({ myAddonRequests, setDetailRequest }) => {
   
   const transformStatus = (status: string) => {
@@ -42,7 +74,7 @@ export const CustomerAddonRequestsView: React.FC<CustomerAddonRequestsViewProps>
                   <td className="tnum text-sm">{new Date(t.created_at).toLocaleDateString()}</td>
                   <td className="tnum text-sm">{t.start_date ? new Date(t.start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}</td>
                   <td><ExpiryCell date={t.expiry || ''} /></td>
-                  <td className="text-sm">{t.duration || 'N/A'}</td>
+                  <td className="text-sm">{formatDuration(t.duration)}</td>
                   <td><StatusPill status={t.status} transformStatus={transformStatus}/></td>
                   <td><StatusPill status={t.operational_status || 'Active'} expiry={t.expiry} /></td>
                   <td className="right"><Icon name="chevron-right" size={12} className="text-mute"/></td>

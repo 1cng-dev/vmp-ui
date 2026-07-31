@@ -60,6 +60,7 @@ import QuotesView from "./pages/QuotesView";
 import FinanceQuoteReviewView from "./pages/FinanceQuoteReviewView";
 import SupportTicketsView from "./pages/SupportTicketsView";
 import AddonServicesView from "./pages/AddonServices";
+import AddonServicesList from "./pages/AddonServicesList";
 import Toasts from "./components/common/Toasts";
 import {
   CommandPalette,
@@ -336,8 +337,6 @@ const AppInner = ({
     );
   }, [tw.role]);
 
-  const unread = alerts.filter((a: any) => !a.read).length;
-
   // Show full page loading spinner until critical data is loaded and minimum time elapsed
   // Only wait for: auth, team (for admin), alerts
   // Customers data loads progressively in background - don't block on it to avoid RLS issues
@@ -436,9 +435,7 @@ const AppInner = ({
               crumbs={crumbs[view] || ["Dashboard"]}
               theme={tw.theme}
               setTheme={(t) => setTweak("theme" as keyof TweakState, t)}
-              onBellClick={() => setNotifOpen(!notifOpen)}
               onHelpClick={() => {}}
-              unread={unread}
             />
             {notifOpen && (
               <NotifPanel
@@ -501,6 +498,11 @@ const AppInner = ({
                 setPrefillCustomerId={setPrefillCustomerId}
                 setPrefillRequestId={setPrefillRequestId}
                 setPrefillRequestType={setPrefillRequestType}
+                userRole={tw.role}
+              />
+            )}
+            {view === "addon-services" && (
+              <AddonServicesList
                 userRole={tw.role}
               />
             )}

@@ -21,9 +21,11 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs, myA
   const [remainingDuration, setRemainingDuration] = useState<{ months: number; days: number } | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  // Filter out expired and terminated VMs
+  // Filter out expired, terminated, and trial VMs
   const activeVMs = useMemo(() => {
     return myVMs.filter((vm: any) => {
+      // Exclude trial VMs - only paid VMs can request add-on services
+      if (vm.request_type === 'trial') return false
       if (!vm.expiry || vm.expiry === '—') return vm.status !== 'Terminated' // Show VMs without expiry only if not terminated
       const expiryDate = new Date(vm.expiry)
       const today = new Date()

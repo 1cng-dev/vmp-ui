@@ -33,9 +33,7 @@ interface TopbarProps {
   actions?: React.ReactNode
   theme: string
   setTheme: (theme: string) => void
-  onBellClick?: () => void
   onHelpClick?: () => void
-  unread?: number
 }
 
 
@@ -96,8 +94,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
     { id: 'activity', label: 'Activity log', icon: 'activity' },
     { section: 'Operations' },
     { id: 'vms', label: 'VM records', icon: 'server' },
+    { id: 'addon-services', label: 'Add-on Services', icon: 'terminal' },
     { id: 'tasks', label: 'Customer Requests', icon: 'tasks', badge: pendingRequestsCount > 0 ? pendingRequestsCount : undefined },
-    { id: 'addons', label: 'Add-on Services', icon: 'box', badge: (role === 'Sales' ? pendingAddonRequestsCount : inProgressAddonRequestsCount) > 0 ? (role === 'Sales' ? pendingAddonRequestsCount : inProgressAddonRequestsCount) : undefined },
+    { id: 'addons', label: 'Add-on Requests', icon: 'box', badge: (role === 'Sales' ? pendingAddonRequestsCount : inProgressAddonRequestsCount) > 0 ? (role === 'Sales' ? pendingAddonRequestsCount : inProgressAddonRequestsCount) : undefined },
     { id: 'network', label: 'Network & IPs', icon: 'network' },
     { section: 'Engineering' },
     { id: 'console', label: 'Web console', icon: 'cpu' },
@@ -110,7 +109,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
     { section: 'Customers' },
     { id: 'customers', label: 'Customers', icon: 'users' },
     { id: 'customer-accounts', label: 'Account management', icon: 'shield' },
-    { id: 'kyc', label: 'KYC review', icon: 'shield', badge: pendingKycCount > 0 ? pendingKycCount : undefined },
+    { id: 'kyc', label: 'KYC review', icon: 'alert', badge: pendingKycCount > 0 ? pendingKycCount : undefined },
     { id: 'tickets', label: 'Support tickets', icon: 'mail', badge: openTicketsCount > 0 ? openTicketsCount : undefined },
     { section: 'Sales' },
     { id: 'pipeline', label: 'Pipeline', icon: 'tasks' },
@@ -118,10 +117,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
     { id: 'followups', label: 'Follow-ups', icon: 'clock' },
     { id: 'trials', label: 'Trial conversions', icon: 'box' },
     { section: 'Finance' },
-    { id: 'quote-review', label: 'Quote Review', icon: 'file', badge: sentQuotesCount > 0 ? sentQuotesCount : undefined },
+    { id: 'quote-review', label: 'Quote Review', icon: 'edit', badge: sentQuotesCount > 0 ? sentQuotesCount : undefined },
     { id: 'finance', label: 'Invoices', icon: 'invoice', badge: customerTransferredInvoicesCount > 0 ? customerTransferredInvoicesCount : undefined },
     { id: 'receipts', label: 'Receipts', icon: 'check' },
-    { id: 'reports', label: 'Reports', icon: 'box' },
+    { id: 'reports', label: 'Reports', icon: 'download' },
     { id: 'aging', label: 'Aging receivables', icon: 'clock' },
     // { id: 'reconciliation', label: 'Reconciliation', icon: 'check' },
     // { id: 'recurring', label: 'Recurring billing', icon: 'refresh' },
@@ -131,7 +130,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
     { id: 'settings', label: 'System settings', icon: 'settings' },
     { id: 'health', label: 'System health', icon: 'activity' },
     { id: 'audit', label: 'Audit log', icon: 'eye' },
-    { id: 'announcements', label: 'Announcements', icon: 'mail' },
+    { id: 'announcements', label: 'Announcements', icon: 'star' },
     { id: 'apikeys', label: 'API & webhooks', icon: 'key' },
     { id: 'backups', label: 'Backup center', icon: 'database' },
   ]
@@ -165,14 +164,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
   const items = (role === 'Customer' ? [
     { id: 'cust-vms', label: 'My VMs', icon: 'server' },
     { id: 'cust-invoices', label: 'Invoices & receipts', icon: 'invoice' },
-    { id: 'cust-announcements', label: 'Announcements', icon: 'mail' },
+    { id: 'cust-announcements', label: 'Announcements', icon: 'star' },
     { id: 'cust-profile', label: 'Profile', icon: 'users' },
   ] : NAV).filter(it => it.section || (it.id && !HIDDEN.has(it.id)))
 
   const allowedFor: Record<string, Set<string> | null> = {
-    'Sales': new Set(['dashboard', 'alerts', 'calendar', 'activity', 'vms', 'tasks', 'addons', 'customers', 'customer-accounts', 'kyc', 'quotes', 'finance', 'receipts', 'announcements']),
-    'Engineer': new Set(['dashboard', 'alerts', 'calendar', 'activity', 'vms', 'tasks', 'addons', 'network', 'console', 'nodes', 'topology', 'snapshots', 'maintenance', 'patches', 'firewall', 'announcements']),
-    'Finance': new Set(['dashboard', 'alerts', 'calendar', 'vms', 'tasks', 'finance', 'receipts', 'quote-review', 'reports', 'customers', 'customer-accounts', 'aging', 'announcements']),
+    'Sales': new Set(['dashboard', 'alerts', 'calendar', 'activity', 'vms', 'tasks', 'addons', 'addon-services', 'customers', 'kyc', 'quotes', 'finance', 'receipts', 'announcements']),
+    'Engineer': new Set(['dashboard', 'alerts', 'calendar', 'activity', 'vms', 'tasks', 'addons', 'addon-services', 'network', 'console', 'nodes', 'topology', 'snapshots', 'maintenance', 'patches', 'firewall', 'announcements']),
+    'Finance': new Set(['dashboard', 'alerts', 'calendar', 'vms', 'tasks', 'addon-services', 'finance', 'receipts', 'quote-review', 'reports', 'customers', 'aging', 'announcements']),
     'Admin': null,
   }
   const allow = allowedFor[role]
@@ -221,7 +220,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
   )
 }
 
-export const Topbar: React.FC<TopbarProps> = ({ crumbs, actions, theme, setTheme, onBellClick, onHelpClick, unread }) => (
+export const Topbar: React.FC<TopbarProps> = ({ crumbs, actions, theme, setTheme, onHelpClick }) => (
   <div className="topbar">
     <div className="crumbs">
       {crumbs.map((c, i) => (
@@ -237,10 +236,6 @@ export const Topbar: React.FC<TopbarProps> = ({ crumbs, actions, theme, setTheme
     </button>
     <button className="icon-btn" onClick={onHelpClick} title="Keyboard shortcuts (?)">
       <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-3)' }}>?</span>
-    </button>
-    <button className="icon-btn" onClick={onBellClick} title="Notifications">
-      <Icon name="bell" size={15} />
-      {unread && unread > 0 && <span className="dot" />}
     </button>
     {actions}
   </div>

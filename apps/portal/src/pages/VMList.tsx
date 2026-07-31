@@ -191,9 +191,9 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal, setView, userRole })
               <th>VM</th>
               <th>Customer</th>
               <th>Status</th>
+              <th>Type</th>
               <th>Power State</th>
-              <th>Spec</th>
-              <th>Public IP / VLAN</th>
+              <th>Public IP</th>
               <th>Expires</th>
               <th>Start Date</th>
               <th>End Date</th>
@@ -224,10 +224,8 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal, setView, userRole })
                     <div className="text-xs text-mute">{c?.name}</div>
                   </td>
                   <td><StatusPill status={v.status} expiry={v.expiry} /></td>
-                  <td><span className="pill"><Icon name={v.power_state === 'Running' ? 'play' : 'pause'} size={10}/>{v.power_state || 'Unknown'}</span></td>
-                  <td className="mono text-xs">
-                    {v.vcpu}c · {v.ram_gb}GB · {v.storage_gb}GB
-                  </td>
+                  <td><span className={`pill ${(v as any).request_type === 'trial' ? 'accent' : 'subtle'}`}>{(v as any).request_type === 'trial' ? 'Trial' : 'Paid'}</span></td>
+                  <td><span className={`pill ${v.power_state === 'Stopped' ? 'bad' : ''}`}><Icon name={v.power_state === 'Running' ? 'play' : 'pause'} size={10}/>{v.power_state || 'Unknown'}</span></td>
                   <td className="mono text-xs">
                     {v.public_ip || '—'}
                   </td>

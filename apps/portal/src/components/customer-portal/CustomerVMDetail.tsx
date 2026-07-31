@@ -14,6 +14,44 @@ interface CustomerVMDetailProps {
   me: any
 }
 
+// Helper function to format duration string
+// If duration already has units (e.g., "14 days", "1 month"), return as-is
+// If it's a number, convert to string with units
+const formatDuration = (duration: string | number | undefined | null): string => {
+  if (!duration) return 'N/A'
+
+  // If it's already a string with units, return as-is
+  if (typeof duration === 'string') {
+    // Check if it already has units (day/days/month/months)
+    if (duration.match(/^\d+\s+(day|days|month|months)$/)) {
+      return duration
+    }
+    // Otherwise, parse and format it (for old format like "5 months 29 days")
+    const monthsMatch = duration.match(/(\d+)\s*months?/i)
+    const daysMatch = duration.match(/(\d+)\s*days?/i)
+
+    const months = monthsMatch ? parseInt(monthsMatch[1]) : 0
+    const days = daysMatch ? parseInt(daysMatch[1]) : 0
+
+    if (months === 0 && days > 0) {
+      return `${days} day${days > 1 ? 's' : ''}`
+    } else if (months > 0 && days === 0) {
+      return `${months} month${months > 1 ? 's' : ''}`
+    } else if (months > 0 && days > 0) {
+      return `${months} month${months > 1 ? 's' : ''} ${days} day${days > 1 ? 's' : ''}`
+    }
+    return duration
+  }
+
+  // If it's a number, treat as months (backward compatibility)
+  const numMonths = parseInt(String(duration))
+  if (numMonths === 1) return '1 month'
+  if (numMonths === 3) return '3 months'
+  if (numMonths === 6) return '6 months'
+  if (numMonths === 12) return '12 months'
+  return `${numMonths} month${numMonths > 1 ? 's' : ''}`
+}
+
 export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialVm, onClose, onRenew, me }) => {
   const { vms, startVM, stopVM, restartVM, snapshotVM, getVMRequest } = useVMStore()
   const { getAddonServicesForVM } = useAddonServiceStore()
@@ -77,7 +115,7 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
               <button className="btn" onClick={() => restartVM(vm.id)} disabled={!isRunning}><Icon name="refresh" size={12} />Restart</button>
               <button className="btn" onClick={openConsole} disabled={!isRunning} title={isRunning ? 'Open VNC console in new tab' : 'Start the VM to open console'}><Icon name="terminal" size={12} />Console<Icon name="external" size={10} /></button>
               {vmRequest?.request_type === 'trial' && <button className="btn primary" onClick={() => setConvertToPaidOpen(true)}><Icon name="credit-card" size={12} />Convert to Paid</button>}
-              <button className="btn" onClick={() => setUpgradeOpen(true)}><Icon name="arrow-up" size={12} />Change Plan</button>
+              {vmRequest?.request_type !== 'trial' && <button className="btn" onClick={() => setUpgradeOpen(true)}><Icon name="arrow-up" size={12} />Change Plan</button>}
               <button className="btn accent" onClick={onRenew}><Icon name="refresh" size={12} />Renew</button>
             </>
           )}
@@ -123,7 +161,7 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
                 ['Proxmox Node', (vm as any).node || '—'],
                 ['VM Type', (vm as any).pmx_type || '—'],
                 ['Task Type', vm.task_type || 'New'],
-                ['Billing Term', (vm as any).duration ? ((vm as any).duration === 1 ? 'Monthly' : (vm as any).duration === 3 ? 'Quarterly' : (vm as any).duration === 6 ? 'Half Yearly' : (vm as any).duration === 12 ? 'Yearly' : `${(vm as any).duration} month${(vm as any).duration > 1 ? 's' : ''}`) : '—'],
+                ['Billing Term', (vm as any).duration || '—'],
                 ['Created', new Date(vm.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })],
                 ['Expires', vm.expiry ? new Date(vm.expiry).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'],
               ]} />
@@ -316,7 +354,7 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
                 ['Request ID', vmRequest?.legacy_id || vm.vm_request_id],
                 ['Request Type', vmRequest?.request_type || 'paid'],
                 ['Status', vmRequest?.status || '—'],
-                ['Duration', (vm as any).duration ? ((vm as any).duration === 1 ? 'Monthly' : (vm as any).duration === 3 ? 'Quarterly' : (vm as any).duration === 6 ? 'Half Yearly' : (vm as any).duration === 12 ? 'Yearly' : `${(vm as any).duration} month${(vm as any).duration > 1 ? 's' : ''}`) : '—'],
+                ['Duration', (vm as any).duration || '—'],
                 ['Start Date', (vm as any).start_date ? new Date((vm as any).start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'],
                 ['End Date', (vm as any).end_date ? new Date((vm as any).end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'],
                 ['Expiry', vm.expiry ? new Date(vm.expiry).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'],
@@ -382,12 +420,11 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
                         as.cpfs_enabled && as.cpfs_package ? `CPFS ${as.cpfs_package}` : null,
                         as.ccis_enabled && as.ccis_package ? `CCIS ${as.ccis_package}` : null
                       ].filter(Boolean).join(', ') || '—'}</dd>
-                      <dt>Duration</dt><dd>{as.duration || 'N/A'}</dd>
+                      <dt>Duration</dt><dd>{formatDuration(as.duration)}</dd>
                       {as.start_date && <><dt>Start Date</dt><dd className="tnum">{new Date(as.start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
                       {as.end_date && <><dt>End Date</dt><dd className="tnum">{new Date(as.end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
                       {as.expiry && <><dt>Expiry</dt><dd><ExpiryCell date={as.expiry || ''} /></dd></>}
                       <dt>Status</dt><dd><StatusPill status={as.status}/></dd>
-                      <dt>Operational Status</dt><dd><StatusPill status={as.operational_status || 'Active'} expiry={as.expiry}/></dd>
                     </dl>
                   </div>
                 ))}

@@ -28,7 +28,7 @@ export interface VM {
   vm_request_id?: string;
   task_type?: "new" | "change-plan" | "renewal" | "addon";
   expiry?: string;
-  duration?: number;
+  duration?: string | number;
   legacy_id?: string;
   assigned_vmid?: number;
   node?: string; // ADD THIS
@@ -278,6 +278,7 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         updated_at: new Date().toISOString(),
         start_date: vm.start_date || null,
         end_date: vm.end_date || null,
+        request_type: vm.request_type,
         backup_enabled: (vm as any).backup_enabled || false,
         backup_type: (vm as any).backup_type || "weekly",
         os_name: vm.os_name,

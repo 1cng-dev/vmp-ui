@@ -21,9 +21,8 @@ export async function checkAddonExpiry(): Promise<AddonExpiryCheckResult> {
   try {
     // Get all completed add-on requests with expiry dates, excluding terminated ones
     const { data: addons, error } = await supabase
-      .from('addon_requests')
-      .select('id, legacy_id, expiry, customer_id, vm_id, cpfs_enabled, ccis_enabled, status, operational_status')
-      .not('expiry', 'is', null)
+      .from('addon_services')
+      .select('id, legacy_id, expiry, customer_id, vm_id, cpfs_enabled, ccis_enabled, status, operational_status').not('expiry', 'is', null)
       .eq('status', 'Completed')
       .neq('operational_status', 'Terminated')
 
@@ -82,7 +81,7 @@ async function checkAlertExists(addonId: string): Promise<boolean> {
     .from('alerts')
     .select('id, body')
     .eq('related_entity_id', addonId)
-    .eq('related_entity_type', 'addon_request')
+    .eq('related_entity_type', 'addon_service')
     .eq('type', 'addon')
     .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Last 24 hours
     .limit(1)
@@ -147,8 +146,8 @@ async function createExpiryAlert(addon: any, daysUntilExpiry: number, timeframe:
   const title = daysUntilExpiry < 0
     ? 'Add-on Service Expired - Grace Period'
     : daysUntilExpiry === 0
-    ? 'Add-on Service Expiring Today'
-    : `Add-on Service Expiring in ${daysUntilExpiry} Day${daysUntilExpiry > 1 ? 's' : ''}`
+      ? 'Add-on Service Expiring Today'
+      : `Add-on Service Expiring in ${daysUntilExpiry} Day${daysUntilExpiry > 1 ? 's' : ''}`
 
   const body = `${serviceName} for VM ${vmHostname} (${vmLegacyId}) for ${customerName} is ${timeframe}. Add-on ID: ${addon.legacy_id || addon.id}. Expiry date: ${new Date(addon.expiry).toLocaleDateString()}`
 
@@ -158,7 +157,7 @@ async function createExpiryAlert(addon: any, daysUntilExpiry: number, timeframe:
     body,
     type: 'addon',
     related_entity_id: addon.id,
-    related_entity_type: 'addon_request',
+    related_entity_type: 'addon_service',
     actor_id: 'system',
     actor_name: 'System',
     customer_id: addon.customer_id,
