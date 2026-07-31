@@ -77,12 +77,13 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         sev: a.sev,
         title: a.title,
         body: a.body,
-        ts: new Date(a.created_at).toLocaleDateString('en-US', { 
+        ts: new Date(a.created_at).toLocaleString('en-US', { 
           month: 'short', 
           day: 'numeric', 
           year: 'numeric',
           hour: '2-digit',
-          minute: '2-digit'
+          minute: '2-digit',
+          second: '2-digit'
         }),
         read: readAlertIds.has(a.id),
         type: a.type,

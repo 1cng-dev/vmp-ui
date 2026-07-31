@@ -312,7 +312,7 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     if (error) throw error
     if (data) {
-      await loadCustomers()
+      // Real-time subscription handles the update, no need to call loadCustomers
 
       // Get current user for activity logging
       const { data: { user } } = await supabase.auth.getUser()

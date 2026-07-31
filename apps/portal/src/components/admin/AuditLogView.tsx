@@ -32,6 +32,29 @@ export const AuditLogView: React.FC = () => {
     return true
   })
 
+  const handleExport = () => {
+    const headers = ['Timestamp', 'Actor', 'Type', 'Event']
+    const rows = filtered.map(a => [a.ts, a.actor, a.kind, a.text])
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+
+    link.setAttribute('href', url)
+    link.setAttribute('download', `audit-log-${new Date().toISOString().split('T')[0]}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    toast(`Exported ${filtered.length} events to CSV`, 'ok')
+  }
+
   return (
     <div className="content">
       <div className="page-head">
@@ -40,7 +63,7 @@ export const AuditLogView: React.FC = () => {
           <p className="page-subtitle">Every action across the system, including auth events and credential access. Retained 90 days.</p>
         </div>
         <div className="page-actions">
-          <button className="btn" onClick={() => toast('Audit log exported (CSV)', 'info')}><Icon name="download" size={13}/>Export (CSV)</button>
+          <button className="btn" onClick={handleExport}><Icon name="download" size={13}/>Export (CSV)</button>
         </div>
       </div>
       <div className="card">

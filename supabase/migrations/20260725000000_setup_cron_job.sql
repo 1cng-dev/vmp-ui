@@ -5,12 +5,15 @@ CREATE EXTENSION IF NOT EXISTS pg_cron;
 -- Enable pg_net extension for HTTP requests
 CREATE EXTENSION IF NOT EXISTS pg_net;
 
+-- Remove existing job
+SELECT cron.unschedule('check-expiry-job');
+
 -- Create a cron job to call the check-expiry function daily at 9 AM Myanmar time (2:30 AM UTC)
 -- This runs as a background job in PostgreSQL
 -- Set search path to include net schema
 SELECT cron.schedule(
   'check-expiry-job',
-  '0 3 * * *',  -- 3:00 AM UTC = 9:30 AM Myanmar time (for testing)
+  '30 2 * * *',  -- 2:30 AM UTC = 9:00 AM Myanmar time (production)
   $$
   SET search_path TO public, net;
   SELECT net.http_post(

@@ -303,7 +303,7 @@ async function checkAddonExpiry(supabase: any) {
     .from('addon_services')
     .select('id, legacy_id, expiry, customer_id, vm_id, cpfs_enabled, ccis_enabled, status, operational_status')
     .not('expiry', 'is', null)
-    .eq('status', 'Completed')
+    .eq('status', 'Active')
     .neq('operational_status', 'Terminated')
 
   if (!addons) return { totalChecked: 0, alertsCreated: 0 }

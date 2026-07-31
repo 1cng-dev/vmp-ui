@@ -36,6 +36,7 @@ import { CustomerAddonRequestDetail } from '../components/customer-portal/Custom
 import { CustomerAddonRequestsView } from '../components/customer-portal/CustomerAddonRequestsView'
 import { CustomerInvoiceDetail } from '../components/customer-portal/CustomerInvoiceDetail'
 import { AddonServicesView } from '../components/customer-portal/AddonServicesView'
+import { MyAddonServicesView } from '../components/customer-portal/MyAddonServicesView'
 import { CustomerReceiptsView } from '../components/customer-portal/CustomerReceiptsView'
 import { CustomerNotificationsView } from '../components/customer-portal/CustomerNotificationsView'
 import { CustomerAnnouncementsView } from '../components/customer-portal/CustomerAnnouncementsView'
@@ -210,14 +211,14 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
 
   const items = [
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
-    { id: 'request', label: 'Request VM', icon: 'plus', lockedByKyc: true },
     { id: 'vms', label: 'My VMs', icon: 'server', lockedByKyc: true },
+    { id: 'my-addons', label: 'My Add-on Services', icon: 'shield', lockedByKyc: true },
     { id: 'requests', label: 'My requests', icon: 'tasks', badge: pendingRequests.length || null, lockedByKyc: true },
     { id: 'addon-requests', label: 'My add-on requests', icon: 'box', lockedByKyc: true },
     { id: 'addons', label: 'Add-on Services', icon: 'plus', lockedByKyc: true },
     { id: 'invoices', label: 'Invoices', icon: 'invoice', badge: pendingInv.length || null, lockedByKyc: true },
     { id: 'receipts', label: 'Receipts', icon: 'check', lockedByKyc: true },
-    { id: 'cust-announcements', label: 'Announcements', icon: 'mail', badge: unreadAnnouncements || null },
+    { id: 'cust-announcements', label: 'Announcements', icon: 'star', badge: unreadAnnouncements || null },
     { id: 'tickets', label: 'Support tickets', icon: 'mail', badge: openTickets.length || null, lockedByKyc: true },
   ]
 
@@ -400,6 +401,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
                     {view === 'vms' && <CustomerVMListView myVMs={myVMs} setDetailVm={setDetailVm} setRenewVm={setRenewVm} />}
                     {view === 'requests' && <CustomerRequestsView myRequests={myRequests} setDetailRequest={setDetailRequest} />}
                     {view === 'addon-requests' && <CustomerAddonRequestsView myAddonRequests={myAddonRequests} setDetailRequest={(req) => { setDetailRequest({ ...req, requestType: 'addon' }) }} />}
+                    {view === 'my-addons' && <MyAddonServicesView myVMs={myVMs} myAddonServices={myAddonServices} />}
                     {view === 'invoices' && <CustomerInvoicesView myInvs={myInvs} setDetailInvoice={setDetailInvoice} />}
                     {view === 'receipts' && <CustomerReceiptsView me={safeMe} />}
                     {view === 'notifications' && <CustomerNotificationsView />}

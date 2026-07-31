@@ -1,5 +1,8 @@
+-- Drop existing sequence to force reset
+DROP SEQUENCE IF EXISTS public.vm_seq;
+
 -- Create sequence for VMs starting from 3000
-CREATE SEQUENCE IF NOT EXISTS public.vm_seq START 3000;
+CREATE SEQUENCE public.vm_seq START 3000;
 
 -- Create function to generate legacy_id for VMs
 CREATE OR REPLACE FUNCTION public.generate_vm_legacy_id()
