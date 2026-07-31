@@ -149,7 +149,7 @@ const AppInner = ({
     value?: any,
   ) => void;
 }) => {
-  const { alerts, alertsLoading, markAllAlertsRead } = useAlertStore();
+  const { alertsLoading, markAllAlertsRead } = useAlertStore();
   const { loadAlerts } = useAlertStore();
   const { loadActivity } = useActivityStore();
   const { loadTickets } = useTicketStore();
@@ -328,14 +328,6 @@ const AppInner = ({
     document.documentElement.style.setProperty("--accent-h", hue.toString());
   }, [tw.theme, tw.accent]);
 
-  useEffect(() => {
-    console.log(
-      "AppInner role changed:",
-      tw.role,
-      "should render CustomerPortal:",
-      tw.role === "Customer",
-    );
-  }, [tw.role]);
 
   // Show full page loading spinner until critical data is loaded and minimum time elapsed
   // Only wait for: auth, team (for admin), alerts

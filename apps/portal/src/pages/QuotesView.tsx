@@ -183,7 +183,6 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
         const isSpecChange = (selectedRequest as any).spec_changed || false
         const isBackupChange = (selectedRequest as any).backup_changed || false
 
-        console.log('Before comparison logic:', { isSpecChange, isBackupChange })
 
         // Fallback: check if spec values differ from current VM data
         const specDiffers = currentVMData && (
@@ -196,20 +195,6 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
           ((selectedRequest as any).backup_enabled && (selectedRequest as any).backup_type !== currentVMData.backup_type)
         )
 
-        console.log('Change comparison:', {
-          isSpecChange,
-          isBackupChange,
-          specDiffers,
-          backupDiffers,
-          requestVcpu: (selectedRequest as any).vcpu,
-          currentVcpu: currentVMData?.vcpu,
-          requestRam: (selectedRequest as any).ram_gb,
-          currentRam: currentVMData?.ram_gb || currentVMData?.ram,
-          requestStorage: (selectedRequest as any).storage,
-          currentStorage: currentVMData?.storage_gb || currentVMData?.storage,
-          requestBackupEnabled: (selectedRequest as any).backup_enabled,
-          currentBackupEnabled: currentVMData?.backup_enabled,
-        })
 
         const instanceLines: InstanceLine[] = []
         const backupLines: BackupLine[] = []

@@ -78,16 +78,13 @@ const NewCustomerTicketModal: React.FC<NewCustomerTicketModalProps> = ({ me, onC
         attachments: []
       })
 
-      console.log('Ticket created with ID:', ticketId)
 
       // Upload files after ticket is created
       const attachmentUrls: string[] = []
       if (files.length > 0) {
         for (const file of files) {
           try {
-            console.log('Uploading file:', file.name)
             const url = await uploadTicketAttachment(file, ticketId)
-            console.log('File uploaded:', url)
             attachmentUrls.push(url)
           } catch (err) {
             console.error('Failed to upload file:', file.name, err)
@@ -98,7 +95,6 @@ const NewCustomerTicketModal: React.FC<NewCustomerTicketModalProps> = ({ me, onC
 
       // Update ticket with attachment URLs
       if (attachmentUrls.length > 0) {
-        console.log('Updating ticket with attachments:', attachmentUrls)
         const { error } = await supabase
           .from('tickets')
           .update({ attachments: attachmentUrls })
@@ -108,7 +104,6 @@ const NewCustomerTicketModal: React.FC<NewCustomerTicketModalProps> = ({ me, onC
           console.error('Failed to update ticket with attachments:', error)
           toast('Failed to save attachments', 'bad')
         } else {
-          console.log('Ticket updated with attachments successfully')
         }
       }
 

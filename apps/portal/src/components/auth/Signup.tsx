@@ -249,7 +249,7 @@ const SignupScreen: React.FC<{ onComplete: (email: string) => void; onSwitchToLo
           <div className="divider"/>
           <div className="text-xs text-mute" style={{ lineHeight: 1.6 }}>
             <div className="fw-6 mb-1" style={{ color: 'var(--ink-2)' }}>Need help?</div>
-            Contact us at <span className="mono">support@vpsmm.co</span> or visit our docs.
+            Contact us at <span className="mono">support@system.1cloudng.com</span> or visit our docs.
           </div>
         </div>
 

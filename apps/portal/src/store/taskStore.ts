@@ -115,7 +115,6 @@ const useTaskStore = (): TaskStoreValue => {
 
       if (stage === 6 && t.createdVmId) {
         // TODO: Update VM status to Active when updateVM is available
-        console.log("VM created, would update status to Active");
       }
 
       setTasks((s) => s.map((x) => (x.id === id ? { ...x, ...patch } : x)));
@@ -137,18 +136,11 @@ const useTaskStore = (): TaskStoreValue => {
       },
       addVM: (vm: any) => Promise<string>,
     ) => {
-      console.log(
-        "createVMManually called with task:",
-        task,
-        "vmDetails:",
-        vmDetails,
-      );
       const t = task;
       if (!t) {
         console.error("Task is null/undefined");
         return;
       }
-      console.log("Processing task:", t);
 
       // Calculate expiry using VM's created_at (service provision date)
       // Formula: created_at + duration + 1 day
@@ -199,12 +191,6 @@ const useTaskStore = (): TaskStoreValue => {
           expiry = expiryDate.toISOString();
           end_date = expiry;
 
-          console.log("Trial expiry calculated:", {
-            created_at: t.created_at,
-            startDate,
-            trialDays: 14,
-            expiry,
-          });
         }
       } else if (parsedDuration) {
         // Paid requests use duration from request
@@ -228,17 +214,8 @@ const useTaskStore = (): TaskStoreValue => {
           expiry = expiryDate.toISOString();
           end_date = expiry;
 
-          console.log("Paid expiry calculated:", {
-            created_at: t.created_at,
-            startDate,
-            duration: t.duration,
-            parsedDuration,
-            expiry,
-          });
         }
       } else {
-        console.log("No duration found in task, expiry will be null");
-        console.log("Task object keys:", Object.keys(t));
       }
 
       const qty = t.qty || 1;
@@ -335,20 +312,12 @@ const useTaskStore = (): TaskStoreValue => {
           // Set provision_status to 'completed' for provisioned VMs
           provision_status: "completed",
         };
-        console.log(`About to call addVM for VM ${i + 1}:`, vmData);
         try {
           const vmId = await addVM(vmData);
           vmIds.push(vmId);
 
           // Insert into vm_ownership with Proxmox details
           try {
-            console.log('Inserting into vm_ownership:', {
-              user_id: t.customer_id,
-              customer_id: t.customer_id,
-              vmid: vmDetails.assigned_vmids[i] || null,
-              node: vmDetails.node || "pve1",
-              pmx_type: vmDetails.pmx_type || "qemu",
-            });
             await supabase.from("vm_ownership").insert({
               user_id: t.customer_id,
               customer_id: t.customer_id,
@@ -356,7 +325,6 @@ const useTaskStore = (): TaskStoreValue => {
               node: vmDetails.node || "pve1",
               pmx_type: vmDetails.pmx_type || "qemu",
             });
-            console.log('vm_ownership insert successful');
           } catch (ownershipError: any) {
             console.error('vm_ownership insert failed:', ownershipError);
             // Rollback VM creation if ownership insert fails
@@ -372,7 +340,6 @@ const useTaskStore = (): TaskStoreValue => {
         }
       }
 
-      console.log("All VMs created with IDs:", vmIds);
     },
     [],
   );
@@ -384,10 +351,6 @@ const useTaskStore = (): TaskStoreValue => {
       durationMonths: number = 3,
       updateVM?: (id: string, patch: any) => Promise<void>,
     ) => {
-      console.log("updateVMExpiryForRequest called:", {
-        vmRequestId,
-        durationMonths,
-      });
 
       // Get VMs for this request to get their created_at
       const { data: vms } = await supabase
@@ -396,7 +359,6 @@ const useTaskStore = (): TaskStoreValue => {
         .eq("vm_request_id", vmRequestId);
 
       if (vms && vms.length > 0) {
-        console.log(`Found ${vms.length} VMs to update expiry for`);
         // Update each VM with expiry calculated from its created_at
         for (const vm of vms) {
           if (vm.created_at) {
@@ -412,11 +374,9 @@ const useTaskStore = (): TaskStoreValue => {
             } else {
               await supabase.from("vms").update({ expiry, end_date: expiry }).eq("id", vm.id);
             }
-            console.log(`Updated VM ${vm.id} with expiry ${expiry}`);
           }
         }
       } else {
-        console.log("No VMs found for this request");
       }
     },
     [],
@@ -425,7 +385,6 @@ const useTaskStore = (): TaskStoreValue => {
   // Function to update add-on service duration when renewal is complete
   const updateAddonExpiryForVM = useCallback(
     async (vmId: string, durationMonths: number) => {
-      console.log("updateAddonExpiryForVM called:", { vmId, durationMonths });
 
       // Get ONLY pending add-on requests for this VM (renewal requests)
       const { data: pendingAddonRequests } = await supabase
@@ -435,9 +394,6 @@ const useTaskStore = (): TaskStoreValue => {
         .eq("status", "Pending");
 
       if (pendingAddonRequests && pendingAddonRequests.length > 0) {
-        console.log(
-          `Found ${pendingAddonRequests.length} pending add-on requests to update`,
-        );
 
         for (const addon of pendingAddonRequests) {
           let newDuration: string;
@@ -506,7 +462,6 @@ const useTaskStore = (): TaskStoreValue => {
                 expiry: newExpiry.toISOString()
               })
               .eq("id", existingService.id)
-            console.log(`Updated addon_service ${existingService.id} for renewal with duration: ${newDuration}`)
           } else {
             // Create new addon service record with renewal duration
             // Build duration string from renewal request
@@ -538,7 +493,6 @@ const useTaskStore = (): TaskStoreValue => {
                 status: 'Active',
                 operational_status: 'Active'
               })
-            console.log(`Created addon_service for vm ${vmId}`)
           }
 
           // Update add-on request status to Completed
@@ -548,12 +502,8 @@ const useTaskStore = (): TaskStoreValue => {
               status: "Completed"
             })
             .eq("id", addon.id);
-          console.log(
-            `Marked add-on request ${addon.id} as Completed`,
-          );
         }
       } else {
-        console.log("No add-on requests found for this VM");
       }
     },
     [],

@@ -301,10 +301,7 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs, myA
         <button className="btn accent" onClick={async () => {
           try {
             setSubmitting(true)
-            console.log('Submitting add-on request:', { selectedVM, cpfsEnabled, cpfsPackage, ccisEnabled, ccisPlan, duration, remainingDuration })
             const vm = myVMs.find((v: any) => v.id === selectedVM)
-            console.log('Selected VM:', vm)
-            console.log('Customer ID from VM:', vm?.customer_id)
             
             // Format duration as text with months and days
             let durationText = ''
@@ -341,7 +338,6 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs, myA
               expiry: expiryDate.toISOString(),
               status: 'Pending' as 'Pending',
             }
-            console.log('Add-on request data:', addonRequest)
             await createAddonRequest(addonRequest)
             
             toast('Add-on request submitted successfully', 'ok')
@@ -350,13 +346,6 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs, myA
             setCcisEnabled(false)
             setDuration('12 months')
           } catch (error: any) {
-            console.error('Error submitting add-on request:', error)
-            console.error('Error details:', {
-              message: error.message,
-              code: error.code,
-              details: error.details,
-              hint: error.hint
-            })
             toast('Failed to submit add-on request: ' + (error.message || 'Unknown error'), 'error')
           } finally {
             setSubmitting(false)

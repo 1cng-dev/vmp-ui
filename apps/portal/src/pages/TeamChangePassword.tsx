@@ -51,7 +51,6 @@ const TeamChangePasswordPage: React.FC = () => {
         return
       }
 
-      console.log('Updating password for user:', user.id)
 
       // Update password
       const { error: updateError } = await supabase.auth.updateUser({
@@ -63,7 +62,6 @@ const TeamChangePasswordPage: React.FC = () => {
         throw updateError
       }
 
-      console.log('Password updated, now clearing force_password_change flag')
 
       // Clear force_password_change flag for team member
       const { error: teamError } = await supabase
@@ -76,7 +74,6 @@ const TeamChangePasswordPage: React.FC = () => {
         throw teamError
       }
 
-      console.log('force_password_change flag cleared successfully')
 
       toast('Password changed successfully', 'ok')
       navigate('/admin')

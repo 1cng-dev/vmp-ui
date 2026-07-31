@@ -18,10 +18,7 @@ const Welcome = () => {
 
     const validateInvite = async () => {
       const token = searchParams.get('token')
-      console.log('Welcome page - token:', token)
-      
       if (!token) {
-        console.log('No token found')
         setError('Invalid invite link')
         setDataLoaded(true)
         return
@@ -34,10 +31,7 @@ const Welcome = () => {
         .eq('invite_token', token)
         .single()
 
-      console.log('Member data:', member, 'Error:', memberError)
-
       if (memberError || !member) {
-        console.log('Invalid or expired invite')
         setError('Invalid or expired invite link')
         setDataLoaded(true)
         return
@@ -45,7 +39,6 @@ const Welcome = () => {
 
       // Check if invite expired
       if (member.invite_expires_at && new Date(member.invite_expires_at) < new Date()) {
-        console.log('Invite expired')
         setError('Invite link has expired')
         setDataLoaded(true)
         return
@@ -53,14 +46,12 @@ const Welcome = () => {
 
       // Check if already accepted
       if (member.accepted_at) {
-        console.log('Invite already accepted')
         setError('This invite has already been accepted')
         setDataLoaded(true)
         return
       }
 
       // Redirect directly to setup password page with the token
-      console.log('Redirecting to setup password with token:', token)
       setDataLoaded(true)
       navigate(`/setup-password?token=${token}`)
     }

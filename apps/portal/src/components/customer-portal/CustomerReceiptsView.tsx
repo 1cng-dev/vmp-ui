@@ -52,7 +52,6 @@ export const CustomerReceiptsView: React.FC<CustomerReceiptsViewProps> = ({ me }
               <tbody>
                 {receipts.map((r: any) => {
                   const invoice = invoices.find((i: any) => i.id === r.invoice_id)
-                  console.log('Receipt:', r.legacy_id, 'Invoice ID:', r.invoice_id, 'Found invoice:', invoice, 'Invoice legacy_id:', invoice?.legacy_id)
                   return (
                     <tr key={r.id}>
                       <td className="mono text-sm fw-6">{r.legacy_id}</td>

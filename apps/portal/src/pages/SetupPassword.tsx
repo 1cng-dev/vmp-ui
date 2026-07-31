@@ -25,10 +25,8 @@ const SetupPassword = () => {
   useEffect(() => {
     const validateInvite = async () => {
       const token = searchParams.get('token')
-      console.log('Setup password - token from URL:', token)
 
       if (!token) {
-        console.log('No token found in URL')
         toast('Invalid invite link', 'bad')
         setValidating(false)
         return
@@ -41,11 +39,8 @@ const SetupPassword = () => {
         .eq('invite_token', token)
         .single()
 
-      console.log('Member data:', memberData)
-      console.log('Member error:', memberError)
 
       if (memberError || !memberData) {
-        console.log('Validation failed - memberError:', memberError, 'memberData:', memberData)
         toast('Invalid or expired invite link', 'bad')
         setValidating(false)
         return
@@ -53,7 +48,6 @@ const SetupPassword = () => {
 
       // Check if invite expired
       if (memberData.invite_expires_at && new Date(memberData.invite_expires_at) < new Date()) {
-        console.log('Invite expired')
         toast('Invite link has expired', 'bad')
         setValidating(false)
         return
@@ -61,13 +55,11 @@ const SetupPassword = () => {
 
       // Check if already accepted
       if (memberData.accepted_at) {
-        console.log('Invite already accepted')
         toast('This invite has already been accepted', 'bad')
         setValidating(false)
         return
       }
 
-      console.log('Validation successful, member:', memberData)
       setMember(memberData)
       setValidating(false)
     }
@@ -104,7 +96,6 @@ const SetupPassword = () => {
     setLoading(true)
 
     try {
-      console.log('Updating password for user:', member.user_id)
 
       // Update the auth user's password using admin client
       await supabaseAdmin.auth.admin.updateUserById(member.user_id, {
@@ -127,7 +118,6 @@ const SetupPassword = () => {
         throw new Error('Failed to update status: ' + updateError.message)
       }
 
-      console.log('Status updated successfully')
 
       // Sign in with the new password
       await supabase.auth.signInWithPassword({
@@ -135,12 +125,10 @@ const SetupPassword = () => {
         password: password
       })
 
-      console.log('Login successful, now reloading team data')
 
       // Reload team data after authentication to update Context state
       await loadTeam()
 
-      console.log('Team data reloaded, navigating to admin')
       navigate('/admin')
     } catch (error: any) {
       console.error('Error in handleSubmit:', error)

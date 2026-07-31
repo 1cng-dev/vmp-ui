@@ -102,9 +102,7 @@ export const TeamTicketDetail: React.FC<TeamTicketDetailProps> = ({ ticket: init
       if (replyFiles.length > 0) {
         for (const file of replyFiles) {
           try {
-            console.log('Uploading reply file:', file.name)
             const url = await uploadTicketAttachment(file)
-            console.log('Reply file uploaded:', url)
             attachmentUrls.push(url)
           } catch (err) {
             console.error('Failed to upload reply file:', file.name, err)

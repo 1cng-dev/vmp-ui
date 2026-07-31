@@ -32,7 +32,6 @@ const CustomerDrawer: React.FC<CustomerDrawerProps> = ({ custId, onClose, openVM
   useEffect(() => { setDraft(c) }, [custId])
 
   if (!c) {
-    console.log('Customer not found')
     return (
       <div className="drawer-overlay" onClick={onClose}>
         <div className="drawer" onClick={e => e.stopPropagation()}>

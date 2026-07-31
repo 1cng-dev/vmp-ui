@@ -37,7 +37,6 @@ const TeamView: React.FC<TeamViewProps> = () => {
   // Reload team data when window regains focus (after returning from setup password)
   useEffect(() => {
     const handleFocus = () => {
-      console.log('Window gained focus, reloading team data')
       loadTeam()
     }
     window.addEventListener('focus', handleFocus)

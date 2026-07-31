@@ -49,13 +49,7 @@ const Dashboard: React.FC<DashboardProps> = ({ openVM, setView }) => {
     // Add-ons expiring in the future (1-14 days), with Active status only
     return d > 0 && d <= 14 && a.status === 'Active'
   })
-  const expiredAddons = addonServices.filter(a => {
-    if (!a.expiry || a.expiry === '—') return false
-    const d = Math.ceil((new Date(a.expiry).getTime() - TODAY.getTime()) / 86400000)
-    // Add-ons that have already expired or expire today, with Active status only
-    return d <= 0 && a.status === 'Active'
-  })
-  
+
   // Calculate overdue based on due date, not status (to match AgingView logic)
   const overdueInvoices = invoices.filter(i => {
     if (i.status === 'Payment Received') return false

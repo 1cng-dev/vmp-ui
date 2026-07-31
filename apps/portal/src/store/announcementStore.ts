@@ -94,7 +94,6 @@ export const AnnouncementProvider: React.FC<{ children: ReactNode }> = ({ childr
           }
         } catch (e) {
           // User might not be authenticated, that's fine
-          console.log('Could not get user for announcement reads:', e)
         }
 
         // Mark announcements as read/unread
@@ -121,7 +120,6 @@ export const AnnouncementProvider: React.FC<{ children: ReactNode }> = ({ childr
     let actorName = 'System'
     let createdBy = user?.id || null
 
-    console.log('User data:', { userId: user?.id, email: user?.email, metadata: user?.user_metadata })
 
     if (user) {
       const { data: staff, error: staffError } = await supabase
@@ -139,13 +137,10 @@ export const AnnouncementProvider: React.FC<{ children: ReactNode }> = ({ childr
       } else {
         // Fallback to user metadata or email
         actorName = user.user_metadata?.name || user.email || 'System'
-        console.log('Staff lookup failed, using fallback:', actorName)
       }
     } else {
-      console.log('No authenticated user found - announcement will show System as creator')
     }
 
-    console.log('Inserting announcement with:', { createdBy })
 
     const { data, error } = await supabase
       .from('announcements')
@@ -163,7 +158,6 @@ export const AnnouncementProvider: React.FC<{ children: ReactNode }> = ({ childr
     }
 
     if (data) {
-      console.log('Announcement inserted successfully:', data)
       // Don't call loadAnnouncements - real-time subscription handles updates
 
       await logActivity(
