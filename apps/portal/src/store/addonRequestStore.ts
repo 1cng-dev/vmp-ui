@@ -194,34 +194,50 @@ export const AddonRequestProvider: React.FC<{ children: React.ReactNode }> = ({ 
           const endDate = new Date(startDate)
           const expiryDate = new Date(startDate)
 
-          // Parse duration string to extract months
-          const parseDuration = (durationStr: string | number | null | undefined): { value: number; unit: 'days' | 'months' } | null => {
+          // Parse duration string to extract months and days
+          const parseDuration = (durationStr: string | number | null | undefined): { months: number; days: number } | null => {
             if (!durationStr) return null;
             if (typeof durationStr === 'number') {
-              return { value: durationStr, unit: 'months' };
+              return { months: durationStr, days: 0 };
             }
-            const match = String(durationStr).match(/^(\d+)\s+(day|days|month|months)$/);
-            if (match) {
-              const value = parseInt(match[1], 10);
-              const unitStr = match[2].toLowerCase();
-              const unit = unitStr.startsWith('day') ? 'days' : 'months';
-              return { value, unit };
+            
+            const str = String(durationStr);
+            let months = 0;
+            let days = 0;
+
+            // Match patterns like "1 month 15 days", "3 months", "14 days"
+            const monthMatch = str.match(/(\d+)\s*months?/i);
+            const dayMatch = str.match(/(\d+)\s*days?/i);
+
+            if (monthMatch) {
+              months = parseInt(monthMatch[1], 10);
             }
-            const num = parseInt(String(durationStr), 10);
-            if (!isNaN(num)) {
-              return { value: num, unit: 'months' };
+            if (dayMatch) {
+              days = parseInt(dayMatch[1], 10);
             }
-            return null;
+
+            // If no match, try parsing as a single number (treat as months)
+            if (months === 0 && days === 0) {
+              const num = parseInt(str, 10);
+              if (!isNaN(num)) {
+                return { months: num, days: 0 };
+              }
+            }
+
+            return { months, days };
           };
 
           const parsedDuration = parseDuration(previousRequest.duration)
           if (parsedDuration) {
-            if (parsedDuration.unit === 'days') {
-              endDate.setDate(endDate.getDate() + parsedDuration.value)
-              expiryDate.setDate(expiryDate.getDate() + parsedDuration.value)
-            } else {
-              endDate.setMonth(endDate.getMonth() + parsedDuration.value)
-              expiryDate.setMonth(expiryDate.getMonth() + parsedDuration.value)
+            // Add months first
+            if (parsedDuration.months > 0) {
+              endDate.setMonth(endDate.getMonth() + parsedDuration.months)
+              expiryDate.setMonth(expiryDate.getMonth() + parsedDuration.months)
+            }
+            // Then add days (grace period)
+            if (parsedDuration.days > 0) {
+              endDate.setDate(endDate.getDate() + parsedDuration.days)
+              expiryDate.setDate(expiryDate.getDate() + parsedDuration.days)
             }
           }
 

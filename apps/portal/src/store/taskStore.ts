@@ -449,8 +449,14 @@ const useTaskStore = (): TaskStoreValue => {
             // Calculate new expiry from existing service expiry
             const currentExpiry = existingService.expiry ? new Date(existingService.expiry) : new Date();
             const newExpiry = new Date(currentExpiry);
-            newExpiry.setMonth(newExpiry.getMonth() + renewalMonths);
-            newExpiry.setDate(newExpiry.getDate() + renewalDays);
+            // Add months first
+            if (renewalMonths > 0) {
+              newExpiry.setMonth(newExpiry.getMonth() + renewalMonths);
+            }
+            // Then add days (grace period)
+            if (renewalDays > 0) {
+              newExpiry.setDate(newExpiry.getDate() + renewalDays);
+            }
             newExpiry.setDate(newExpiry.getDate() + 1); // Add 1 day to expiry
 
             // Update existing addon service with new duration and expiry
@@ -474,8 +480,14 @@ const useTaskStore = (): TaskStoreValue => {
             // Calculate new expiry from addon request start date
             const startDate = addon.start_date ? new Date(addon.start_date) : new Date();
             const newExpiry = new Date(startDate);
-            newExpiry.setMonth(newExpiry.getMonth() + renewalMonths);
-            newExpiry.setDate(newExpiry.getDate() + renewalDays);
+            // Add months first
+            if (renewalMonths > 0) {
+              newExpiry.setMonth(newExpiry.getMonth() + renewalMonths);
+            }
+            // Then add days (grace period)
+            if (renewalDays > 0) {
+              newExpiry.setDate(newExpiry.getDate() + renewalDays);
+            }
             newExpiry.setDate(newExpiry.getDate() + 1); // Add 1 day to expiry
 
             await supabase

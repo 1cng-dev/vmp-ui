@@ -168,8 +168,8 @@ const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, me }) => {
 
       // Create add-on request if selected (single record with both CPFS and CCIS)
       if (selectedAddons.cpfs || selectedAddons.ccis) {
-        // Calculate duration string based on months
-        const durationString = `${months} months`
+        // Calculate duration string based on months + 14 day grace period
+        const durationString = `${months} month${months > 1 ? 's' : ''} 14 days`
 
         await createAddonRequest({
           customer_id: me.id,
@@ -180,7 +180,7 @@ const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, me }) => {
           ccis_package: selectedAddons.ccis ? ccisPackage : undefined,
           duration: durationString,
           status: 'Pending',
-          notes: `Add-on renewal for ${months} months along with VM renewal${selectedAddons.cpfs ? ' (CPFS: ' + cpfsPackage + ')' : ''}${selectedAddons.ccis ? ' (CCIS: ' + ccisPackage + ')' : ''}`,
+          notes: `Add-on renewal for ${months} month${months > 1 ? 's' : ''} with 14-day grace period along with VM renewal${selectedAddons.cpfs ? ' (CPFS: ' + cpfsPackage + ')' : ''}${selectedAddons.ccis ? ' (CCIS: ' + ccisPackage + ')' : ''}`,
           start_date: vm.expiry,
           end_date: newExpiry,
           expiry: newExpiry
