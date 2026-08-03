@@ -6,9 +6,14 @@ interface CustomerVMListViewProps {
   myVMs: any[]
   setDetailVm: (vm: any) => void
   setRenewVm: (vm: any) => void
+  // Set when the last VM list load failed — shown instead of the "no VMs
+  // yet" empty state, which would otherwise misleadingly imply the account
+  // genuinely has none.
+  loadError?: string | null
+  onRetry?: () => void
 }
 
-export const CustomerVMListView: React.FC<CustomerVMListViewProps> = ({ myVMs, setDetailVm, setRenewVm }) => (
+export const CustomerVMListView: React.FC<CustomerVMListViewProps> = ({ myVMs, setDetailVm, setRenewVm, loadError, onRetry }) => (
   <div className="content">
     <div className="page-head">
       <div>
@@ -26,7 +31,16 @@ export const CustomerVMListView: React.FC<CustomerVMListViewProps> = ({ myVMs, s
         <table className="tbl">
           <thead><tr><th>VM</th><th>Status</th><th>Type</th><th>Power</th><th>Spec</th><th>Public IP</th><th>Expires</th><th></th></tr></thead>
           <tbody>
-            {myVMs.length === 0 && <tr><td colSpan={8}><div className="empty"><div className="title">No VMs yet</div><div className="sub">Click "Request VM" in the sidebar to deploy your first virtual machine.</div></div></td></tr>}
+            {myVMs.length === 0 && loadError && (
+              <tr><td colSpan={8}>
+                <div className="empty">
+                  <div className="title">Couldn't load your VMs</div>
+                  <div className="sub">Something went wrong loading your virtual machines. Please try again.</div>
+                  {onRetry && <button className="btn sm mt-2" onClick={onRetry}><Icon name="refresh" size={11}/>Retry</button>}
+                </div>
+              </td></tr>
+            )}
+            {myVMs.length === 0 && !loadError && <tr><td colSpan={8}><div className="empty"><div className="title">No VMs yet</div><div className="sub">Click "Request VM" in the sidebar to deploy your first virtual machine.</div></div></td></tr>}
             {myVMs.map((v: any) => (
               <tr key={v.id} onClick={() => setDetailVm(v)}>
                 <td><div className="fw-6">{v.hostname}</div><div className="text-xs text-mute mono">{v.legacy_id || v.id}</div></td>

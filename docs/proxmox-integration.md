@@ -378,20 +378,34 @@ adjust if Proxmox actually reports something else.
    2. `apps/portal/supabase/migrations/20260803093000_vm_password_encryption_and_customer_safe_view.sql`
    3. `apps/portal/supabase/migrations/20260803094500_add_vm_password_rpc_functions.sql`
    (No new migrations in Phase 2 — the admin-bypass fix was proxmox-proxcy code only.)
-2. **Set `VM_CREDENTIAL_KEY`** in proxmox-proxcy's `.env` — `openssl rand -base64 32`
+2. **Reload PostgREST's schema cache** immediately after applying migrations —
+   `NOTIFY pgrst, 'reload schema';` against the database, or restart/reload PostgREST,
+   depending on how this deployment runs it. New tables/views/functions are invisible
+   to PostgREST until this happens, even though they exist in Postgres — this exact
+   gap is what caused `vms_customer_safe` to 404 with `PGRST205` in production the
+   first time this shipped (see the incident note below). Do not treat this as
+   optional or "usually not needed."
+3. **Run `npm run smoke:schema`** (`apps/portal/scripts/smoke-check-schema.mjs`) with
+   `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` set to the target project. It checks
+   `vms_customer_safe`, `get_vm_password`, and `jwt_role` are all actually reachable
+   through PostgREST (anon key only — safe to run from anywhere) and exits non-zero if
+   any are missing or the cache is stale. **Do not proceed past this step if it
+   fails** — this is what turns "someone remembers to reload the cache" into an
+   actual, enforced gate instead of a hoped-for manual step.
+4. **Set `VM_CREDENTIAL_KEY`** in proxmox-proxcy's `.env` — `openssl rand -base64 32`
    or equivalent, 32+ characters. Restart proxmox-proxcy; it now refuses to boot if
    this is missing or too short, so a bad deploy fails immediately and visibly rather
    than on the first customer credential action.
-3. **Run the backfill dry-run**: `node scripts/backfill-vm-passwords.js` (no flags —
+5. **Run the backfill dry-run**: `node scripts/backfill-vm-passwords.js` (no flags —
    dry-run is the default). Review the printed list of affected VM rows.
-4. **Back up the `vms` table**, then **run the backfill for real**:
+6. **Back up the `vms` table**, then **run the backfill for real**:
    `node scripts/backfill-vm-passwords.js --apply`.
-5. **Deploy** proxmox-proxcy and the portal (the portal build now needs
+7. **Deploy** proxmox-proxcy and the portal (the portal build now needs
    `@novnc/novnc` — a plain `npm install` picks it up; no other new external deps).
-6. **Confirm `ALLOWED_ORIGINS`** in proxmox-proxcy's `.env` lists the real deployed
+8. **Confirm `ALLOWED_ORIGINS`** in proxmox-proxcy's `.env` lists the real deployed
    portal origin(s) — unchanged requirement from Phase 1, worth re-checking here since
    this is the actual go-live.
-7. **Smoke test against one real test VM**, in this order (riskiest/least-verifiable
+9. **Smoke test against one real test VM**, in this order (riskiest/least-verifiable
    first):
    1. Console connect, as the owning customer — the RFB ticket handshake is the one
       piece that couldn't be verified from this session at all.
@@ -405,3 +419,22 @@ adjust if Proxmox actually reports something else.
       longer applies there, per the fix above).
    5. Credentials reveal as the owning customer; confirm a `credentials_reveal` row
       lands in `vm_action_audit` with no plaintext password anywhere in it.
+
+### Incident: `vms_customer_safe` 404 in production (PGRST205)
+
+Shipped to a live environment before this checklist had step 2/3: `CustomerPortal` →
+"My VMs" showed 0 VMs for a customer who owned one, with an unhandled `PGRST205` in
+the console. **Root cause**: the migration creating `vms_customer_safe` (step 1 above)
+was correct and present in the repo — this was not code referencing a relation that
+was never written — but it had never been applied to that target Supabase project, so
+the view genuinely didn't exist there yet. This is exactly what the previous session's
+own go-live checklist called out as a required manual step ("apply the migrations")
+that this environment hadn't done yet when the frontend was tested against it. Two
+things fixed as a result, beyond just applying the migration:
+- `vmStore.ts`'s `loadVMs()` no longer lets a failed request become an unhandled
+  rejection that silently renders as "no VMs yet" — it now sets a `vmsError` state,
+  and `CustomerVMListView`/`CustomerDashboard` show a "Couldn't load your VMs — Retry"
+  state instead of the empty-state illustration when the load itself failed.
+- The schema-cache-reload + `smoke:schema` steps above, so a missing/stale relation is
+  caught by an explicit, scriptable gate immediately after migrating, not discovered
+  later by a customer.

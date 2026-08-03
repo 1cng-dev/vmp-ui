@@ -114,6 +114,10 @@ export interface AddonRequest {
 export interface VMStoreValue {
   vms: VM[];
   vmsLoading: boolean;
+  // Set when the last loadVMs() call failed — distinct from vms being
+  // genuinely empty, so the UI can show a retry state instead of a false
+  // "no VMs yet" empty state.
+  vmsError: string | null;
   vmRequests: VMRequest[];
   addonRequests: AddonRequest[];
   loadVMs: () => Promise<void>;
@@ -142,6 +146,7 @@ const VMContext = createContext<VMStoreValue | null>(null);
 export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [vms, setVms] = useState<VM[]>([]);
   const [vmsLoading, setVmsLoading] = useState(false);
+  const [vmsError, setVmsError] = useState<string | null>(null);
   const [vmRequests, setVmRequests] = useState<VMRequest[]>([]);
   const [addonRequests, setAddonRequests] = useState<AddonRequest[]>([]);
   const { logActivity } = useActivityStore();
@@ -151,9 +156,10 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
     try {
       // vms holds assigned_vmid/node/password columns customers must never
-      // see (RLS also revokes column-level access to those directly, this
-      // just picks the right query up front). Staff (a row in team_members)
-      // get the full table; everyone else gets the customer-safe view.
+      // see. Column-level hiding is enforced by which relation the app
+      // queries (vms_customer_safe excludes them), not a database-level
+      // REVOKE — see the migration's own comment for why. Staff (a row in
+      // team_members) get the full table; everyone else gets the view.
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -174,6 +180,14 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         .order("created_at", { ascending: false });
       if (error) throw error;
       setVms((data as any) || []);
+      setVmsError(null);
+    } catch (err: any) {
+      // Never let this become an unhandled rejection that silently renders
+      // as "0 VMs" — log the real error for diagnostics, surface a generic
+      // retry state to the UI, and leave any previously-loaded vms alone
+      // rather than clobbering them with an empty list.
+      console.error("[vmStore] loadVMs failed:", err);
+      setVmsError(err?.message || "Failed to load VMs");
     } finally {
       setVmsLoading(false);
     }
@@ -412,7 +426,7 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
           .from("team_members")
           .select("name, staff_code")
           .eq("user_id", user.id)
-          .single();
+          .maybeSingle();
         if (staff) {
           actorName = `${staff.name} (${staff.staff_code})`;
         } else {
@@ -507,6 +521,7 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const value: VMStoreValue = {
     vms,
     vmsLoading,
+    vmsError,
     vmRequests,
     addonRequests,
     loadVMs,
