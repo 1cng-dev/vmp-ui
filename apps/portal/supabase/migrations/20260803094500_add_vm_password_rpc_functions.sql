@@ -9,6 +9,8 @@
 -- may call these at all, never `authenticated`/`anon` (guessing the key is
 -- the only other line of defense, and we don't want to rely on that alone).
 
+create extension if not exists "pgcrypto";
+
 create or replace function public.set_vm_password(p_vm_id uuid, p_password text, p_key text)
 returns void
 language sql
