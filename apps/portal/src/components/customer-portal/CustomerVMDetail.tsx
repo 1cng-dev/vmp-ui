@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import useVMStore from '../../store/vmStore'
 import useAddonServiceStore from '../../store/addonServiceStore'
 import useUIStore from '../../store/uiStore'
@@ -6,8 +6,20 @@ import Icon from '../../lib/icons'
 import { StatusPill, ExpiryCell } from '../ui/ui'
 import { InfoCard, UsageCard, UsageDetailCard } from './VMHelperComponents'
 import { CustUpgradeModal, CustConvertToPaidModal } from '../modals/CustomerVMModals'
-import { useVMStatusByRecord, useVMStatsByRecord, useVMCredentials } from '../../hooks/useVMLiveStatus'
+import { useVMStatusByRecord, useVMStatsByRecord, useVMCredentials, useVMPowerAction } from '../../hooks/useVMLiveStatus'
 import { BYTES_PER_GB, pctSeries, ramPctSeries, netMbpsSeries, avgOf, peakOf, lastOf } from '../../lib/vmUsage'
+import type { PowerAction } from '../../lib/proxmoxApi'
+import VNCConsole from '../vm/VNCConsole'
+
+const ACTION_LABELS: Record<PowerAction, string> = {
+  start: 'Starting…',
+  stop: 'Force stopping…',
+  shutdown: 'Stopping…',
+  reboot: 'Restarting…',
+  reset: 'Resetting…',
+  suspend: 'Suspending…',
+  resume: 'Resuming…',
+}
 
 interface CustomerVMDetailProps {
   vm: any
@@ -55,31 +67,60 @@ const formatDuration = (duration: string | number | undefined | null): string =>
 }
 
 export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialVm, onClose, onRenew, me }) => {
-  const { vms, startVM, stopVM, restartVM, getVMRequest } = useVMStore()
+  const { vms, getVMRequest } = useVMStore()
   const { getAddonServicesForVM } = useAddonServiceStore()
   const { toast } = useUIStore()
   const vm = vms.find((v: any) => v.id === initialVm.id) || initialVm
   const [tab, setTab] = useState('overview')
   const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [convertToPaidOpen, setConvertToPaidOpen] = useState(false)
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false)
+  const [consoleOpen, setConsoleOpen] = useState(false)
 
   // Get data from store instead of fetching directly
   const vmRequest = vm.vm_request_id ? getVMRequest(vm.vm_request_id) : null
   const addonServices = getAddonServicesForVM(vm.id)
-
-  const isRunning = vm.power_state === 'Running'
 
   // Live usage from proxmox-proxcy (never Proxmox directly). recordId is the
   // opaque vm_ownership.id from vms_customer_safe — the real Proxmox vmid
   // never reaches this browser. Undefined until the VM is actually
   // provisioned on Proxmox — hooks no-op then.
   const recordId: string | undefined = (vm as any).ownership_record_id || undefined
-  const { status: liveStatus, error: statusError } = useVMStatusByRecord(recordId)
+  const { status: liveStatus, error: statusError, refetch: refetchStatus } = useVMStatusByRecord(recordId)
   const { data: statsData, error: statsError } = useVMStatsByRecord(recordId, 'day')
   const liveError = statusError || statsError
 
   const { credentials, loading: credsLoading, error: credsError, reveal: revealCreds, hide: hideCreds } =
     useVMCredentials(recordId)
+
+  // Power state now comes from Proxmox itself (via the status poll above),
+  // never the vms.power_state column — that column can drift from reality
+  // (it's only updated by admin actions elsewhere) and isn't ground truth.
+  const proxmoxStatus = liveStatus?.status
+  const statusKnown = !!proxmoxStatus
+  const isRunning = proxmoxStatus === 'running'
+  // Proxmox's exact status string for a suspended VM couldn't be verified
+  // without live access to a real cluster — checking both status and
+  // qmpstatus for 'paused' as the best available signal. Confirm this
+  // against a real suspended VM during smoke testing (see go-live checklist).
+  const isSuspended = proxmoxStatus === 'paused' || (liveStatus as any)?.qmpstatus === 'paused'
+  const isStopped = statusKnown && !isRunning && !isSuspended
+  const displayPowerState = !statusKnown ? vm.power_state : isRunning ? 'Running' : isSuspended ? 'Suspended' : 'Stopped'
+
+  const { pending: actionPending, error: actionError, run: runPowerAction, clearError: clearActionError } =
+    useVMPowerAction(recordId, refetchStatus)
+
+  useEffect(() => {
+    if (!moreMenuOpen) return
+    const close = () => setMoreMenuOpen(false)
+    window.addEventListener('click', close)
+    return () => window.removeEventListener('click', close)
+  }, [moreMenuOpen])
+
+  const handleAction = (action: PowerAction, confirmMessage?: string) => {
+    if (confirmMessage && !window.confirm(confirmMessage)) return
+    runPowerAction(action)
+  }
 
   const cpu = pctSeries(statsData, p => p.cpu)
   const ram = ramPctSeries(statsData)
@@ -97,16 +138,6 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
   const diskGB = Math.round((liveStatus?.disk || 0) / BYTES_PER_GB)
   const diskPct = diskTotalGB ? Math.round((diskGB / diskTotalGB) * 100) : 0
 
-  const openConsole = () => {
-    const params = new URLSearchParams({
-      name: vm.hostname, id: vm.id, ip: vm.public_ip || '203.81.64.10',
-      os: 'linux', vcpu: String(vm.vcpu), ram: String(vm.ram_gb), storage: String(vm.storage_gb),
-      running: vm.power_state === 'Running' ? '1' : '0',
-    })
-    window.open(`vnc-console.html?${params.toString()}`, '_blank', 'noopener,width=1180,height=760')
-    toast(`Opening VNC console for ${vm.hostname}…`, 'info')
-  }
-
   return (
     <div className="content">
       <div className="page-head">
@@ -119,18 +150,67 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
           <div className="flex gap-2 mt-2">
             <StatusPill status={vm.status} expiry={vm.expiry} />
             <StatusPill status={vm.task_type || 'new'} />
-            <span className="pill"><Icon name={vm.power_state === 'Running' ? 'play' : 'pause'} size={10} />{vm.power_state}</span>
+            <span className="pill"><Icon name={isRunning ? 'play' : 'pause'} size={10} />{displayPowerState}</span>
           </div>
         </div>
         <div className="page-actions">
           {vm.status !== 'Terminated' && (
             <>
-              {isRunning
-                ? <button className="btn" onClick={() => stopVM(vm.id)}><Icon name="pause" size={12} />Stop</button>
-                : <button className="btn primary" onClick={() => startVM(vm.id)}><Icon name="play" size={12} />Start</button>
-              }
-              <button className="btn" onClick={() => restartVM(vm.id)} disabled={!isRunning}><Icon name="refresh" size={12} />Restart</button>
-              <button className="btn" onClick={openConsole} disabled={!isRunning} title={isRunning ? 'Open VNC console in new tab' : 'Start the VM to open console'}><Icon name="terminal" size={12} />Console<Icon name="external" size={10} /></button>
+              {!statusKnown && (
+                <button className="btn" disabled><Icon name="refresh" size={12} />Loading status…</button>
+              )}
+              {isStopped && (
+                <button className="btn primary" onClick={() => handleAction('start')} disabled={!!actionPending}>
+                  <Icon name="play" size={12} />{actionPending === 'start' ? ACTION_LABELS.start : 'Start'}
+                </button>
+              )}
+              {isRunning && (
+                <>
+                  <button className="btn" onClick={() => handleAction('shutdown')} disabled={!!actionPending}>
+                    <Icon name="pause" size={12} />{actionPending === 'shutdown' ? ACTION_LABELS.shutdown : 'Stop'}
+                  </button>
+                  <button className="btn" onClick={() => handleAction('reboot')} disabled={!!actionPending}>
+                    <Icon name="refresh" size={12} />{actionPending === 'reboot' ? ACTION_LABELS.reboot : 'Restart'}
+                  </button>
+                </>
+              )}
+              {isSuspended && (
+                <button className="btn primary" onClick={() => handleAction('resume')} disabled={!!actionPending}>
+                  <Icon name="sun" size={12} />{actionPending === 'resume' ? ACTION_LABELS.resume : 'Resume'}
+                </button>
+              )}
+              {(isRunning || isSuspended) && (
+                <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                  <button className="btn" onClick={() => setMoreMenuOpen(v => !v)} disabled={!!actionPending}>
+                    <Icon name="more" size={12} />More
+                  </button>
+                  {moreMenuOpen && (
+                    <div style={{
+                      position: 'absolute', right: 0, top: 36, zIndex: 20,
+                      background: 'var(--surface)', border: '1px solid var(--line)',
+                      borderRadius: 8, boxShadow: 'var(--shadow)',
+                      minWidth: 200, padding: 4,
+                    }}>
+                      {isRunning && (
+                        <button className="nav-item" onClick={() => { setMoreMenuOpen(false); handleAction('suspend') }}>
+                          <Icon name="moon" size={13} />Suspend
+                        </button>
+                      )}
+                      {isRunning && (
+                        <button className="nav-item" onClick={() => { setMoreMenuOpen(false); handleAction('reset', 'Reset performs a hard restart, like pressing the physical reset button. Unsaved data may be lost. Continue?') }}>
+                          <Icon name="alert" size={13} />Reset (hard restart)
+                        </button>
+                      )}
+                      <button className="nav-item" style={{ color: 'var(--bad)' }} onClick={() => { setMoreMenuOpen(false); handleAction('stop', 'Force stop immediately powers off the VM without a graceful shutdown. Unsaved data may be lost. Continue?') }}>
+                        <Icon name="x" size={13} />Force stop
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+              <button className="btn" onClick={() => setConsoleOpen(true)} disabled={!isRunning} title={isRunning ? 'Open VNC console' : 'Start the VM to open console'}>
+                <Icon name="terminal" size={12} />Console
+              </button>
               {vmRequest?.request_type === 'trial' && <button className="btn primary" onClick={() => setConvertToPaidOpen(true)}><Icon name="credit-card" size={12} />Convert to Paid</button>}
               {vmRequest?.request_type !== 'trial' && <button className="btn" onClick={() => setUpgradeOpen(true)}><Icon name="arrow-up" size={12} />Change Plan</button>}
               <button className="btn accent" onClick={onRenew}><Icon name="refresh" size={12} />Renew</button>
@@ -140,7 +220,17 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
 
         {upgradeOpen && <CustUpgradeModal vm={vm} onClose={() => setUpgradeOpen(false)} me={me} />}
         {convertToPaidOpen && <CustConvertToPaidModal vm={vm} onClose={() => setConvertToPaidOpen(false)} />}
+        {consoleOpen && recordId && (
+          <VNCConsole recordId={recordId} vmName={vm.hostname} onClose={() => setConsoleOpen(false)} />
+        )}
       </div>
+
+      {actionError && (
+        <div style={{ padding: 10, background: 'var(--warn-soft)', borderRadius: 8, fontSize: 12, color: 'oklch(0.4 0.12 75)', marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'space-between' }}>
+          <span><Icon name="alert" size={13} /> {actionError}</span>
+          <button className="btn sm ghost" onClick={clearActionError}><Icon name="x" size={11} /></button>
+        </div>
+      )}
 
       {liveError && (
         <div style={{ padding: 10, background: 'var(--warn-soft)', borderRadius: 8, fontSize: 12, color: 'oklch(0.4 0.12 75)', marginBottom: 12 }}>

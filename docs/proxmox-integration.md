@@ -4,9 +4,13 @@ This started as VM status/usage monitoring only. **Phase 1** (see
 [Customer VM Ownership & Operations](#customer-vm-ownership--operations-phase-1) below)
 added: hiding the real Proxmox vmid from customers end-to-end, encrypting VM login
 passwords at rest, and the remaining power operations (reset/suspend/resume) alongside
-the original start/stop/shutdown/reboot. Still out of scope: actually creating/deleting/
-migrating a VM on Proxmox, snapshots, and backups — "operations" here means controlling
-the power state of a VM that already exists and is already bound to a customer via
+the original start/stop/shutdown/reboot. **Phase 2** (see
+[Phase 2 — Power Actions, Console, Go-Live](#phase-2--power-actions-console-go-live)
+below) wired the customer portal's power-action buttons and console viewer to those
+Phase 1 backend routes for real, and closed two gaps Phase 1's own write-up got wrong
+once looked at closely. Still out of scope: actually creating/deleting/migrating a VM
+on Proxmox, snapshots, and backups — "operations" here means controlling the power
+state of a VM that already exists and is already bound to a customer via
 `vm_ownership`, not provisioning lifecycle.
 
 ## Architecture & data flow
@@ -297,3 +301,107 @@ any VM created prior to this migration.
   `assigned_vmid ↔ customer_id` bindings directly (today this only exists as the
   "Add VM Details" creation flow — editing an existing binding has no UI yet). The
   backend (`vm_ownership`, `vm_action_audit`) already supports building this.
+
+## Phase 2 — Power Actions, Console, Go-Live
+
+### Two corrections found in the Phase 1 backend before building on it
+
+Looked at closely rather than taken on faith, per instruction — both fixed before any
+frontend was wired on top:
+
+1. **`authorizeVmByRecord` admin bypass was too broad.** It was a single function (not
+   a factory like `authorizeVm`), and unconditionally let any verified admin through
+   on *every* by-record route — including power actions, console, and credentials, not
+   just the read-only status/stats routes the Phase 1 write-up said it was scoped to.
+   An ordinary customer was never affected (still fully ownership-checked), but a
+   staff account could have started/stopped/reset/consoled into or revealed
+   credentials for *any* customer's VM via the record-id path, inconsistent with the
+   `:vmid` path's behavior for the same operations. Fixed: `authorizeVmByRecord` is
+   now `authorizeVmByRecord({ allowAdminBypass })`, same shape as `authorizeVm`,
+   bypass applied only to `GET /by-record/:recordId` and its `/stats` route.
+2. **The console route couldn't actually work with a standard noVNC client as
+   documented.** The stated design ("never the raw Proxmox ticket") didn't account for
+   the RFB protocol's own auth step — the websocket-level ticket authorizes the
+   *upgrade*, but the VNC/RFB handshake tunneled inside it needs the same ticket as
+   its password, exactly like Proxmox's own web console. `GET .../console` now also
+   returns `ticket` in its response, scoped to the one already-authorized,
+   single-use, audit-logged session — host and port are still never sent to the
+   client.
+
+### What got wired
+
+- **Power actions** — `CustomerVMDetail.tsx`'s buttons now call
+  `useVMPowerAction` (`hooks/useVMLiveStatus.ts`), which posts to the `by-record`
+  route, polls `.../task/:upid` to completion (2s interval, 90s UI timeout — the
+  action itself isn't cancelled server-side if the UI stops waiting, only the button
+  re-enables), then force-refetches live status via the existing polling hook's new
+  `refetch()`. Button visibility is driven by the *live Proxmox status*
+  (`useVMStatusByRecord`), never `vms.power_state` — that column is no longer
+  authoritative for anything; `startVM`/`stopVM`/`restartVM` (the old functions that
+  only ever flipped it) were removed from `vmStore.ts` outright (confirmed zero other
+  callers before deleting). Reset and force-Stop prompt a native confirm (data-loss
+  risk); the rest don't. Errors are mapped to generic, customer-safe copy by HTTP
+  status (`friendlyActionError` in the hooks file) — the raw backend/Proxmox message
+  is never shown.
+- **Console** — new `components/vm/VNCConsole.tsx`, using `@novnc/novnc`'s `RFB`
+  class (no TypeScript types are published for it; a minimal local declaration lives
+  at `src/types/novnc.d.ts`, scoped to the surface actually used — the published
+  `@types/novnc__novnc` targets an older, incompatible file layout of the package).
+  Fetches a fresh session on every open, never persists the ticket beyond the
+  component's local state, disconnects on unmount, and shows plain-language
+  connecting/error/disconnected states (node/VM internals never surfaced).
+- **`VM_CREDENTIAL_KEY` now fails loudly at boot** (`src/utils/assertEnv.js`, called
+  at the top of `src/index.js`) if missing or under 32 characters — `process.exit(1)`
+  with a clear message, instead of booting and only failing on the first credential
+  reveal/write.
+- **Backfill script** (`scripts/backfill-vm-passwords.js`) — dry-run by default,
+  `--apply` to actually write. Not run in this session; see checklist below.
+
+### Known integration risk not fully verifiable from here
+
+The VNC ticket-as-RFB-password approach matches Proxmox's own documented client
+behavior, but this session has no network path to a real Proxmox server to actually
+connect a noVNC client through it end-to-end. This is the single highest-risk
+unverified piece in this pass — smoke-test it first, before relying on any of the
+rest (see checklist). A second, smaller uncertainty: the exact `status`/`qmpstatus`
+string Proxmox reports for a *suspended* QEMU VM couldn't be confirmed without live
+access — `CustomerVMDetail.tsx` currently treats `status === 'paused'` or
+`qmpstatus === 'paused'` as suspended; confirm this against a real suspended VM and
+adjust if Proxmox actually reports something else.
+
+### Go-live checklist, in order
+
+1. **Apply the Phase 1 migrations** to the live Supabase project, in this exact order
+   (all three are idempotent — safe to re-run; verified last session by replaying the
+   full migration history against a throwaway local Postgres):
+   1. `apps/portal/supabase/migrations/20260803090000_fix_jwt_role_privilege_escalation.sql`
+   2. `apps/portal/supabase/migrations/20260803093000_vm_password_encryption_and_customer_safe_view.sql`
+   3. `apps/portal/supabase/migrations/20260803094500_add_vm_password_rpc_functions.sql`
+   (No new migrations in Phase 2 — the admin-bypass fix was proxmox-proxcy code only.)
+2. **Set `VM_CREDENTIAL_KEY`** in proxmox-proxcy's `.env` — `openssl rand -base64 32`
+   or equivalent, 32+ characters. Restart proxmox-proxcy; it now refuses to boot if
+   this is missing or too short, so a bad deploy fails immediately and visibly rather
+   than on the first customer credential action.
+3. **Run the backfill dry-run**: `node scripts/backfill-vm-passwords.js` (no flags —
+   dry-run is the default). Review the printed list of affected VM rows.
+4. **Back up the `vms` table**, then **run the backfill for real**:
+   `node scripts/backfill-vm-passwords.js --apply`.
+5. **Deploy** proxmox-proxcy and the portal (the portal build now needs
+   `@novnc/novnc` — a plain `npm install` picks it up; no other new external deps).
+6. **Confirm `ALLOWED_ORIGINS`** in proxmox-proxcy's `.env` lists the real deployed
+   portal origin(s) — unchanged requirement from Phase 1, worth re-checking here since
+   this is the actual go-live.
+7. **Smoke test against one real test VM**, in this order (riskiest/least-verifiable
+   first):
+   1. Console connect, as the owning customer — the RFB ticket handshake is the one
+      piece that couldn't be verified from this session at all.
+   2. Each power action (start/stop/shutdown/reboot/reset/suspend/resume) as the
+      owning customer; confirm the button states/labels track real state afterward,
+      including the suspended-detection caveat above.
+   3. The same VM's `by-record` routes as a *different* customer account → expect
+      `404` on all of them.
+   4. An admin account: status/stats for a VM they don't own → succeeds (read bypass);
+      power action/console/credentials for that same VM → `403`/`404` (bypass no
+      longer applies there, per the fix above).
+   5. Credentials reveal as the owning customer; confirm a `credentials_reveal` row
+      lands in `vm_action_audit` with no plaintext password anywhere in it.

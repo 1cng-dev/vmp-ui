@@ -125,9 +125,12 @@ export interface VMStoreValue {
   addVM: (vm: NewVMInput) => Promise<string>;
   updateVM: (id: string, patch: Partial<VM>) => Promise<void>;
   deleteVM: (id: string) => Promise<void>;
-  startVM: (id: string) => Promise<void>;
-  stopVM: (id: string) => Promise<void>;
-  restartVM: (id: string) => Promise<void>;
+  // Real power control (start/stop/shutdown/reboot/reset/suspend/resume) is
+  // proxmox-proxcy's by-record routes, called directly via
+  // hooks/useVMLiveStatus.ts's useVMPowerAction — not this store. The old
+  // startVM/stopVM/restartVM here only ever flipped vms.power_state in
+  // Supabase; removed so nothing accidentally treats that column as ground
+  // truth for a VM's actual power state again.
   snapshotVM: (id: string, name: string) => Promise<void>;
   updateVMTags: (id: string, tags: string[]) => Promise<void>;
   updateVMNotes: (id: string, notes: string) => Promise<void>;
@@ -458,232 +461,6 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     [loadVMs, vms, logActivity],
   );
 
-  const startVM = useCallback(async (id: string) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      throw new Error("User not authenticated");
-    }
-
-    const vm = vms.find((v) => v.id === id);
-    if (!vm) {
-      throw new Error("VM not found");
-    }
-
-    // Authorization check - get Proxmox details from vm_ownership
-    const { data: ownership, error: ownershipError } = await supabase
-      .from("vm_ownership")
-      .select("*")
-      .eq("vmid", vm.assigned_vmid)
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (ownershipError || !ownership) {
-      throw new Error("Unauthorized: You do not have access to this VM");
-    }
-
-    const { node, vmid, pmx_type: _pmx_type } = ownership;
-
-    // Call Proxmox API here
-    // await proxmoxAPI.startVM(node, vmid, pmx_type);
-
-    // Update local state
-    const previousPowerState = vm?.power_state || "Unknown";
-    const { error } = await supabase
-      .from("vms")
-      .update({ power_state: "Running" })
-      .eq("id", id);
-    if (error) throw error;
-    await loadVMs();
-
-    // Log to vm_action_audit
-    await supabase.from("vm_action_audit").insert({
-      user_id: user.id,
-      vmid: vmid,
-      node: node,
-      action: "start",
-      result: "success",
-    });
-
-    // Log activity
-    const {
-      data: { user: authUser },
-    } = await supabase.auth.getUser();
-    let actorName = "System";
-    if (authUser) {
-      const { data: staff } = await supabase
-        .from("team_members")
-        .select("name, staff_code")
-        .eq("user_id", authUser.id)
-        .single();
-      if (staff) {
-        actorName = `${staff.name} (${staff.staff_code})`;
-      } else {
-        actorName = authUser.user_metadata?.name || authUser.email || "System";
-      }
-    }
-
-    await logActivity(
-      `Started VM ${vm.hostname} (power state changed from ${previousPowerState} to Running)`,
-      "vm",
-      actorName,
-      {
-        vmId: vm.legacy_id || vm.id,
-        hostname: vm.hostname,
-        previousPowerState,
-        newPowerState: "Running",
-      },
-    );
-  }, [loadVMs, vms, logActivity]);
-
-  const stopVM = useCallback(async (id: string) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      throw new Error("User not authenticated");
-    }
-
-    const vm = vms.find((v) => v.id === id);
-    if (!vm) {
-      throw new Error("VM not found");
-    }
-
-    // Authorization check - get Proxmox details from vm_ownership
-    const { data: ownership, error: ownershipError } = await supabase
-      .from("vm_ownership")
-      .select("*")
-      .eq("vmid", vm.assigned_vmid)
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (ownershipError || !ownership) {
-      throw new Error("Unauthorized: You do not have access to this VM");
-    }
-
-    const { node, vmid, pmx_type: _pmx_type } = ownership;
-
-    // Call Proxmox API here
-    // await proxmoxAPI.stopVM(node, vmid, pmx_type);
-
-    // Update local state
-    const previousPowerState = vm?.power_state || "Unknown";
-    const { error } = await supabase
-      .from("vms")
-      .update({ power_state: "Stopped" })
-      .eq("id", id);
-    if (error) throw error;
-    await loadVMs();
-
-    // Log to vm_action_audit
-    await supabase.from("vm_action_audit").insert({
-      user_id: user.id,
-      vmid: vmid,
-      node: node,
-      action: "stop",
-      result: "success",
-    });
-
-    // Log activity
-    const {
-      data: { user: authUser },
-    } = await supabase.auth.getUser();
-    let actorName = "System";
-    if (authUser) {
-      const { data: staff } = await supabase
-        .from("team_members")
-        .select("name, staff_code")
-        .eq("user_id", authUser.id)
-        .single();
-      if (staff) {
-        actorName = `${staff.name} (${staff.staff_code})`;
-      } else {
-        actorName = authUser.user_metadata?.name || authUser.email || "System";
-      }
-    }
-
-    await logActivity(
-      `Stopped VM ${vm.hostname} (power state changed from ${previousPowerState} to Stopped)`,
-      "vm",
-      actorName,
-      {
-        vmId: vm.legacy_id || vm.id,
-        hostname: vm.hostname,
-        previousPowerState,
-        newPowerState: "Stopped",
-      },
-    );
-  }, [loadVMs, vms, logActivity]);
-
-  const restartVM = useCallback(async (id: string) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      throw new Error("User not authenticated");
-    }
-
-    const vm = vms.find((v) => v.id === id);
-    if (!vm) {
-      throw new Error("VM not found");
-    }
-
-    // Authorization check - get Proxmox details from vm_ownership
-    const { data: ownership, error: ownershipError } = await supabase
-      .from("vm_ownership")
-      .select("*")
-      .eq("vmid", vm.assigned_vmid)
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (ownershipError || !ownership) {
-      throw new Error("Unauthorized: You do not have access to this VM");
-    }
-
-    const { node, vmid, pmx_type: _pmx_type } = ownership;
-
-    // Call Proxmox API here
-    // await proxmoxAPI.restartVM(node, vmid, pmx_type);
-
-    // Update local state
-    const previousPowerState = vm?.power_state || "Unknown";
-    const { error } = await supabase
-      .from("vms")
-      .update({ power_state: "Running" })
-      .eq("id", id);
-    if (error) throw error;
-    await loadVMs();
-
-    // Log to vm_action_audit
-    await supabase.from("vm_action_audit").insert({
-      user_id: user.id,
-      vmid: vmid,
-      node: node,
-      action: "reboot",
-      result: "success",
-    });
-
-    // Log activity
-    const {
-      data: { user: authUser },
-    } = await supabase.auth.getUser();
-    let actorName = "System";
-    if (authUser) {
-      const { data: staff } = await supabase
-        .from("team_members")
-        .select("name, staff_code")
-        .eq("user_id", authUser.id)
-        .single();
-      if (staff) {
-        actorName = `${staff.name} (${staff.staff_code})`;
-      } else {
-        actorName = authUser.user_metadata?.name || authUser.email || "System";
-      }
-    }
-
-    await logActivity(`Restarted VM ${vm.hostname}`, "vm", actorName, {
-      vmId: vm.legacy_id || vm.id,
-      hostname: vm.hostname,
-      previousPowerState,
-      newPowerState: "Running",
-    });
-  }, [loadVMs, vms, logActivity]);
-
   const snapshotVM = useCallback(async (_id: string, _name: string) => {
     // In the future, this will call Proxmox API to create a snapshot
     // For now, it's a placeholder
@@ -741,9 +518,6 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     addVM,
     updateVM,
     deleteVM,
-    startVM,
-    stopVM,
-    restartVM,
     snapshotVM,
     updateVMTags,
     updateVMNotes,

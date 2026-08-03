@@ -129,9 +129,35 @@ export async function getVMCredentials(recordId: string): Promise<VMCredentials>
 export async function runVMPowerAction(
   recordId: string,
   action: PowerAction,
-): Promise<{ task: unknown }> {
+): Promise<{ upid?: string }> {
   const { data } = await proxmoxApi.post(`/api/vms/by-record/${recordId}/${action}`);
-  return { task: data.task };
+  // Proxmox task objects are just the UPID string itself (data.task), not an object.
+  const upid = typeof data.task === "string" ? data.task : undefined;
+  return { upid };
+}
+
+export interface ProxmoxTaskStatus {
+  status: "running" | "stopped" | string;
+  exitstatus?: string; // present once status === 'stopped'; 'OK' on success
+}
+
+export async function getVMTaskStatus(recordId: string, upid: string): Promise<ProxmoxTaskStatus> {
+  const { data } = await proxmoxApi.get(`/api/vms/by-record/${recordId}/task/${encodeURIComponent(upid)}`);
+  return data.task;
+}
+
+export interface VMConsoleSession {
+  sessionToken: string;
+  wsPath: string;
+  ticket: string;
+}
+
+// ticket is required for the RFB handshake tunneled inside the websocket at
+// wsPath — see the console route's comment in proxmox-proxcy for why. Fetch
+// this only right before opening the console; never persist it.
+export async function getVMConsoleSession(recordId: string): Promise<VMConsoleSession> {
+  const { data } = await proxmoxApi.get(`/api/vms/by-record/${recordId}/console`);
+  return { sessionToken: data.sessionToken, wsPath: data.wsPath, ticket: data.ticket };
 }
 
 // ── Admin-only ──────────────────────────────────────────────────────────
