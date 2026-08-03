@@ -14,4 +14,7 @@ export default defineConfig({
   server: {
     open: true,
   },
+  optimizeDeps: {
+    exclude: ['@novnc/novnc'],
+  },
 })
