@@ -243,26 +243,26 @@ const useTaskStore = (): TaskStoreValue => {
       for (let i = 0; i < qty; i++) {
         const assignedVmid = vmDetails.assigned_vmids[i] || null;
 
-        // Check for duplicate assigned VM ID (Proxmox ID)
+        // Check for duplicate assigned VM ID (Proxmox ID) in both vms and vm_ownership tables
         if (assignedVmid) {
           const { data: existingVM } = await supabase
             .from("vms")
-            .select("id")
+            .select("id, hostname")
             .eq("assigned_vmid", assignedVmid)
             .maybeSingle();
 
-          if (existingVM) {
-            throw new Error(`Proxmox VM ID ${assignedVmid} is already in use. Please use a different VM ID.`);
-          }
-
           const { data: existingOwnership } = await supabase
             .from("vm_ownership")
-            .select("id")
+            .select("vmid")
             .eq("vmid", assignedVmid)
             .maybeSingle();
 
-          if (existingOwnership) {
-            throw new Error(`Proxmox VM ID ${assignedVmid} is already assigned in ownership records. Please use a different VM ID.`);
+          // Handle orphaned records: VM exists in vms but not in vm_ownership
+          if (existingVM && !existingOwnership) {
+            await supabase.from("vms").delete().eq("id", existingVM.id);
+          } else if (existingVM || existingOwnership) {
+            const source = existingVM ? 'vms table' : 'vm_ownership table';
+            throw new Error(`Proxmox VM ID ${assignedVmid} is already in use in ${source}. Please use a different VM ID.`);
           }
         }
 
@@ -315,26 +315,6 @@ const useTaskStore = (): TaskStoreValue => {
         try {
           const vmId = await addVM(vmData);
           vmIds.push(vmId);
-
-          // Insert into vm_ownership with Proxmox details
-          try {
-            await supabase.from("vm_ownership").insert({
-              user_id: t.customer_id,
-              customer_id: t.customer_id,
-              vmid: vmDetails.assigned_vmids[i] || null,
-              node: vmDetails.node || "pve1",
-              pmx_type: vmDetails.pmx_type || "qemu",
-            });
-          } catch (ownershipError: any) {
-            console.error('vm_ownership insert failed:', ownershipError);
-            // Rollback VM creation if ownership insert fails
-            await supabase.from("vms").delete().eq("id", vmId);
-            if (ownershipError.code === "23505") {
-              throw new Error(`VM ID ${vmDetails.assigned_vmids[i]} is already in use. Please use a different VM ID.`);
-            }
-            throw new Error(`Failed to create VM ownership: ${ownershipError.message}`);
-          }
-
         } catch (error: any) {
           throw error;
         }
@@ -453,11 +433,12 @@ const useTaskStore = (): TaskStoreValue => {
             if (renewalMonths > 0) {
               newExpiry.setMonth(newExpiry.getMonth() + renewalMonths);
             }
-            // Then add days (grace period)
+            // Then add days from renewal duration
             if (renewalDays > 0) {
               newExpiry.setDate(newExpiry.getDate() + renewalDays);
             }
-            newExpiry.setDate(newExpiry.getDate() + 1); // Add 1 day to expiry
+            // Add 1 day grace period
+            newExpiry.setDate(newExpiry.getDate() + 1);
 
             // Update existing addon service with new duration and expiry
             await supabase
@@ -484,11 +465,12 @@ const useTaskStore = (): TaskStoreValue => {
             if (renewalMonths > 0) {
               newExpiry.setMonth(newExpiry.getMonth() + renewalMonths);
             }
-            // Then add days (grace period)
+            // Then add days from renewal duration
             if (renewalDays > 0) {
               newExpiry.setDate(newExpiry.getDate() + renewalDays);
             }
-            newExpiry.setDate(newExpiry.getDate() + 1); // Add 1 day to expiry
+            // Add 1 day grace period
+            newExpiry.setDate(newExpiry.getDate() + 1);
 
             await supabase
               .from("addon_services")

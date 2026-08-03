@@ -325,11 +325,6 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
         if (ownershipError) {
           await supabase.from("vms").delete().eq("id", insertedVM.id);
-
-          if (ownershipError.code === "23505") {
-            throw new Error(`VM ID ${insertedVM.assigned_vmid ?? "Unknown"} is already in use. Please use a different VM ID.`);
-          }
-
           throw new Error(`Failed to create VM ownership: ${ownershipError.message}`);
         }
       }

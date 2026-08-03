@@ -25,6 +25,7 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
   const [uploading, setUploading] = useState(false)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [showPreviewModal, setShowPreviewModal] = useState(false)
+  const [showViewProofModal, setShowViewProofModal] = useState(false)
   const [receipts, setReceipts] = useState<any[]>([])
   const inv = invoices.find((i: any) => i.id === initial.id) || initial;
   const c = customers.find((c: any) => c.id === inv.customer_id);
@@ -154,8 +155,7 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
                     ? <img src={`${settings.logo_url}?v=${settings.updated_at}`} alt="Logo" style={{ width: 40, height: 40, objectFit: 'contain', marginBottom: 8 }} />
                     : <div className="brand-mark" style={{ width: 40, height: 40, fontSize: 18, marginBottom: 8 }}>V</div>}
                   <div className="fw-7" style={{ fontSize: 14 }}>{settings?.company_name || 'VPS Myanmar Co., Ltd'}</div>
-                  <div className="text-xs text-mute">No. 142, Strand Road, Yangon</div>
-                  <div className="text-xs text-mute">accounts@vpsmm.co · +95 1 2345 678</div>
+                  <div className="text-xs text-mute">support@system.1cloudng.com</div>
                 </div>
                 <div className="right">
                   <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Invoice</div>
@@ -274,6 +274,17 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
                   <Icon name="check" size={10}/> Payment proof submitted
                 </div>
               )}
+              {inv.payment_proof && (
+                <div style={{ marginTop: 16 }}>
+                  <div className="text-sm fw-6 mb-2">Your Payment Proof</div>
+                  <img 
+                    src={inv.payment_proof} 
+                    alt="Payment Proof" 
+                    style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 6, border: '1px solid var(--border)', cursor: 'pointer' }}
+                    onClick={() => setShowViewProofModal(true)}
+                  />
+                </div>
+              )}
             </div>
           </div>
           {receipts.length > 0 && (
@@ -317,7 +328,7 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
                 <button className="icon-btn" onClick={() => setShowPaymentQR(false)}><Icon name="x" size={14} /></button>
               </div>
             </div>
-            <div style={{ padding: 24, textAlign: 'center' }}>
+            <div style={{ padding: 24, textAlign: 'center', maxHeight: '70vh', overflowY: 'auto' }}>
               <img
                 src="/assets/scan.png"
                 alt="Payment QR Code"
@@ -368,6 +379,27 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
                   {uploading ? 'Uploading...' : 'Upload Payment Proof'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showViewProofModal && inv.payment_proof && (
+        <div className="drawer-overlay" onClick={() => setShowViewProofModal(false)}>
+          <div className="drawer" onClick={e => e.stopPropagation()} style={{ maxWidth: 500 }}>
+            <div style={{ padding: '20px 22px 16px', borderBottom: '1px solid var(--line)' }}>
+              <div className="flex center between">
+                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Payment Proof</h2>
+                <button className="icon-btn" onClick={() => setShowViewProofModal(false)}><Icon name="x" size={14} /></button>
+              </div>
+            </div>
+            <div style={{ padding: 24, textAlign: 'center' }}>
+              <img 
+                src={inv.payment_proof} 
+                alt="Payment Proof" 
+                style={{ maxWidth: '100%', maxHeight: 300, borderRadius: 6, border: '1px solid var(--border)', marginBottom: 16 }}
+              />
+              <div className="text-sm text-mute">Invoice: {inv.legacy_id || inv.id}</div>
             </div>
           </div>
         </div>
