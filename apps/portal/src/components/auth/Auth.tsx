@@ -340,6 +340,11 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
       if (_event !== 'SIGNED_IN' && _event !== 'SIGNED_OUT') {
         return
       }
+      
+      // Prevent processing if session is null and user is already null (avoid redundant updates)
+      if (!session && !user) {
+        return
+      }
 
       if (session?.user) {
         const userData = session.user.user_metadata
@@ -391,6 +396,7 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
         setRole(userRole)
         setRoleLoaded(true)
       } else {
+        console.log('[AuthStateChange] Processing SIGNED_OUT')
         setUser(null)
         lastSyncedUserIdRef.current = null
       }
@@ -398,11 +404,12 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
     })
 
     return () => subscription.unsubscribe()
-  }, [setRole])
+  }, [])
 
   const handleSignout = async () => {
-    await supabase.auth.signOut()
+    await supabase.auth.signOut({ scope: 'global' })
     setUser(null)
+    lastSyncedUserIdRef.current = null
     navigate('/admin')
   }
 

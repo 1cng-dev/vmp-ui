@@ -234,12 +234,16 @@ export const AddonRequestProvider: React.FC<{ children: React.ReactNode }> = ({ 
               endDate.setMonth(endDate.getMonth() + parsedDuration.months)
               expiryDate.setMonth(expiryDate.getMonth() + parsedDuration.months)
             }
-            // Then add days (grace period)
+            // Then add days from duration
             if (parsedDuration.days > 0) {
               endDate.setDate(endDate.getDate() + parsedDuration.days)
               expiryDate.setDate(expiryDate.getDate() + parsedDuration.days)
             }
           }
+
+          // Add 1 day grace period (like VM calculation)
+          endDate.setDate(endDate.getDate() + 1)
+          expiryDate.setDate(expiryDate.getDate() + 1)
 
           if (existingService) {
             // Update existing addon service with new duration and dates (like VM renewal)

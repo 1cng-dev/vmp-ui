@@ -17,7 +17,7 @@ interface VMDrawerProps {
 const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal, userRole }) => {
   const { vms, updateVM, getVMRequest } = useVMStore()
   const { customers } = useCustomerStore()
-  const { getAddonServicesForVM } = useAddonServiceStore()
+  const { getAddonServicesForVM, getAllAddonServicesForVM, updateAddonService } = useAddonServiceStore()
   const { toast } = useUIStore()
   const [tab, setTab] = useState('overview')
   const v = vms.find((x: any) => x.id === vmId)
@@ -27,6 +27,7 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
   // Get data from store instead of fetching directly
   const vmRequest = v.vm_request_id ? getVMRequest(v.vm_request_id) : null
   const addonServices = getAddonServicesForVM(v.id)
+  const allAddonServices = getAllAddonServicesForVM(v.id)
 
   const creds = v.username && v.password ? [
     { type: 'SSH', user: v.username, pass: v.password }
@@ -36,9 +37,16 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
     // Activate the VM and set power state to Running
     updateVM(v.id, { status: 'Active' as any, power_state: 'Running' as any })
 
-    const addonCount = addonServices.length
+    // Reactivate associated addon services (including terminated ones)
+    for (const addon of allAddonServices) {
+      if (addon.operational_status === 'Terminated') {
+        await updateAddonService(addon.id, { operational_status: 'Active' })
+      }
+    }
+
+    const addonCount = allAddonServices.length
     const message = addonCount > 0
-      ? `VM ${v.hostname} activated with ${addonCount} active add-on service(s)`
+      ? `VM ${v.hostname} activated with ${addonCount} add-on service(s)`
       : `VM ${v.hostname} activated`
 
     toast(message, 'ok')

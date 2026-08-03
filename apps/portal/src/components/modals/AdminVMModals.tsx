@@ -886,7 +886,7 @@ const NewCustomerModal: React.FC<NewCustomerModalProps> = ({ onClose, onPassword
             <div className="field">
               <label>Legacy ID (optional - for existing customers from previous system)</label>
               <input value={f.legacyId} onChange={e => set('legacyId', e.target.value)} placeholder="e.g., 1CNG-VPS-0001" />
-              <div className="hint">Only enter a legacy ID if the customer already has one from the previous system. Format: 1CNG-VPS-00xx</div>
+              <div className="hint">Only enter a legacy ID Format: 1CNG-VPS-00xx</div>
             </div>
 
             {/* Organization Details */}
