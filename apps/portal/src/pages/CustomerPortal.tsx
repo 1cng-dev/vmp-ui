@@ -49,7 +49,7 @@ interface CustomerPortalProps {
 
 export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRole, roleNames: _roleNames = {} }) => {
   const { customers, customersLoading, loadCustomers } = useCustomerStore()
-  const { vms, loadVMs } = useVMStore()
+  const { vms, vmsError, loadVMs } = useVMStore()
   const { invoices, loadInvoices } = useInvoiceStore()
   const { tickets } = useTicketStore()
     const { toast } = useUIStore()
@@ -397,9 +397,9 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
                 ? <CustomerInvoiceDetail invoice={detailInvoice} onClose={() => setDetailInvoice(null)} />
                 : (
                   <>
-                    {view === 'dashboard' && <CustomerDashboard me={safeMe} myVMs={myVMs} myInvs={myInvs} myTickets={myTickets} myRequests={myRequests} setView={handleSetView} setDetailVm={setDetailVm} setOpenTicket={setOpenTicket} />}
+                    {view === 'dashboard' && <CustomerDashboard me={safeMe} myVMs={myVMs} myInvs={myInvs} myTickets={myTickets} myRequests={myRequests} setView={handleSetView} setDetailVm={setDetailVm} setOpenTicket={setOpenTicket} vmsError={vmsError} />}
                     {view === 'request' && <CustomerRequestVMView me={safeMe} setView={handleSetView} />}
-                    {view === 'vms' && <CustomerVMListView myVMs={myVMs} setDetailVm={setDetailVm} setRenewVm={setRenewVm} />}
+                    {view === 'vms' && <CustomerVMListView myVMs={myVMs} setDetailVm={setDetailVm} setRenewVm={setRenewVm} loadError={vmsError} onRetry={loadVMs} />}
                     {view === 'requests' && <CustomerRequestsView myRequests={myRequests} setDetailRequest={setDetailRequest} />}
                     {view === 'addon-requests' && <CustomerAddonRequestsView myAddonRequests={myAddonRequests} setDetailRequest={(req) => { setDetailRequest({ ...req, requestType: 'addon' }) }} />}
                     {view === 'my-addons' && <MyAddonServicesView myVMs={myVMs} myAddonServices={myAddonServices} />}
