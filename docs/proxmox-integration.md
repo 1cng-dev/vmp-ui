@@ -1,8 +1,13 @@
-# Proxmox integration — VM status monitoring
+# Proxmox integration — VM status, ownership & operations
 
-Scope: this integration covers **VM status and usage monitoring only** (power state,
-CPU/RAM/disk/network usage). It does not cover VM creation, deletion, migration,
-snapshots, or backups — those remain out of scope until explicitly requested.
+This started as VM status/usage monitoring only. **Phase 1** (see
+[Customer VM Ownership & Operations](#customer-vm-ownership--operations-phase-1) below)
+added: hiding the real Proxmox vmid from customers end-to-end, encrypting VM login
+passwords at rest, and the remaining power operations (reset/suspend/resume) alongside
+the original start/stop/shutdown/reboot. Still out of scope: actually creating/deleting/
+migrating a VM on Proxmox, snapshots, and backups — "operations" here means controlling
+the power state of a VM that already exists and is already bound to a customer via
+`vm_ownership`, not provisioning lifecycle.
 
 ## Architecture & data flow
 
@@ -46,10 +51,10 @@ Where each portal view gets its data:
 
 | View | File | Data source |
 | --- | --- | --- |
-| Customer "My VMs" list | `CustomerVMListView.tsx` | Supabase `vms` table (hostname, plan, billing) — unchanged by this integration |
-| Customer VM detail → Usage | `CustomerVMDetail.tsx` | `proxmox-proxcy` (`useVMStatus`/`useVMStats`) |
-| Admin "VM records" list | `VMList.tsx` | Supabase `vms` table — unchanged by this integration |
-| Admin VM detail drawer → Usage | `VMDrawer.tsx` | `proxmox-proxcy` (`useVMStatus`/`useVMStats`) |
+| Customer "My VMs" list | `CustomerVMListView.tsx` | Supabase `vms_customer_safe` view (hostname, plan, billing — Phase 1) |
+| Customer VM detail → Usage/Credentials | `CustomerVMDetail.tsx` | `proxmox-proxcy` `by-record` routes (`useVMStatusByRecord`/`useVMStatsByRecord`/`useVMCredentials`) |
+| Admin "VM records" list | `VMList.tsx` | Supabase `vms` table (full) — unchanged by this integration |
+| Admin VM detail drawer → Usage | `VMDrawer.tsx` | `proxmox-proxcy` vmid-keyed routes (`useVMStatus`/`useVMStats`) |
 
 The Supabase `vms` table remains the source of truth for VM *metadata* (hostname,
 customer, billing/expiry, IPs) — that's unrelated to Proxmox and out of scope here.
@@ -154,3 +159,141 @@ enforce tenant isolation.
 - **`apps/api`** (a separate, disconnected Express/Postgres/Redis scaffold elsewhere in
   this monorepo that also talks to Proxmox) is unrelated to this integration and isn't
   used by the portal — do not confuse it with `proxmox-proxcy`.
+
+## Customer VM Ownership & Operations (Phase 1)
+
+Extends the existing `vm_ownership`/`vms` tables and `proxmox-proxcy` rather than
+introducing a parallel schema — see the migrations dated `20260803*` in
+`apps/portal/supabase/migrations/` and the `authorizeVmByRecord`/`by-record` routes /
+`routes/admin.js` in `proxmox-proxcy`.
+
+### (a) How the real Proxmox vmid is hidden from customers, end to end
+
+- **In the browser**: the customer-facing portal never holds or sends the real Proxmox
+  vmid. `vmStore.loadVMs()` queries `vms_customer_safe` (a view, not the base `vms`
+  table) for any non-staff caller; that view excludes `assigned_vmid`/`node`/`pmx_type`
+  entirely and instead exposes `ownership_record_id` — `vm_ownership.id`, an opaque
+  UUID unrelated to the vmid. `CustomerVMDetail.tsx` uses that UUID for every
+  proxmox-proxcy call (`useVMStatusByRecord`, `useVMStatsByRecord`, `useVMCredentials`,
+  and the power-action calls in `proxmoxApi.ts`).
+- **On the wire**: those calls hit `GET/POST /api/vms/by-record/:recordId/...` —
+  literally a different URL shape from the admin-only `/api/vms/:vmid/...` routes, so
+  the real vmid never appears in a customer-facing request URL, response body, or
+  browser network tab.
+- **Server-side**: `authorizeVmByRecord` (`proxmox-proxcy/src/middleware/authorizeVmByRecord.js`)
+  resolves `(vmid, node)` from `vm_ownership.id = recordId` — the vmid only exists
+  inside proxmox-proxcy's own process memory for the duration of that request, used to
+  build the Proxmox API call, and is never echoed back in the JSON response.
+- **Residual, explicitly-acknowledged gap**: this is enforced by *which query the
+  application code runs*, not by a hard database-level column revoke — this schema
+  doesn't separate "staff" and "customer" into different Postgres roles (both are the
+  `authenticated` role; RLS distinguishes them via `is_staff()`), so a blanket
+  `REVOKE SELECT (assigned_vmid, ...) FROM authenticated` would also break ~10 existing
+  staff/service code paths that legitimately need those columns (invoicing, expiry
+  jobs, quote review, admin/engineer VM creation). A customer who crafts their own
+  PostgREST request directly against the base `vms` table (bypassing the app entirely)
+  could still read `assigned_vmid`/`node` for their own row, since RLS legitimately
+  grants them that row. See the comment block in migration
+  `20260803093000_vm_password_encryption_and_customer_safe_view.sql` for the full
+  reasoning. Closing that completely needs a staff/customer Postgres role split, which
+  is a larger change than this pass — flagged as follow-up work, not attempted here.
+
+### (b) How VM ownership is enforced at every layer
+
+1. **Auth**: every proxmox-proxcy route requires a valid Supabase JWT (`authenticate`
+   middleware). No JWT → `401`.
+2. **Ownership (customer)**: `authorizeVmByRecord` requires
+   `vm_ownership.id = recordId AND user_id = req.user.id` — no match → `404` (not
+   `403`), so probing record IDs can't even confirm one exists, per the design brief.
+   The `:vmid`-keyed routes (`authorizeVm`) use the equivalent ownership check by the
+   real vmid, for admin/internal use.
+3. **Ownership (admin)**: bypassed only on read-only routes (status/stats/list/
+   credentials... — see the full list in `proxmox-proxcy/README.md`), gated by
+   `isAdminUser()` against `team_members`, never a JWT claim.
+4. **Database**: `proxmox-proxcy` uses the Supabase **service-role** key, which
+   bypasses RLS — so RLS on `vm_ownership`/`vms`/`team_members` is a backstop for
+   direct-from-browser access (the portal's own Supabase calls), not the primary
+   control for proxmox-proxcy's own requests. The primary control there is the
+   ownership row lookup in `authorizeVm`/`authorizeVmByRecord` itself.
+5. **Rate limiting**: `vmActionLimiter` (20/min per `req.user.id`) on power actions and
+   credential reveals specifically, on top of the existing global 100/min per-IP limit
+   — bounds how fast even a legitimately-owned VM can be hammered.
+6. **Audit**: every action (start/stop/shutdown/reboot/reset/suspend/resume/console/
+   credentials-reveal/admin-bindings-write) is written to `vm_action_audit` with
+   user/vmid/node/action/result. Credential actions never log the plaintext password.
+7. **A critical prerequisite fixed in this pass, not originally in scope**: nearly
+   every RLS policy in this schema (`vms`, `vm_ownership`, `team_members`, `customers`,
+   invoices, tickets, ...) is built on `is_admin()`/`is_staff()`, which read
+   `public.jwt_role()`. That function used to read the role straight off the Supabase
+   JWT's `user_metadata` claim — client-writable via `supabase.auth.updateUser()`, so
+   any authenticated customer could grant themselves `role: 'Admin'` and, on their next
+   token refresh, pass every one of those RLS checks — a privilege-escalation hole
+   affecting the whole app, discovered while auditing this exact authorization chain.
+   Fixed in migration `20260803090000_fix_jwt_role_privilege_escalation.sql`:
+   `jwt_role()` now resolves from `team_members` (write-protected — only an existing
+   admin can insert/update it) instead of the JWT claim, with the same function name so
+   every existing policy is fixed without being individually rewritten. Everything in
+   this write-up that says "server-side ownership enforcement" depends on that fix
+   being applied — without it, RLS itself was not a trustworthy layer.
+
+### (c) VNC access scoping and time limits
+
+Unchanged from the original status-monitoring integration, now also reachable via the
+opaque record ID: `GET /api/vms/by-record/:recordId/console` calls Proxmox's
+`vncproxy` endpoint server-side, then wraps the result in `vncSessions.createSession()`
+— an in-memory session keyed by an **opaque token**, not the raw Proxmox ticket/port/
+host. The client only ever receives `{ sessionToken, wsPath }`; the actual noVNC
+websocket connects to *proxmox-proxcy itself* at `wsPath` (`src/wsConsoleProxy.js`),
+which proxies to the real Proxmox `vncwebsocket` endpoint using the session it holds
+server-side. Session lifetime is bounded by `VNC_TOKEN_TTL_SECONDS`. Ownership is
+checked the same way as any other by-record route. **Not yet built**: an actual noVNC
+viewer component in the portal — today's "Console" button still opens a placeholder
+static page (`vnc-console.html`) rather than calling this endpoint; wiring the real
+viewer is Phase 2 (needs a noVNC dependency, not currently in `package.json`).
+
+### (d) Password encryption approach chosen, and why
+
+**`pgcrypto`'s `pgp_sym_encrypt`/`pgp_sym_decrypt`**, via two Postgres functions
+(`set_vm_password`, `get_vm_password` — migration `20260803094500_add_vm_password_rpc_functions.sql`),
+called only by proxmox-proxcy's service-role client, with the symmetric key
+(`VM_CREDENTIAL_KEY`) passed as a parameter on every call from proxmox-proxcy's own
+`.env` — **never stored in the database**, not even via `ALTER DATABASE ... SET`.
+
+Why this over the alternatives:
+- **Supabase Vault** (hosted-only secrets management) isn't available — this is a
+  self-hosted Supabase instance.
+- **A trigger-based approach** (encrypt transparently on `INSERT`/`UPDATE` using a
+  DB-side `current_setting()` key) was considered and rejected: it would require
+  storing the key somewhere in the database configuration itself, which conflicts with
+  "the key lives outside the DB."
+- **KMS-managed application-layer encryption** (e.g. a cloud KMS) isn't available in
+  this on-prem/self-hosted deployment; `pgcrypto` with an externally-held key is the
+  practical equivalent given the infrastructure that actually exists here.
+
+Consequence: the write path for a VM's password could no longer be a direct
+client-side Supabase insert (the key must never reach the browser) — that's *why*
+`POST /api/admin/vms/:vmId/bindings` exists as a new proxmox-proxcy endpoint, and why
+`vmStore.addVM()` now splits VM creation into a non-sensitive client-side insert
+followed by a call to that endpoint for `assigned_vmid`/`node`/`username`/`password`
+specifically. Reading a password back is symmetric: only
+`GET /api/vms/by-record/:recordId/credentials` can decrypt it, rate-limited and
+audit-logged on every reveal, matching copy that already existed in the portal's UI
+("Reveal logs an audit event") but wasn't previously backed by anything real.
+
+**Not done in this pass**: backfilling existing plaintext `vms.password` rows into
+`password_encrypted` — this sandbox has no network path to the live database. That's a
+one-time script the operator needs to run once `VM_CREDENTIAL_KEY` is set, using
+`set_vm_password` for each existing row, before relying on `password_encrypted` for
+any VM created prior to this migration.
+
+### Deferred to Phase 2/3
+
+- Real noVNC console viewer UI (see (c) above).
+- Wiring `reset`/`suspend`/`resume` (now supported by proxmox-proxcy) into the
+  customer/admin VM action buttons, and a proper pending/in-progress task-polling UX
+  around all power actions (the endpoints return a Proxmox `task`/`upid`; polling it
+  via `GET .../task/:upid` to completion is not yet wired into the UI).
+- An admin-only view/table for browsing, editing, and auditing
+  `assigned_vmid ↔ customer_id` bindings directly (today this only exists as the
+  "Add VM Details" creation flow — editing an existing binding has no UI yet). The
+  backend (`vm_ownership`, `vm_action_audit`) already supports building this.

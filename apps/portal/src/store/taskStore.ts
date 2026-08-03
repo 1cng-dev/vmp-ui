@@ -313,28 +313,13 @@ const useTaskStore = (): TaskStoreValue => {
           provision_status: "completed",
         };
         try {
+          // addVM writes the vm_ownership binding itself (via proxmox-proxcy's
+          // admin bindings endpoint, when vmData.assigned_vmid is set) — it
+          // encrypts the password server-side, which a direct client-side
+          // insert here can't do, so there is intentionally no second
+          // vm_ownership write in this function.
           const vmId = await addVM(vmData);
           vmIds.push(vmId);
-
-          // Insert into vm_ownership with Proxmox details
-          try {
-            await supabase.from("vm_ownership").insert({
-              user_id: t.customer_id,
-              customer_id: t.customer_id,
-              vmid: vmDetails.assigned_vmids[i] || null,
-              node: vmDetails.node || "pve1",
-              pmx_type: vmDetails.pmx_type || "qemu",
-            });
-          } catch (ownershipError: any) {
-            console.error('vm_ownership insert failed:', ownershipError);
-            // Rollback VM creation if ownership insert fails
-            await supabase.from("vms").delete().eq("id", vmId);
-            if (ownershipError.code === "23505") {
-              throw new Error(`VM ID ${vmDetails.assigned_vmids[i]} is already in use. Please use a different VM ID.`);
-            }
-            throw new Error(`Failed to create VM ownership: ${ownershipError.message}`);
-          }
-
         } catch (error: any) {
           throw error;
         }

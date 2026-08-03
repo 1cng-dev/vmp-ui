@@ -10,6 +10,7 @@ import { supabase } from "../lib/supabase";
 import type { NewVMInput } from "../types";
 import { createAlert } from "../services/notificationService";
 import useActivityStore from "./activityStore";
+import { createVMBindings } from "../lib/proxmoxApi";
 
 // Use the VM interface that matches the vms table (line 215 in types/index.ts)
 export interface VM {
@@ -56,6 +57,10 @@ export interface VM {
   qty?: number;
   provision_status?: string;
   request_type?: "trial" | "paid";
+  // Present only when loaded via vms_customer_safe (customer role) — the
+  // opaque vm_ownership.id proxmox-proxcy's by-record routes use in place of
+  // the real Proxmox vmid. Absent for staff, who load the full `vms` table.
+  ownership_record_id?: string | null;
 }
 
 export interface VMRequest {
@@ -142,8 +147,26 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     setVmsLoading(true);
 
     try {
+      // vms holds assigned_vmid/node/password columns customers must never
+      // see (RLS also revokes column-level access to those directly, this
+      // just picks the right query up front). Staff (a row in team_members)
+      // get the full table; everyone else gets the customer-safe view.
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      let isStaff = false;
+      if (user) {
+        const { data: staffRow } = await supabase
+          .from("team_members")
+          .select("user_id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        isStaff = !!staffRow;
+      }
+
       const { data, error } = await supabase
-        .from("vms")
+        .from(isStaff ? "vms" : "vms_customer_safe")
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -254,12 +277,12 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
   const addVM = useCallback(
     async (vm: NewVMInput) => {
+      // Non-sensitive fields only — assigned_vmid/node/pmx_type/username/
+      // password are written separately below, through proxmox-proxcy,
+      // never as a direct client-side insert. Encrypting the password
+      // requires VM_CREDENTIAL_KEY, which lives only in that service's env.
       const newVM = {
         hostname: vm.hostname,
-        public_ip: vm.public_ip,
-        private_ip: vm.private_ip,
-        username: vm.username,
-        password: vm.password,
         vcpu: vm.vcpu || 2,
         ram_gb: vm.ram_gb || 8,
         storage_gb: vm.storage_gb || 100,
@@ -271,9 +294,6 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         expiry: vm.expiry,
         duration: vm.duration,
         legacy_id: vm.legacy_id,
-        assigned_vmid: vm.assigned_vmid,
-        node: vm.node || "pve1", // ADD THIS
-        pmx_type: vm.pmx_type || "qemu", // ADD THIS
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         start_date: vm.start_date || null,
@@ -314,23 +334,28 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
       const insertedVM = data as VM;
 
-      if (insertedVM.customer_id) {
-        const { error: ownershipError } = await supabase.from("vm_ownership").insert({
-          user_id: insertedVM.customer_id,
-          customer_id: insertedVM.customer_id,
-          vmid: insertedVM.assigned_vmid,
-          node: insertedVM.node || "pve1",
-          pmx_type: insertedVM.pmx_type || "qemu",
-        });
-
-        if (ownershipError) {
+      if (vm.assigned_vmid) {
+        try {
+          await createVMBindings(insertedVM.id, {
+            assigned_vmid: vm.assigned_vmid,
+            node: vm.node || "pve1",
+            pmx_type: vm.pmx_type || "qemu",
+            public_ip: vm.public_ip,
+            private_ip: vm.private_ip,
+            username: vm.username,
+            password: vm.password,
+          });
+        } catch (bindingError: any) {
           await supabase.from("vms").delete().eq("id", insertedVM.id);
 
-          if (ownershipError.code === "23505") {
-            throw new Error(`VM ID ${insertedVM.assigned_vmid ?? "Unknown"} is already in use. Please use a different VM ID.`);
+          const message =
+            bindingError?.response?.data?.error || bindingError?.message || "Failed to bind VM to Proxmox";
+
+          if (String(message).toLowerCase().includes("already")) {
+            throw new Error(`VM ID ${vm.assigned_vmid} is already in use. Please use a different VM ID.`);
           }
 
-          throw new Error(`Failed to create VM ownership: ${ownershipError.message}`);
+          throw new Error(`Failed to create VM ownership: ${message}`);
         }
       }
 

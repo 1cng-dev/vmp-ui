@@ -6,7 +6,7 @@ import Icon from '../../lib/icons'
 import { StatusPill, ExpiryCell } from '../ui/ui'
 import { InfoCard, UsageCard, UsageDetailCard } from './VMHelperComponents'
 import { CustUpgradeModal, CustConvertToPaidModal } from '../modals/CustomerVMModals'
-import { useVMStatus, useVMStats } from '../../hooks/useVMLiveStatus'
+import { useVMStatusByRecord, useVMStatsByRecord, useVMCredentials } from '../../hooks/useVMLiveStatus'
 import { BYTES_PER_GB, pctSeries, ramPctSeries, netMbpsSeries, avgOf, peakOf, lastOf } from '../../lib/vmUsage'
 
 interface CustomerVMDetailProps {
@@ -60,7 +60,6 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
   const { toast } = useUIStore()
   const vm = vms.find((v: any) => v.id === initialVm.id) || initialVm
   const [tab, setTab] = useState('overview')
-  const [revealCreds, setRevealCreds] = useState(false)
   const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [convertToPaidOpen, setConvertToPaidOpen] = useState(false)
 
@@ -70,12 +69,17 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
 
   const isRunning = vm.power_state === 'Running'
 
-  // Live usage from proxmox-proxcy (never Proxmox directly). assignedVmid is
-  // undefined until the VM is actually provisioned on Proxmox — hooks no-op then.
-  const assignedVmid: number | undefined = (vm as any).assigned_vmid
-  const { status: liveStatus, error: statusError } = useVMStatus(assignedVmid)
-  const { data: statsData, error: statsError } = useVMStats(assignedVmid, 'day')
+  // Live usage from proxmox-proxcy (never Proxmox directly). recordId is the
+  // opaque vm_ownership.id from vms_customer_safe — the real Proxmox vmid
+  // never reaches this browser. Undefined until the VM is actually
+  // provisioned on Proxmox — hooks no-op then.
+  const recordId: string | undefined = (vm as any).ownership_record_id || undefined
+  const { status: liveStatus, error: statusError } = useVMStatusByRecord(recordId)
+  const { data: statsData, error: statsError } = useVMStatsByRecord(recordId, 'day')
   const liveError = statusError || statsError
+
+  const { credentials, loading: credsLoading, error: credsError, reveal: revealCreds, hide: hideCreds } =
+    useVMCredentials(recordId)
 
   const cpu = pctSeries(statsData, p => p.cpu)
   const ram = ramPctSeries(statsData)
@@ -92,10 +96,6 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
   const diskTotalGB = vm.storage_gb || Math.round((liveStatus?.maxdisk || 0) / BYTES_PER_GB)
   const diskGB = Math.round((liveStatus?.disk || 0) / BYTES_PER_GB)
   const diskPct = diskTotalGB ? Math.round((diskGB / diskTotalGB) * 100) : 0
-
-  const creds = vm.username && vm.password ? [
-    { type: 'SSH', user: vm.username, pass: vm.password }
-  ] : []
 
   const openConsole = () => {
     const params = new URLSearchParams({
@@ -178,9 +178,6 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
               ]} />
               <InfoCard icon="invoice" title="Subscription" rows={[
                 ['VM ID', vm.legacy_id || vm.id],
-                ['Assigned VM ID', (vm as any).assigned_vmid || '—'],
-                ['Proxmox Node', (vm as any).node || '—'],
-                ['VM Type', (vm as any).pmx_type || '—'],
                 ['Task Type', vm.task_type || 'New'],
                 ['Billing Term', (vm as any).duration || '—'],
                 ['Created', new Date(vm.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })],
@@ -305,29 +302,45 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
               <Icon name="lock" size={14} />
               <div>Credentials are encrypted at rest. Reveal logs an audit event.</div>
             </div>
+            {credsError && (
+              <div style={{ padding: 10, background: 'var(--warn-soft)', borderRadius: 8, fontSize: 12, color: 'oklch(0.4 0.12 75)', marginBottom: 12 }}>
+                <Icon name="alert" size={13} /> {credsError}
+              </div>
+            )}
             <table className="tbl">
-              <thead><tr><th>Type</th><th>Username</th><th>Password</th><th>Last accessed</th><th></th></tr></thead>
+              <thead><tr><th>Type</th><th>Username</th><th>Password</th><th></th></tr></thead>
               <tbody>
-                {creds.map((c: any) => (
-                  <tr key={c.type}>
-                    <td>{c.type}</td>
-                    <td className="mono">{c.user}</td>
-                    <td className="mono">{revealCreds ? c.pass : '••••••••••••••••'}</td>
-                    <td className="text-sm text-mute">2 days ago</td>
-                    <td className="right">
-                      <button className="btn sm" onClick={() => { navigator.clipboard?.writeText(c.pass); toast('Password copied', 'ok') }}><Icon name="check" size={11} />Copy</button>
-                    </td>
-                  </tr>
-                ))}
-                {creds.length === 0 && (
+                {!recordId ? (
+                  <tr><td colSpan={4}><div className="empty"><div className="sub">Not provisioned on Proxmox yet.</div></div></td></tr>
+                ) : !credentials ? (
                   <tr>
-                    <td colSpan={5}><div className="empty"><div className="sub">No credentials available.</div></div></td>
+                    <td>SSH</td>
+                    <td className="mono">••••••••</td>
+                    <td className="mono">••••••••••••••••</td>
+                    <td className="right"></td>
+                  </tr>
+                ) : (
+                  <tr>
+                    <td>SSH</td>
+                    <td className="mono">{credentials.username || '—'}</td>
+                    <td className="mono">{credentials.password || '—'}</td>
+                    <td className="right">
+                      {credentials.password && (
+                        <button className="btn sm" onClick={() => { navigator.clipboard?.writeText(credentials.password!); toast('Password copied', 'ok') }}><Icon name="check" size={11} />Copy</button>
+                      )}
+                    </td>
                   </tr>
                 )}
               </tbody>
             </table>
             <div className="flex gap-2 mt-3">
-              <button className="btn" onClick={() => setRevealCreds(!revealCreds)}><Icon name="eye" size={12} />{revealCreds ? 'Hide' : 'Reveal'} all</button>
+              {!credentials ? (
+                <button className="btn" onClick={revealCreds} disabled={!recordId || credsLoading}>
+                  <Icon name="eye" size={12} />{credsLoading ? 'Revealing…' : 'Reveal'}
+                </button>
+              ) : (
+                <button className="btn" onClick={hideCreds}><Icon name="eye" size={12} />Hide</button>
+              )}
               <button className="btn" onClick={() => toast('Password rotation requested — Sales will contact you', 'info')}><Icon name="refresh" size={12} />Request rotation</button>
             </div>
           </div>
@@ -338,9 +351,6 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
             <div className="grid-2" style={{ gap: 14 }}>
               <InfoCard icon="server" title="Instance" mono rows={[
                 ['VM ID', vm.legacy_id || vm.id],
-                ['Assigned VM ID', (vm as any).assigned_vmid || '—'],
-                ['Proxmox Node', (vm as any).node || '—'],
-                ['VM Type', (vm as any).pmx_type || '—'],
                 ['Hostname', vm.hostname],
                 ['Power state', vm.power_state],
                 ['Request ID', vmRequest?.legacy_id || vm.vm_request_id],
