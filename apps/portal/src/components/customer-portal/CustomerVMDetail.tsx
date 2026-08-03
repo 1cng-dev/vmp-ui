@@ -156,8 +156,26 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
         <div className="page-actions">
           {vm.status !== 'Terminated' && (
             <>
-              {!statusKnown && (
+              {!statusKnown && !statusError && (
                 <button className="btn" disabled><Icon name="refresh" size={12} />Loading status…</button>
+              )}
+              {/* Status polling failing doesn't mean the action endpoints are
+                  down too — they're independent calls. Rather than lock the
+                  customer out of control entirely because we don't know the
+                  current state, offer the common actions; Proxmox handles
+                  e.g. "start" on an already-running VM as a harmless no-op. */}
+              {!statusKnown && statusError && (
+                <>
+                  <button className="btn" onClick={() => handleAction('start')} disabled={!!actionPending}>
+                    <Icon name="play" size={12} />{actionPending === 'start' ? ACTION_LABELS.start : 'Start'}
+                  </button>
+                  <button className="btn" onClick={() => handleAction('shutdown')} disabled={!!actionPending}>
+                    <Icon name="pause" size={12} />{actionPending === 'shutdown' ? ACTION_LABELS.shutdown : 'Stop'}
+                  </button>
+                  <button className="btn" onClick={() => handleAction('reboot')} disabled={!!actionPending}>
+                    <Icon name="refresh" size={12} />{actionPending === 'reboot' ? ACTION_LABELS.reboot : 'Restart'}
+                  </button>
+                </>
               )}
               {isStopped && (
                 <button className="btn primary" onClick={() => handleAction('start')} disabled={!!actionPending}>
@@ -237,11 +255,14 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
           <Icon name="alert" size={13} /> Live usage unavailable: {liveError}
         </div>
       )}
+      {/* "—" (not "0%") whenever we don't actually have a live reading yet —
+          still loading, or the last poll failed — so it's never confused
+          with a VM that's genuinely idle/stopped and reporting real zeros. */}
       <div className="grid-4 mb-4">
-        <UsageCard label="CPU" value={`${cpuNow}%`} data={cpu} color="var(--accent)" />
-        <UsageCard label="RAM" value={`${ramNow}%`} data={ram} color="var(--info)" sub={ramMaxBytes ? `${ramUsedGB} / ${Math.round(ramMaxBytes / BYTES_PER_GB)} GB` : undefined} />
-        <UsageCard label="Storage" value={`${diskPct}%`} data={[diskPct, diskPct, diskPct, diskPct]} color="oklch(0.55 0.18 285)" sub={diskTotalGB ? `${diskGB} / ${diskTotalGB} GB` : undefined} />
-        <UsageCard label="Network out" value={`${netNow} Mbps`} data={net} color="var(--ok)" />
+        <UsageCard label="CPU" value={statusKnown ? `${cpuNow}%` : '—'} data={cpu} color="var(--accent)" />
+        <UsageCard label="RAM" value={statusKnown ? `${ramNow}%` : '—'} data={ram} color="var(--info)" sub={statusKnown && ramMaxBytes ? `${ramUsedGB} / ${Math.round(ramMaxBytes / BYTES_PER_GB)} GB` : undefined} />
+        <UsageCard label="Storage" value={statusKnown ? `${diskPct}%` : '—'} data={[diskPct, diskPct, diskPct, diskPct]} color="oklch(0.55 0.18 285)" sub={statusKnown && diskTotalGB ? `${diskGB} / ${diskTotalGB} GB` : undefined} />
+        <UsageCard label="Network out" value={statusKnown ? `${netNow} Mbps` : '—'} data={net} color="var(--ok)" />
       </div>
 
       <div className="card">

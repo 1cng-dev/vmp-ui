@@ -14,8 +14,19 @@ import {
   type PowerAction,
 } from "../lib/proxmoxApi";
 
-export function errorMessage(err: any, fallback: string) {
-  return err?.response?.data?.error || err?.message || fallback;
+// Maps HTTP status to generic, customer-safe copy for every hook in this
+// file — status/stats polling, credentials reveal, and power actions all
+// surface this directly in a UI banner, so none of them should ever show a
+// raw axios message ("Request failed with status code 404") or a backend
+// error string that might describe internal routing/ownership detail.
+export function friendlyError(err: any): string {
+  const status = err?.response?.status;
+  if (status === 404) return "This VM could not be found.";
+  if (status === 403) return "You don't have access to this VM.";
+  if (status === 429) return "Too many requests — please wait a moment and try again.";
+  if (status && status >= 500) return "The VM host is temporarily unavailable. Please try again shortly.";
+  if (!err?.response) return "Couldn't reach the VM service. Check your connection and try again.";
+  return "Something went wrong loading this VM's data. Please try again.";
 }
 
 // Shared polling shape for both the vmid-keyed (admin) and record-keyed
@@ -56,7 +67,7 @@ function usePolled<T>(
         setError(null);
       } catch (err: any) {
         if (cancelled) return;
-        setError(errorMessage(err, "Failed to load VM data"));
+        setError(friendlyError(err));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -149,7 +160,7 @@ export function useVMCredentials(recordId?: string | null) {
       const creds = await getVMCredentials(recordId);
       setCredentials(creds);
     } catch (err: any) {
-      setError(errorMessage(err, "Failed to load credentials"));
+      setError(friendlyError(err));
     } finally {
       setLoading(false);
     }
@@ -158,17 +169,6 @@ export function useVMCredentials(recordId?: string | null) {
   const hide = useCallback(() => setCredentials(null), []);
 
   return { credentials, loading, error, reveal, hide };
-}
-
-// Maps HTTP status to generic, customer-safe copy — never surfaces the raw
-// backend/Proxmox message, which can include node names or internal detail.
-function friendlyActionError(err: any): string {
-  const status = err?.response?.status;
-  if (status === 404) return "This VM could not be found.";
-  if (status === 403) return "You don't have access to this VM.";
-  if (status === 429) return "Too many actions — please wait a moment and try again.";
-  if (status && status >= 500) return "The VM host is temporarily unavailable. Please try again shortly.";
-  return "Something went wrong performing this action. Please try again, or contact support if it continues.";
 }
 
 const TASK_POLL_INTERVAL_MS = 2000;
@@ -204,7 +204,7 @@ export function useVMPowerAction(recordId?: string | null, onSettled?: () => voi
           }
         }
       } catch (err: any) {
-        setError(friendlyActionError(err));
+        setError(friendlyError(err));
       } finally {
         setPending(null);
         onSettledRef.current?.();
