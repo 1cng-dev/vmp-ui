@@ -1436,7 +1436,7 @@ const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({ onClose, presetCustom
             )}
             <div className="card" style={{ background: 'var(--surface-2)' }}>
               <div className="card-body">
-                <div className="flex between"><span className="text-mute">Duration</span><span className="tnum fw-6">{f.months} month{f.months !== 1 ? 's' : ''}</span></div>
+                <div className="flex between"><span className="text-mute">Duration</span><span className="tnum fw-6">{String(f.months).match(/\d+\s+(day|days|month|months)/) ? f.months : `${f.months} month${f.months !== 1 ? 's' : ''}`}</span></div>
                 <div className="flex between"><span className="text-mute">Due date</span><span className="tnum fw-6">{new Date().toISOString().slice(0, 10)}</span></div>
                 <div className="divider" />
                 <div className="flex between"><span className="text-mute">Subtotal</span><span className="tnum fw-6">MMK {formatMMK(amount)}</span></div>
