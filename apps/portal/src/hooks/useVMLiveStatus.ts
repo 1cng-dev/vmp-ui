@@ -13,6 +13,7 @@ import {
   type VMCredentials,
   type PowerAction,
 } from "../lib/proxmoxApi";
+import { supabase } from "../lib/supabase";
 
 // Maps HTTP status to generic, customer-safe copy for every hook in this
 // file — status/stats polling, credentials reveal, and power actions all
@@ -177,10 +178,22 @@ const TASK_POLL_INTERVAL_MS = 2000;
 // polling and re-enables controls so the customer isn't stuck forever.
 const TASK_POLL_TIMEOUT_MS = 90000;
 
+// Maps power actions to database power_state values
+function actionToPowerState(action: PowerAction): "Running" | "Stopped" | "Paused" {
+  if (action === "start" || action === "reboot" || action === "reset" || action === "resume") {
+    return "Running";
+  }
+  if (action === "suspend") {
+    return "Paused";
+  }
+  return "Stopped"; // stop, shutdown
+}
+
 // Runs a power action (start/stop/shutdown/reboot/reset/suspend/resume)
 // against proxmox-proxcy's by-record route, polls the returned task to
 // completion, then calls onSettled (typically the status hook's refetch) so
 // the UI reflects the real end state instead of a guess.
+// Also updates the database power_state column to keep the VMs list in sync.
 export function useVMPowerAction(recordId?: string | null, onSettled?: () => void) {
   const [pending, setPending] = useState<PowerAction | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -202,6 +215,22 @@ export function useVMPowerAction(recordId?: string | null, onSettled?: () => voi
             const task = await getVMTaskStatus(recordId, upid).catch(() => null);
             if (!task || task.status !== "running") break;
           }
+        }
+
+        // Update database power_state to keep VMs list in sync
+        // Find VM by ownership_record_id and update its power_state
+        const { data: vm } = await supabase
+          .from("vms_customer_safe")
+          .select("id")
+          .eq("ownership_record_id", recordId)
+          .single();
+
+        if (vm) {
+          const newPowerState = actionToPowerState(action);
+          await supabase
+            .from("vms")
+            .update({ power_state: newPowerState })
+            .eq("id", vm.id);
         }
       } catch (err: any) {
         setError(friendlyError(err));

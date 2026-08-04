@@ -29,13 +29,13 @@ export const InfoCard: React.FC<{ icon: string; title: string; rows: [string, st
 export const UsageCard: React.FC<{ label: string; value: string; data: number[]; color?: string; sub?: string }> = ({ label, value, data, color, sub }) => (
   <div className="metric">
     <div className="label">{label}</div>
-    <div className="flex center between">
+    <div className="flex center between" style={{ width: '100%' }}>
       <div className="value tnum" style={{ fontSize: 20 }}>{value}</div>
     </div>
-    <div className="mt-2">
+    <div className="mt-2" style={{ width: '100%', overflow: 'hidden' }}>
       <Bars data={data} color={color} height={26}/>
     </div>
-    {sub && <div className="trend">{sub}</div>}
+    {sub && <div className="trend" style={{ wordBreak: 'break-word' }}>{sub}</div>}
   </div>
 )
 

@@ -123,7 +123,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
   const myAddonRequests = addonRequests.filter((r: any) => r.customer_id === safeMe.id)
 
   useEffect(() => {
-    if (me && me.kyc_status !== 'Approved' && ['request', 'vms', 'requests', 'invoices'].includes(view)) {
+    if (me && me.kyc_status !== 'Approved' && ['request', 'vms', 'requests', 'invoices', 'cust-announcements'].includes(view)) {
       handleSetView('dashboard')
     }
   }, [me?.kyc_status, view, me])
@@ -219,7 +219,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
     { id: 'addons', label: 'Add-on Services', icon: 'shield', lockedByKyc: true },
     { id: 'invoices', label: 'Invoices', icon: 'invoice', badge: pendingInv.length || null, lockedByKyc: true },
     { id: 'receipts', label: 'Receipts', icon: 'check', lockedByKyc: true },
-    { id: 'cust-announcements', label: 'Announcements', icon: 'star', badge: unreadAnnouncements || null },
+    { id: 'cust-announcements', label: 'Announcements', icon: 'star', badge: unreadAnnouncements || null, lockedByKyc: true },
     { id: 'tickets', label: 'Support tickets', icon: 'mail', badge: openTickets.length || null, lockedByKyc: true },
   ]
 
