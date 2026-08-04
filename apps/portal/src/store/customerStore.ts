@@ -56,42 +56,7 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
         console.error('Failed to load customers:', error)
       }
       if (data) {
-        // Enrich with last login timestamp from auth.users for admin/staff views
-        let usersMap: Record<string, string | undefined> = {}
-        const isPrivileged = role === 'Staff' || role === 'Admin' || role === 'Sales' || role === 'Finance'
-        if (isPrivileged) {
-          try {
-            const { data: usersRes, error: usersErr } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 })
-            if (!usersErr && usersRes?.users) {
-              usersMap = usersRes.users.reduce((acc: Record<string, string | undefined>, u: any) => {
-                acc[u.id] = u.last_sign_in_at
-                return acc
-              }, {})
-            }
-          } catch (e) {
-            // ignore admin lookup failures; keep base data
-          }
-        }
-
-        // Calculate totalSpend for each customer from invoices
-        const customersWithSpend = await Promise.all(
-          (data as Customer[]).map(async (c: any) => {
-            const { data: invoices } = await supabase
-              .from('invoices')
-              .select('gross_amount')
-              .eq('customer_id', c.id)
-              .eq('status', 'Payment Received')
-
-            const totalSpend = invoices?.reduce((sum: number, inv: any) => sum + (inv.gross_amount || 0), 0) || 0
-            return {
-              ...c,
-              totalSpend,
-              last_login_at: c.last_login_at || usersMap[c.id],
-              since: c.created_at
-            }
-          })
-        )
-        setCustomers(customersWithSpend)
+        setCustomers(data as Customer[])
       }
     } finally {
       setCustomersLoading(false)
@@ -108,12 +73,15 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
         // Only update if the customer is in the current local state to prevent issues with other customers
         setCustomers(prev => {
           const payloadId = payload.new?.id || payload.old?.id
-          const exists = prev.some(c => c.id === payloadId)
-          if (!exists) return prev
+
 
           if (payload.eventType === 'UPDATE') {
+            const exists = prev.some(c => c.id === payloadId)
+            if (!exists) return prev
+
             return prev.map(c => c.id === payload.new.id ? { ...c, ...payload.new } as Customer : c)
           } else if (payload.eventType === 'INSERT') {
+            if (prev.some(c => c.id === payload.new.id)) return prev
             return [payload.new as Customer, ...prev]
           } else if (payload.eventType === 'DELETE') {
             return prev.filter(c => c.id !== payload.old.id)

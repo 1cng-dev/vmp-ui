@@ -20,7 +20,7 @@ interface VMDrawerProps {
 const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal, userRole }) => {
   const { vms, updateVM, getVMRequest } = useVMStore()
   const { customers } = useCustomerStore()
-  const { getAddonServicesForVM } = useAddonServiceStore()
+  const { getAddonServicesForVM, getAllAddonServicesForVM, updateAddonService } = useAddonServiceStore()
   const { toast } = useUIStore()
   const [tab, setTab] = useState('overview')
   const v = vms.find((x: any) => x.id === vmId)
@@ -30,6 +30,7 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
   // Get data from store instead of fetching directly
   const vmRequest = v.vm_request_id ? getVMRequest(v.vm_request_id) : null
   const addonServices = getAddonServicesForVM(v.id)
+  const allAddonServices = getAllAddonServicesForVM(v.id)
 
   // Live usage from proxmox-proxcy — admins can view any VM's status here
   // (the proxy's admin bypass on the read-only status/stats routes is what
@@ -61,9 +62,17 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
     // Activate the VM and set power state to Running
     updateVM(v.id, { status: 'Active' as any, power_state: 'Running' as any })
 
-    const addonCount = addonServices.length
+    // Reactivate associated addon services (including terminated ones)
+    for (const addon of allAddonServices) {
+      if (addon.operational_status === 'Terminated') {
+        await updateAddonService(addon.id, { operational_status: 'Active' })
+      }
+    }
+
+    const addonCount = allAddonServices.length
+
     const message = addonCount > 0
-      ? `VM ${v.hostname} activated with ${addonCount} active add-on service(s)`
+      ? `VM ${v.hostname} activated with ${addonCount} add-on service(s)`
       : `VM ${v.hostname} activated`
 
     toast(message, 'ok')
@@ -82,32 +91,32 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
               </>}
             </div>
             <div className="flex gap-2">
-              <button className="icon-btn" title="Open in Proxmox"><Icon name="external" size={14}/></button>
-              <button className="icon-btn" onClick={onClose}><Icon name="x" size={14}/></button>
+              <button className="icon-btn" title="Open in Proxmox"><Icon name="external" size={14} /></button>
+              <button className="icon-btn" onClick={onClose}><Icon name="x" size={14} /></button>
             </div>
           </div>
           <div className="flex center between">
             <div>
               <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em' }}>{v.hostname}</h2>
               <div className="flex gap-2 mt-2">
-                <StatusPill status={v.status} expiry={v.expiry}/>
-                <StatusPill status={v.task_type || 'new'}/>
-                <span className="pill"><Icon name={v.power_state === 'Running' ? 'play' : 'pause'} size={10}/>{v.power_state}</span>
+                <StatusPill status={v.status} expiry={v.expiry} />
+                <StatusPill status={v.task_type || 'new'} />
+                <span className="pill"><Icon name={v.power_state === 'Running' ? 'play' : 'pause'} size={10} />{v.power_state}</span>
               </div>
             </div>
             <div className="flex gap-2">
               {v.status === 'Active' && userRole !== 'Sales' && userRole !== 'Finance' ? (
-                <button className="btn" onClick={() => openModal('terminate', { vm: v })}><Icon name="trash" size={12}/>Terminate</button>
+                <button className="btn" onClick={() => openModal('terminate', { vm: v })}><Icon name="trash" size={12} />Terminate</button>
               ) : (
-                v.status !== 'Active' && <button className="btn primary" onClick={handleActivate}><Icon name="play" size={12}/>Activate</button>
+                v.status !== 'Active' && <button className="btn primary" onClick={handleActivate}><Icon name="play" size={12} />Activate</button>
               )}
-              {userRole !== 'Sales' && userRole !== 'Finance' && <button className="btn danger" onClick={() => openModal('delete', { vm: v })}><Icon name="x" size={12}/>Delete</button>}
+              {userRole !== 'Sales' && userRole !== 'Finance' && <button className="btn danger" onClick={() => openModal('delete', { vm: v })}><Icon name="x" size={12} />Delete</button>}
             </div>
           </div>
         </div>
 
         <div className="tabs">
-          {['overview','specs','network','usage','backups','credentials','addons'].map(t => (
+          {['overview', 'specs', 'network', 'usage', 'backups', 'credentials', 'addons'].map(t => (
             <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
               {t === 'overview' ? 'Overview' : t === 'specs' ? 'Specs' : t === 'network' ? 'Network' : t === 'usage' ? 'Usage' : t === 'backups' ? 'Backups' : t === 'credentials' ? 'Credentials' : 'Add-ons'}
             </button>
@@ -145,7 +154,7 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
                         <dt>Quantity</dt><dd className="tnum">{(v as any).qty || 1}</dd>
                         <dt>Billing Term</dt><dd className="tnum">{(v as any).duration || '—'}</dd>
                         <dt>Start Date</dt><dd className="tnum">{(v as any).start_date ? new Date((v as any).start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</dd>
-                        <dt>Expiry</dt><dd><ExpiryCell date={v.expiry || '—'}/></dd>
+                        <dt>Expiry</dt><dd><ExpiryCell date={v.expiry || '—'} /></dd>
                       </dl>
                     </div>
                   </div>
@@ -167,7 +176,7 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
                   <dt>Public IPv4</dt><dd className="mono fw-6">{v.public_ip || '—'}</dd>
                   <dt>Private IPv4</dt><dd className="mono">{v.private_ip || '—'}</dd>
                   <dt>Zone</dt><dd>{(v as any).zone || '—'}</dd>
-                  <dt>NICs</dt><dd className="mono">{(v as any).nics && ((v as any).nics as any).length > 0 
+                  <dt>NICs</dt><dd className="mono">{(v as any).nics && ((v as any).nics as any).length > 0
                     ? (typeof (v as any).nics === 'string' ? JSON.parse((v as any).nics) : (v as any).nics).map((nic: any) => nic.description ? `${nic.label} (${nic.description})` : nic.label).join(', ')
                     : '—'}</dd>
                   <dt>Public IP Required</dt><dd>{(v as any).public_ip_required ? 'Yes' : 'No'}</dd>
@@ -219,7 +228,7 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
             <div className="flex col gap-4">
               {liveError && (
                 <div style={{ padding: 10, background: 'var(--warn-soft)', borderRadius: 8, fontSize: 12, color: 'oklch(0.4 0.12 75)' }}>
-                  <Icon name="alert" size={13}/> Live usage unavailable: {liveError}
+                  <Icon name="alert" size={13} /> Live usage unavailable: {liveError}
                 </div>
               )}
               {!assignedVmid ? (
@@ -227,15 +236,15 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
               ) : (
                 <>
                   <div className="grid-4">
-                    <UsageCard label="CPU" value={`${cpuNow}%`} data={cpu} color="var(--accent)"/>
-                    <UsageCard label="RAM" value={`${ramNow}%`} data={ram} color="var(--info)" sub={ramMaxBytes ? `${ramUsedGB} / ${Math.round(ramMaxBytes / BYTES_PER_GB)} GB` : undefined}/>
-                    <UsageCard label="Storage" value={`${diskPct}%`} data={[diskPct, diskPct, diskPct, diskPct]} color="oklch(0.55 0.18 285)" sub={diskTotalGB ? `${diskGB} / ${diskTotalGB} GB` : undefined}/>
-                    <UsageCard label="Network out" value={`${netNow} Mbps`} data={net} color="var(--ok)"/>
+                    <UsageCard label="CPU" value={`${cpuNow}%`} data={cpu} color="var(--accent)" />
+                    <UsageCard label="RAM" value={`${ramNow}%`} data={ram} color="var(--info)" sub={ramMaxBytes ? `${ramUsedGB} / ${Math.round(ramMaxBytes / BYTES_PER_GB)} GB` : undefined} />
+                    <UsageCard label="Storage" value={`${diskPct}%`} data={[diskPct, diskPct, diskPct, diskPct]} color="oklch(0.55 0.18 285)" sub={diskTotalGB ? `${diskGB} / ${diskTotalGB} GB` : undefined} />
+                    <UsageCard label="Network out" value={`${netNow} Mbps`} data={net} color="var(--ok)" />
                   </div>
                   <div className="grid-2" style={{ gap: 16 }}>
-                    <UsageDetailCard label="CPU" data={cpu} color="var(--accent)" unit="%" avg={avgOf(cpu)} peak={peakOf(cpu)}/>
-                    <UsageDetailCard label="RAM" data={ram} color="var(--info)" unit="%" avg={avgOf(ram)} peak={peakOf(ram)}/>
-                    <UsageDetailCard label="Network out" data={net} color="var(--ok)" unit=" Mbps" avg={avgOf(net)} peak={peakOf(net)}/>
+                    <UsageDetailCard label="CPU" data={cpu} color="var(--accent)" unit="%" avg={avgOf(cpu)} peak={peakOf(cpu)} />
+                    <UsageDetailCard label="RAM" data={ram} color="var(--info)" unit="%" avg={avgOf(ram)} peak={peakOf(ram)} />
+                    <UsageDetailCard label="Network out" data={net} color="var(--ok)" unit=" Mbps" avg={avgOf(net)} peak={peakOf(net)} />
                   </div>
                 </>
               )}
@@ -257,7 +266,7 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
             <div className="card">
               <div className="card-body">
                 <div style={{ padding: 12, background: 'var(--warn-soft)', borderRadius: 6, fontSize: 12, color: 'oklch(0.4 0.12 75)', display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 16 }}>
-                  <Icon name="lock" size={14}/>
+                  <Icon name="lock" size={14} />
                   <div>Credentials are encrypted at rest. Access requires proper authorization and is logged.</div>
                 </div>
                 <table className="tbl">
@@ -269,7 +278,7 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
                         <td className="mono">{c.user}</td>
                         <td className="mono">••••••••••••••••</td>
                         <td className="right">
-                          <button className="btn sm" onClick={() => { navigator.clipboard?.writeText(c.pass); alert('Password copied') }}><Icon name="check" size={11}/>Copy</button>
+                          <button className="btn sm" onClick={() => { navigator.clipboard?.writeText(c.pass); alert('Password copied') }}><Icon name="check" size={11} />Copy</button>
                         </td>
                       </tr>
                     ))}
@@ -310,8 +319,8 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
                           {as.start_date && <><dt>Start Date</dt><dd className="tnum">{new Date(as.start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
                           {as.end_date && <><dt>End Date</dt><dd className="tnum">{new Date(as.end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
                           {as.expiry && <><dt>Expiry</dt><dd><ExpiryCell date={as.expiry || ''} /></dd></>}
-                          <dt>Status</dt><dd><StatusPill status={as.status}/></dd>
-                          <dt>Operational Status</dt><dd><StatusPill status={as.operational_status || 'Active'} expiry={as.expiry}/></dd>
+                          <dt>Status</dt><dd><StatusPill status={as.status} /></dd>
+                          <dt>Operational Status</dt><dd><StatusPill status={as.operational_status || 'Active'} expiry={as.expiry} /></dd>
                         </dl>
                       </div>
                     ))}

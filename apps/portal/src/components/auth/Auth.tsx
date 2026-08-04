@@ -240,11 +240,11 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
         // Use database role as source of truth
         const dbRole = existingMember.role
         const dbTeam = existingMember.team
-        
+
         // Update last_login_at and sync metadata
         const { error: updateError } = await supabase
           .from('team_members')
-          .update({ 
+          .update({
             last_login_at: new Date().toISOString(),
             name: userData.name || existingMember.name,
             email: email || existingMember.email,
@@ -340,7 +340,12 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
       if (_event !== 'SIGNED_IN' && _event !== 'SIGNED_OUT') {
         return
       }
-      
+
+      // Prevent processing if session is null and user is already null (avoid redundant updates)
+      if (!session && !user) {
+        return
+      }
+
       // Prevent processing if session is null and user is already null (avoid redundant updates)
       if (!session && !user) {
         return

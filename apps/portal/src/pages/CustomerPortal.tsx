@@ -52,7 +52,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
   const { vms, vmsError, loadVMs } = useVMStore()
   const { invoices, loadInvoices } = useInvoiceStore()
   const { tickets } = useTicketStore()
-    const { toast } = useUIStore()
+  const { toast } = useUIStore()
   const { alerts } = useAlertStore()
   const { announcements } = useAnnouncementStore()
   const { vmRequests, loadVMRequests } = useVMRequestStore()
@@ -62,7 +62,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
   const location = useLocation()
   const navigate = useNavigate()
   const { settings } = useSystemSettingsStore()
-  
+
   // Get view from URL parameter
   const view = location.pathname === '/' ? 'dashboard' : location.pathname.slice(1)
 
@@ -71,7 +71,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
   const [detailRequest, setDetailRequest] = useState<any>(null)
   const [detailInvoice, setDetailInvoice] = useState<any>(null)
   const [renewVm, setRenewVm] = useState<any>(null)
-  
+
   // Load data on mount and when auth changes
   useEffect(() => {
     if (auth?.user) {
@@ -128,7 +128,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
     }
   }, [me?.kyc_status, view, me])
 
-  if (!auth?.user || customersLoading || (!me && !safeMe?.id)) {
+  if (!auth?.user || customersLoading || !me) {
     return (
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', zIndex: 9999 }}>
         <Spinner />
@@ -136,12 +136,12 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
     )
   }
   const myVMs = vms.filter((v: any) => {
-  // Only show VMs where the customer_id matches
-  if (v.customer_id !== safeMe.id) {
-    return false
-  }
-  return true
-})
+    // Only show VMs where the customer_id matches
+    if (v.customer_id !== safeMe.id) {
+      return false
+    }
+    return true
+  })
   // Filter addon services by customer's VMs (addon_services doesn't have customer_id directly)
   const myAddonServices = addonServices.filter((s: any) => {
     const vm = myVMs.find((v: any) => v.id === s.vm_id)
@@ -223,7 +223,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
     { id: 'tickets', label: 'Support tickets', icon: 'mail', badge: openTickets.length || null, lockedByKyc: true },
   ]
 
-      
+
   return (
     <div className="app" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, background: 'white' }}>
       <aside className="sidebar">

@@ -134,7 +134,7 @@ create policy team_audit_admin_read on public.team_members_audit
 
 
 
-
+ALTER SEQUENCE public.staff_code_seq RESTART WITH 1;
 
 
 

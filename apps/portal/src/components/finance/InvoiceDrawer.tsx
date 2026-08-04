@@ -23,14 +23,15 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
   const { activity } = useActivityStore()
   const { settings } = useSystemSettingsStore()
   const [showConfirm, setShowConfirm] = useState(false)
-  
+  const [showPreviewModal, setShowPreviewModal] = useState(false)
+
   const c = customers.find(c => c.id === invoice.customer_id)
   if (!c) return null
   const live = invoices.find(i => i.id === invoice.id) || invoice
-  
+
   // Find the activity log entry for this invoice creation
-  const invoiceCreationActivity = activity.find((a: any) => 
-    a.text?.toLowerCase().includes('created invoice') && 
+  const invoiceCreationActivity = activity.find((a: any) =>
+    a.text?.toLowerCase().includes('created invoice') &&
     a.text?.toLowerCase().includes(live.legacy_id || live.id)
   )
   const invoiceActor = invoiceCreationActivity?.actor || live.created_by || 'system'
@@ -51,19 +52,19 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
       <div className="page-head">
         <div>
           <div className="flex center gap-2 mb-1">
-            <button className="btn ghost sm" onClick={onClose}><Icon name="chevron-left" size={12}/>Back to invoices</button>
+            <button className="btn ghost sm" onClick={onClose}><Icon name="chevron-left" size={12} />Back to invoices</button>
             <span className="mono text-xs text-mute">{live.legacy_id || live.id}</span>
           </div>
           <h1 className="page-title">Invoice {live.legacy_id || live.id}</h1>
           <div className="flex gap-2 mt-2">
-            <StatusPill status={live.status}/>
+            <StatusPill status={live.status} />
             <span className="pill subtle">Invoice Date {live.invoice_date ? new Date(live.invoice_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).replace(',', '') : '—'}</span>
             <span className="pill subtle">Due {live.due ? new Date(live.due).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).replace(',', '') : '—'}</span>
             {live.paid_date && <span className="pill subtle">Paid {new Date(live.paid_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).replace(',', '')}</span>}
           </div>
         </div>
         <div className="page-actions">
-          <button className="btn" onClick={async () => await exportInvoiceToPDF(live, c)}><Icon name="download" size={12}/>PDF</button>
+          <button className="btn" onClick={async () => await exportInvoiceToPDF(live, c)}><Icon name="download" size={12} />PDF</button>
           {live.status !== 'Payment Received' && role !== 'Sales' && <button className="btn accent" onClick={async () => {
             await markPaid(live.id, `RCT-${live.id.slice(0, 8)}`)
             await sendReceiptEmail({
@@ -74,7 +75,7 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
               amount: live.gross_amount,
               paidDate: new Date().toLocaleDateString()
             })
-          }}><Icon name="check" size={12}/>Mark paid</button>}
+          }}><Icon name="check" size={12} />Mark paid</button>}
         </div>
       </div>
 
@@ -89,8 +90,7 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
                     ? <img src={`${settings.logo_url}?v=${settings.updated_at}`} alt="Logo" style={{ width: 40, height: 40, objectFit: 'contain', marginBottom: 8 }} />
                     : <div className="brand-mark" style={{ width: 40, height: 40, fontSize: 18, marginBottom: 8 }}>V</div>}
                   <div className="fw-7" style={{ fontSize: 14 }}>{settings?.company_name || 'VPS Myanmar Co., Ltd'}</div>
-                  <div className="text-xs text-mute">No. 142, Strand Road, Yangon</div>
-                  <div className="text-xs text-mute">accounts@vpsmm.co · +95 1 2345 678</div>
+                  <div className="text-xs text-mute">support@system.1cloudng.com</div>
                 </div>
                 <div className="right">
                   <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Invoice</div>
@@ -152,7 +152,7 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
                     <span className="text-mute">VAT</span>
                     <span className="tnum text-mute">MMK {formatMMK(live.vat || 0)}</span>
                   </div>
-                  <div className="divider" style={{ margin: '6px 0' }}/>
+                  <div className="divider" style={{ margin: '6px 0' }} />
                   <div className="flex between" style={{ padding: '6px 0' }}>
                     <span className="fw-7">Gross Amount</span>
                     <span className="tnum fw-7" style={{ fontSize: 18 }}>MMK {formatMMK(live.gross_amount || live.amount)}</span>
@@ -176,18 +176,19 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
                   {live.status === 'Overdue' && 'Past due — follow up required'}
                 </div>
               </div>
-              
-              {live.status === 'Customer Transferred' && live.payment_proof && (
+
+              {live.payment_proof && (
                 <div style={{ marginTop: 16 }}>
                   <div className="text-sm fw-6 mb-2">Payment Proof</div>
-                  <img 
-                    src={live.payment_proof} 
-                    alt="Payment Proof" 
-                    style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 6, border: '1px solid var(--border)' }}
+                  <img
+                    src={live.payment_proof}
+                    alt="Payment Proof"
+                    style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 6, border: '1px solid var(--border)', cursor: 'pointer' }}
+                    onClick={() => setShowPreviewModal(true)}
                   />
                 </div>
               )}
-              
+
               {live.status === 'Customer Transferred' && (
                 <button
                   className="btn primary"
@@ -204,7 +205,7 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
                     })
                   }}
                 >
-                  <Icon name="check" size={12}/>Mark as Payment Received
+                  <Icon name="check" size={12} />Mark as Payment Received
                 </button>
               )}
             </div>
@@ -220,7 +221,7 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
           </div>
         </div>
       </div>
-      
+
       {showConfirm && (
         <div className="modal-overlay" onClick={() => setShowConfirm(false)}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
@@ -238,6 +239,28 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
           </div>
         </div>
       )}
+
+      {showPreviewModal && live.payment_proof && (
+        <div className="drawer-overlay" onClick={() => setShowPreviewModal(false)}>
+          <div className="drawer" onClick={e => e.stopPropagation()} style={{ maxWidth: 500 }}>
+            <div style={{ padding: '20px 22px 16px', borderBottom: '1px solid var(--line)' }}>
+              <div className="flex center between">
+                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Payment Proof</h2>
+                <button className="icon-btn" onClick={() => setShowPreviewModal(false)}><Icon name="x" size={14} /></button>
+              </div>
+            </div>
+            <div style={{ padding: 24, textAlign: 'center' }}>
+              <img
+                src={live.payment_proof}
+                alt="Payment Proof"
+                style={{ maxWidth: '100%', maxHeight: 300, borderRadius: 6, border: '1px solid var(--border)', marginBottom: 16 }}
+              />
+              <div className="text-sm text-mute">Invoice: {live.legacy_id || live.id}</div>
+            </div>
+          </div>
+        </div>
+      )}
+      
     </div>
   )
 }

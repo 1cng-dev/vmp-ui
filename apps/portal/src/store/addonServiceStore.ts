@@ -27,6 +27,7 @@ export interface AddonServiceStoreValue {
   addAddonService: (service: Omit<AddonService, 'id' | 'legacy_id' | 'created_at' | 'updated_at'>) => Promise<string>
   updateAddonService: (id: string, patch: Partial<AddonService>) => Promise<void>
   getAddonServicesForVM: (vmId: string) => AddonService[]
+  getAllAddonServicesForVM: (vmId: string) => AddonService[]
 }
 
 const AddonServiceContext = React.createContext<AddonServiceStoreValue | null>(null)
@@ -73,6 +74,14 @@ export const AddonServiceProvider: React.FC<{ children: React.ReactNode }> = ({ 
     )
   }, [addonServices])
 
+  const getAllAddonServicesForVM = useCallback((vmId: string): AddonService[] => {
+    return addonServices.filter(
+      (service) =>
+        service.vm_id === vmId &&
+        service.status === 'Active'
+    )
+  }, [addonServices])
+
   // Real-time subscription
   useEffect(() => {
     const channel = supabase
@@ -98,7 +107,7 @@ export const AddonServiceProvider: React.FC<{ children: React.ReactNode }> = ({ 
     loadAddonServices()
   }, [loadAddonServices])
 
-  const value = { addonServices, addonServicesLoading, loadAddonServices, addAddonService, updateAddonService, getAddonServicesForVM }
+  const value = { addonServices, addonServicesLoading, loadAddonServices, addAddonService, updateAddonService, getAddonServicesForVM, getAllAddonServicesForVM }
   return React.createElement(AddonServiceContext.Provider, { value }, children as any)
 }
 

@@ -152,7 +152,7 @@ const useTaskStore = (): TaskStoreValue => {
       // Parse duration string to extract number and unit
       const parseDuration = (durationStr: string | number | null | undefined): { value: number; unit: 'days' | 'months' } | null => {
         if (!durationStr) return null;
-        
+
         // If it's already a number, assume months (backward compatibility)
         if (typeof durationStr === 'number') {
           return { value: durationStr, unit: 'months' };
@@ -243,26 +243,26 @@ const useTaskStore = (): TaskStoreValue => {
       for (let i = 0; i < qty; i++) {
         const assignedVmid = vmDetails.assigned_vmids[i] || null;
 
-        // Check for duplicate assigned VM ID (Proxmox ID)
+        // Check for duplicate assigned VM ID (Proxmox ID) in both vms and vm_ownership tables
         if (assignedVmid) {
           const { data: existingVM } = await supabase
             .from("vms")
-            .select("id")
+            .select("id, hostname")
             .eq("assigned_vmid", assignedVmid)
             .maybeSingle();
 
-          if (existingVM) {
-            throw new Error(`Proxmox VM ID ${assignedVmid} is already in use. Please use a different VM ID.`);
-          }
 
           const { data: existingOwnership } = await supabase
             .from("vm_ownership")
-            .select("id")
+            .select("vmid")
             .eq("vmid", assignedVmid)
             .maybeSingle();
 
-          if (existingOwnership) {
-            throw new Error(`Proxmox VM ID ${assignedVmid} is already assigned in ownership records. Please use a different VM ID.`);
+          if (existingVM && !existingOwnership) {
+            await supabase.from("vms").delete().eq("id", existingVM.id);
+          } else if (existingVM || existingOwnership) {
+            const source = existingVM ? 'vms table' : 'vm_ownership table';
+            throw new Error(`Proxmox VM ID ${assignedVmid} is already in use in ${source}. Please use a different VM ID.`);
           }
         }
 
@@ -434,9 +434,17 @@ const useTaskStore = (): TaskStoreValue => {
             // Calculate new expiry from existing service expiry
             const currentExpiry = existingService.expiry ? new Date(existingService.expiry) : new Date();
             const newExpiry = new Date(currentExpiry);
-            newExpiry.setMonth(newExpiry.getMonth() + renewalMonths);
-            newExpiry.setDate(newExpiry.getDate() + renewalDays);
-            newExpiry.setDate(newExpiry.getDate() + 1); // Add 1 day to expiry
+            // Add months first
+            if (renewalMonths > 0) {
+              newExpiry.setMonth(newExpiry.getMonth() + renewalMonths);
+            }
+            // Then add days from renewal duration
+            if (renewalDays > 0) {
+              newExpiry.setDate(newExpiry.getDate() + renewalDays);
+            }
+
+            // Add 1 day grace period
+            newExpiry.setDate(newExpiry.getDate() + 1);
 
             // Update existing addon service with new duration and expiry
             await supabase
@@ -459,10 +467,18 @@ const useTaskStore = (): TaskStoreValue => {
             // Calculate new expiry from addon request start date
             const startDate = addon.start_date ? new Date(addon.start_date) : new Date();
             const newExpiry = new Date(startDate);
-            newExpiry.setMonth(newExpiry.getMonth() + renewalMonths);
-            newExpiry.setDate(newExpiry.getDate() + renewalDays);
-            newExpiry.setDate(newExpiry.getDate() + 1); // Add 1 day to expiry
+            // Add months first
+            if (renewalMonths > 0) {
+              newExpiry.setMonth(newExpiry.getMonth() + renewalMonths);
+            }
+            // Then add days (grace period)
+            if (renewalDays > 0) {
+              newExpiry.setDate(newExpiry.getDate() + renewalDays);
+            }
 
+            // Add 1 day grace period
+            newExpiry.setDate(newExpiry.getDate() + 1);
+            
             await supabase
               .from("addon_services")
               .insert({
