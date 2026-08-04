@@ -231,7 +231,10 @@ const AppInner = ({
   const handleSetView = (newView: string) => {
     setView(newView);
     const basePath = location.pathname.split("/")[1] || "";
-    navigate(`/${basePath}/${newView}`, { replace: true });
+    // basePath is "" at the root path — "/" + "" + "/" + newView would build
+    // "//newView", a protocol-relative URL react-router's history resolves as
+    // `http://newView/` instead of a path, which throws a SecurityError.
+    navigate(basePath ? `/${basePath}/${newView}` : `/${newView}`, { replace: true });
   };
 
   // Sync view state with URL path changes
@@ -239,9 +242,15 @@ const AppInner = ({
     const currentView = getPathView();
     setView(currentView);
 
-    // Redirect base paths to dashboard
-    if (location.pathname === "/admin" || location.pathname === "/") {
-      navigate(`${location.pathname}/dashboard`, { replace: true });
+    // Redirect base paths to dashboard. Must not use `${location.pathname}/dashboard`
+    // here — at the root path ("/") that builds "//dashboard", which
+    // react-router's history resolves as protocol-relative (host "dashboard")
+    // and throws "SecurityError: ... cannot be created in a document with
+    // origin ...").
+    if (location.pathname === "/admin") {
+      navigate("/admin/dashboard", { replace: true });
+    } else if (location.pathname === "/") {
+      navigate("/dashboard", { replace: true });
     }
   }, [location.pathname]);
 

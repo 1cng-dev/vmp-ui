@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import useVMStore from '../../store/vmStore'
 import useAddonServiceStore from '../../store/addonServiceStore'
 import useUIStore from '../../store/uiStore'
@@ -6,6 +6,20 @@ import Icon from '../../lib/icons'
 import { StatusPill, ExpiryCell } from '../ui/ui'
 import { InfoCard, UsageCard, UsageDetailCard } from './VMHelperComponents'
 import { CustUpgradeModal, CustConvertToPaidModal } from '../modals/CustomerVMModals'
+import { useVMStatusByRecord, useVMStatsByRecord, useVMCredentials, useVMPowerAction } from '../../hooks/useVMLiveStatus'
+import { BYTES_PER_GB, pctSeries, ramPctSeries, netMbpsSeries, avgOf, peakOf, lastOf } from '../../lib/vmUsage'
+import type { PowerAction } from '../../lib/proxmoxApi'
+import VNCConsole from '../vm/VNCConsole'
+
+const ACTION_LABELS: Record<PowerAction, string> = {
+  start: 'Starting…',
+  stop: 'Force stopping…',
+  shutdown: 'Stopping…',
+  reboot: 'Restarting…',
+  reset: 'Resetting…',
+  suspend: 'Suspending…',
+  resume: 'Resuming…',
+}
 
 interface CustomerVMDetailProps {
   vm: any
@@ -53,39 +67,76 @@ const formatDuration = (duration: string | number | undefined | null): string =>
 }
 
 export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialVm, onClose, onRenew, me }) => {
-  const { vms, startVM, stopVM, restartVM, getVMRequest } = useVMStore()
+  const { vms, getVMRequest } = useVMStore()
   const { getAddonServicesForVM } = useAddonServiceStore()
   const { toast } = useUIStore()
   const vm = vms.find((v: any) => v.id === initialVm.id) || initialVm
   const [tab, setTab] = useState('overview')
-  const [revealCreds, setRevealCreds] = useState(false)
   const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [convertToPaidOpen, setConvertToPaidOpen] = useState(false)
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false)
+  const [consoleOpen, setConsoleOpen] = useState(false)
 
   // Get data from store instead of fetching directly
   const vmRequest = vm.vm_request_id ? getVMRequest(vm.vm_request_id) : null
   const addonServices = getAddonServicesForVM(vm.id)
 
-  const isRunning = vm.power_state === 'Running'
+  // Live usage from proxmox-proxcy (never Proxmox directly). recordId is the
+  // opaque vm_ownership.id from vms_customer_safe — the real Proxmox vmid
+  // never reaches this browser. Undefined until the VM is actually
+  // provisioned on Proxmox — hooks no-op then.
+  const recordId: string | undefined = (vm as any).ownership_record_id || undefined
+  const { status: liveStatus, error: statusError, refetch: refetchStatus } = useVMStatusByRecord(recordId)
+  const { data: statsData, error: statsError } = useVMStatsByRecord(recordId, 'day')
+  const liveError = statusError || statsError
 
-  const cpu: number[] = []
-  const ram: number[] = []
-  const net: number[] = []
-  const disk = Math.round(vm.storage * 0.42)
+  const { credentials, loading: credsLoading, error: credsError, reveal: revealCreds, hide: hideCreds } =
+    useVMCredentials(recordId)
 
-  const creds = vm.username && vm.password ? [
-    { type: 'SSH', user: vm.username, pass: vm.password }
-  ] : []
+  // Power state now comes from Proxmox itself (via the status poll above),
+  // never the vms.power_state column — that column can drift from reality
+  // (it's only updated by admin actions elsewhere) and isn't ground truth.
+  const proxmoxStatus = liveStatus?.status
+  const statusKnown = !!proxmoxStatus
+  const isRunning = proxmoxStatus === 'running'
+  // Proxmox's exact status string for a suspended VM couldn't be verified
+  // without live access to a real cluster — checking both status and
+  // qmpstatus for 'paused' as the best available signal. Confirm this
+  // against a real suspended VM during smoke testing (see go-live checklist).
+  const isSuspended = proxmoxStatus === 'paused' || (liveStatus as any)?.qmpstatus === 'paused'
+  const isStopped = statusKnown && !isRunning && !isSuspended
+  const displayPowerState = !statusKnown ? vm.power_state : isRunning ? 'Running' : isSuspended ? 'Suspended' : 'Stopped'
 
-  const openConsole = () => {
-    const params = new URLSearchParams({
-      name: vm.hostname, id: vm.id, ip: vm.public_ip || '203.81.64.10',
-      os: 'linux', vcpu: String(vm.vcpu), ram: String(vm.ram_gb), storage: String(vm.storage_gb),
-      running: vm.power_state === 'Running' ? '1' : '0',
-    })
-    window.open(`vnc-console.html?${params.toString()}`, '_blank', 'noopener,width=1180,height=760')
-    toast(`Opening VNC console for ${vm.hostname}…`, 'info')
+  const { pending: actionPending, error: actionError, run: runPowerAction, clearError: clearActionError } =
+    useVMPowerAction(recordId, refetchStatus)
+
+  useEffect(() => {
+    if (!moreMenuOpen) return
+    const close = () => setMoreMenuOpen(false)
+    window.addEventListener('click', close)
+    return () => window.removeEventListener('click', close)
+  }, [moreMenuOpen])
+
+  const handleAction = (action: PowerAction, confirmMessage?: string) => {
+    if (confirmMessage && !window.confirm(confirmMessage)) return
+    runPowerAction(action)
   }
+
+  const cpu = pctSeries(statsData, p => p.cpu)
+  const ram = ramPctSeries(statsData)
+  const net = netMbpsSeries(statsData)
+
+  const cpuNow = liveStatus?.cpu != null ? Math.round(liveStatus.cpu * 100) : lastOf(cpu)
+  const ramMaxBytes = liveStatus?.maxmem || (vm.ram_gb ? vm.ram_gb * BYTES_PER_GB : 0)
+  const ramUsedBytes = liveStatus?.mem ?? 0
+  const ramNow = ramMaxBytes ? Math.round((ramUsedBytes / ramMaxBytes) * 100) : lastOf(ram)
+  const ramUsedGB = ramMaxBytes ? Math.round((ramNow / 100) * (ramMaxBytes / BYTES_PER_GB)) : 0
+  const netNow = lastOf(net)
+
+  // Proxmox reports 0 for VM disk usage without a QEMU guest agent in the guest.
+  const diskTotalGB = vm.storage_gb || Math.round((liveStatus?.maxdisk || 0) / BYTES_PER_GB)
+  const diskGB = Math.round((liveStatus?.disk || 0) / BYTES_PER_GB)
+  const diskPct = diskTotalGB ? Math.round((diskGB / diskTotalGB) * 100) : 0
 
   return (
     <div className="content">
@@ -99,18 +150,85 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
           <div className="flex gap-2 mt-2">
             <StatusPill status={vm.status} expiry={vm.expiry} />
             <StatusPill status={vm.task_type || 'new'} />
-            <span className="pill"><Icon name={vm.power_state === 'Running' ? 'play' : 'pause'} size={10} />{vm.power_state}</span>
+            <span className="pill"><Icon name={isRunning ? 'play' : 'pause'} size={10} />{displayPowerState}</span>
           </div>
         </div>
         <div className="page-actions">
           {vm.status !== 'Terminated' && (
             <>
-              {isRunning
-                ? <button className="btn" onClick={() => stopVM(vm.id)}><Icon name="pause" size={12} />Stop</button>
-                : <button className="btn primary" onClick={() => startVM(vm.id)}><Icon name="play" size={12} />Start</button>
-              }
-              <button className="btn" onClick={() => restartVM(vm.id)} disabled={!isRunning}><Icon name="refresh" size={12} />Restart</button>
-              <button className="btn" onClick={openConsole} disabled={!isRunning} title={isRunning ? 'Open VNC console in new tab' : 'Start the VM to open console'}><Icon name="terminal" size={12} />Console<Icon name="external" size={10} /></button>
+              {!statusKnown && !statusError && (
+                <button className="btn" disabled><Icon name="refresh" size={12} />Loading status…</button>
+              )}
+              {/* Status polling failing doesn't mean the action endpoints are
+                  down too — they're independent calls. Rather than lock the
+                  customer out of control entirely because we don't know the
+                  current state, offer the common actions; Proxmox handles
+                  e.g. "start" on an already-running VM as a harmless no-op. */}
+              {!statusKnown && statusError && (
+                <>
+                  <button className="btn" onClick={() => handleAction('start')} disabled={!!actionPending}>
+                    <Icon name="play" size={12} />{actionPending === 'start' ? ACTION_LABELS.start : 'Start'}
+                  </button>
+                  <button className="btn" onClick={() => handleAction('shutdown')} disabled={!!actionPending}>
+                    <Icon name="pause" size={12} />{actionPending === 'shutdown' ? ACTION_LABELS.shutdown : 'Stop'}
+                  </button>
+                  <button className="btn" onClick={() => handleAction('reboot')} disabled={!!actionPending}>
+                    <Icon name="refresh" size={12} />{actionPending === 'reboot' ? ACTION_LABELS.reboot : 'Restart'}
+                  </button>
+                </>
+              )}
+              {isStopped && (
+                <button className="btn primary" onClick={() => handleAction('start')} disabled={!!actionPending}>
+                  <Icon name="play" size={12} />{actionPending === 'start' ? ACTION_LABELS.start : 'Start'}
+                </button>
+              )}
+              {isRunning && (
+                <>
+                  <button className="btn" onClick={() => handleAction('shutdown')} disabled={!!actionPending}>
+                    <Icon name="pause" size={12} />{actionPending === 'shutdown' ? ACTION_LABELS.shutdown : 'Stop'}
+                  </button>
+                  <button className="btn" onClick={() => handleAction('reboot')} disabled={!!actionPending}>
+                    <Icon name="refresh" size={12} />{actionPending === 'reboot' ? ACTION_LABELS.reboot : 'Restart'}
+                  </button>
+                </>
+              )}
+              {isSuspended && (
+                <button className="btn primary" onClick={() => handleAction('resume')} disabled={!!actionPending}>
+                  <Icon name="sun" size={12} />{actionPending === 'resume' ? ACTION_LABELS.resume : 'Resume'}
+                </button>
+              )}
+              {(isRunning || isSuspended) && (
+                <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                  <button className="btn" onClick={() => setMoreMenuOpen(v => !v)} disabled={!!actionPending}>
+                    <Icon name="more" size={12} />More
+                  </button>
+                  {moreMenuOpen && (
+                    <div style={{
+                      position: 'absolute', right: 0, top: 36, zIndex: 20,
+                      background: 'var(--surface)', border: '1px solid var(--line)',
+                      borderRadius: 8, boxShadow: 'var(--shadow)',
+                      minWidth: 200, padding: 4,
+                    }}>
+                      {isRunning && (
+                        <button className="nav-item" onClick={() => { setMoreMenuOpen(false); handleAction('suspend') }}>
+                          <Icon name="moon" size={13} />Suspend
+                        </button>
+                      )}
+                      {isRunning && (
+                        <button className="nav-item" onClick={() => { setMoreMenuOpen(false); handleAction('reset', 'Reset performs a hard restart, like pressing the physical reset button. Unsaved data may be lost. Continue?') }}>
+                          <Icon name="alert" size={13} />Reset (hard restart)
+                        </button>
+                      )}
+                      <button className="nav-item" style={{ color: 'var(--bad)' }} onClick={() => { setMoreMenuOpen(false); handleAction('stop', 'Force stop immediately powers off the VM without a graceful shutdown. Unsaved data may be lost. Continue?') }}>
+                        <Icon name="x" size={13} />Force stop
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+              <button className="btn" onClick={() => setConsoleOpen(true)} disabled={!isRunning} title={isRunning ? 'Open VNC console' : 'Start the VM to open console'}>
+                <Icon name="terminal" size={12} />Console
+              </button>
               {vmRequest?.request_type === 'trial' && <button className="btn primary" onClick={() => setConvertToPaidOpen(true)}><Icon name="credit-card" size={12} />Convert to Paid</button>}
               {vmRequest?.request_type !== 'trial' && <button className="btn" onClick={() => setUpgradeOpen(true)}><Icon name="arrow-up" size={12} />Change Plan</button>}
               <button className="btn accent" onClick={onRenew}><Icon name="refresh" size={12} />Renew</button>
@@ -120,13 +238,31 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
 
         {upgradeOpen && <CustUpgradeModal vm={vm} onClose={() => setUpgradeOpen(false)} me={me} />}
         {convertToPaidOpen && <CustConvertToPaidModal vm={vm} onClose={() => setConvertToPaidOpen(false)} />}
+        {consoleOpen && recordId && (
+          <VNCConsole recordId={recordId} vmName={vm.hostname} onClose={() => setConsoleOpen(false)} />
+        )}
       </div>
 
+      {actionError && (
+        <div style={{ padding: 10, background: 'var(--warn-soft)', borderRadius: 8, fontSize: 12, color: 'oklch(0.4 0.12 75)', marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'space-between' }}>
+          <span><Icon name="alert" size={13} /> {actionError}</span>
+          <button className="btn sm ghost" onClick={clearActionError}><Icon name="x" size={11} /></button>
+        </div>
+      )}
+
+      {liveError && (
+        <div style={{ padding: 10, background: 'var(--warn-soft)', borderRadius: 8, fontSize: 12, color: 'oklch(0.4 0.12 75)', marginBottom: 12 }}>
+          <Icon name="alert" size={13} /> Live usage unavailable: {liveError}
+        </div>
+      )}
+      {/* "—" (not "0%") whenever we don't actually have a live reading yet —
+          still loading, or the last poll failed — so it's never confused
+          with a VM that's genuinely idle/stopped and reporting real zeros. */}
       <div className="grid-4 mb-4">
-        <UsageCard label="CPU" value={`${cpu[23]}%`} data={cpu} color="var(--accent)" />
-        <UsageCard label="RAM" value={`${ram[23]}%`} data={ram} color="var(--info)" sub={`${Math.round(vm.ram * ram[23] / 100)} / ${vm.ram} GB`} />
-        <UsageCard label="Storage" value={`${Math.round(disk / vm.storage * 100)}%`} data={[disk, disk, disk, disk]} color="oklch(0.55 0.18 285)" sub={`${disk} / ${vm.storage} GB`} />
-        <UsageCard label="Network out" value={`${net[23]} Mbps`} data={net} color="var(--ok)" />
+        <UsageCard label="CPU" value={statusKnown ? `${cpuNow}%` : '—'} data={cpu} color="var(--accent)" />
+        <UsageCard label="RAM" value={statusKnown ? `${ramNow}%` : '—'} data={ram} color="var(--info)" sub={statusKnown && ramMaxBytes ? `${ramUsedGB} / ${Math.round(ramMaxBytes / BYTES_PER_GB)} GB` : undefined} />
+        <UsageCard label="Storage" value={statusKnown ? `${diskPct}%` : '—'} data={[diskPct, diskPct, diskPct, diskPct]} color="oklch(0.55 0.18 285)" sub={statusKnown && diskTotalGB ? `${diskGB} / ${diskTotalGB} GB` : undefined} />
+        <UsageCard label="Network out" value={statusKnown ? `${netNow} Mbps` : '—'} data={net} color="var(--ok)" />
       </div>
 
       <div className="card">
@@ -153,9 +289,6 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
               ]} />
               <InfoCard icon="invoice" title="Subscription" rows={[
                 ['VM ID', vm.legacy_id || vm.id],
-                ['Assigned VM ID', (vm as any).assigned_vmid || '—'],
-                ['Proxmox Node', (vm as any).node || '—'],
-                ['VM Type', (vm as any).pmx_type || '—'],
                 ['Task Type', vm.task_type || 'New'],
                 ['Billing Term', (vm as any).duration || '—'],
                 ['Created', new Date(vm.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })],
@@ -280,29 +413,45 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
               <Icon name="lock" size={14} />
               <div>Credentials are encrypted at rest. Reveal logs an audit event.</div>
             </div>
+            {credsError && (
+              <div style={{ padding: 10, background: 'var(--warn-soft)', borderRadius: 8, fontSize: 12, color: 'oklch(0.4 0.12 75)', marginBottom: 12 }}>
+                <Icon name="alert" size={13} /> {credsError}
+              </div>
+            )}
             <table className="tbl">
-              <thead><tr><th>Type</th><th>Username</th><th>Password</th><th>Last accessed</th><th></th></tr></thead>
+              <thead><tr><th>Type</th><th>Username</th><th>Password</th><th></th></tr></thead>
               <tbody>
-                {creds.map((c: any) => (
-                  <tr key={c.type}>
-                    <td>{c.type}</td>
-                    <td className="mono">{c.user}</td>
-                    <td className="mono">{revealCreds ? c.pass : '••••••••••••••••'}</td>
-                    <td className="text-sm text-mute">2 days ago</td>
-                    <td className="right">
-                      <button className="btn sm" onClick={() => { navigator.clipboard?.writeText(c.pass); toast('Password copied', 'ok') }}><Icon name="check" size={11} />Copy</button>
-                    </td>
-                  </tr>
-                ))}
-                {creds.length === 0 && (
+                {!recordId ? (
+                  <tr><td colSpan={4}><div className="empty"><div className="sub">Not provisioned on Proxmox yet.</div></div></td></tr>
+                ) : !credentials ? (
                   <tr>
-                    <td colSpan={5}><div className="empty"><div className="sub">No credentials available.</div></div></td>
+                    <td>SSH</td>
+                    <td className="mono">••••••••</td>
+                    <td className="mono">••••••••••••••••</td>
+                    <td className="right"></td>
+                  </tr>
+                ) : (
+                  <tr>
+                    <td>SSH</td>
+                    <td className="mono">{credentials.username || '—'}</td>
+                    <td className="mono">{credentials.password || '—'}</td>
+                    <td className="right">
+                      {credentials.password && (
+                        <button className="btn sm" onClick={() => { navigator.clipboard?.writeText(credentials.password!); toast('Password copied', 'ok') }}><Icon name="check" size={11} />Copy</button>
+                      )}
+                    </td>
                   </tr>
                 )}
               </tbody>
             </table>
             <div className="flex gap-2 mt-3">
-              <button className="btn" onClick={() => setRevealCreds(!revealCreds)}><Icon name="eye" size={12} />{revealCreds ? 'Hide' : 'Reveal'} all</button>
+              {!credentials ? (
+                <button className="btn" onClick={revealCreds} disabled={!recordId || credsLoading}>
+                  <Icon name="eye" size={12} />{credsLoading ? 'Revealing…' : 'Reveal'}
+                </button>
+              ) : (
+                <button className="btn" onClick={hideCreds}><Icon name="eye" size={12} />Hide</button>
+              )}
               <button className="btn" onClick={() => toast('Password rotation requested — Sales will contact you', 'info')}><Icon name="refresh" size={12} />Request rotation</button>
             </div>
           </div>
@@ -313,9 +462,6 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
             <div className="grid-2" style={{ gap: 14 }}>
               <InfoCard icon="server" title="Instance" mono rows={[
                 ['VM ID', vm.legacy_id || vm.id],
-                ['Assigned VM ID', (vm as any).assigned_vmid || '—'],
-                ['Proxmox Node', (vm as any).node || '—'],
-                ['VM Type', (vm as any).pmx_type || '—'],
                 ['Hostname', vm.hostname],
                 ['Power state', vm.power_state],
                 ['Request ID', vmRequest?.legacy_id || vm.vm_request_id],
@@ -345,18 +491,18 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
         {tab === 'usage' && (
           <div className="card-body">
             <div className="grid-2" style={{ gap: 16 }}>
-              <UsageDetailCard label="CPU" data={cpu} color="var(--accent)" unit="%" avg={Math.round(cpu.reduce((a, b) => a + b, 0) / cpu.length)} peak={Math.max(...cpu)} />
-              <UsageDetailCard label="RAM" data={ram} color="var(--info)" unit="%" avg={Math.round(ram.reduce((a, b) => a + b, 0) / ram.length)} peak={Math.max(...ram)} />
-              <UsageDetailCard label="Network out" data={net} color="var(--ok)" unit=" Mbps" avg={Math.round(net.reduce((a, b) => a + b, 0) / net.length)} peak={Math.max(...net)} />
+              <UsageDetailCard label="CPU" data={cpu} color="var(--accent)" unit="%" avg={avgOf(cpu)} peak={peakOf(cpu)} />
+              <UsageDetailCard label="RAM" data={ram} color="var(--info)" unit="%" avg={avgOf(ram)} peak={peakOf(ram)} />
+              <UsageDetailCard label="Network out" data={net} color="var(--ok)" unit=" Mbps" avg={avgOf(net)} peak={peakOf(net)} />
               <div className="card" style={{ borderColor: 'var(--line)' }}>
                 <div className="card-body">
                   <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Storage</div>
                   <div className="flex center between mb-2">
-                    <span className="tnum fw-7" style={{ fontSize: 24 }}>{disk} GB</span>
-                    <span className="text-sm text-mute tnum">of {vm.storage} GB</span>
+                    <span className="tnum fw-7" style={{ fontSize: 24 }}>{diskGB} GB</span>
+                    <span className="text-sm text-mute tnum">of {diskTotalGB} GB</span>
                   </div>
-                  <div className="bar"><div className="fill" style={{ width: `${(disk / vm.storage) * 100}%`, background: 'oklch(0.55 0.18 285)' }} /></div>
-                  <div className="flex between text-xs mt-2"><span className="text-mute">Used</span><span className="text-mute tnum">{Math.round(disk / vm.storage * 100)}%</span></div>
+                  <div className="bar"><div className="fill" style={{ width: `${diskPct}%`, background: 'oklch(0.55 0.18 285)' }} /></div>
+                  <div className="flex between text-xs mt-2"><span className="text-mute">Used</span><span className="text-mute tnum">{diskPct}%</span></div>
                 </div>
               </div>
             </div>

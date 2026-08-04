@@ -66,7 +66,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
       return vmRequests.filter((r: any) => r.status === 'Pending').length
     } else if (role === 'Engineer') {
       // Engineer sees in-progress requests for new, change-plan, renewal, and trial
-      return vmRequests.filter((r: any) => 
+      return vmRequests.filter((r: any) =>
         ['In Progress', 'Provisioning', 'Network', 'Testing'].includes(r.status) &&
         (r.task_type === 'New' || r.task_type === 'change-plan' || r.task_type === 'Renewal' || r.request_type === 'trial')
       ).length
@@ -138,7 +138,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
   // Filter badges based on role - only show badges for items visible to the role
   const getBadgeForRole = (itemId: string | undefined, badgeValue: number | undefined): number | undefined => {
     if (!itemId || badgeValue === undefined) return undefined
-    
+
     // Define which roles can see which badges
     const badgeVisibility: Record<string, Set<string>> = {
       'tasks': new Set(['Sales', 'Engineer']),
@@ -148,7 +148,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
       'finance': new Set(['Finance', 'Admin']),
       'quote-review': new Set(['Finance', 'Admin']),
     }
-    
+
     const allowedRoles = badgeVisibility[itemId]
     if (!allowedRoles || allowedRoles.has(role)) {
       return badgeValue

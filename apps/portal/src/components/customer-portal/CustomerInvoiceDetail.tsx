@@ -29,7 +29,7 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
   const [receipts, setReceipts] = useState<any[]>([])
   const inv = invoices.find((i: any) => i.id === initial.id) || initial;
   const c = customers.find((c: any) => c.id === inv.customer_id);
-  
+
   const transformStatus = (status: string) => {
     if (status === 'Pending') return 'Under Review'
     return status
@@ -67,25 +67,25 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
     setUploading(true)
     try {
       const { supabase } = await import('../../lib/supabase')
-      
+
       // Get user ID for RLS policy compliance
       const { data: { user } } = await supabase.auth.getUser()
       if (!user?.id) {
         throw new Error('User not authenticated')
       }
-      
+
       // Convert base64 back to blob for upload
       const response = await fetch(previewImage)
       const blob = await response.blob()
       const file = new File([blob], 'payment-proof.png', { type: 'image/png' })
-      
+
       // Use user ID as folder to comply with RLS policy
       const fileName = `${user.id}/${inv.id}-${Date.now()}-payment-proof.png`
-      
+
       const { error: uploadError } = await supabase.storage
         .from('payment-proofs')
         .upload(fileName, file)
-      
+
       if (uploadError) {
         console.error('Upload error:', uploadError)
         throw uploadError
@@ -94,7 +94,7 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
       const { data: { publicUrl } } = supabase.storage
         .from('payment-proofs')
         .getPublicUrl(fileName)
-      
+
       try {
         await updateInvoice(inv.id, {
           payment_proof: publicUrl,
@@ -104,7 +104,7 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
         console.error('Failed to update invoice:', updateError)
         throw new Error('Upload succeeded but failed to update invoice')
       }
-      
+
       setPreviewImage(null)
       setShowPreviewModal(false)
       setUploading(false)
@@ -121,25 +121,25 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
       <div className="page-head">
         <div>
           <div className="flex center gap-2 mb-1">
-            <button className="btn ghost sm" onClick={onClose}><Icon name="chevron-left" size={12}/>Back to invoices</button>
+            <button className="btn ghost sm" onClick={onClose}><Icon name="chevron-left" size={12} />Back to invoices</button>
             <span className="mono text-xs text-mute">{inv.legacy_id || inv.id}</span>
           </div>
           <h1 className="page-title">Invoice {inv.legacy_id || inv.id}</h1>
           <div className="flex gap-2 mt-2">
-            <StatusPill status={inv.status} transformStatus={transformStatus}/>
+            <StatusPill status={inv.status} transformStatus={transformStatus} />
             <span className="pill subtle">Invoice Date {inv.invoice_date ? new Date(inv.invoice_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).replace(',', '') : '—'}</span>
             <span className="pill subtle">Due {inv.due ? new Date(inv.due).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).replace(',', '') : '—'}</span>
             {inv.paid_date && <span className="pill subtle">Paid {new Date(inv.paid_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).replace(',', '')}</span>}
           </div>
         </div>
         <div className="page-actions">
-          <button className="btn" onClick={async () => await exportInvoiceToPDF(inv, c)}><Icon name="download" size={12}/>PDF</button>
-          <button className="btn" onClick={() => window.print && window.print()}><Icon name="file" size={12}/>Print</button>
+          <button className="btn" onClick={async () => await exportInvoiceToPDF(inv, c)}><Icon name="download" size={12} />PDF</button>
+          <button className="btn" onClick={() => window.print && window.print()}><Icon name="file" size={12} />Print</button>
           {inv.status !== 'Payment Received' && inv.status !== 'Customer Transferred' && (
-            <button className="btn accent" onClick={() => setShowPaymentQR(true)}><Icon name="check" size={12}/>Pay now</button>
+            <button className="btn accent" onClick={() => setShowPaymentQR(true)}><Icon name="check" size={12} />Pay now</button>
           )}
           {inv.status === 'Customer Transferred' && (
-            <span className="pill subtle"><Icon name="check" size={10}/>Payment proof submitted</span>
+            <span className="pill subtle"><Icon name="check" size={10} />Payment proof submitted</span>
           )}
         </div>
       </div>
@@ -217,7 +217,7 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
                     <span className="text-mute">VAT</span>
                     <span className="tnum text-mute">MMK {formatMMK(inv.vat || 0)}</span>
                   </div>
-                  <div className="divider" style={{ margin: '6px 0' }}/>
+                  <div className="divider" style={{ margin: '6px 0' }} />
                   <div className="flex between" style={{ padding: '6px 0' }}>
                     <span className="fw-7">Gross Amount</span>
                     <span className="tnum fw-7" style={{ fontSize: 18 }}>MMK {formatMMK(inv.gross_amount || inv.amount)}</span>
@@ -225,7 +225,7 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
                 </div>
               </div>
 
-              <div className="divider"/>
+              <div className="divider" />
               {/* <div className="text-xs text-mute">
                 <strong>Payment methods:</strong> KBZ Pay (09 7710 12345), AYA Bank (00 220 11 22 33), CB Bank (00 451 22 33 44), Yoma Bank (00 510 99 88 77). Please include invoice number in the transfer reference.
               </div> */}
@@ -259,27 +259,27 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
                     disabled={uploading}
                     style={{ display: 'none' }}
                   />
-                  <button 
-                    className="btn primary w-full mt-3" 
+                  <button
+                    className="btn primary w-full mt-3"
                     onClick={() => document.getElementById('payment-proof-upload')?.click()}
                     disabled={uploading}
                   >
-                    <Icon name="attach" size={12}/>
+                    <Icon name="attach" size={12} />
                     {uploading ? 'Uploading...' : 'Upload payment proof'}
                   </button>
                 </>
               )}
               {inv.status === 'Customer Transferred' && (
                 <div className="text-sm text-mute mt-3" style={{ color: 'var(--ok)' }}>
-                  <Icon name="check" size={10}/> Payment proof submitted
+                  <Icon name="check" size={10} /> Payment proof submitted
                 </div>
               )}
-              {inv.payment_proof && (
+{inv.payment_proof && (
                 <div style={{ marginTop: 16 }}>
                   <div className="text-sm fw-6 mb-2">Your Payment Proof</div>
-                  <img 
-                    src={inv.payment_proof} 
-                    alt="Payment Proof" 
+                  <img
+                    src={inv.payment_proof}
+                    alt="Payment Proof"
                     style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 6, border: '1px solid var(--border)', cursor: 'pointer' }}
                     onClick={() => setShowViewProofModal(true)}
                   />
@@ -353,15 +353,15 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
               </div>
             </div>
             <div style={{ padding: 24, textAlign: 'center' }}>
-              <img 
-                src={previewImage} 
-                alt="Payment Proof Preview" 
+              <img
+                src={previewImage}
+                alt="Payment Proof Preview"
                 style={{ maxWidth: '100%', maxHeight: 300, borderRadius: 6, border: '1px solid var(--border)', marginBottom: 16 }}
               />
               <div className="text-sm text-mute mb-4">Please verify this is the correct payment screenshot before submitting.</div>
               <div className="flex gap-2">
-                <button 
-                  className="btn" 
+                <button
+                  className="btn"
                   style={{ flex: 1 }}
                   onClick={() => {
                     setPreviewImage(null)
@@ -370,8 +370,8 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
                 >
                   Cancel
                 </button>
-                <button 
-                  className="btn primary" 
+                <button
+                  className="btn primary"
                   style={{ flex: 1 }}
                   onClick={handlePaymentProofSubmit}
                   disabled={uploading}
@@ -394,9 +394,9 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
               </div>
             </div>
             <div style={{ padding: 24, textAlign: 'center' }}>
-              <img 
-                src={inv.payment_proof} 
-                alt="Payment Proof" 
+              <img
+                src={inv.payment_proof}
+                alt="Payment Proof"
                 style={{ maxWidth: '100%', maxHeight: 300, borderRadius: 6, border: '1px solid var(--border)', marginBottom: 16 }}
               />
               <div className="text-sm text-mute">Invoice: {inv.legacy_id || inv.id}</div>

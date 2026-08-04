@@ -152,7 +152,7 @@ const useTaskStore = (): TaskStoreValue => {
       // Parse duration string to extract number and unit
       const parseDuration = (durationStr: string | number | null | undefined): { value: number; unit: 'days' | 'months' } | null => {
         if (!durationStr) return null;
-        
+
         // If it's already a number, assume months (backward compatibility)
         if (typeof durationStr === 'number') {
           return { value: durationStr, unit: 'months' };
@@ -251,13 +251,13 @@ const useTaskStore = (): TaskStoreValue => {
             .eq("assigned_vmid", assignedVmid)
             .maybeSingle();
 
-          const { data: existingOwnership } = await supabase
+const { data: existingOwnership } = await supabase
             .from("vm_ownership")
             .select("vmid")
             .eq("vmid", assignedVmid)
             .maybeSingle();
 
-          // Handle orphaned records: VM exists in vms but not in vm_ownership
+// Handle orphaned records: VM exists in vms but not in vm_ownership
           if (existingVM && !existingOwnership) {
             await supabase.from("vms").delete().eq("id", existingVM.id);
           } else if (existingVM || existingOwnership) {
@@ -313,6 +313,11 @@ const useTaskStore = (): TaskStoreValue => {
           provision_status: "completed",
         };
         try {
+          // addVM writes the vm_ownership binding itself (via proxmox-proxcy's
+          // admin bindings endpoint, when vmData.assigned_vmid is set) — it
+          // encrypts the password server-side, which a direct client-side
+          // insert here can't do, so there is intentionally no second
+          // vm_ownership write in this function.
           const vmId = await addVM(vmData);
           vmIds.push(vmId);
         } catch (error: any) {
@@ -437,7 +442,7 @@ const useTaskStore = (): TaskStoreValue => {
             if (renewalDays > 0) {
               newExpiry.setDate(newExpiry.getDate() + renewalDays);
             }
-            // Add 1 day grace period
+// Add 1 day grace period
             newExpiry.setDate(newExpiry.getDate() + 1);
 
             // Update existing addon service with new duration and expiry
@@ -465,13 +470,13 @@ const useTaskStore = (): TaskStoreValue => {
             if (renewalMonths > 0) {
               newExpiry.setMonth(newExpiry.getMonth() + renewalMonths);
             }
-            // Then add days from renewal duration
+// Then add days from renewal duration
             if (renewalDays > 0) {
               newExpiry.setDate(newExpiry.getDate() + renewalDays);
             }
             // Add 1 day grace period
             newExpiry.setDate(newExpiry.getDate() + 1);
-
+            
             await supabase
               .from("addon_services")
               .insert({

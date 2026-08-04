@@ -49,10 +49,10 @@ interface CustomerPortalProps {
 
 export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRole, roleNames: _roleNames = {} }) => {
   const { customers, customersLoading, loadCustomers } = useCustomerStore()
-  const { vms, loadVMs } = useVMStore()
+  const { vms, vmsError, loadVMs } = useVMStore()
   const { invoices, loadInvoices } = useInvoiceStore()
   const { tickets } = useTicketStore()
-    const { toast } = useUIStore()
+  const { toast } = useUIStore()
   const { alerts } = useAlertStore()
   const { announcements } = useAnnouncementStore()
   const { vmRequests, loadVMRequests } = useVMRequestStore()
@@ -62,7 +62,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
   const location = useLocation()
   const navigate = useNavigate()
   const { settings } = useSystemSettingsStore()
-  
+
   // Get view from URL parameter
   const view = location.pathname === '/' ? 'dashboard' : location.pathname.slice(1)
 
@@ -71,7 +71,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
   const [detailRequest, setDetailRequest] = useState<any>(null)
   const [detailInvoice, setDetailInvoice] = useState<any>(null)
   const [renewVm, setRenewVm] = useState<any>(null)
-  
+
   // Load data on mount and when auth changes
   useEffect(() => {
     if (auth?.user) {
@@ -123,7 +123,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
   const myAddonRequests = addonRequests.filter((r: any) => r.customer_id === safeMe.id)
 
   useEffect(() => {
-    if (me && me.kyc_status !== 'Approved' && ['request', 'vms', 'requests', 'invoices'].includes(view)) {
+    if (me && me.kyc_status !== 'Approved' && ['request', 'vms', 'requests', 'invoices', 'cust-announcements'].includes(view)) {
       handleSetView('dashboard')
     }
   }, [me?.kyc_status, view, me])
@@ -136,12 +136,12 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
     )
   }
   const myVMs = vms.filter((v: any) => {
-  // Only show VMs where the customer_id matches
-  if (v.customer_id !== safeMe.id) {
-    return false
-  }
-  return true
-})
+    // Only show VMs where the customer_id matches
+    if (v.customer_id !== safeMe.id) {
+      return false
+    }
+    return true
+  })
   // Filter addon services by customer's VMs (addon_services doesn't have customer_id directly)
   const myAddonServices = addonServices.filter((s: any) => {
     const vm = myVMs.find((v: any) => v.id === s.vm_id)
@@ -219,11 +219,11 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
     { id: 'addons', label: 'Add-on Services', icon: 'shield', lockedByKyc: true },
     { id: 'invoices', label: 'Invoices', icon: 'invoice', badge: pendingInv.length || null, lockedByKyc: true },
     { id: 'receipts', label: 'Receipts', icon: 'check', lockedByKyc: true },
-    { id: 'cust-announcements', label: 'Announcements', icon: 'star', badge: unreadAnnouncements || null },
+    { id: 'cust-announcements', label: 'Announcements', icon: 'star', badge: unreadAnnouncements || null, lockedByKyc: true },
     { id: 'tickets', label: 'Support tickets', icon: 'mail', badge: openTickets.length || null, lockedByKyc: true },
   ]
 
-      
+
   return (
     <div className="app" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, background: 'white' }}>
       <aside className="sidebar">
@@ -397,9 +397,9 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
                 ? <CustomerInvoiceDetail invoice={detailInvoice} onClose={() => setDetailInvoice(null)} />
                 : (
                   <>
-                    {view === 'dashboard' && <CustomerDashboard me={safeMe} myVMs={myVMs} myInvs={myInvs} myTickets={myTickets} myRequests={myRequests} setView={handleSetView} setDetailVm={setDetailVm} setOpenTicket={setOpenTicket} />}
+                    {view === 'dashboard' && <CustomerDashboard me={safeMe} myVMs={myVMs} myInvs={myInvs} myTickets={myTickets} myRequests={myRequests} setView={handleSetView} setDetailVm={setDetailVm} setOpenTicket={setOpenTicket} vmsError={vmsError} />}
                     {view === 'request' && <CustomerRequestVMView me={safeMe} setView={handleSetView} />}
-                    {view === 'vms' && <CustomerVMListView myVMs={myVMs} setDetailVm={setDetailVm} setRenewVm={setRenewVm} />}
+                    {view === 'vms' && <CustomerVMListView myVMs={myVMs} setDetailVm={setDetailVm} setRenewVm={setRenewVm} loadError={vmsError} onRetry={loadVMs} />}
                     {view === 'requests' && <CustomerRequestsView myRequests={myRequests} setDetailRequest={setDetailRequest} />}
                     {view === 'addon-requests' && <CustomerAddonRequestsView myAddonRequests={myAddonRequests} setDetailRequest={(req) => { setDetailRequest({ ...req, requestType: 'addon' }) }} />}
                     {view === 'my-addons' && <MyAddonServicesView myVMs={myVMs} myAddonServices={myAddonServices} />}

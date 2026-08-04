@@ -194,14 +194,13 @@ export const AddonRequestProvider: React.FC<{ children: React.ReactNode }> = ({ 
           const endDate = new Date(startDate)
           const expiryDate = new Date(startDate)
 
-          // Parse duration string to extract months and days
+// Parse duration string to extract months and days
           const parseDuration = (durationStr: string | number | null | undefined): { months: number; days: number } | null => {
             if (!durationStr) return null;
             if (typeof durationStr === 'number') {
               return { months: durationStr, days: 0 };
             }
-            
-            const str = String(durationStr);
+const str = String(durationStr);
             let months = 0;
             let days = 0;
 
@@ -222,7 +221,7 @@ export const AddonRequestProvider: React.FC<{ children: React.ReactNode }> = ({ 
               if (!isNaN(num)) {
                 return { months: num, days: 0 };
               }
-            }
+}
 
             return { months, days };
           };

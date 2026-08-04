@@ -119,7 +119,7 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
           .from('team_members')
           .select('name, staff_code')
           .eq('user_id', user.id)
-          .single()
+          .maybeSingle()
         if (staff) {
           actorName = `${staff.name} (${staff.staff_code})`
         } else {
@@ -158,7 +158,7 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
             .from('team_members')
             .select('name, staff_code')
             .eq('user_id', user.id)
-            .single()
+            .maybeSingle()
           if (staff) {
             actorName = `${staff.name} (${staff.staff_code})`
           } else {
@@ -222,7 +222,7 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
             .from('team_members')
             .select('name, staff_code')
             .eq('user_id', user.id)
-            .single()
+            .maybeSingle()
           if (staff) {
             actorName = `${staff.name} (${staff.staff_code})`
           } else {
@@ -288,7 +288,7 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
           .from('team_members')
           .select('name, staff_code')
           .eq('user_id', user.id)
-          .single()
+          .maybeSingle()
         if (staff) {
           actorName = `${staff.name} (${staff.staff_code})`
         } else {
