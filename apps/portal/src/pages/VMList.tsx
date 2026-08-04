@@ -152,7 +152,11 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal, setView, userRole })
         </div>
         <div className="page-actions">
           <button className="btn" onClick={handleExportAll}><Icon name="download" size={13} />Export CSV</button>
-          {userRole === 'Admin' && <button className="btn primary" onClick={() => setView('direct-vm-create')}><Icon name="plus" size={13} />New VM</button>}
+          {/* Admin or Engineer — engineers provision the VM in Proxmox
+              themselves, so they can record the result here too. Backend
+              (POST /api/admin/vms/:vmId/bindings) enforces this the same
+              way regardless of what this button shows. */}
+          {(userRole === 'Admin' || userRole === 'Engineer') && <button className="btn primary" onClick={() => setView('direct-vm-create')}><Icon name="plus" size={13} />New VM</button>}
         </div>
       </div>
 
