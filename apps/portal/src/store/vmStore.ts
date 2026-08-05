@@ -353,7 +353,8 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
       if (vm.assigned_vmid) {
         try {
-          await createVMBindings(insertedVM.id, {
+          // Write credentials directly to database (plaintext)
+          await supabase.from("vms").update({
             assigned_vmid: vm.assigned_vmid,
             node: vm.node || "pve1",
             pmx_type: vm.pmx_type || "qemu",
@@ -361,6 +362,13 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
             private_ip: vm.private_ip,
             username: vm.username,
             password: vm.password,
+          }).eq("id", insertedVM.id);
+          
+          // Still call proxmox-proxcy for VM ownership record (without credentials)
+          await createVMBindings(insertedVM.id, {
+            assigned_vmid: vm.assigned_vmid,
+            node: vm.node || "pve1",
+            pmx_type: vm.pmx_type || "qemu",
           });
         } catch (bindingError: any) {
           await supabase.from("vms").delete().eq("id", insertedVM.id);

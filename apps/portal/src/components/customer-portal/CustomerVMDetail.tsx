@@ -6,7 +6,7 @@ import Icon from '../../lib/icons'
 import { StatusPill, ExpiryCell } from '../ui/ui'
 import { InfoCard, UsageCard, UsageDetailCard } from './VMHelperComponents'
 import { CustUpgradeModal, CustConvertToPaidModal } from '../modals/CustomerVMModals'
-import { useVMStatusByRecord, useVMStatsByRecord, useVMCredentials, useVMPowerAction } from '../../hooks/useVMLiveStatus'
+import { useVMStatusByRecord, useVMStatsByRecord, useVMPowerAction } from '../../hooks/useVMLiveStatus'
 import { BYTES_PER_GB, pctSeries, ramPctSeries, netMbpsSeries, avgOf, peakOf, lastOf } from '../../lib/vmUsage'
 import type { PowerAction } from '../../lib/proxmoxApi'
 import VNCConsole from '../vm/VNCConsole'
@@ -90,8 +90,9 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
   const { data: statsData, error: statsError } = useVMStatsByRecord(recordId, 'day')
   const liveError = statusError || statsError
 
-  const { credentials, loading: credsLoading, error: credsError, reveal: revealCreds, hide: hideCreds } =
-    useVMCredentials(recordId)
+  const creds = vm.username && vm.password ? [
+    { type: 'SSH', user: vm.username, pass: vm.password }
+  ] : []
 
   // Power state now comes from Proxmox itself (via the status poll above),
   // never the vms.power_state column — that column can drift from reality
@@ -267,7 +268,7 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
 
       <div className="card">
         <div className="tabs">
-          {['overview', 'specs', 'network', 'backups', 'credentials', 'usage', 'addons'].map(t => {
+          {['overview', 'specs', 'network', 'backups', 'credentials', 'addons'].map(t => {
             const label = t === 'addons' ? 'Add-on Services' : t.charAt(0).toUpperCase() + t.slice(1)
             return (
               <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
@@ -408,51 +409,32 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
         )}
 
         {tab === 'credentials' && (
-          <div className="card-body">
-            <div style={{ padding: 12, background: 'var(--warn-soft)', borderRadius: 6, fontSize: 12, color: 'oklch(0.4 0.12 75)', display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 16 }}>
-              <Icon name="lock" size={14} />
-              <div>Credentials are encrypted at rest. Reveal logs an audit event.</div>
-            </div>
-            {credsError && (
-              <div style={{ padding: 10, background: 'var(--warn-soft)', borderRadius: 8, fontSize: 12, color: 'oklch(0.4 0.12 75)', marginBottom: 12 }}>
-                <Icon name="alert" size={13} /> {credsError}
+          <div className="card">
+            <div className="card-body">
+              <div style={{ padding: 12, background: 'var(--warn-soft)', borderRadius: 6, fontSize: 12, color: 'oklch(0.4 0.12 75)', display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 16 }}>
+                <Icon name="lock" size={14} />
+                <div>Credentials are encrypted at rest. Access requires proper authorization and is logged.</div>
               </div>
-            )}
-            <table className="tbl">
-              <thead><tr><th>Type</th><th>Username</th><th>Password</th><th></th></tr></thead>
-              <tbody>
-                {!recordId ? (
-                  <tr><td colSpan={4}><div className="empty"><div className="sub">Not provisioned on Proxmox yet.</div></div></td></tr>
-                ) : !credentials ? (
-                  <tr>
-                    <td>SSH</td>
-                    <td className="mono">••••••••</td>
-                    <td className="mono">••••••••••••••••</td>
-                    <td className="right"></td>
-                  </tr>
-                ) : (
-                  <tr>
-                    <td>SSH</td>
-                    <td className="mono">{credentials.username || '—'}</td>
-                    <td className="mono">{credentials.password || '—'}</td>
-                    <td className="right">
-                      {credentials.password && (
-                        <button className="btn sm" onClick={() => { navigator.clipboard?.writeText(credentials.password!); toast('Password copied', 'ok') }}><Icon name="check" size={11} />Copy</button>
-                      )}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-            <div className="flex gap-2 mt-3">
-              {!credentials ? (
-                <button className="btn" onClick={revealCreds} disabled={!recordId || credsLoading}>
-                  <Icon name="eye" size={12} />{credsLoading ? 'Revealing…' : 'Reveal'}
-                </button>
-              ) : (
-                <button className="btn" onClick={hideCreds}><Icon name="eye" size={12} />Hide</button>
-              )}
-              <button className="btn" onClick={() => toast('Password rotation requested — Sales will contact you', 'info')}><Icon name="refresh" size={12} />Request rotation</button>
+              <table className="tbl">
+                <thead><tr><th>Type</th><th>Username</th><th>Password</th><th></th></tr></thead>
+                <tbody>
+                  {creds.map((c: any) => (
+                    <tr key={c.type}>
+                      <td>{c.type}</td>
+                      <td className="mono">{c.user}</td>
+                      <td className="mono">••••••••••••••••</td>
+                      <td className="right">
+                        <button className="btn sm" onClick={() => { navigator.clipboard?.writeText(c.pass); toast('Password copied', 'ok') }}><Icon name="check" size={11} />Copy</button>
+                      </td>
+                    </tr>
+                  ))}
+                  {creds.length === 0 && (
+                    <tr>
+                      <td colSpan={4}><div className="empty"><div className="sub">No credentials available.</div></div></td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         )}

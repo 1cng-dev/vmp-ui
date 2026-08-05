@@ -61,6 +61,7 @@ select
   v.public_ip,
   v.private_ip,
   v.username,
+  v.password,
   v.vcpu,
   v.ram_gb,
   v.storage_gb,

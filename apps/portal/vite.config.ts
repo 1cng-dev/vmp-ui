@@ -14,6 +14,9 @@ export default defineConfig({
   server: {
     open: true,
   },
+  build: {
+    target: 'esnext',
+  },
   optimizeDeps: {
     exclude: ['@novnc/novnc'],
   },
