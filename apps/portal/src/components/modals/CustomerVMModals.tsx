@@ -865,7 +865,6 @@ const CustConvertToPaidModal: React.FC<CustConvertToPaidModalProps> = ({ vm, onC
 
       // Create task for ops visibility
       addTask({
-        id: crypto.randomUUID(),
         title: `Convert trial to paid - ${(vm as any).hostname || vm.name}`,
         customer: me.org_name || me.name,
         status: 'Pending',
