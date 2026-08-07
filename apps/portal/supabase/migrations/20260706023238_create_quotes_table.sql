@@ -16,13 +16,14 @@ create table if not exists public.quotes (
   updated_at        timestamptz not null default now()
 );
 
-create sequence if not exists public.quote_code_seq start 1;
+create sequence if not exists public.quote_code_seq start 36;
 
+-- Quote code generator: Qt-YYYYMMNNN (e.g., Qt202608036)
 create or replace function public.assign_quote_code()
 returns trigger language plpgsql as $$
 begin
   if new.legacy_id is null or new.legacy_id = '' then
-    new.legacy_id := 'QT-' || to_char(nextval('public.quote_code_seq'), 'FM0000');
+    new.legacy_id := 'Qt' || to_char(now(), 'YYYYMM') || to_char(nextval('public.quote_code_seq'), 'FM000');
   end if;
   return new;
 end;

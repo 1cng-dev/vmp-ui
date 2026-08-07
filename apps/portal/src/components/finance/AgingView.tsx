@@ -18,7 +18,7 @@ export const AgingView: React.FC = () => {
   }, [loadInvoices, loadCustomers])
   
   const buckets: Record<string, any[]> = { current: [], '0-30': [], '31-60': [], '61-90': [], '90+': [] }
-  invoices.filter((i: any) => i.status !== 'Payment Received').forEach((i: any) => {
+  invoices.filter((i: any) => i.status !== 'Payment Received' && i.status !== 'Cancelled').forEach((i: any) => {
     const days = Math.ceil((TODAY.getTime() - new Date(i.due).getTime()) / 86400000)
     if (days < 0) buckets.current.push({ ...i, days })
     else if (days <= 30) buckets['0-30'].push({ ...i, days })

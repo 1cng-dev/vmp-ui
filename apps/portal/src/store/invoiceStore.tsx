@@ -13,6 +13,7 @@ export interface InvoiceStoreValue {
   addInvoice: (i: NewInvoiceInput) => Promise<string>
   updateInvoice: (id: string, patch: Partial<DBInvoice>) => Promise<void>
   markPaid: (id: string, receipt: string) => Promise<void>
+  cancelInvoice: (id: string) => Promise<void>
 }
 
 const InvoiceContext = createContext<InvoiceStoreValue | null>(null)
@@ -382,6 +383,60 @@ export const InvoiceProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
   }, [updateInvoice, invoices, logActivity])
 
+  const cancelInvoice = useCallback(async (id: string) => {
+    const invoice = invoices.find(i => i.id === id)
+    await updateInvoice(id, { status: 'Cancelled' })
+    
+    // Create notification for invoice cancellation
+    if (invoice) {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+      let actorName = 'System'
+      let actorId = invoice.customer_id
+      
+      // Check if current user is a staff member
+      if (user) {
+        const { data: staff } = await supabase
+          .from('team_members')
+          .select('name, staff_code')
+          .eq('user_id', user.id)
+          .maybeSingle()
+        if (staff) {
+          actorName = `${staff.name} (${staff.staff_code})`
+          actorId = user.id
+        } else {
+          // Fallback to user's name or email if not in team_members
+          actorName = user.user_metadata?.name || user.email || 'System'
+          actorId = user.id
+        }
+      }
+      
+      await logActivity(
+        `Cancelled invoice ${invoice.legacy_id || invoice.id} - MMK ${invoice.gross_amount}`,
+        'finance',
+        actorName,
+        { invoiceId: invoice.legacy_id || invoice.id, amount: invoice.gross_amount, customerId: invoice.customer_id }
+      )
+      
+      await createAlert({
+        sev: 'info',
+        title: 'Invoice Cancelled',
+        body: `Invoice ${invoice.legacy_id || invoice.id} has been cancelled - MMK ${invoice.gross_amount}`,
+        type: 'finance',
+        related_entity_id: id,
+        related_entity_type: 'invoice',
+        actor_id: actorId,
+        actor_name: actorName,
+        customer_id: invoice.customer_id,
+        metadata: {
+          invoice_id: invoice.legacy_id || invoice.id,
+          amount: invoice.gross_amount,
+          customer_id: invoice.customer_id
+        }
+      })
+    }
+  }, [updateInvoice, invoices, logActivity])
+
   const value: InvoiceStoreValue = {
     invoices,
     invoicesLoading,
@@ -389,6 +444,7 @@ export const InvoiceProvider: React.FC<{ children: ReactNode }> = ({ children })
     addInvoice,
     updateInvoice,
     markPaid,
+    cancelInvoice,
   }
 
   return (

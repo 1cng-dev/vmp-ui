@@ -32,8 +32,8 @@ ADD COLUMN IF NOT EXISTS legacy_id varchar(16) unique;
 
 create index if not exists idx_invoices_legacy_id on public.invoices(legacy_id);
 
--- Friendly invoice code generator: INV-0001, INV-0002, ...
-create sequence if not exists public.invoice_code_seq start 1;
+-- Invoice code generator: IV-YYYYMMNNN (e.g., IV202608023)
+create sequence if not exists public.invoice_code_seq start 23;
 
 create or replace function public.assign_invoice_code()
 returns trigger
@@ -41,11 +41,10 @@ language plpgsql
 as $$
 begin
   if new.legacy_id is null or new.legacy_id = '' then
-    new.legacy_id :=
-      'INV-' || to_char(
-        nextval('public.invoice_code_seq'),
-        'FM0000'
-      );
+    new.legacy_id := 
+      'IV' || 
+      to_char(now(), 'YYYYMM') || 
+      to_char(nextval('public.invoice_code_seq'), 'FM000');
   end if;
 
   return new;

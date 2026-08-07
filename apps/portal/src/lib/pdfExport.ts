@@ -67,18 +67,9 @@ export const exportQuoteToPDF = async (quote: any, customer: any) => {
   const formatDate = (date: string) => {
   const d = new Date(date)
   const day = d.getDate()
-  const month = d.toLocaleDateString('en-GB', { month: 'long' })
-  const year = d.getFullYear()
-  const suffix = (n: number) => {
-    if (n > 3 && n < 21) return 'th'
-    switch (n % 10) {
-      case 1: return 'st'
-      case 2: return 'nd'
-      case 3: return 'rd'
-      default: return 'th'
-    }
-  }
-  return `${day}${suffix(day)} ${month} ${year}`
+  const month = d.toLocaleDateString('en-GB', { month: 'short' })
+  const year = d.getFullYear().toString().slice(-2)
+  return `${day}-${month}-${year}`
 }
   const formatMMK = (amount: number) => new Intl.NumberFormat('en-MM', { style: 'currency', currency: 'MMK', maximumFractionDigits: 0 }).format(amount)
 
@@ -450,24 +441,14 @@ export const exportQuoteToPDF = async (quote: any, customer: any) => {
 
 export const exportInvoiceToPDF = async (invoice: any, customer: any) => {
   const logoUrl = '/src/public/assets/logo.png'
-  const signatureUrl = '/src/public/assets/sign1.png'
   const lineItems = invoice.line_items || []
 
   const formatDate = (date: string) => {
   const d = new Date(date)
   const day = d.getDate()
-  const month = d.toLocaleDateString('en-GB', { month: 'long' })
-  const year = d.getFullYear()
-  const suffix = (n: number) => {
-    if (n > 3 && n < 21) return 'th'
-    switch (n % 10) {
-      case 1: return 'st'
-      case 2: return 'nd'
-      case 3: return 'rd'
-      default: return 'th'
-    }
-  }
-  return `${day}${suffix(day)} ${month} ${year}`
+  const month = d.toLocaleDateString('en-GB', { month: 'short' })
+  const year = d.getFullYear().toString().slice(-2)
+  return `${day}-${month}-${year}`
 }
   const formatMMK = (amount: number) => new Intl.NumberFormat('en-MM', { style: 'currency', currency: 'MMK', maximumFractionDigits: 0 }).format(amount)
 
@@ -506,12 +487,6 @@ export const exportInvoiceToPDF = async (invoice: any, customer: any) => {
     '/assets/OC_DS2-removebg-preview%20(1).png',
     '/OC_DS2-removebg-preview (1).png',
     '/OC_DS2-removebg-preview%20(1).png',
-  ])
-
-  const signatureDataUrl = await firstAvailable([
-    '/assets/sign1.png',
-    '/sign1.png',
-    '/src/public/assets/sign1.png',
   ])
 
   const getTermMultiplier = (term: string) => {
@@ -603,6 +578,7 @@ export const exportInvoiceToPDF = async (invoice: any, customer: any) => {
             <p><strong>${customer.name}</strong></p>
             ${customer.org_name ? `<p>${customer.org_name}</p>` : ''}
             <p>${customer.email}</p>
+            ${customer.phone ? `<p>${customer.phone}</p>` : ''}
           </div>
           <div class="info-section" style="text-align: right;">
             <p style="margin-bottom: 4px; color: #1a365d;"><strong>Number</strong></p>
@@ -784,27 +760,13 @@ export const exportInvoiceToPDF = async (invoice: any, customer: any) => {
         </div>
 
         <div class="notes">
-          <h3>Remark : </h3>
-          <p>There is no limitation on bandwidth speed.</p>
-          <p>Monthly data transfer up to 100 GB is included free of charge.</p>
-          <p>Additional usage beyond 100 GB will be charged at 99 MMK per GB </p>
-          <p>Please note that public IP addresses will incur additional charges. The unit price is 6,570 MMK per public IP per month.</p>
-          <p>SLA : 99.95% uptime commitment </p>
+          <h3>Bank Information</h3>
+          <p><strong>Bank Account Name:</strong> ONE CLOUD NEXT-GEN CO LTD</p>
+          <p><strong>Bank Account Number:</strong> 40040679888 (AYA Special)</p>
+          <p><strong>Bank Account Number:</strong> 25151325100391501 (KBZ Special)</p>
+          <p><strong>Bank Account Number:</strong> 25150325100391501 (KBZ Ordinary)</p>
         </div>
 
-        <div class="signature-block">
-          <div class="sig-col">
-            <div class="sig-label">Signed On Behalf of : </div>
-            <img src="${signatureDataUrl || signatureUrl}" alt="Signature" class="sig-image" onerror="this.style.display='none'"/>
-            <p>Hnin Yadana Htwe</p>
-            <p>Business Development Manager </p> 
-            <p>09-256215664</p>
-            <p>hninyadanahtwe@1cloudng.com</p>
-          </div>
-
-        </div>
-
-       
       </body>
     </html>
   `

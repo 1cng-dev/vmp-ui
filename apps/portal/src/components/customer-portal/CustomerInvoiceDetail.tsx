@@ -16,7 +16,7 @@ interface CustomerInvoiceDetailProps {
 }
 
 export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ invoice: initial, onClose }) => {
-  const { invoices, updateInvoice } = useInvoiceStore()
+  const { invoices, updateInvoice, cancelInvoice } = useInvoiceStore()
   const { customers } = useCustomerStore()
   const { vmRequests } = useVMRequestStore()
   const { vms } = useVMStore()
@@ -28,6 +28,7 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [showPreviewModal, setShowPreviewModal] = useState(false)
   const [showViewProofModal, setShowViewProofModal] = useState(false)
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const [receipts, setReceipts] = useState<any[]>([])
   const inv = invoices.find((i: any) => i.id === initial.id) || initial;
   const c = customers.find((c: any) => c.id === inv.customer_id);
@@ -129,6 +130,17 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
     }
   }
 
+  const handleCancelInvoice = async () => {
+    try {
+      await cancelInvoice(inv.id)
+      setShowCancelConfirm(false)
+      toast('Invoice cancelled successfully', 'ok')
+    } catch (error) {
+      console.error('Failed to cancel invoice:', error)
+      toast('Failed to cancel invoice', 'error')
+    }
+  }
+
   return (
     <div className="content" style={{ animation: 'fadeIn 0.3s ease-out' }}>
       <div className="page-head">
@@ -148,11 +160,14 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
         <div className="page-actions">
           <button className="btn" onClick={async () => await exportInvoiceToPDF(inv, c)}><Icon name="download" size={12} />PDF</button>
           <button className="btn" onClick={() => window.print && window.print()}><Icon name="file" size={12} />Print</button>
-          {inv.status !== 'Payment Received' && inv.status !== 'Customer Transferred' && (
+          {inv.status !== 'Payment Received' && inv.status !== 'Customer Transferred' && inv.status !== 'Cancelled' && (
             <button className="btn accent" onClick={() => setShowPaymentQR(true)}><Icon name="check" size={12} />Pay now</button>
           )}
           {inv.status === 'Customer Transferred' && (
             <span className="pill subtle"><Icon name="check" size={10} />Payment proof submitted</span>
+          )}
+          {inv.status !== 'Payment Received' && inv.status !== 'Customer Transferred' && inv.status !== 'Cancelled' && (
+            <button className="btn" style={{ background: 'var(--bad)', color: 'white' }} onClick={() => setShowCancelConfirm(true)}><Icon name="x" size={12} />Cancel Invoice</button>
           )}
         </div>
       </div>
@@ -414,6 +429,24 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
                 style={{ maxWidth: '100%', maxHeight: 300, borderRadius: 6, border: '1px solid var(--border)', marginBottom: 16 }}
               />
               <div className="text-sm text-mute">Invoice: {inv.legacy_id || inv.id}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCancelConfirm && (
+        <div className="modal-overlay" onClick={() => setShowCancelConfirm(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="modal-head">
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Cancel Invoice</h3>
+              <button className="icon-btn" onClick={() => setShowCancelConfirm(false)}><Icon name="x" size={14} /></button>
+            </div>
+            <div className="modal-body">
+              <p style={{ margin: 0, color: 'var(--ink-2)' }}>Are you sure you want to cancel this invoice?</p>
+            </div>
+            <div className="modal-foot">
+              <button className="btn ghost" onClick={() => setShowCancelConfirm(false)}>No, keep it</button>
+              <button className="btn" style={{ background: 'var(--bad)', color: 'white' }} onClick={handleCancelInvoice}>Yes, cancel invoice</button>
             </div>
           </div>
         </div>

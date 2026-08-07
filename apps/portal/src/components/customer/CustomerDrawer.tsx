@@ -80,7 +80,7 @@ const CustomerDrawer: React.FC<CustomerDrawerProps> = ({ custId, onClose, openVM
             <div className="flex col gap-4">
               <div className="grid-3">
                 <div className="metric"><div className="label">Active VMs</div><div className="value tnum" style={{ fontSize: 22 }}>{customerVMs.filter((v: any) => v.status === 'Active').length}</div></div>
-                <div className="metric"><div className="label">Open invoices</div><div className="value tnum" style={{ fontSize: 22 }}>{customerInvoices.filter((i: any) => i.status !== 'Payment Received').length}</div></div>
+                <div className="metric"><div className="label">Open invoices</div><div className="value tnum" style={{ fontSize: 22 }}>{customerInvoices.filter((i: any) => i.status !== 'Payment Received' && i.status !== 'Cancelled').length}</div></div>
               </div>
               <div className="card">
                 <div className="card-head">

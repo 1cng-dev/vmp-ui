@@ -29,7 +29,7 @@ const StatusPill: React.FC<StatusPillProps> = ({ status, transformStatus, expiry
     'Pending': 'warn', 'In Progress': 'warn', 'Customer Transferred': 'warn',
     'Suspended': 'warn', 'Trial': 'info', 'Paid': 'accent',
     'Expired': 'bad', 'Overdue': 'bad', 'Rejected': 'bad', 'Blocked': 'bad', 'Inactive': 'subtle',
-    'Stopped': 'subtle', 'Terminated': 'bad',
+    'Stopped': 'subtle', 'Terminated': 'bad', 'Cancelled': 'bad',
   }
   return <span className={`pill ${map[status] || 'subtle'}`}><span className="dot"></span>{displayStatus}</span>
 }

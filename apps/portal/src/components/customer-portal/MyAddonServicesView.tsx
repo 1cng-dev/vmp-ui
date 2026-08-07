@@ -1,5 +1,6 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { StatusPill, ExpiryCell } from '../ui/ui'
+import Icon from '../../lib/icons'
 
 interface MyAddonServicesViewProps {
   myVMs: any[]
@@ -7,11 +8,32 @@ interface MyAddonServicesViewProps {
 }
 
 export const MyAddonServicesView: React.FC<MyAddonServicesViewProps> = ({ myVMs, myAddonServices }) => {
+  const [filter, setFilter] = useState('all')
+  const [searchTerm, setSearchTerm] = useState('')
+
   // Filter active addon services
   const activeAddons = myAddonServices.filter(a =>
     a.status === 'Active' &&
     a.operational_status !== 'Terminated'
   )
+
+  const filters = [
+    { id: 'all', label: 'All', count: activeAddons.length },
+    { id: 'Active', label: 'Active', count: activeAddons.filter(a => a.operational_status === 'Active').length },
+    { id: 'Suspended', label: 'Suspended', count: activeAddons.filter(a => a.operational_status === 'Suspended').length },
+  ]
+
+  const filtered = activeAddons.filter(addon => {
+    if (filter !== 'all' && addon.operational_status !== filter) return false
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase()
+      const legacyId = (addon.legacy_id || addon.id || '').toLowerCase()
+      const vm = myVMs.find((v: any) => v.id === addon.vm_id)
+      const vmHostname = (vm?.hostname || '').toLowerCase()
+      if (!legacyId.includes(searchLower) && !vmHostname.includes(searchLower)) return false
+    }
+    return true
+  })
 
   return (
     <div className="content">
@@ -23,6 +45,22 @@ export const MyAddonServicesView: React.FC<MyAddonServicesViewProps> = ({ myVMs,
       </div>
 
       <div className="card">
+        <div className="filter-bar">
+          {filters.map(f => (
+            <button key={f.id} className={`filter-chip ${filter === f.id ? 'active' : ''}`} onClick={() => setFilter(filter === f.id ? 'all' : f.id)}>
+              {f.label}<span className="ct">{f.count}</span>
+            </button>
+          ))}
+          <div style={{ flex: 1 }} />
+          <div className="search" style={{ width: 220 }}>
+            <Icon name="search" size={13} className="search-icon" />
+            <input 
+              placeholder="Add-on ID, VM name…" 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+        </div>
         <table className="tbl">
           <thead>
             <tr>
@@ -35,10 +73,10 @@ export const MyAddonServicesView: React.FC<MyAddonServicesViewProps> = ({ myVMs,
             </tr>
           </thead>
           <tbody>
-            {activeAddons.length === 0 ? (
+            {filtered.length === 0 ? (
               <tr><td colSpan={6}><div className="empty"><div className="title">No active add-on services</div><div className="sub">Go to "Add-on Services" to request one.</div></div></td></tr>
             ) : (
-              activeAddons.map((addon) => {
+              filtered.map((addon) => {
                 const vm = myVMs.find((v: any) => v.id === addon.vm_id)
                 return (
                   <tr key={addon.id}>

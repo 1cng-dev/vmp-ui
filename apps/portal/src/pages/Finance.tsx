@@ -94,6 +94,7 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal, userRole
     { id: 'Customer Transferred', label: 'Customer Transferred', count: invoices.filter(i => i.status === 'Customer Transferred').length },
     { id: 'Payment Received', label: 'Payment Received', count: invoices.filter(i => i.status === 'Payment Received').length },
     { id: 'Overdue', label: 'Overdue', count: invoices.filter(i => i.status === 'Overdue').length },
+    { id: 'Cancelled', label: 'Cancelled', count: invoices.filter(i => i.status === 'Cancelled').length },
   ]
 
   const filtered = invoices.filter(inv => {
@@ -124,10 +125,11 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal, userRole
     return true
   })
 
-  const total = invoices.reduce((a, i) => a + (i.gross_amount || 0), 0)
-  const received = invoices.filter(i => i.status === 'Payment Received').reduce((a, i) => a + (i.gross_amount || 0), 0)
-  const pending = invoices.filter(i => i.status === 'Pending' || i.status === 'Customer Transferred').reduce((a, i) => a + (i.gross_amount || 0), 0)
-  const overdue = invoices.filter(i => i.status === 'Overdue').reduce((a, i) => a + (i.gross_amount || 0), 0)
+  const activeInvoices = invoices.filter(i => i.status !== 'Cancelled')
+  const total = activeInvoices.reduce((a, i) => a + (i.gross_amount || 0), 0)
+  const received = activeInvoices.filter(i => i.status === 'Payment Received').reduce((a, i) => a + (i.gross_amount || 0), 0)
+  const pending = activeInvoices.filter(i => i.status === 'Pending' || i.status === 'Customer Transferred').reduce((a, i) => a + (i.gross_amount || 0), 0)
+  const overdue = activeInvoices.filter(i => i.status === 'Overdue').reduce((a, i) => a + (i.gross_amount || 0), 0)
 
   return (
     <div className="content">

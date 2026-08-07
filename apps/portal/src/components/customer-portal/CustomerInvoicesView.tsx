@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { StatusPill, formatMMK, CircularSpinner } from '../ui/ui'
 import Icon from '../../lib/icons'
 import useVMRequestStore from '../../store/vmRequestStore'
@@ -15,6 +15,11 @@ interface CustomerInvoicesViewProps {
 }
 
 export const CustomerInvoicesView: React.FC<CustomerInvoicesViewProps> = ({ myInvs, setDetailInvoice }) => {
+  const [filter, setFilter] = useState('all')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [showDateFilter, setShowDateFilter] = useState(false)
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
   const { vmRequests } = useVMRequestStore()
   const { addonRequests, loadAddonRequests } = useAddonRequestStore()
   const { quotes, loadQuotes } = useQuoteStore()
@@ -44,16 +49,88 @@ export const CustomerInvoicesView: React.FC<CustomerInvoicesViewProps> = ({ myIn
     loadVMs()
   }, [loadAddonRequests, loadQuotes, loadVMs])
 
+  const filters = [
+    { id: 'all', label: 'All', count: myInvs.length },
+    { id: 'Pending', label: 'Pending', count: myInvs.filter(i => i.status === 'Pending').length },
+    { id: 'Customer Transferred', label: 'Customer Transferred', count: myInvs.filter(i => i.status === 'Customer Transferred').length },
+    { id: 'Payment Received', label: 'Payment Received', count: myInvs.filter(i => i.status === 'Payment Received').length },
+    { id: 'Overdue', label: 'Overdue', count: myInvs.filter(i => i.status === 'Overdue').length },
+    { id: 'Cancelled', label: 'Cancelled', count: myInvs.filter(i => i.status === 'Cancelled').length },
+  ]
+
+  const filtered = myInvs.filter(inv => {
+    if (filter !== 'all' && inv.status !== filter) return false
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase()
+      const invoiceId = (inv.legacy_id || inv.id).toLowerCase()
+      if (!invoiceId.includes(searchLower)) return false
+    }
+    if (startDate && inv.invoice_date) {
+      if (new Date(inv.invoice_date) < new Date(startDate)) return false
+    }
+    if (endDate && inv.invoice_date) {
+      if (new Date(inv.invoice_date) > new Date(endDate)) return false
+    }
+    return true
+  })
+
   return (
     <div className="content">
       <div className="page-head">
         <div>
-          <h1 className="page-title">Invoices & receipts</h1>
+          <h1 className="page-title">Invoices</h1>
           <p className="page-subtitle">{myInvs.length} invoices · click any row to view full details</p>
         </div>
       </div>
       <div className="card">
-        <div className="card-body flush" style={{ maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' }}>
+        <div className="filter-bar">
+          {filters.map(f => (
+            <button key={f.id} className={`filter-chip ${filter === f.id ? 'active' : ''}`} onClick={() => setFilter(filter === f.id ? 'all' : f.id)}>
+              {f.label}<span className="ct">{f.count}</span>
+            </button>
+          ))}
+          <button className={`filter-chip ${showDateFilter ? 'active' : ''}`} onClick={() => setShowDateFilter(!showDateFilter)}>Date</button>
+          <div style={{ flex: 1 }} />
+          <div className="search" style={{ width: 220 }}>
+            <Icon name="search" size={13} className="search-icon" />
+            <input 
+              placeholder="Invoice #…" 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {showDateFilter && (
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              style={{ padding: '6px 10px' }}
+            />
+            <span style={{ color: 'var(--text-2)' }}>to</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              style={{ padding: '6px 10px' }}
+            />
+            <button
+              className="btn sm"
+              onClick={() => {
+                setStartDate('')
+                setEndDate('')
+                setShowDateFilter(false)
+              }}
+              style={{ marginLeft: 8 }}
+            >
+              Clear
+            </button>
+          </div>
+        )}
+
+        <div className="card-body flush" style={{ overflowX: 'auto' }}>
           <table className="tbl" style={{ minWidth: 1200 }}>
             <thead>
               <tr>
@@ -77,8 +154,8 @@ export const CustomerInvoicesView: React.FC<CustomerInvoicesViewProps> = ({ myIn
                 <tr><td colSpan={13}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
               ) : (
                 <>
-                  {myInvs.length === 0 && <tr><td colSpan={13}><div className="empty"><div className="title">No invoices yet</div><div className="sub">Invoices will appear here once they're generated for your VMs.</div></div></td></tr>}
-              {myInvs.map((i: any) => {
+                  {filtered.length === 0 && <tr><td colSpan={13}><div className="empty"><div className="title">No invoices yet</div><div className="sub">Invoices will appear here once they're generated for your VMs.</div></div></td></tr>}
+              {filtered.map((i: any) => {
                 const vmRequestsList = vmRequests.filter((v: any) => i.vm_request_ids && i.vm_request_ids.includes(v.id))
                 const addonRequestsList = addonRequests.filter((a: any) => i.addon_request_ids && i.addon_request_ids.includes(a.id))
                 // For add-on requests, get VM names from addon request vm_id

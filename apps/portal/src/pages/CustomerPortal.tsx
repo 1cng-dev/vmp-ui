@@ -115,6 +115,8 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
     customers.find((c: any) => c.id === authUserId) ||
     null
 
+  const waitingForCustomerProfile = !!auth?.user && !me && customers.length === 0
+
   // Provide fallback object when me is null to avoid rendering errors
   const safeMe = me || { id: '', name: '', org_name: '', kyc_status: 'Pending', legacy_id: '' }
 
@@ -128,7 +130,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
     }
   }, [me?.kyc_status, view, me])
 
-  if (!auth?.user || customersLoading) {
+  if (!auth?.user || customersLoading || waitingForCustomerProfile) {
     return (
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', zIndex: 9999 }}>
         <Spinner />

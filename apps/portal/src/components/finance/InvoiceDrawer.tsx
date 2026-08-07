@@ -17,13 +17,14 @@ interface InvoiceDrawerProps {
 }
 
 export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, role }) => {
-  const { invoices, markPaid, updateInvoice, loadInvoices } = useInvoiceStore()
+  const { invoices, markPaid, updateInvoice, loadInvoices, cancelInvoice } = useInvoiceStore()
   const { customers } = useCustomerStore()
   const { toast } = useUIStore()
   const { activity } = useActivityStore()
   const { settings } = useSystemSettingsStore()
   const [showConfirm, setShowConfirm] = useState(false)
   const [showPreviewModal, setShowPreviewModal] = useState(false)
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const c = customers.find(c => c.id === invoice.customer_id)
   if (!c) return null
   const live = invoices.find(i => i.id === invoice.id) || invoice
@@ -39,6 +40,17 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
     await updateInvoice(live.id, { status: 'Customer Transferred' })
     toast('Payment proof submitted', 'info')
     setShowConfirm(false)
+  }
+
+  const handleCancelInvoice = async () => {
+    try {
+      await cancelInvoice(live.id)
+      setShowCancelConfirm(false)
+      toast('Invoice cancelled successfully', 'ok')
+    } catch (error) {
+      console.error('Failed to cancel invoice:', error)
+      toast('Failed to cancel invoice', 'error')
+    }
   }
 
 
@@ -64,7 +76,7 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
         </div>
         <div className="page-actions">
           <button className="btn" onClick={async () => await exportInvoiceToPDF(live, c)}><Icon name="download" size={12} />PDF</button>
-          {live.status !== 'Payment Received' && role !== 'Sales' && <button className="btn accent" onClick={async () => {
+          {live.status !== 'Payment Received' && role !== 'Sales' && live.status !== 'Cancelled' && <button className="btn accent" onClick={async () => {
             await markPaid(live.id, `RCT-${live.id.slice(0, 8)}`)
             await sendReceiptEmail({
               to: c.email,
@@ -75,6 +87,9 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
               paidDate: new Date().toLocaleDateString()
             })
           }}><Icon name="check" size={12} />Mark paid</button>}
+          {live.status !== 'Payment Received' && live.status !== 'Customer Transferred' && live.status !== 'Cancelled' && role !== 'Sales' && (
+            <button className="btn" style={{ background: 'var(--bad)', color: 'white' }} onClick={() => setShowCancelConfirm(true)}><Icon name="x" size={12} />Cancel Invoice</button>
+          )}
         </div>
       </div>
 
@@ -254,6 +269,24 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
                 style={{ maxWidth: '100%', maxHeight: 300, borderRadius: 6, border: '1px solid var(--border)', marginBottom: 16 }}
               />
               <div className="text-sm text-mute">Invoice: {live.legacy_id || live.id}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCancelConfirm && (
+        <div className="modal-overlay" onClick={() => setShowCancelConfirm(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="modal-head">
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Cancel Invoice</h3>
+              <button className="icon-btn" onClick={() => setShowCancelConfirm(false)}><Icon name="x" size={14} /></button>
+            </div>
+            <div className="modal-body">
+              <p style={{ margin: 0, color: 'var(--ink-2)' }}>Are you sure you want to cancel this invoice?</p>
+            </div>
+            <div className="modal-foot">
+              <button className="btn ghost" onClick={() => setShowCancelConfirm(false)}>No, keep it</button>
+              <button className="btn" style={{ background: 'var(--bad)', color: 'white' }} onClick={handleCancelInvoice}>Yes, cancel invoice</button>
             </div>
           </div>
         </div>

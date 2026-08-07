@@ -34,7 +34,7 @@ export const RecurringView: React.FC<RecurringViewProps> = ({ openModal }) => {
   }
 
   // Get recurring invoices
-  const cycles = invoices.filter((i: any) => i.billing_term && i.status !== 'Payment Received').map((i: any) => {
+  const cycles = invoices.filter((i: any) => i.billing_term && i.status !== 'Payment Received' && i.status !== 'Cancelled').map((i: any) => {
     const c = customers.find((c: any) => c.id === i.customer_id)
     const nextBill = getNextBillDate(i.due, i.billing_term)
     return {
