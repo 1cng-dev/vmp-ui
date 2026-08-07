@@ -163,7 +163,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
 
   // Listen to Supabase auth state changes to update user name in real-time
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user?.user_metadata?.name) {
         setUserName(session.user.user_metadata.name)
       } else if (session?.user?.email) {
