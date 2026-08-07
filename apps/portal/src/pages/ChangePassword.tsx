@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useUIStore from '../store/uiStore'
 import Icon from '../lib/icons'
@@ -11,6 +11,48 @@ const ChangePasswordPage: React.FC = () => {
   const navigate = useNavigate()
   const [f, setF] = useState({ newPassword: '', confirmPassword: '' })
   const [loading, setLoading] = useState(false)
+  const [checkingAuth, setCheckingAuth] = useState(true)
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+          toast('Please login first', 'bad')
+          navigate('/')
+          return
+        }
+
+        // Check if user is a customer
+        const { data: customer, error } = await supabase
+          .from('customers')
+          .select('force_password_change')
+          .eq('id', user.id)
+          .single()
+
+        if (error || !customer) {
+          toast('Access denied. Customers only.', 'bad')
+          navigate('/')
+          return
+        }
+
+        // Check if force_password_change flag is set
+        if (!customer.force_password_change) {
+          toast('Password change not required', 'info')
+          navigate('/')
+          return
+        }
+      } catch (error) {
+        console.error('Auth check error:', error)
+        toast('Access denied', 'bad')
+        navigate('/')
+      } finally {
+        setCheckingAuth(false)
+      }
+    }
+
+    checkAuth()
+  }, [navigate, toast])
 
   const submit = async (e: React.FormEvent) => {
     e?.preventDefault()
@@ -77,16 +119,21 @@ const ChangePasswordPage: React.FC = () => {
 
   return (
     <AuthLayout>
-      <div style={{ width: 'min(420px, 100%)' }}>
-        <div className="text-center mb-4">
-          {(() => { const { settings } = useSystemSettingsStore(); return settings?.logo_url ? (
-            <img src={`${settings.logo_url}?v=${settings.updated_at}`} alt="Logo" style={{ width: 96, height: 96, objectFit: 'contain', margin: '0 auto 16px', display: 'block', borderRadius: 12 }} />
-          ) : (
-            <div className="brand-mark" style={{ width: 96, height: 96, fontSize: 36, margin: '0 auto 16px', borderRadius: 12 }}>V</div>
-          )})()}
-          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em' }}>Change your password</h1>
-          <p className="text-sm text-mute mt-2">You need to change your password to continue</p>
+      {checkingAuth ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+          <div style={{ width: 40, height: 40, border: '3px solid var(--line-weak)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
         </div>
+      ) : (
+        <div style={{ width: 'min(420px, 100%)' }}>
+          <div className="text-center mb-4">
+            {(() => { const { settings } = useSystemSettingsStore(); return settings?.logo_url ? (
+              <img src={`${settings.logo_url}?v=${settings.updated_at}`} alt="Logo" style={{ width: 96, height: 96, objectFit: 'contain', margin: '0 auto 16px', display: 'block', borderRadius: 12 }} />
+            ) : (
+              <div className="brand-mark" style={{ width: 96, height: 96, fontSize: 36, margin: '0 auto 16px', borderRadius: 12 }}>V</div>
+            )})()}
+            <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em' }}>Change your password</h1>
+            <p className="text-sm text-mute mt-2">You need to change your password to continue</p>
+          </div>
 
         <form onSubmit={submit} className="card">
           <div className="card-body" style={{ padding: 24 }}>
@@ -137,7 +184,8 @@ const ChangePasswordPage: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
+        </div>
+      )}
     </AuthLayout>
   )
 }

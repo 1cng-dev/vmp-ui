@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import useInvoiceStore from '../../store/invoiceStore'
 import useCustomerStore from '../../store/customerStore'
 import useVMRequestStore from '../../store/vmRequestStore'
+import useVMStore from '../../store/vmStore'
 import useUIStore from '../../store/uiStore'
 import useReceiptStore from '../../store/receiptStore'
 import { useSystemSettingsStore } from '../../store/systemSettingsStore'
@@ -18,6 +19,7 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
   const { invoices, updateInvoice } = useInvoiceStore()
   const { customers } = useCustomerStore()
   const { vmRequests } = useVMRequestStore()
+  const { vms } = useVMStore()
   const { toast } = useUIStore()
   const { loadReceiptsByInvoice } = useReceiptStore()
   const { settings } = useSystemSettingsStore()
@@ -29,6 +31,17 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
   const [receipts, setReceipts] = useState<any[]>([])
   const inv = invoices.find((i: any) => i.id === initial.id) || initial;
   const c = customers.find((c: any) => c.id === inv.customer_id);
+
+  // Helper function to get VM name - use vm_id if available, otherwise use request hostname
+  const getVMName = (request: any) => {
+    if (request.vm_id) {
+      const vm = vms.find((v: any) => v.id === request.vm_id)
+      if (vm) {
+        return (vm as any).hostname || request.hostname
+      }
+    }
+    return request.hostname
+  }
 
   const transformStatus = (status: string) => {
     if (status === 'Pending') return 'Under Review'
@@ -309,8 +322,9 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
               <div className="card-body" style={{ padding: '6px 14px' }}>
                 {invoiceVMRequests.map((v: any) => (
                   <div key={v.id} style={{ padding: '10px 0', borderBottom: '1px solid var(--line)' }}>
-                    <div className="fw-6 text-sm">{v.hostname}</div>
+                    <div className="fw-6 text-sm">{getVMName(v)}</div>
                     <div className="text-xs text-mute mono">{v.legacy_id} · {v.task_type}</div>
+                    {v.vm_id && <div className="text-xs text-mute">VM ID: {v.vm_id}</div>}
                   </div>
                 ))}
               </div>

@@ -133,14 +133,40 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, [loadTeam])
 
   const updateMember = useCallback(async (id: string, patch: any) => {
+    // Update team_members table
     const { error } = await supabase
       .from('team_members')
       .update(patch)
       .eq('user_id', id)
 
     if (error) {
-      console.error('Failed to update member:', error)
+      console.error('Failed to update member in team_members:', error)
       throw error
+    }
+
+    // If role or name is being updated, also update auth metadata using admin client
+    if (patch.role || patch.name || patch.team) {
+      // Get current member data to preserve existing metadata
+      const { data: member } = await supabase
+        .from('team_members')
+        .select('*')
+        .eq('user_id', id)
+        .single()
+
+      if (member) {
+        try {
+          await supabaseAdmin.auth.admin.updateUserById(id, {
+            user_metadata: {
+              role: patch.role || member.role,
+              team: patch.team || member.team,
+              name: patch.name || member.name
+            }
+          })
+        } catch (authError) {
+          console.error('Failed to update auth metadata:', authError)
+          // Don't throw here, just log the error - the DB update succeeded
+        }
+      }
     }
 
     await loadTeam()

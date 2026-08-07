@@ -34,9 +34,7 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal, userRole
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
 
   useEffect(() => {
-    if (invoices.length === 0) {
-      loadInvoices()
-    }
+    loadInvoices()
     loadAddonRequests()
     loadQuotes()
     loadVMs()
@@ -210,7 +208,14 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal, userRole
                               data['Quotation'] = quote?.legacy_id || ''
                             }
                             if (selectedExportColumns.includes('status')) data['Status'] = i.status
-                            if (selectedExportColumns.includes('vmName')) data['VM Name'] = vmRequestsList.map((v: any) => v.hostname).join(', ')
+                            if (selectedExportColumns.includes('vmName')) {
+                              const addonVMNames = addonRequestsList.map((a: any) => {
+                                const vm = vms.find((vm: any) => vm.id === a.vm_id)
+                                return vm ? vm.hostname : `VM (${a.vm_id?.slice(0, 8)})`
+                              })
+                              const vmRequestNames = vmRequestsList.map((v: any) => v.hostname)
+                              data['VM Name'] = addonRequestsList.length > 0 ? addonVMNames.join(', ') : vmRequestNames.join(', ')
+                            }
                             if (selectedExportColumns.includes('requestId')) {
                               const vmRequestIds = vmRequestsList.map((v: any) => v.legacy_id || v.id.slice(0, 8))
                               const addonRequestIds = addonRequestsList.map((a: any) => a.legacy_id || a.id.slice(0, 8))
@@ -260,7 +265,14 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal, userRole
                               data.quotation = quote?.legacy_id || ''
                             }
                             if (selectedExportColumns.includes('status')) data.status = i.status
-                            if (selectedExportColumns.includes('vmName')) data.vmName = vmRequestsList.map((v: any) => v.hostname).join(', ')
+                            if (selectedExportColumns.includes('vmName')) {
+                              const addonVMNames = addonRequestsList.map((a: any) => {
+                                const vm = vms.find((vm: any) => vm.id === a.vm_id)
+                                return vm ? vm.hostname : `VM (${a.vm_id?.slice(0, 8)})`
+                              })
+                              const vmRequestNames = vmRequestsList.map((v: any) => v.hostname)
+                              data.vmName = addonRequestsList.length > 0 ? addonVMNames.join(', ') : vmRequestNames.join(', ')
+                            }
                             if (selectedExportColumns.includes('requestId')) {
                               const vmRequestIds = vmRequestsList.map((v: any) => v.legacy_id || v.id.slice(0, 8))
                               const addonRequestIds = addonRequestsList.map((a: any) => a.legacy_id || a.id.slice(0, 8))
@@ -382,7 +394,15 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal, userRole
                       const c = customers.find(c => c.id === i.customer_id)
                       const vmRequestsList = vmRequests.filter((v: any) => i.vm_request_ids.includes(v.id))
                       const addonRequestsList = addonRequests.filter((a: any) => i.addon_request_ids.includes(a.id))
-                      const addonVMs = addonRequestsList.map((a: any) => vms.find((vm: any) => vm.id === a.vm_id)).filter(Boolean)
+                      // For add-on requests, get VM names from addon request vm_id
+                      const addonVMNames = addonRequestsList.map((a: any) => {
+                        const vm = vms.find((vm: any) => vm.id === a.vm_id)
+                        return vm ? vm.hostname : `VM (${a.vm_id?.slice(0, 8)})`
+                      })
+                      // For VM requests (renewal, change plan, trial to paid), get VM names from vm_request
+                      const vmRequestNames = vmRequestsList.map((v: any) => v.hostname)
+                      // If invoice has add-on requests, show only add-on VM names, otherwise show VM request names
+                      const vmNames = addonRequestsList.length > 0 ? addonVMNames : vmRequestNames
                       const totalQty = (i.line_items || []).reduce((sum: number, item: any) => {
                         if (item.kind === 'instance') return sum + (item.qty || 1)
                         return sum
@@ -400,7 +420,7 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal, userRole
                           return quote?.legacy_id || '—'
                         })()}</td>}
                         {selectedExportColumns.includes('status') && <td><StatusPill status={i.status}/></td>}
-                        {selectedExportColumns.includes('vmName') && <td className="text-sm">{[...vmRequestsList.map((v: any) => v.hostname), ...addonVMs.map((vm: any) => vm.hostname)].join(', ')}</td>}
+                        {selectedExportColumns.includes('vmName') && <td className="text-sm">{vmNames.join(', ')}</td>}
                         {selectedExportColumns.includes('requestId') && (
                           <td className="mono text-sm">
                             {[...vmRequestsList.map((v: any) => v.legacy_id || v.id.slice(0, 8)), ...addonRequestsList.map((a: any) => a.legacy_id || a.id.slice(0, 8))].join(', ')}

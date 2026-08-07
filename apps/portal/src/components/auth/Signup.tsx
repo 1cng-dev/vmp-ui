@@ -177,7 +177,7 @@ const SignupScreen: React.FC<{ onComplete: (email: string) => void; onSwitchToLo
       }}>
         <div className="flex center gap-3">
           {settings?.logo_url ? (
-            <img src={settings.logo_url} alt="Logo" style={{ width: 32, height: 32, objectFit: 'contain', borderRadius: 7 }} />
+            <img src={`${settings.logo_url}?v=${settings.updated_at}`} alt="Logo" style={{ width: 32, height: 32, objectFit: 'contain', borderRadius: 7 }} />
           ) : (
             <div className="brand-mark" style={{ width: 32, height: 32, fontSize: 14, borderRadius: 7 }}>V</div>
           )}

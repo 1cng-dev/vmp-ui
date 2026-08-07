@@ -155,4 +155,15 @@ USING (invite_token IS NOT NULL)
 WITH CHECK (invite_token IS NOT NULL);
 
 
+DROP POLICY IF EXISTS "Admins can update team members" ON team_members;
+
+CREATE POLICY "Admins can update team members"
+ON team_members FOR UPDATE
+USING (
+  auth.uid() IN (
+    SELECT user_id FROM team_members 
+    WHERE role = 'Admin'
+  )
+);
+
 alter publication supabase_realtime add table team_members;

@@ -6,6 +6,8 @@ import { useAuth } from '../components/auth/Auth'
 import Icon from '../lib/icons'
 import { Avatar } from '../components/ui/ui'
 import { supabase } from '@/lib/supabase'
+import useTeamStore from '../store/teamStore'
+import useAuthStore from '../store/authStore'
 
 interface AccountSettingsViewProps {
   role: string
@@ -15,6 +17,8 @@ interface AccountSettingsViewProps {
 export const AccountSettingsView: React.FC<AccountSettingsViewProps> = ({ role }) => {
   const { toast } = useUIStore()
   const { signout, user: me } = useAuth() || { signout: () => { }, user: null }
+  const { updateMember } = useTeamStore()
+  const { refreshUser } = useAuthStore()
 
 
   const [profile, setProfile] = useState({
@@ -35,11 +39,24 @@ export const AccountSettingsView: React.FC<AccountSettingsViewProps> = ({ role }
   useEffect(() => { if (me?.id) setProfile(p => ({ ...p, name: me.name, email: me.email })); }, [me?.id])
 
   const saveProfile = async () => {
+    if (!me?.id) return toast('User not found', 'bad')
+
     try {
-      const { error } = await supabase.auth.updateUser({
+      // Update auth metadata
+      const { error: authError } = await supabase.auth.updateUser({
         data: { name: profile.name }
       })
-      if (error) throw error
+      if (authError) throw authError
+
+      // Update team_members table in database
+      await updateMember(me.id, { name: profile.name })
+
+      // Refresh user data to reflect changes across the app
+      await refreshUser()
+
+      // Update local state immediately
+      setProfile({ ...profile, name: profile.name })
+
       toast('Profile updated', 'ok')
     } catch (error) {
       toast('Failed to update profile', 'bad')

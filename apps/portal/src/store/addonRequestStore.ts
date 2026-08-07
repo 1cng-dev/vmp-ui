@@ -245,17 +245,17 @@ const str = String(durationStr);
           expiryDate.setDate(expiryDate.getDate() + 1)
 
           if (existingService) {
-            // Update existing addon service with new duration and dates (like VM renewal)
+            // MERGE new services with existing services (don't overwrite existing ones)
             await supabase
               .from('addon_services')
               .update({
                 duration: previousRequest.duration,
                 end_date: endDate.toISOString(),
                 expiry: expiryDate.toISOString(),
-                cpfs_enabled: previousRequest.cpfs_enabled || false,
-                cpfs_package: previousRequest.cpfs_package || 'standard',
-                ccis_enabled: previousRequest.ccis_enabled || false,
-                ccis_package: previousRequest.ccis_package || 'standard',
+                cpfs_enabled: previousRequest.cpfs_enabled || existingService.cpfs_enabled,
+                cpfs_package: previousRequest.cpfs_enabled ? previousRequest.cpfs_package : existingService.cpfs_package,
+                ccis_enabled: previousRequest.ccis_enabled || existingService.ccis_enabled,
+                ccis_package: previousRequest.ccis_enabled ? previousRequest.ccis_package : existingService.ccis_package,
               })
               .eq('id', existingService.id)
 

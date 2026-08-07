@@ -1129,7 +1129,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                       const addonVM = isAddon && addonReq?.vm_id ? vmMap.get(addonReq.vm_id) : null
                       const vmByReq = vmByRequestIdMap.get((q as any).vm_request_id)
                       const requestHostname = isAddon
-                        ? request?.hostname || vmByReq?.hostname || addonVM?.hostname || (addonReq as any)?.description || '—'
+                        ? addonVM?.hostname || request?.hostname || vmByReq?.hostname || (addonReq as any)?.description || `VM (${addonReq?.vm_id?.slice(0, 8)})` || '—'
                         : request?.hostname || request?.sizing || '—'
                       return (
                         <tr key={q.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedQuote(q)}>

@@ -333,25 +333,26 @@ export const KYCReviewView: React.FC = () => {
 
       {/* Confirmation dialog */}
       {showReopenConfirm && sel && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000,
-          display: 'grid', placeItems: 'center', padding: 20
-        }}>
-          <div className="card" style={{ maxWidth: 400, width: '100%' }}>
-            <div className="card-head">
-              <h3 className="card-title">Re-open review</h3>
-            </div>
-            <div className="card-body">
-              <p className="text-sm text-mute mb-3">
-                Are you sure you want to re-open the KYC review for <strong>{sel.name}</strong>? This will reset the status to Pending.
-              </p>
-              <div className="flex gap-2">
-                <button className="btn" onClick={() => setShowReopenConfirm(false)}>Cancel</button>
-                <button className="btn accent" onClick={() => {
-                  decide(sel.id, 'Pending')
-                  setShowReopenConfirm(false)
-                }}>Confirm</button>
+        <div className="modal-overlay" onClick={() => setShowReopenConfirm(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
+            <div className="modal-head">
+              <div>
+                <h3 style={{ margin: 0, fontSize: 16 }}>Re-open review</h3>
+                <div className="text-xs text-mute mt-1">This will reset the status to Pending</div>
               </div>
+              <button className="icon-btn" onClick={() => setShowReopenConfirm(false)}><Icon name="x" size={14} /></button>
+            </div>
+            <div className="modal-body">
+              <p style={{ margin: 0 }}>
+                Are you sure you want to re-open the KYC review for <strong>{sel.name}</strong>?
+              </p>
+            </div>
+            <div className="modal-foot">
+              <button className="btn ghost" onClick={() => setShowReopenConfirm(false)}>Cancel</button>
+              <button className="btn accent" onClick={() => {
+                decide(sel.id, 'Pending')
+                setShowReopenConfirm(false)
+              }}>Confirm</button>
             </div>
           </div>
         </div>

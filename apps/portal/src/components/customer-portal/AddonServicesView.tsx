@@ -123,20 +123,20 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs, myA
 
   const canSubmit = () => {
     if (!selectedVM || (!cpfsEnabled && !ccisEnabled)) return false
-    
-    // If no existing add-ons, allow submission
+
+    // If no existing add-ons, allow submission if at least one service is enabled
     if (existingAddons.length === 0) return true
-    
-    // Compare with existing add-ons to detect changes
+
+    // Check if there are NEW services being requested (not already existing)
     const latestAddon = existingAddons[0]
-    const hasChanges = 
-      cpfsEnabled !== latestAddon.cpfs_enabled ||
-      (cpfsEnabled && cpfsPackage !== latestAddon.cpfs_package) ||
-      ccisEnabled !== latestAddon.ccis_enabled ||
-      (ccisEnabled && ccisPlan !== latestAddon.ccis_package) ||
-      duration !== latestAddon.duration
-    
-    return hasChanges
+    const existingCpfs = latestAddon?.cpfs_enabled || false
+    const existingCcis = latestAddon?.ccis_enabled || false
+
+    const hasNewCpfs = cpfsEnabled && !existingCpfs
+    const hasNewCcis = ccisEnabled && !existingCcis
+
+    // Allow submission only if there's at least one NEW service
+    return hasNewCpfs || hasNewCcis
   }
 
   return (
@@ -208,34 +208,55 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs, myA
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="card-head">
           <h3 className="card-title">CPFS (Cloud Protection Firewall Service)</h3>
-          <span className={`toggle ${cpfsEnabled ? 'on' : ''}`} onClick={() => setCpfsEnabled(!cpfsEnabled)}/>
+          <div className="flex center gap-2">
+            {existingAddons.length > 0 && existingAddons[0].cpfs_enabled && (
+              <span className="pill ok" style={{ fontSize: 11 }}>Already Active</span>
+            )}
+            <span
+              className={`toggle ${cpfsEnabled ? 'on' : ''}`}
+              onClick={() => !(existingAddons.length > 0 && existingAddons[0].cpfs_enabled) && setCpfsEnabled(!cpfsEnabled)}
+              style={existingAddons.length > 0 && existingAddons[0].cpfs_enabled ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+            />
+          </div>
         </div>
         {cpfsEnabled && (
           <div className="card-body">
             <div className="grid-2" style={{ gap: 12 }}>
               {/* Standard Package */}
-              <IaaSCard selected={cpfsPackage === 'standard'} onClick={() => setCpfsPackage('standard')} padding={16 as any}>
-                <div className="flex center between mb-2">
-                  <h4 className="fw-6">CPFS - Standard Package</h4>
-                  {cpfsPackage === 'standard' && <Icon name="check" size={14} style={{ color: 'var(--accent-strong)' }}/>}
-                </div>
-                <ul style={{ margin: 0, paddingLeft: 20, fontSize: 13, lineHeight: 1.8, color: 'var(--ink-2)' }}>
-                  <li>1000 concurrent sessions per second</li>
-                  <li>Weekly Report</li>
-                </ul>
-              </IaaSCard>
+              <div style={existingAddons.length > 0 && existingAddons[0].cpfs_enabled ? { opacity: 0.6, cursor: 'not-allowed' } : {}}>
+                <IaaSCard
+                  selected={cpfsPackage === 'standard'}
+                  onClick={() => !(existingAddons.length > 0 && existingAddons[0].cpfs_enabled) && setCpfsPackage('standard')}
+                  padding={16 as any}
+                >
+                  <div className="flex center between mb-2">
+                    <h4 className="fw-6">CPFS - Standard Package</h4>
+                    {cpfsPackage === 'standard' && <Icon name="check" size={14} style={{ color: 'var(--accent-strong)' }}/>}
+                  </div>
+                  <ul style={{ margin: 0, paddingLeft: 20, fontSize: 13, lineHeight: 1.8, color: 'var(--ink-2)' }}>
+                    <li>1000 concurrent sessions per second</li>
+                    <li>Weekly Report</li>
+                  </ul>
+                </IaaSCard>
+              </div>
 
               {/* Premium Package */}
-              <IaaSCard selected={cpfsPackage === 'premium'} onClick={() => setCpfsPackage('premium')} padding={16 as any}>
-                <div className="flex center between mb-2">
-                  <h4 className="fw-6">CPFS - Premium Package</h4>
-                  {cpfsPackage === 'premium' && <Icon name="check" size={14} style={{ color: 'var(--accent-strong)' }}/>}
-                </div>
-                <ul style={{ margin: 0, paddingLeft: 20, fontSize: 13, lineHeight: 1.8, color: 'var(--ink-2)' }}>
-                  <li>1500 concurrent sessions per second</li>
-                  <li>Weekly Report</li>
-                </ul>
-              </IaaSCard>
+              <div style={existingAddons.length > 0 && existingAddons[0].cpfs_enabled ? { opacity: 0.6, cursor: 'not-allowed' } : {}}>
+                <IaaSCard
+                  selected={cpfsPackage === 'premium'}
+                  onClick={() => !(existingAddons.length > 0 && existingAddons[0].cpfs_enabled) && setCpfsPackage('premium')}
+                  padding={16 as any}
+                >
+                  <div className="flex center between mb-2">
+                    <h4 className="fw-6">CPFS - Premium Package</h4>
+                    {cpfsPackage === 'premium' && <Icon name="check" size={14} style={{ color: 'var(--accent-strong)' }}/>}
+                  </div>
+                  <ul style={{ margin: 0, paddingLeft: 20, fontSize: 13, lineHeight: 1.8, color: 'var(--ink-2)' }}>
+                    <li>1500 concurrent sessions per second</li>
+                    <li>Weekly Report</li>
+                  </ul>
+                </IaaSCard>
+              </div>
             </div>
           </div>
         )}
@@ -245,7 +266,16 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs, myA
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="card-head">
           <h3 className="card-title">CCIS (Cloud Content Inspection Service)</h3>
-          <span className={`toggle ${ccisEnabled ? 'on' : ''}`} onClick={() => setCcisEnabled(!ccisEnabled)}/>
+          <div className="flex center gap-2">
+            {existingAddons.length > 0 && existingAddons[0].ccis_enabled && (
+              <span className="pill ok" style={{ fontSize: 11 }}>Already Active</span>
+            )}
+            <span
+              className={`toggle ${ccisEnabled ? 'on' : ''}`}
+              onClick={() => !(existingAddons.length > 0 && existingAddons[0].ccis_enabled) && setCcisEnabled(!ccisEnabled)}
+              style={existingAddons.length > 0 && existingAddons[0].ccis_enabled ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+            />
+          </div>
         </div>
         {ccisEnabled && (
           <div className="card-body">
@@ -256,13 +286,19 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs, myA
                 { id: 'professional', name: 'Professional Plan', mb: '1 GB' },
                 { id: 'enterprise', name: 'Enterprise Plan', mb: '5 GB' },
               ].map((plan) => (
-                <IaaSCard key={plan.id} selected={ccisPlan === plan.id} onClick={() => setCcisPlan(plan.id as 'basic' | 'standard' | 'professional' | 'enterprise')} padding={16 as any}>
-                  <div className="flex center between mb-2">
-                    <div className="fw-6 text-sm">{plan.name}</div>
-                    {ccisPlan === plan.id && <Icon name="check" size={14} style={{ color: 'var(--accent-strong)' }}/>}
-                  </div>
-                  <div className="text-mute text-xs">{plan.mb}</div>
-                </IaaSCard>
+                <div key={plan.id} style={existingAddons.length > 0 && existingAddons[0].ccis_enabled ? { opacity: 0.6, cursor: 'not-allowed' } : {}}>
+                  <IaaSCard
+                    selected={ccisPlan === plan.id}
+                    onClick={() => !(existingAddons.length > 0 && existingAddons[0].ccis_enabled) && setCcisPlan(plan.id as 'basic' | 'standard' | 'professional' | 'enterprise')}
+                    padding={16 as any}
+                  >
+                    <div className="flex center between mb-2">
+                      <div className="fw-6 text-sm">{plan.name}</div>
+                      {ccisPlan === plan.id && <Icon name="check" size={14} style={{ color: 'var(--accent-strong)' }}/>}
+                    </div>
+                    <div className="text-mute text-xs">{plan.mb}</div>
+                  </IaaSCard>
+                </div>
               ))}
             </div>
           </div>
@@ -325,13 +361,19 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs, myA
             expiryDate.setMonth(expiryDate.getMonth() + durationMonths)
             expiryDate.setDate(expiryDate.getDate() + durationDays + 1) // Add 1 day to expiry
             
+            // Get existing addon data to determine which services are new
+            const latestAddon = existingAddons.length > 0 ? existingAddons[0] : null
+            const existingCpfs = latestAddon?.cpfs_enabled || false
+            const existingCcis = latestAddon?.ccis_enabled || false
+
+            // Only include NEW services in the request (exclude existing ones)
             const addonRequest = {
               customer_id: vm?.customer_id,
               vm_id: selectedVM,
-              cpfs_enabled: cpfsEnabled,
-              cpfs_package: cpfsEnabled ? cpfsPackage : undefined,
-              ccis_enabled: ccisEnabled,
-              ccis_package: ccisEnabled ? ccisPlan : undefined,
+              cpfs_enabled: cpfsEnabled && !existingCpfs, // Only if NEW
+              cpfs_package: (cpfsEnabled && !existingCpfs) ? cpfsPackage : undefined,
+              ccis_enabled: ccisEnabled && !existingCcis, // Only if NEW
+              ccis_package: (ccisEnabled && !existingCcis) ? ccisPlan : undefined,
               duration: durationText,
               start_date: vm?.start_date || new Date().toISOString(),
               end_date: expiryDate.toISOString(),

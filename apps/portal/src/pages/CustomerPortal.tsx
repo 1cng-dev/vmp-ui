@@ -128,7 +128,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
     }
   }, [me?.kyc_status, view, me])
 
-  if (!auth?.user || customersLoading || !me) {
+  if (!auth?.user || customersLoading) {
     return (
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', zIndex: 9999 }}>
         <Spinner />
@@ -216,7 +216,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
     { id: 'requests', label: 'My requests', icon: 'tasks', badge: pendingRequests.length || null, lockedByKyc: true },
     { id: 'addon-requests', label: 'My add-on requests', icon: 'box', lockedByKyc: true },
     { id: 'request', label: 'Request VM', icon: 'plus', lockedByKyc: true },
-    { id: 'addons', label: 'Add-on Services', icon: 'shield', lockedByKyc: true },
+    { id: 'addons', label: 'Add-on Services', icon: 'plus', lockedByKyc: true },
     { id: 'invoices', label: 'Invoices', icon: 'invoice', badge: pendingInv.length || null, lockedByKyc: true },
     { id: 'receipts', label: 'Receipts', icon: 'check', lockedByKyc: true },
     { id: 'cust-announcements', label: 'Announcements', icon: 'star', badge: unreadAnnouncements || null, lockedByKyc: true },

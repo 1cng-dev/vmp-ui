@@ -9,7 +9,6 @@ import { CustUpgradeModal, CustConvertToPaidModal } from '../modals/CustomerVMMo
 import { useVMStatusByRecord, useVMStatsByRecord, useVMPowerAction } from '../../hooks/useVMLiveStatus'
 import { BYTES_PER_GB, pctSeries, ramPctSeries, netMbpsSeries, avgOf, peakOf, lastOf } from '../../lib/vmUsage'
 import type { PowerAction } from '../../lib/proxmoxApi'
-import VNCConsole from '../vm/VNCConsole'
 
 const ACTION_LABELS: Record<PowerAction, string> = {
   start: 'Starting…',
@@ -75,7 +74,7 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
   const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [convertToPaidOpen, setConvertToPaidOpen] = useState(false)
   const [moreMenuOpen, setMoreMenuOpen] = useState(false)
-  const [consoleOpen, setConsoleOpen] = useState(false)
+  const [confirmModal, setConfirmModal] = useState<{ show: boolean; action: PowerAction | null; message: string }>({ show: false, action: null, message: '' })
 
   // Get data from store instead of fetching directly
   const vmRequest = vm.vm_request_id ? getVMRequest(vm.vm_request_id) : null
@@ -119,8 +118,22 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
   }, [moreMenuOpen])
 
   const handleAction = (action: PowerAction, confirmMessage?: string) => {
-    if (confirmMessage && !window.confirm(confirmMessage)) return
-    runPowerAction(action)
+    if (confirmMessage) {
+      setConfirmModal({ show: true, action, message: confirmMessage })
+    } else {
+      runPowerAction(action)
+    }
+  }
+
+  const handleConfirmAction = () => {
+    if (confirmModal.action) {
+      runPowerAction(confirmModal.action)
+    }
+    setConfirmModal({ show: false, action: null, message: '' })
+  }
+
+  const handleCancelAction = () => {
+    setConfirmModal({ show: false, action: null, message: '' })
   }
 
   const cpu = pctSeries(statsData, p => p.cpu)
@@ -227,10 +240,20 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
                   )}
                 </div>
               )}
-              <button className="btn" onClick={() => setConsoleOpen(true)} disabled={!isRunning} title={isRunning ? 'Open VNC console' : 'Start the VM to open console'}>
+              <button className="btn" onClick={() => {
+                const width = window.screen.width * 0.9
+                const height = window.screen.height * 0.9
+                const left = (window.screen.width - width) / 2
+                const top = (window.screen.height - height) / 2
+                window.open(
+                  `/console/${recordId}`,
+                  'Console',
+                  `width=${width},height=${height},left=${left},top=${top},scrollbars=no,resizable=yes,status=no,location=no,toolbar=no,menubar=no`
+                )
+              }} disabled={!isRunning} title={isRunning ? 'Open VNC console' : 'Start the VM to open console'}>
                 <Icon name="terminal" size={12} />Console
               </button>
-              {vmRequest?.request_type === 'trial' && <button className="btn primary" onClick={() => setConvertToPaidOpen(true)}><Icon name="credit-card" size={12} />Convert to Paid</button>}
+              {vm.request_type === 'trial' && <button className="btn primary" onClick={() => setConvertToPaidOpen(true)}><Icon name="credit-card" size={12} />Convert to Paid</button>}
               {vmRequest?.request_type !== 'trial' && <button className="btn" onClick={() => setUpgradeOpen(true)}><Icon name="arrow-up" size={12} />Change Plan</button>}
               <button className="btn accent" onClick={onRenew}><Icon name="refresh" size={12} />Renew</button>
             </>
@@ -239,8 +262,25 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
 
         {upgradeOpen && <CustUpgradeModal vm={vm} onClose={() => setUpgradeOpen(false)} me={me} />}
         {convertToPaidOpen && <CustConvertToPaidModal vm={vm} onClose={() => setConvertToPaidOpen(false)} />}
-        {consoleOpen && recordId && (
-          <VNCConsole recordId={recordId} vmName={vm.hostname} onClose={() => setConsoleOpen(false)} />
+        {confirmModal.show && (
+          <div className="modal-overlay" onClick={handleCancelAction}>
+            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
+              <div className="modal-head">
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 16 }}>Confirm Action</h3>
+                  <div className="text-xs text-mute mt-1">This action cannot be undone</div>
+                </div>
+                <button className="icon-btn" onClick={handleCancelAction}><Icon name="x" size={14} /></button>
+              </div>
+              <div className="modal-body">
+                <p style={{ margin: 0 }}>{confirmModal.message}</p>
+              </div>
+              <div className="modal-foot">
+                <button className="btn ghost" onClick={handleCancelAction}>Cancel</button>
+                <button className="btn danger" onClick={handleConfirmAction}>Confirm</button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
 

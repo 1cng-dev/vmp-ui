@@ -27,17 +27,22 @@ export const CustomerInvoicesView: React.FC<CustomerInvoicesViewProps> = ({ myIn
     return status
   }
 
+  // Helper function to get VM name - use vm_id if available, otherwise use request hostname
+  const getVMName = (request: any) => {
+    if (request.vm_id) {
+      const vm = vms.find((v: any) => v.id === request.vm_id)
+      if (vm) {
+        return (vm as any).hostname || request.hostname
+      }
+    }
+    return request.hostname
+  }
+
   useEffect(() => {
-    if (addonRequests.length === 0) {
-      loadAddonRequests()
-    }
-    if (quotes.length === 0) {
-      loadQuotes()
-    }
-    if (vms.length === 0) {
-      loadVMs()
-    }
-  }, [addonRequests.length, quotes.length, vms.length, loadAddonRequests, loadQuotes, loadVMs])
+    loadAddonRequests()
+    loadQuotes()
+    loadVMs()
+  }, [loadAddonRequests, loadQuotes, loadVMs])
 
   return (
     <div className="content">
@@ -76,7 +81,15 @@ export const CustomerInvoicesView: React.FC<CustomerInvoicesViewProps> = ({ myIn
               {myInvs.map((i: any) => {
                 const vmRequestsList = vmRequests.filter((v: any) => i.vm_request_ids && i.vm_request_ids.includes(v.id))
                 const addonRequestsList = addonRequests.filter((a: any) => i.addon_request_ids && i.addon_request_ids.includes(a.id))
-                const addonVMs = addonRequestsList.map((a: any) => vms.find((vm: any) => vm.id === a.vm_id)).filter(Boolean)
+                // For add-on requests, get VM names from addon request vm_id
+                const addonVMNames = addonRequestsList.map((a: any) => {
+                  const vm = vms.find((vm: any) => vm.id === a.vm_id)
+                  return vm ? vm.hostname : `VM (${a.vm_id?.slice(0, 8)})`
+                })
+                // For VM requests (renewal, change plan, trial to paid), get VM names from vm_request
+                const vmRequestNames = vmRequestsList.map((v: any) => getVMName(v))
+                // If invoice has add-on requests, show only add-on VM names, otherwise show VM request names
+                const vmNames = addonRequestsList.length > 0 ? addonVMNames : vmRequestNames
                 const totalQty = (i.line_items || []).reduce((sum: number, item: any) => {
                   if (item.kind === 'instance') return sum + (item.qty || 1)
                   return sum
@@ -86,7 +99,7 @@ export const CustomerInvoicesView: React.FC<CustomerInvoicesViewProps> = ({ myIn
                     <td className="mono fw-6 text-sm">{i.legacy_id || i.id.slice(0, 8)}</td>
                     <td className="tnum text-sm">{i.invoice_date ? new Date(i.invoice_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).replace(',', '') : '—'}</td>
                     <td className="tnum text-sm">{totalQty}</td>
-                    <td className="text-sm">{[...vmRequestsList.map((v: any) => v.hostname), ...addonVMs.map((vm: any) => vm.hostname)].join(', ')}</td>
+                    <td className="text-sm">{vmNames.join(', ')}</td>
                     <td className="mono text-sm">
                       {[...vmRequestsList.map((v: any) => v.legacy_id || v.id.slice(0, 8)), ...addonRequestsList.map((a: any) => a.legacy_id || a.id.slice(0, 8))].join(', ')}
                     </td>

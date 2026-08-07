@@ -277,6 +277,16 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                 // Apply upgrade changes to the VM when completed
                                 let vmId = (t as any)?.vm_id
 
+                                // If vm_id exists, verify VM exists in store
+                                if (vmId) {
+                                  const currentVM = vms.find((v: any) => v.id === vmId)
+                                  if (!currentVM) {
+                                    updateVMRequest(t.id, { status: 'Completed' })
+                                    toast('Upgrade completed (could not find VM to apply changes)', 'info')
+                                    return
+                                  }
+                                }
+
                                 // If no direct vm_id, try to find VM by hostname using store
                                 if (!vmId && t.hostname) {
                                   const vmData = getVMByHostname(t.hostname)
@@ -296,7 +306,6 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                     toast('Upgrade completed and changes applied', 'ok')
                                   } catch (error) {
                                     toast('Failed to apply upgrade changes to VM', 'error')
-                                    console.error('Error applying upgrade:', error)
                                   }
                                 } else {
                                   updateVMRequest(t.id, { status: 'Completed' })
@@ -331,39 +340,145 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                               // Apply renewal expiry extension to the VM when completed
                               let vmId = (t as any).vm_id
 
-                              // If no direct vm_id, try to find VM by hostname using store
-                              if (!vmId && t.hostname) {
-                                const vmData = getVMByHostname(t.hostname)
-                                if (vmData) {
-                                  vmId = vmData.id
-                                  // Parse renewal duration from string format
-                                  const parseDuration = (durationStr: string | number | null | undefined): { value: number; unit: 'days' | 'months' } | null => {
-                                    if (!durationStr) return null;
+                              // If vm_id exists directly, use it to update VM
+                              if (vmId) {
+                                try {
+                                  // Parse duration from string format - handles combined formats like "1 month 14 days"
+                                  const parseDuration = (durationStr: string | number | null | undefined): { months: number; days: number } => {
+                                    if (!durationStr) return { months: 0, days: 0 };
                                     if (typeof durationStr === 'number') {
-                                      return { value: durationStr, unit: 'months' };
+                                      return { months: durationStr, days: 0 };
                                     }
-                                    const match = String(durationStr).match(/^(\d+)\s+(day|days|month|months)$/);
-                                    if (match) {
-                                      const value = parseInt(match[1], 10);
-                                      const unitStr = match[2].toLowerCase();
-                                      const unit = unitStr.startsWith('day') ? 'days' : 'months';
-                                      return { value, unit };
+
+                                    const str = String(durationStr).toLowerCase();
+                                    let months = 0;
+                                    let days = 0;
+
+                                    // Match months
+                                    const monthsMatch = str.match(/(\d+)\s*months?/);
+                                    if (monthsMatch) {
+                                      months = parseInt(monthsMatch[1], 10);
                                     }
-                                    const num = parseInt(String(durationStr), 10);
-                                    if (!isNaN(num)) {
-                                      return { value: num, unit: 'months' };
+
+                                    // Match days
+                                    const daysMatch = str.match(/(\d+)\s*days?/);
+                                    if (daysMatch) {
+                                      days = parseInt(daysMatch[1], 10);
                                     }
-                                    return null;
+
+                                    // If no match, try parsing as simple number (assume months)
+                                    if (months === 0 && days === 0) {
+                                      const num = parseInt(str, 10);
+                                      if (!isNaN(num)) {
+                                        months = num;
+                                      }
+                                    }
+
+                                    return { months, days };
                                   };
 
                                   const parsedRenewalDuration = parseDuration(t.duration)
-                                  const renewalMonths = parsedRenewalDuration?.unit === 'months' ? parsedRenewalDuration.value : 0
-                                  const renewalDays = parsedRenewalDuration?.unit === 'days' ? parsedRenewalDuration.value : 0
+                                  const renewalMonths = parsedRenewalDuration.months
+                                  const renewalDays = parsedRenewalDuration.days
+
+                                  // Get current VM data
+                                  const currentVM = vms.find((v: any) => v.id === vmId)
+                                  if (!currentVM) {
+                                    updateVMRequest(t.id, { status: 'Completed' })
+                                    toast('Renewal completed (could not find VM to extend expiry)', 'info')
+                                    return
+                                  }
+
+                                  // Parse existing VM duration
+                                  const parsedExistingDuration = parseDuration(currentVM.duration)
+                                  const existingMonths = parsedExistingDuration.months
+                                  const existingDays = parsedExistingDuration.days
+
+                                  // Calculate new expiry date
+                                  const currentExpiry = currentVM.expiry ? new Date(currentVM.expiry) : new Date()
+                                  currentExpiry.setMonth(currentExpiry.getMonth() + renewalMonths)
+                                  currentExpiry.setDate(currentExpiry.getDate() + renewalDays)
+                                  const newExpiry = currentExpiry.toISOString()
+
+                                  // Calculate new duration by adding renewal to existing
+                                  const totalMonths = existingMonths + renewalMonths
+                                  const totalDays = existingDays + renewalDays
+                                  let newDurationString: string
+                                  if (totalMonths > 0 && totalDays > 0) {
+                                    newDurationString = `${totalMonths} month${totalMonths > 1 ? 's' : ''} ${totalDays} day${totalDays > 1 ? 's' : ''}`
+                                  } else if (totalMonths > 0) {
+                                    newDurationString = `${totalMonths} month${totalMonths > 1 ? 's' : ''}`
+                                  } else if (totalDays > 0) {
+                                    newDurationString = `${totalDays} day${totalDays > 1 ? 's' : ''}`
+                                  } else {
+                                    newDurationString = String(t.duration || '12 months')
+                                  }
+
+                                  // Update VM expiry, end_date, and duration using store
+                                  await updateVM(vmId, {
+                                    expiry: newExpiry,
+                                    end_date: newExpiry,
+                                    duration: newDurationString
+                                  })
+
+                                  // Update add-on service expiry for this VM
+                                  await updateAddonExpiryForVM(vmId, renewalMonths)
+
+                                  updateVMRequest(t.id, { status: 'Completed' })
+                                  toast('Renewal completed and VM expiry extended', 'ok')
+                                } catch (error) {
+                                  toast('Failed to update VM expiry', 'error')
+                                }
+                              }
+
+                              // If no direct vm_id, try to find VM by hostname using store
+                              else if (!vmId && t.hostname) {
+                                try {
+                                  const vmData = getVMByHostname(t.hostname)
+                                  if (vmData) {
+                                    vmId = vmData.id
+                                  // Parse duration from string format - handles combined formats like "1 month 14 days"
+                                  const parseDuration = (durationStr: string | number | null | undefined): { months: number; days: number } => {
+                                    if (!durationStr) return { months: 0, days: 0 };
+                                    if (typeof durationStr === 'number') {
+                                      return { months: durationStr, days: 0 };
+                                    }
+
+                                    const str = String(durationStr).toLowerCase();
+                                    let months = 0;
+                                    let days = 0;
+
+                                    // Match months
+                                    const monthsMatch = str.match(/(\d+)\s*months?/);
+                                    if (monthsMatch) {
+                                      months = parseInt(monthsMatch[1], 10);
+                                    }
+
+                                    // Match days
+                                    const daysMatch = str.match(/(\d+)\s*days?/);
+                                    if (daysMatch) {
+                                      days = parseInt(daysMatch[1], 10);
+                                    }
+
+                                    // If no match, try parsing as simple number (assume months)
+                                    if (months === 0 && days === 0) {
+                                      const num = parseInt(str, 10);
+                                      if (!isNaN(num)) {
+                                        months = num;
+                                      }
+                                    }
+
+                                    return { months, days };
+                                  };
+
+                                  const parsedRenewalDuration = parseDuration(t.duration)
+                                  const renewalMonths = parsedRenewalDuration.months
+                                  const renewalDays = parsedRenewalDuration.days
 
                                   // Parse existing VM duration
                                   const parsedExistingDuration = parseDuration(vmData.duration)
-                                  const existingMonths = parsedExistingDuration?.unit === 'months' ? parsedExistingDuration.value : 0
-                                  const existingDays = parsedExistingDuration?.unit === 'days' ? parsedExistingDuration.value : 0
+                                  const existingMonths = parsedExistingDuration.months
+                                  const existingDays = parsedExistingDuration.days
 
                                   // Calculate new expiry date
                                   const currentExpiry = vmData.expiry ? new Date(vmData.expiry) : new Date()
@@ -392,16 +507,18 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                       end_date: newExpiry,
                                       duration: newDurationString
                                     })
-                                    
+
                                     // Update add-on service expiry for this VM
                                     await updateAddonExpiryForVM(vmId, renewalMonths)
-                                    
+
                                     updateVMRequest(t.id, { status: 'Completed' })
                                     toast('Renewal completed and VM expiry extended', 'ok')
                                   } catch (error) {
                                     toast('Failed to update VM expiry', 'error')
-                                    console.error('Error updating expiry:', error)
                                   }
+                                }
+                                } catch (error) {
+                                  // Error finding VM by hostname
                                 }
                               }
 
@@ -438,33 +555,57 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                 // Apply trial to paid conversion - update VM expiry
                                 let vmId = (t as any).vm_id
 
+                                // If vm_id exists, verify VM exists in store
+                                if (vmId) {
+                                  const currentVM = vms.find((v: any) => v.id === vmId)
+                                  if (!currentVM) {
+                                    updateVMRequest(t.id, { status: 'Completed' })
+                                    toast('Trial conversion completed (could not find VM to update)', 'info')
+                                    return
+                                  }
+                                }
+
                                 // If no direct vm_id, try to find VM by hostname using store
                                 if (!vmId && t.hostname) {
                                   const vmData = getVMByHostname(t.hostname)
                                   if (vmData) {
                                     vmId = vmData.id
                                     // Parse conversion duration from string format
-                                    const parseDuration = (durationStr: string | number | null | undefined): { value: number; unit: 'days' | 'months' } | null => {
-                                      if (!durationStr) return null;
+                                    const parseDuration = (durationStr: string | number | null | undefined): { months: number; days: number } => {
+                                      if (!durationStr) return { months: 12, days: 0 };
                                       if (typeof durationStr === 'number') {
-                                        return { value: durationStr, unit: 'months' };
+                                        return { months: durationStr, days: 0 };
                                       }
-                                      const match = String(durationStr).match(/^(\d+)\s+(day|days|month|months)$/);
-                                      if (match) {
-                                        const value = parseInt(match[1], 10);
-                                        const unitStr = match[2].toLowerCase();
-                                        const unit = unitStr.startsWith('day') ? 'days' : 'months';
-                                        return { value, unit };
+
+                                      const str = String(durationStr).toLowerCase();
+                                      let months = 0;
+                                      let days = 0;
+
+                                      // Match months
+                                      const monthsMatch = str.match(/(\d+)\s*months?/);
+                                      if (monthsMatch) {
+                                        months = parseInt(monthsMatch[1], 10);
                                       }
-                                      const num = parseInt(String(durationStr), 10);
-                                      if (!isNaN(num)) {
-                                        return { value: num, unit: 'months' };
+
+                                      // Match days
+                                      const daysMatch = str.match(/(\d+)\s*days?/);
+                                      if (daysMatch) {
+                                        days = parseInt(daysMatch[1], 10);
                                       }
-                                      return null;
+
+                                      // If no match, try parsing as simple number (assume months)
+                                      if (months === 0 && days === 0) {
+                                        const num = parseInt(str, 10);
+                                        if (!isNaN(num)) {
+                                          months = num;
+                                        }
+                                      }
+
+                                      return { months, days };
                                     };
 
                                     const parsedDuration = parseDuration(t.duration)
-                                    const paidMonths = parsedDuration?.unit === 'months' ? parsedDuration.value : 12
+                                    const paidMonths = parsedDuration.months || 12
 
                                     // Calculate new expiry date: trial start + 14 days + paid duration
                                     const startDate = vmData.created_at ? new Date(vmData.created_at) : new Date()

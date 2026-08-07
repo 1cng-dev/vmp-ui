@@ -76,10 +76,14 @@ const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, me }) => {
   const existingAddons = getAddonServicesForVM(vm.id)
   const hasExistingAddons = existingAddons.length > 0
 
+  // Check which add-ons exist on this VM
+  const hasCpfs = existingAddons.some((a: any) => a.cpfs_enabled)
+  const hasCcis = existingAddons.some((a: any) => a.ccis_enabled)
+
   // Add-on service selection state
   const [selectedAddons, setSelectedAddons] = useState<{ cpfs: boolean; ccis: boolean }>({
-    cpfs: existingAddons.some((a: any) => a.cpfs_enabled),
-    ccis: existingAddons.some((a: any) => a.ccis_enabled)
+    cpfs: hasCpfs,
+    ccis: hasCcis
   })
   const [cpfsPackage, setCpfsPackage] = useState<'standard' | 'premium'>(
     (existingAddons.find((a: any) => a.cpfs_enabled)?.cpfs_package as 'standard' | 'premium') || 'standard'
@@ -130,6 +134,7 @@ const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, me }) => {
         customer_id: me.id,
         task_type: 'Renewal',
         request_type: 'paid',
+        vm_id: vm.id,
         hostname: (vm as any).hostname || vm.name,
         purpose: `Renew for ${(vm as any).hostname || vm.name}`,
         vcpu: vm.vcpu,
@@ -306,8 +311,17 @@ const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, me }) => {
                     <input
                       type="checkbox"
                       checked={selectedAddons.cpfs}
-                      onChange={(e) => setSelectedAddons(prev => ({ ...prev, cpfs: e.target.checked }))}
-                      style={{ cursor: 'pointer' }}
+                      disabled={!hasCpfs}
+                      onChange={(e) => {
+                        if (!e.target.checked) {
+                          // When unselecting CPFS, also unselect CCIS
+                          setSelectedAddons({ cpfs: false, ccis: false })
+                        } else {
+                          // When selecting CPFS, also select CCIS if VM originally has both
+                          setSelectedAddons({ cpfs: true, ccis: hasCcis })
+                        }
+                      }}
+                      style={{ cursor: hasCpfs ? 'pointer' : 'not-allowed' }}
                     />
                     <div>
                       <div className="fw-6 text-sm">CPFS</div>
@@ -332,8 +346,17 @@ const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, me }) => {
                     <input
                       type="checkbox"
                       checked={selectedAddons.ccis}
-                      onChange={(e) => setSelectedAddons(prev => ({ ...prev, ccis: e.target.checked }))}
-                      style={{ cursor: 'pointer' }}
+                      disabled={!hasCcis}
+                      onChange={(e) => {
+                        if (!e.target.checked) {
+                          // When unselecting CCIS, also unselect CPFS
+                          setSelectedAddons({ cpfs: false, ccis: false })
+                        } else {
+                          // When selecting CCIS, also select CPFS if VM originally has both
+                          setSelectedAddons({ cpfs: hasCpfs, ccis: true })
+                        }
+                      }}
+                      style={{ cursor: hasCcis ? 'pointer' : 'not-allowed' }}
                     />
                     <div>
                       <div className="fw-6 text-sm">CCIS</div>
@@ -466,6 +489,7 @@ const CustUpgradeModal: React.FC<CustUpgradeModalProps> = ({ vm, onClose, me }) 
         customer_id: me.id,
         task_type: 'change-plan',
         request_type: originalRequest.request_type || 'paid',
+        vm_id: vm.id,
         hostname: currentHostname,
         purpose: purpose,
         vcpu: spec.vcpu,

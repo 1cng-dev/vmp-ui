@@ -1,7 +1,8 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import Icon from '../../lib/icons'
 import { Avatar } from '../ui/ui'
 import { useAuth } from '../auth/Auth'
+import { supabase } from '../../lib/supabase'
 import { useCustomerStore } from '../../store/customerStore'
 import { useVMRequestStore } from '../../store/vmRequestStore'
 import useTicketStore from '../../store/ticketStore'
@@ -158,7 +159,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
 
 
   const auth = useAuth()
-  const userName = auth?.user?.name || auth?.user?.email?.split('@')[0] || 'User'
+  const [userName, setUserName] = useState(() => auth?.user?.name || auth?.user?.email?.split('@')[0] || 'User')
+
+  // Listen to Supabase auth state changes to update user name in real-time
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user?.user_metadata?.name) {
+        setUserName(session.user.user_metadata.name)
+      } else if (session?.user?.email) {
+        setUserName(session.user.email.split('@')[0])
+      }
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [])
   const roleLabel = roleNames[role] || role
   const HIDDEN = new Set(['calendar', 'network', 'console', 'nodes', 'topology', 'snapshots', 'maintenance', 'patches', 'firewall', 'health', 'apikeys', 'backups', 'pipeline', 'followups', 'trials'])
   const items = (role === 'Customer' ? [
@@ -169,8 +185,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
   ] : NAV).filter(it => it.section || (it.id && !HIDDEN.has(it.id)))
 
   const allowedFor: Record<string, Set<string> | null> = {
-    'Sales': new Set(['dashboard', 'alerts', 'calendar', 'activity', 'vms', 'tasks', 'addons', 'addon-services', 'customers', 'kyc', 'quotes', 'finance', 'receipts', 'announcements']),
-    'Engineer': new Set(['dashboard', 'alerts', 'calendar', 'activity', 'vms', 'tasks', 'addons', 'addon-services', 'network', 'console', 'nodes', 'topology', 'snapshots', 'maintenance', 'patches', 'firewall', 'announcements']),
+    'Sales': new Set(['dashboard', 'alerts', 'calendar', 'vms', 'tasks', 'addons', 'addon-services', 'customers', 'kyc', 'quotes', 'finance', 'receipts', 'announcements']),
+    'Engineer': new Set(['dashboard', 'alerts', 'calendar', 'vms', 'tasks', 'addons', 'addon-services', 'network', 'console', 'nodes', 'topology', 'snapshots', 'maintenance', 'patches', 'firewall', 'announcements']),
     'Finance': new Set(['dashboard', 'alerts', 'calendar', 'vms', 'tasks', 'addon-services', 'finance', 'receipts', 'quote-review', 'reports', 'customers', 'aging', 'announcements']),
     'Admin': null,
   }

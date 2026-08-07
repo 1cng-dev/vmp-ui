@@ -56,6 +56,7 @@ import {
   BackupCenterView,
 } from "./pages/AdminExtras";
 import CustomerPortal from "./pages/CustomerPortal";
+import ConsolePage from "./pages/ConsolePage";
 import QuotesView from "./pages/QuotesView";
 import FinanceQuoteReviewView from "./pages/FinanceQuoteReviewView";
 import SupportTicketsView from "./pages/SupportTicketsView";
@@ -773,6 +774,10 @@ const App = () => {
                                       <Route
                                         path="/auth/reset-password"
                                         element={<ResetPasswordScreen />}
+                                      />
+                                      <Route
+                                        path="/console/:recordId"
+                                        element={<ConsolePage />}
                                       />
                                       <Route
                                         path="/admin"

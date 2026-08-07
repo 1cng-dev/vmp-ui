@@ -115,9 +115,9 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
         </div>
 
         <div className="tabs">
-          {['overview', 'specs', 'network', 'usage', 'backups', 'credentials', 'addons'].map(t => (
+          {['overview', 'specs', 'network', 'backups', 'credentials', 'addons'].map(t => (
             <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
-              {t === 'overview' ? 'Overview' : t === 'specs' ? 'Specs' : t === 'network' ? 'Network' : t === 'usage' ? 'Usage' : t === 'backups' ? 'Backups' : t === 'credentials' ? 'Credentials' : 'Add-ons'}
+              {t === 'overview' ? 'Overview' : t === 'specs' ? 'Specs' : t === 'network' ? 'Network' : t === 'backups' ? 'Backups' : t === 'credentials' ? 'Credentials' : 'Add-ons'}
             </button>
           ))}
         </div>
@@ -277,7 +277,7 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
                         <td className="mono">{c.user}</td>
                         <td className="mono">••••••••••••••••</td>
                         <td className="right">
-                          <button className="btn sm" onClick={() => { navigator.clipboard?.writeText(c.pass); alert('Password copied') }}><Icon name="check" size={11} />Copy</button>
+                          <button className="btn sm" onClick={() => { navigator.clipboard?.writeText(c.pass); toast('Password copied', 'ok') }}><Icon name="check" size={11} />Copy</button>
                         </td>
                       </tr>
                     ))}

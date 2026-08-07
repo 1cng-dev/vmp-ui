@@ -77,6 +77,7 @@ export interface VM {
   subscription: string;
   priceMonth: number;
   legacy_id?: string;
+  vm_id?: string;
   assigned_vmid?: number;
   start_date?: string;
   end_date?: string;

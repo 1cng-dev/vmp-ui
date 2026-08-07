@@ -157,3 +157,7 @@ DROP INDEX IF EXISTS idx_vms_billing_term;
 
 ALTER TABLE vm_requests ADD COLUMN spec_changed BOOLEAN DEFAULT false;
 ALTER TABLE vm_requests ADD COLUMN backup_changed BOOLEAN DEFAULT false;
+
+
+ALTER TABLE vm_requests ADD COLUMN vm_id UUID REFERENCES vms(id);
+CREATE INDEX idx_vm_requests_vm_id ON vm_requests(vm_id);

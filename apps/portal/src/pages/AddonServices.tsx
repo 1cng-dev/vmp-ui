@@ -110,7 +110,7 @@ const AddonServicesView: React.FC<AddonServicesViewProps> = ({ openTask, setView
     <div className="content">
       <div className="page-head">
         <div>
-          <h1 className="page-title">Add-on Services</h1>
+          <h1 className="page-title">Add-on Requests</h1>
           <p className="page-subtitle">Manage CPFS/CCIS requests across customers · {filteredByRole.length} total</p>
         </div>
       </div>
@@ -159,7 +159,7 @@ const AddonServicesView: React.FC<AddonServicesViewProps> = ({ openTask, setView
                     <td>
                       <div className="fw-6 text-sm">{cust?.name}{cust?.org_name ? ` (${cust.org_name})` : ''}</div>
                     </td>
-                    <td className="mono text-sm">{vmData[t.vm_id] ? `${vmData[t.vm_id].hostname} (${vmData[t.vm_id].legacy_id})` : t.vm_id?.slice(0,8) || '—'}</td>
+                    <td className="mono text-sm">{vmData[t.vm_id] ? `${vmData[t.vm_id].legacy_id}` : t.vm_id?.slice(0,8) || '—'}</td>
                     <td>{svc}</td>
                     <td className="tnum text-sm">{t.start_date ? new Date(t.start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}</td>
                     <td><ExpiryCell date={t.expiry || ''} /></td>
