@@ -3,6 +3,7 @@ import Icon from "../../lib/icons";
 import type { Task } from "../../types";
 import { supabase } from "../../lib/supabase";
 import useUIStore from "../../store/uiStore";
+import ProxmoxNodeInput from "../vm/ProxmoxNodeInput";
 
 interface EngineerVMCreateFormProps {
   task: Task;
@@ -173,13 +174,7 @@ const EngineerVMCreateForm = ({
 
             <div className="field">
               <label>Proxmox Node <span style={{ color: "var(--bad)" }}>*</span></label>
-              <input
-                type="text"
-                className="input"
-                value={node}
-                onChange={(e) => setNode(e.target.value)}
-                placeholder="e.g., pve1"
-              />
+              <ProxmoxNodeInput className="input" value={node} onChange={setNode} />
             </div>
             <div className="field">
               <label>VM Type <span style={{ color: "var(--bad)" }}>*</span></label>

@@ -9,6 +9,7 @@ import useActivityStore from "../store/activityStore";
 import Icon from "../lib/icons";
 import { Avatar } from "../components/ui/ui";
 import { IaaSCard } from "../components/customer-portal/VMHelperComponents";
+import ProxmoxNodeInput from "../components/vm/ProxmoxNodeInput";
 import { supabase } from "../lib/supabase";
 
 const AdminDirectVMCreate: React.FC = () => {
@@ -873,11 +874,7 @@ const AdminDirectVMCreate: React.FC = () => {
                   <label>
                     Proxmox Node <span style={{ color: "var(--bad)" }}>*</span>
                   </label>
-                  <input
-                    value={f.node}
-                    onChange={(e) => set("node", e.target.value)}
-                    placeholder="e.g., pve1"
-                  />
+                  <ProxmoxNodeInput value={f.node} onChange={(v) => set("node", v)} />
                 </div>
                 <div className="field">
                   <label>
@@ -2153,11 +2150,7 @@ const AdminDirectVMCreate: React.FC = () => {
                 <label>
                   Proxmox Node <span style={{ color: "var(--bad)" }}>*</span>
                 </label>
-                <input
-                  value={f.node}
-                  onChange={(e) => set("node", e.target.value)}
-                  placeholder="e.g. pve1"
-                />
+                <ProxmoxNodeInput value={f.node} onChange={(v) => set("node", v)} />
               </div>
               <div className="field">
                 <label>

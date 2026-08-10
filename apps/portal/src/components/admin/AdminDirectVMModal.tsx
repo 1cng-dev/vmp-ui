@@ -6,6 +6,7 @@ import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { Avatar } from '../ui/ui'
 import { supabase } from '../../lib/supabase'
+import ProxmoxNodeInput from '../vm/ProxmoxNodeInput'
 
 interface AdminDirectVMModalProps {
   onClose: () => void
@@ -51,6 +52,7 @@ const AdminDirectVMModal: React.FC<AdminDirectVMModalProps> = ({ onClose }) => {
     backup_type: 'daily',
     // Step 6: Engineer Data (NEW)
     assigned_vmid: '',
+    node: '',
     public_ip: '',
     private_ip: '',
     username: 'root',
@@ -120,6 +122,15 @@ const AdminDirectVMModal: React.FC<AdminDirectVMModalProps> = ({ onClose }) => {
       return
     }
 
+    // A Proxmox node isn't optional once an assigned_vmid is set — without
+    // it, addVM() silently falls back to a hardcoded default node, binding
+    // the VM to the wrong place on a multi-node cluster with no error.
+    if (f.assigned_vmid && !f.node.trim()) {
+      setSubmitError('Please enter the Proxmox node this VM ID is on')
+      toast('Please enter the Proxmox node this VM ID is on', 'error')
+      return
+    }
+
     setSubmitError('')
     setLoading(true)
     let vmId: string | null = null
@@ -129,6 +140,7 @@ const AdminDirectVMModal: React.FC<AdminDirectVMModalProps> = ({ onClose }) => {
         hostname: f.hostname,
         customer_id: f.customer,
         assigned_vmid: parseInt(f.assigned_vmid) || undefined,
+        node: f.node.trim() || undefined,
         vcpu: f.vcpu,
         ram_gb: f.ram_gb,
         storage_gb: f.storage_gb,
@@ -440,6 +452,12 @@ const AdminDirectVMModal: React.FC<AdminDirectVMModalProps> = ({ onClose }) => {
                   <label>Assigned VM ID (Proxmox)</label>
                   <input type="number" value={f.assigned_vmid} onChange={e => set('assigned_vmid', e.target.value)} placeholder="e.g., 1001" style={{ fontFamily: 'var(--mono)' }} />
                 </div>
+                <div className="field">
+                  <label>Proxmox Node</label>
+                  <ProxmoxNodeInput value={f.node} onChange={v => set('node', v)} />
+                </div>
+              </div>
+              <div className="grid-2" style={{ gap: 12 }}>
                 <div className="field">
                   <label>Start date</label>
                   <input type="date" value={f.start_date} onChange={e => set('start_date', e.target.value)} />

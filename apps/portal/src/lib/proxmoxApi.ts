@@ -87,6 +87,25 @@ export async function listVMs(): Promise<{ scope: "all" | "owned"; data: Proxmox
   return { scope: data.scope, data: data.data };
 }
 
+export interface ProxmoxNode {
+  node: string;
+  status?: string;
+  cpu?: number;
+  maxcpu?: number;
+  mem?: number;
+  maxmem?: number;
+  uptime?: number;
+}
+
+// Cluster node topology, live from Proxmox (proxmox-proxcy's GET /api/nodes
+// queries /cluster/resources on every call — never cached), not a fixed
+// list — nodes can be added or removed at any time. Backs node-picker
+// autocomplete in the VM binding forms (see ProxmoxNodeInput).
+export async function listNodes(): Promise<ProxmoxNode[]> {
+  const { data } = await proxmoxApi.get("/api/nodes");
+  return data.data || [];
+}
+
 export async function getVMStatus(vmid: number): Promise<ProxmoxVMDetail> {
   const { data } = await proxmoxApi.get(`/api/vms/${vmid}`);
   return { vmid: data.vmid, status: data.status, config: data.config };
