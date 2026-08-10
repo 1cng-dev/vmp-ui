@@ -805,6 +805,27 @@ const NewCustomerModal: React.FC<NewCustomerModalProps> = ({ onClose, onPassword
     return pattern.test(legacyId)
   }
 
+  const validateLegacyIdSequence = (legacyId: string): boolean => {
+    // Format: 1CNG-VPS-{customer_code} where customer_code is 4 digits
+    const pattern = /^1CNG-VPS-\d{4}$/
+    if (!pattern.test(legacyId)) {
+      return false
+    }
+
+    // Extract customer code (remove "1CNG-VPS-" prefix)
+    const customerCode = parseInt(legacyId.replace('1CNG-VPS-', ''), 10)
+    if (isNaN(customerCode)) {
+      return false
+    }
+
+    // Validate that customer code doesn't exceed 50
+    if (customerCode > 50) {
+      return false
+    }
+
+    return true
+  }
+
   const submit = async () => {
     // Validate required fields
     if (!f.name) {
@@ -842,6 +863,10 @@ const NewCustomerModal: React.FC<NewCustomerModalProps> = ({ onClose, onPassword
 
     if (!validateLegacyIdFormat(f.legacyId)) {
       toast('Legacy ID must be in format: 1CNG-VPS-00xx', 'error')
+      return
+    }
+    if (!validateLegacyIdSequence(f.legacyId)) {
+      toast('Customer legacy ID code cannot exceed 50. Expected: 1CNG-VPS-0001 to 1CNG-VPS-0050', 'error')
       return
     }
 

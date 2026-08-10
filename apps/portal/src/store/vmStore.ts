@@ -139,7 +139,6 @@ export interface VMStoreValue {
   updateVMTags: (id: string, tags: string[]) => Promise<void>;
   updateVMNotes: (id: string, notes: string) => Promise<void>;
   checkDuplicateLegacyId: (legacyId: string) => boolean;
-  validateLegacyIdSequence: (legacyId: string) => boolean;
 }
 
 const VMContext = createContext<VMStoreValue | null>(null);
@@ -295,11 +294,6 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
   const addVM = useCallback(
     async (vm: NewVMInput) => {
-      // Validate legacy_id sequence if provided
-      if (vm.legacy_id && !validateLegacyIdSequence(vm.legacy_id)) {
-        throw new Error("Invalid legacy ID format or VM sequence number exceeds 3000. Expected format: VPS-TDC-0001-3000-Customer Name");
-      }
-
       // Non-sensitive fields only — assigned_vmid/node/pmx_type/username/
       // password are written separately below, through proxmox-proxcy,
       // never as a direct client-side insert. Encrypting the password
@@ -558,34 +552,6 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     return vms.some(v => v.legacy_id === legacyId)
   }, [vms])
 
-  const validateLegacyIdSequence = useCallback((legacyId: string): boolean => {
-    if (!legacyId) return true // Allow null/empty legacy_id (will be auto-generated)
-    
-    // Format: VPS-TDC-{customer_id_digits}-{vm_sequence}-{customer_name}
-    const pattern = /^VPS-TDC-\d{4}-\d{4}-[\w\s]+$/
-    if (!pattern.test(legacyId)) {
-      return false
-    }
-    
-    // Extract VM sequence number (4th part of the legacy ID)
-    const parts = legacyId.split('-')
-    if (parts.length < 4) {
-      return false
-    }
-    
-    const vmSequence = parseInt(parts[3], 10)
-    if (isNaN(vmSequence)) {
-      return false
-    }
-    
-    // Validate that VM sequence number doesn't exceed 3000
-    if (vmSequence > 3000) {
-      return false
-    }
-    
-    return true
-  }, [])
-
   const value: VMStoreValue = {
     vms,
     vmsLoading,
@@ -605,7 +571,6 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     updateVMTags,
     updateVMNotes,
     checkDuplicateLegacyId,
-    validateLegacyIdSequence,
   };
   return React.createElement(VMContext.Provider, { value }, children as any);
 };

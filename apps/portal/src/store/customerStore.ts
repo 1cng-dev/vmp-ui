@@ -15,7 +15,6 @@ export interface CustomerStoreValue {
   deleteCustomer: (id: string) => Promise<void>
   subscribeToCustomers: () => () => void
   checkDuplicateLegacyId: (legacyId: string) => boolean
-  validateCustomerLegacyIdSequence: (legacyId: string) => boolean
 }
 
 // ── Global Customer Context Store ─────────────────────────────────────────────
@@ -101,34 +100,7 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
     return () => unsubscribe()
   }, [subscribeToCustomers])
 
-  const validateCustomerLegacyIdSequence = useCallback((legacyId: string): boolean => {
-    if (!legacyId) return true // Allow null/empty legacy_id (will be auto-generated)
-    
-    // Format: C-{customer_code} where customer_code is 4 digits
-    const pattern = /^C-\d{4}$/
-    if (!pattern.test(legacyId)) {
-      return false
-    }
-    
-    // Extract customer code (remove "C-" prefix)
-    const customerCode = parseInt(legacyId.replace('C-', ''), 10)
-    if (isNaN(customerCode)) {
-      return false
-    }
-    
-    // Validate that customer code doesn't exceed 50
-    if (customerCode > 50) {
-      return false
-    }
-    
-    return true
-  }, [])
-
   const addCustomer = useCallback(async (c: Omit<Customer, 'id'>) => {
-    // Validate legacy_id sequence if provided
-    if (c.legacy_id && !validateCustomerLegacyIdSequence(c.legacy_id)) {
-      throw new Error("Invalid legacy ID format or customer code exceeds 50. Expected format: C-0001 to C-0050");
-    }
 
     const { data, error } = await supabase
       .from('customers')
@@ -167,7 +139,7 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
       return data.legacy_id || data.id
     }
     throw new Error('Failed to create customer')
-  }, [loadCustomers, logActivity, validateCustomerLegacyIdSequence])
+  }, [loadCustomers, logActivity])
 
   const updateCustomer = useCallback(async (id: string, patch: Partial<Customer>) => {
     const previousCustomer = customers.find(c => c.id === id)
@@ -280,10 +252,6 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
   }, [customers])
 
   const addCustomerWithAuth = useCallback(async (c: Omit<Customer, 'id'>, tempPassword: string) => {
-    // Validate legacy_id sequence if provided
-    if (c.legacy_id && !validateCustomerLegacyIdSequence(c.legacy_id)) {
-      throw new Error("Invalid legacy ID format or customer code exceeds 50. Expected format: C-0001 to C-0050");
-    }
     // Create auth user first
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: c.email,
@@ -339,7 +307,7 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
       return data.legacy_id || data.id
     }
     throw new Error('Failed to create customer')
-  }, [loadCustomers, logActivity, validateCustomerLegacyIdSequence])
+  }, [loadCustomers, logActivity])
 
   const value: CustomerStoreValue = {
     customers,
@@ -353,7 +321,6 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
     deleteCustomer,
     subscribeToCustomers,
     checkDuplicateLegacyId,
-    validateCustomerLegacyIdSequence,
   }
 
   return React.createElement(CustomerContext.Provider, { value }, children as any)
