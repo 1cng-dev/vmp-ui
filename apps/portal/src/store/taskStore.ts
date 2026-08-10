@@ -240,79 +240,79 @@ const useTaskStore = (): TaskStoreValue => {
         });
       }
 
-      for (let i = 0; i < qty; i++) {
-        const assignedVmid = vmDetails.assigned_vmids[i] || null;
+      try {
+        for (let i = 0; i < qty; i++) {
+          const assignedVmid = vmDetails.assigned_vmids[i] || null;
 
-        // Check for duplicate assigned VM ID (Proxmox ID) in both vms and vm_ownership tables
-        if (assignedVmid) {
-          const { data: existingVM } = await supabase
-            .from("vms")
-            .select("id, hostname")
-            .eq("assigned_vmid", assignedVmid)
-            .maybeSingle();
+          // Check for duplicate assigned VM ID (Proxmox ID) in both vms and vm_ownership tables
+          if (assignedVmid) {
+            const { data: existingVM } = await supabase
+              .from("vms")
+              .select("id, hostname")
+              .eq("assigned_vmid", assignedVmid)
+              .maybeSingle();
 
-const { data: existingOwnership } = await supabase
-            .from("vm_ownership")
-            .select("vmid")
-            .eq("vmid", assignedVmid)
-            .maybeSingle();
+  const { data: existingOwnership } = await supabase
+              .from("vm_ownership")
+              .select("vmid")
+              .eq("vmid", assignedVmid)
+              .maybeSingle();
 
-// Handle orphaned records: VM exists in vms but not in vm_ownership
-          if (existingVM && !existingOwnership) {
-            await supabase.from("vms").delete().eq("id", existingVM.id);
-          } else if (existingVM || existingOwnership) {
-            const source = existingVM ? 'vms table' : 'vm_ownership table';
-            throw new Error(`Proxmox VM ID ${assignedVmid} is already in use in ${source}. Please use a different VM ID.`);
+  // Handle orphaned records: VM exists in vms but not in vm_ownership
+            if (existingVM && !existingOwnership) {
+              await supabase.from("vms").delete().eq("id", existingVM.id);
+            } else if (existingVM || existingOwnership) {
+              const source = existingVM ? 'vms table' : 'vm_ownership table';
+              throw new Error(`Proxmox VM ID ${assignedVmid} is already in use in ${source}. Please use a different VM ID.`);
+            }
           }
-        }
 
-        const vmData = {
-          hostname: `${t.hostname}-${maxNumber + i + 1}`,
-          public_ip: vmDetails.publicIps[i] || vmDetails.publicIps[0],
-          private_ip: vmDetails.privateIps[i] || vmDetails.privateIps[0],
-          username: vmDetails.username,
-          password: vmDetails.password,
-          vcpu: t.vcpu,
-          ram_gb: t.ram_gb ?? t.ram,
-          storage_gb: t.storage_gb ?? t.storage,
-          status: "Active",
-          power_state: "Running",
-          customer_id: t.customer_id,
-          vm_request_id: t.id,
-          task_type: t.task_type,
-          expiry: expiry,
-          duration: t.request_type === 'trial' ? '14 days' : (parsedDuration ? `${parsedDuration.value} month${parsedDuration.value > 1 ? 's' : ''}` : `${durationValue || 12} month${(durationValue || 12) > 1 ? 's' : ''}`),
-          start_date: start_date,
-          end_date: end_date,
-          legacy_id: undefined, // Let database trigger generate VPS-TDC-{customer_id}-{vm_number}-{customer_name} format
-          assigned_vmid: assignedVmid,
-          node: vmDetails.node || "pve1", // ADD THIS
-          pmx_type: vmDetails.pmx_type || "qemu", // ADD THIS
-          backup_enabled: t.backup_enabled || false,
-          backup_type: t.backup_type || "weekly",
-          // Copy request_type from vm_request
-          request_type: t.request_type,
-          // Copy OS fields from vm_request
-          os_name: t.os_name,
-          os_version: t.os_version,
-          custom_os_name: t.custom_os_name,
-          custom_os_version: t.custom_os_version,
-          // Copy network fields from vm_request
-          zone: t.zone,
-          nics: t.nics,
-          public_ip_required: t.public_ip_required,
-          firewall_ports: t.firewall_ports,
-          firewall_outbound_allow_all: t.firewall_outbound_allow_all,
-          firewall_outbound_custom_ports: t.firewall_outbound_custom_ports,
-          // Copy other fields from vm_request
-          purpose: t.purpose,
-          sizing: t.sizing,
-          storage_partitions: t.storage_partitions,
-          qty: t.qty,
-          // Set provision_status to 'completed' for provisioned VMs
-          provision_status: "completed",
-        };
-        try {
+          const vmData = {
+            hostname: `${t.hostname}-${maxNumber + i + 1}`,
+            public_ip: vmDetails.publicIps[i] || vmDetails.publicIps[0],
+            private_ip: vmDetails.privateIps[i] || vmDetails.privateIps[0],
+            username: vmDetails.username,
+            password: vmDetails.password,
+            vcpu: t.vcpu,
+            ram_gb: t.ram_gb ?? t.ram,
+            storage_gb: t.storage_gb ?? t.storage,
+            status: "Active",
+            power_state: "Running",
+            customer_id: t.customer_id,
+            vm_request_id: t.id,
+            task_type: t.task_type,
+            expiry: expiry,
+            duration: t.request_type === 'trial' ? '14 days' : (parsedDuration ? `${parsedDuration.value} month${parsedDuration.value > 1 ? 's' : ''}` : `${durationValue || 12} month${(durationValue || 12) > 1 ? 's' : ''}`),
+            start_date: start_date,
+            end_date: end_date,
+            legacy_id: undefined, // Let database trigger generate VPS-TDC-{customer_id}-{vm_number}-{customer_name} format
+            assigned_vmid: assignedVmid,
+            node: vmDetails.node || "pve1", // ADD THIS
+            pmx_type: vmDetails.pmx_type || "qemu", // ADD THIS
+            backup_enabled: t.backup_enabled || false,
+            backup_type: t.backup_type || "weekly",
+            // Copy request_type from vm_request
+            request_type: t.request_type,
+            // Copy OS fields from vm_request
+            os_name: t.os_name,
+            os_version: t.os_version,
+            custom_os_name: t.custom_os_name,
+            custom_os_version: t.custom_os_version,
+            // Copy network fields from vm_request
+            zone: t.zone,
+            nics: t.nics,
+            public_ip_required: t.public_ip_required,
+            firewall_ports: t.firewall_ports,
+            firewall_outbound_allow_all: t.firewall_outbound_allow_all,
+            firewall_outbound_custom_ports: t.firewall_outbound_custom_ports,
+            // Copy other fields from vm_request
+            purpose: t.purpose,
+            sizing: t.sizing,
+            storage_partitions: t.storage_partitions,
+            qty: t.qty,
+            // Set provision_status to 'completed' for provisioned VMs
+            provision_status: "completed",
+          };
           // addVM writes the vm_ownership binding itself (via proxmox-proxcy's
           // admin bindings endpoint, when vmData.assigned_vmid is set) — it
           // encrypts the password server-side, which a direct client-side
@@ -320,9 +320,20 @@ const { data: existingOwnership } = await supabase
           // vm_ownership write in this function.
           const vmId = await addVM(vmData);
           vmIds.push(vmId);
-        } catch (error: any) {
-          throw error;
         }
+      } catch (error: any) {
+        // Rollback: Delete all VMs that were successfully inserted before the error
+        // Use secure RPC function that checks staff permissions on server side
+        if (vmIds.length > 0) {
+          try {
+            await supabase.rpc('rollback_vm_creation', {
+              vm_ids: vmIds
+            });
+          } catch {
+            // Silently handle rollback errors
+          }
+        }
+        throw error;
       }
 
     },

@@ -371,7 +371,10 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
             pmx_type: vm.pmx_type || "qemu",
           });
         } catch (bindingError: any) {
-          await supabase.from("vms").delete().eq("id", insertedVM.id);
+          // Use RPC function to delete VM (bypasses RLS with staff check)
+          await supabase.rpc('rollback_vm_creation', {
+            vm_ids: [insertedVM.id]
+          });
 
           const message =
             bindingError?.response?.data?.error || bindingError?.message || "Failed to bind VM to Proxmox";
