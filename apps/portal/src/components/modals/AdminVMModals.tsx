@@ -1,6 +1,7 @@
 // Admin VM action modals — New VM, Renew, Change Spec (matching original UI)
 
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import useVMStore from '../../store/vmStore'
 import useCustomerStore from '../../store/customerStore'
 import useTaskStore from '../../store/taskStore'
@@ -164,7 +165,7 @@ const NewVMModal: React.FC<NewVMModalProps> = ({ onClose }) => {
               )}
               <div className="grid-2" style={{ gap: 12 }}>
                 <div className="field">
-                  <label>VM name (hostname)</label>
+                  <label>VM name (hostname) <span style={{ color: "var(--bad)" }}>*</span></label>
                   <input value={f.name} onChange={e => set('name', e.target.value.replace(/\s/g, '-').toLowerCase())} placeholder="mlc-app-prod-02" style={{ fontFamily: 'var(--mono)' }} />
                 </div>
                 <div className="field">
@@ -703,16 +704,23 @@ interface DeleteModalProps {
 const DeleteModal: React.FC<DeleteModalProps> = ({ vm, onClose }) => {
   const { deleteVM } = useVMStore()
   const { toast } = useUIStore()
+  const navigate = useNavigate()
   const [inputValue, setInputValue] = useState('')
 
   const vmName = (vm as any).hostname || vm.name
   const isConfirmed = inputValue === vmName
 
-  const submit = () => {
+  const submit = async () => {
     if (!isConfirmed) return
-    deleteVM(vm.id)
-    toast(`VM ${vmName} permanently deleted`, 'bad')
-    onClose()
+
+    try {
+      await deleteVM(vm.id)
+      toast(`VM ${vmName} permanently deleted`, 'bad')
+      onClose()
+      navigate('/admin/vms', { replace: true })
+    } catch (error: any) {
+      toast(error?.message || 'Failed to delete VM', 'error')
+    }
   }
 
   return (
@@ -798,21 +806,52 @@ const NewCustomerModal: React.FC<NewCustomerModalProps> = ({ onClose, onPassword
   }
 
   const submit = async () => {
+    // Validate required fields
+    if (!f.name) {
+      toast('Contact name is required', 'error')
+      return
+    }
+    if (!f.email) {
+      toast('Email is required', 'error')
+      return
+    }
+    if (!f.phone) {
+      toast('Phone is required', 'error')
+      return
+    }
+    if (!f.legacyId) {
+      toast('Legacy ID is required', 'error')
+      return
+    }
+    if (!f.address) {
+      toast('Street address is required', 'error')
+      return
+    }
+    if (f.accountType === 'Organization' && !f.company) {
+      toast('Company name is required for Organization accounts', 'error')
+      return
+    }
+    if (!f.payerName) {
+      toast('Payer name is required', 'error')
+      return
+    }
+    if (!f.payerPhone) {
+      toast('Payer phone is required', 'error')
+      return
+    }
 
-    if (f.legacyId && !validateLegacyIdFormat(f.legacyId)) {
+    if (!validateLegacyIdFormat(f.legacyId)) {
       toast('Legacy ID must be in format: 1CNG-VPS-00xx', 'error')
       return
     }
 
     setLoading(true)
 
-    if (f.legacyId) {
-      const isDuplicate = checkDuplicateLegacyId(f.legacyId)
-      if (isDuplicate) {
-        toast('Legacy ID already exists. Please use a different ID.', 'error')
-        setLoading(false)
-        return
-      }
+    const isDuplicate = checkDuplicateLegacyId(f.legacyId)
+    if (isDuplicate) {
+      toast('Legacy ID already exists. Please use a different ID.', 'error')
+      setLoading(false)
+      return
     }
 
     try {
@@ -876,17 +915,17 @@ const NewCustomerModal: React.FC<NewCustomerModalProps> = ({ onClose, onPassword
             {/* Contact Information */}
             <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Contact Information</div>
             <div className="grid-2" style={{ gap: 12 }}>
-              <div className="field"><label>Contact name</label><input value={f.name} onChange={e => set('name', e.target.value)} placeholder="Aung Min Htet" /></div>
-              <div className="field"><label>Email</label><input type="email" value={f.email} onChange={e => set('email', e.target.value)} placeholder="contact@company.com" /></div>
+              <div className="field"><label>Contact name <span style={{ color: 'var(--bad)' }}>*</span></label><input value={f.name} onChange={e => set('name', e.target.value)} placeholder="Aung Min Htet" /></div>
+              <div className="field"><label>Email <span style={{ color: 'var(--bad)' }}>*</span></label><input type="email" value={f.email} onChange={e => set('email', e.target.value)} placeholder="contact@company.com" /></div>
             </div>
             <div className="grid-2" style={{ gap: 12 }}>
-              <div className="field"><label>Phone</label><input value={f.phone} onChange={e => set('phone', e.target.value)} placeholder="+95 9 ..." /></div>
+              <div className="field"><label>Phone <span style={{ color: 'var(--bad)' }}>*</span></label><input value={f.phone} onChange={e => set('phone', e.target.value)} placeholder="+95 9 ..." /></div>
               <div className="field"><label>Alternate phone</label><input value={f.altPhone} onChange={e => set('altPhone', e.target.value)} placeholder="+95 9 ..." /></div>
             </div>
             <div className="field">
-              <label>Legacy ID (optional - for existing customers from previous system)</label>
+              <label>Legacy ID <span style={{ color: 'var(--bad)' }}>*</span></label>
               <input value={f.legacyId} onChange={e => set('legacyId', e.target.value)} placeholder="e.g., 1CNG-VPS-0001" />
-              <div className="hint">Only enter a legacy ID Format: 1CNG-VPS-00xx</div>
+              <div className="hint">Format: 1CNG-VPS-00xx</div>
             </div>
 
             {/* Organization Details */}
@@ -894,7 +933,7 @@ const NewCustomerModal: React.FC<NewCustomerModalProps> = ({ onClose, onPassword
               <>
                 <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Organization Details</div>
                 <div className="grid-2" style={{ gap: 12 }}>
-                  <div className="field"><label>Company name</label><input value={f.company} onChange={e => set('company', e.target.value)} placeholder="Mandalay Logistics Co., Ltd" /></div>
+                  <div className="field"><label>Company name <span style={{ color: 'var(--bad)' }}>*</span></label><input value={f.company} onChange={e => set('company', e.target.value)} placeholder="Mandalay Logistics Co., Ltd" /></div>
                   <div className="field"><label>Registration number</label><input value={f.orgRegNo} onChange={e => set('orgRegNo', e.target.value)} placeholder="12345678" /></div>
                 </div>
                 <div className="grid-2" style={{ gap: 12 }}>
@@ -938,7 +977,7 @@ const NewCustomerModal: React.FC<NewCustomerModalProps> = ({ onClose, onPassword
 
             {/* Address */}
             <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Address</div>
-            <div className="field"><label>Street address</label><input value={f.address} onChange={e => set('address', e.target.value)} placeholder="Building, street, township" /></div>
+            <div className="field"><label>Street address <span style={{ color: 'var(--bad)' }}>*</span></label><input value={f.address} onChange={e => set('address', e.target.value)} placeholder="Building, street, township" /></div>
             <div className="grid-3" style={{ gap: 10 }}>
               <div className="field"><label>City</label><input value={f.city} onChange={e => set('city', e.target.value)} /></div>
               <div className="field"><label>State/Region</label><input value={f.state} onChange={e => set('state', e.target.value)} /></div>
@@ -958,8 +997,8 @@ const NewCustomerModal: React.FC<NewCustomerModalProps> = ({ onClose, onPassword
               </select>
             </div>
             <div className="grid-2" style={{ gap: 12 }}>
-              <div className="field"><label>Payer name</label><input value={f.payerName} onChange={e => set('payerName', e.target.value)} placeholder="Name on payment account" /></div>
-              <div className="field"><label>Payer phone</label><input value={f.payerPhone} onChange={e => set('payerPhone', e.target.value)} placeholder="+95 9 ..." /></div>
+              <div className="field"><label>Payer name <span style={{ color: 'var(--bad)' }}>*</span></label><input value={f.payerName} onChange={e => set('payerName', e.target.value)} placeholder="Name on payment account" /></div>
+              <div className="field"><label>Payer phone <span style={{ color: 'var(--bad)' }}>*</span></label><input value={f.payerPhone} onChange={e => set('payerPhone', e.target.value)} placeholder="+95 9 ..." /></div>
             </div>
 
             <div style={{ padding: 12, background: 'var(--warn-soft)', borderRadius: 6, fontSize: 12, color: 'oklch(0.4 0.13 75)', display: 'flex', gap: 8 }}>
@@ -970,7 +1009,7 @@ const NewCustomerModal: React.FC<NewCustomerModalProps> = ({ onClose, onPassword
         </div>
         <div className="modal-foot">
           <button className="btn ghost" onClick={onClose} disabled={loading}>Cancel</button>
-          <button className="btn accent" disabled={!f.name || !f.email || loading} onClick={submit}>
+          <button className="btn accent" disabled={!f.name || !f.email || !f.phone || !f.legacyId || !f.address || (f.accountType === 'Organization' && !f.company) || !f.payerName || !f.payerPhone || loading} onClick={submit}>
             <Icon name="plus" size={12} />{loading ? 'Creating...' : 'Add customer'}
           </button>
         </div>
@@ -1544,3 +1583,4 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({ onClose, title = 'Confirm a
 }
 
 export { NewVMModal, RenewModal, SpecModal, TerminateModal, DeleteModal, NewTaskModal, TaskDetailModal, NewCustomerModal, TempPasswordModal, EmailModal, NewInvoiceModal, InviteMemberModal, ConfirmModal }
+

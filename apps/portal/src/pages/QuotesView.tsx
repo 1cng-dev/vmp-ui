@@ -200,45 +200,16 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
         const backupLines: BackupLine[] = []
 
         if (isSpecChange || specDiffers) {
-          if ((selectedRequest as any).vcpu) {
-            const vcpuMonthlyPrice = 25000 // Fixed price per vCPU core
-
-            instanceLines.push({
-              spec: `vCPU|${(selectedRequest as any).vcpu} cores`,
-              vcpu: 0,
-              ram: 0,
-              storage: 0,
-              qty: 1,
-              unit: vcpuMonthlyPrice,
-              term: String(billingTerm)
-            })
-          }
-          if ((selectedRequest as any).ram_gb) {
-            const ramMonthlyPrice = (selectedRequest as any).ram_gb * 3000 // 3000 MMK per GB
-
-            instanceLines.push({
-              spec: `RAM|${(selectedRequest as any).ram_gb} GB`,
-              vcpu: 0,
-              ram: 0,
-              storage: 0,
-              qty: 1,
-              unit: ramMonthlyPrice,
-              term: String(billingTerm)
-            })
-          }
-          if ((selectedRequest as any).storage) {
-            const storageMonthlyPrice = (selectedRequest as any).storage * 500 // 500 MMK per GB
-
-            instanceLines.push({
-              spec: `Storage|${(selectedRequest as any).storage} GB`,
-              vcpu: 0,
-              ram: 0,
-              storage: 0,
-              qty: 1,
-              unit: storageMonthlyPrice,
-              term: String(billingTerm)
-            })
-          }
+          // Show all specs inline in a single row like regular VM requests
+          instanceLines.push({
+            spec: (selectedRequest as any).hostname || 'VM Upgrade',
+            vcpu: (selectedRequest as any).vcpu || 0,
+            ram: (selectedRequest as any).ram_gb || 0,
+            storage: (selectedRequest as any).storage || 0,
+            qty: 1,
+            unit: 0,
+            term: String(billingTerm)
+          })
         }
 
         if ((isBackupChange || backupDiffers) && (selectedRequest as any).backup_enabled) {
@@ -283,58 +254,23 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
       const backupLines: BackupLine[] = []
 
       if (isSpecChange || specDiffers) {
-        if ((selectedRequest as any).vcpu) {
-          // Calculate vCPU monthly price
-          const vcpuMonthlyPrice = (currentVMData.priceMonth || 0) / currentVMData.vcpu
-
-          instanceLines.push({
-            spec: `vCPU|${(selectedRequest as any).vcpu} cores`,
-            vcpu: 0,
-            ram: 0,
-            storage: 0,
-            qty: 1,
-            unit: vcpuMonthlyPrice,
-            term: String(billingTerm)
-          })
-        }
-        if ((selectedRequest as any).ram_gb) {
-          // Calculate RAM monthly price
-          const ramMonthlyPrice = (currentVMData.priceMonth || 0) * (currentVMData.ram_gb / currentVMData.vcpu)
-
-          instanceLines.push({
-            spec: `RAM|${(selectedRequest as any).ram_gb} GB`,
-            vcpu: 0,
-            ram: 0,
-            storage: 0,
-            qty: 1,
-            unit: ramMonthlyPrice,
-            term: String(billingTerm)
-          })
-        }
-        if ((selectedRequest as any).storage) {
-          // Calculate Storage monthly price
-          const storageMonthlyPrice = (currentVMData.priceMonth || 0) * (currentVMData.storage_gb / currentVMData.vcpu)
-
-          instanceLines.push({
-            spec: `Storage|${(selectedRequest as any).storage} GB`,
-            vcpu: 0,
-            ram: 0,
-            storage: 0,
-            qty: 1,
-            unit: storageMonthlyPrice,
-            term: String(billingTerm)
-          })
-        }
+        // Show all specs inline in a single row like regular VM requests
+        instanceLines.push({
+          spec: (selectedRequest as any).hostname || 'VM Upgrade',
+          vcpu: (selectedRequest as any).vcpu || 0,
+          ram: (selectedRequest as any).ram_gb || 0,
+          storage: (selectedRequest as any).storage || 0,
+          qty: 1,
+          unit: 0,
+          term: String(billingTerm)
+        })
       }
 
       if ((isBackupChange || backupDiffers) && (selectedRequest as any).backup_enabled) {
-        // Calculate backup monthly price (assuming backup is 20% of monthly price)
-        const backupMonthlyPrice = (currentVMData.priceMonth || 0) * 0.2
-
         backupLines.push({
           spec: (selectedRequest as any).backup_type === 'daily' ? 'Daily Backup' : 'Weekly Backup',
           storage: (selectedRequest as any).storage || 0,
-          unit: backupMonthlyPrice,
+          unit: 0,
           term: String(billingTerm)
         })
       }
@@ -756,7 +692,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
 
             {/* Main table */}
             <div style={{ overflowX: 'auto', overflowY: 'visible' }}>
-              {requestType === 'addon' || isUpgrade ? (
+              {requestType === 'addon' ? (
                 <table className="tbl" style={{ border: '1px solid var(--line)' }}>
                   <thead>
                     <tr style={{ background: 'oklch(0.78 0.08 250)', color: 'white' }}>
@@ -769,7 +705,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                     </tr>
                   </thead>
                   <tbody>
-                    <tr><td colSpan={6} className="fw-6" style={{ background: 'var(--surface-2)' }}>{isUpgrade ? 'Upgrade Items' : isRenewal ? 'Renewal Items' : 'Add-on Services'}</td></tr>
+                    <tr><td colSpan={6} className="fw-6" style={{ background: 'var(--surface-2)' }}>Add-on Services</td></tr>
                     {sheet.instance.map((l, i) => (
                       <tr key={i}>
                         <td><input value={l.spec.split('|')[0] || ''} onChange={e => updateInstance(i, { spec: `${e.target.value}|${l.spec.split('|')[1] || ''}` })} /></td>
@@ -791,34 +727,74 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                         <td className="right tnum fw-6">MMK {formatMMK(instExt(l))}</td>
                       </tr>
                     ))}
-                    {sheet.backup.map((l, i) => (
-                      <tr key={`backup-${i}`}>
-                        <td><input value={l.spec} onChange={e => updateBackup(i, { spec: e.target.value })} /></td>
-                        <td><input value={`${l.storage} GB`} readOnly style={{ background: 'var(--surface-2)' }} /></td>
-                        <td className="right"><input type="number" value={l.unit} onChange={e => updateBackup(i, { unit: +e.target.value })} style={{ width: 120 }} /></td>
-                        <td className="right"><input type="number" value={1} readOnly style={{ width: 60, background: 'var(--surface-2)' }} /></td>
-                        <td>
-                          {['Monthly', 'Quarterly', 'Half Yearly', 'Yearly'].includes(l.term) ? (
-                            <select value={l.term} onChange={e => updateBackup(i, { term: e.target.value as BackupLine['term'] })}>
-                              <option>Monthly</option>
-                              <option>Quarterly</option>
-                              <option>Half Yearly</option>
-                              <option>Yearly</option>
-                            </select>
-                          ) : (
-                            <input value={l.term} onChange={e => updateBackup(i, { term: e.target.value as BackupLine['term'] })} style={{ width: 120 }} />
-                          )}
-                        </td>
-                        <td className="right tnum fw-6">MMK {formatMMK(l.unit)}</td>
-                      </tr>
-                    ))}
                     <tr>
-                      <td colSpan={5} className="right fw-6">{isUpgrade ? 'Upgrade Total' : isRenewal ? 'Renewal Total' : 'Add-on Services Total'}</td>
+                      <td colSpan={5} className="right fw-6">Add-on Services Total</td>
                       <td className="right tnum fw-7">MMK {formatMMK(instanceSub)}</td>
                     </tr>
                   </tbody>
                 </table>
-              ) : (
+              ) : isUpgrade ? (
+                <table className="tbl" style={{ border: '1px solid var(--line)' }}>
+                  <thead>
+                    <tr style={{ background: 'oklch(0.78 0.08 250)', color: 'white' }}>
+                      <th>Specification</th>
+                      <th>vCPU (Cores)</th>
+                      <th>RAM (GB)</th>
+                      <th>Storage (GB)</th>
+                      <th className="right">Unit Price (MMK)</th>
+                      <th className="right">QTY</th>
+                      <th>Billing Term</th>
+                      <th className="right">Extended Price (MMK)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td colSpan={8} className="fw-6" style={{ background: 'var(--surface-2)' }}>Current Configuration</td></tr>
+                    <tr>
+                      <td className="fw-6">{currentVMData?.hostname || '—'}</td>
+                      <td className="fw-6">{currentVMData?.vcpu || 0} cores</td>
+                      <td className="fw-6">{currentVMData?.ram_gb || 0} GB</td>
+                      <td className="fw-6">{currentVMData?.storage_gb || 0} GB</td>
+                      <td colSpan={4} className="fw-6">
+                        Backup: {currentVMData?.backup_enabled 
+                          ? (currentVMData?.backup_type === 'daily' ? 'Daily' : 'Weekly')
+                          : 'Disabled'}
+                      </td>
+                    </tr>
+                    <tr><td colSpan={8} className="fw-6" style={{ background: 'var(--surface-2)' }}>Upgrade Items (One-time Change)</td></tr>
+                    {sheet.instance.map((l, i) => (
+                      <tr key={i}>
+                        <td><input value={l.spec} onChange={e => updateInstance(i, { spec: e.target.value })} /></td>
+                        <td><input type="number" value={l.vcpu} onChange={e => updateInstance(i, { vcpu: +e.target.value })} style={{ width: 70 }} /></td>
+                        <td><input type="number" value={l.ram} onChange={e => updateInstance(i, { ram: +e.target.value })} style={{ width: 70 }} /></td>
+                        <td><input type="number" value={l.storage} onChange={e => updateInstance(i, { storage: +e.target.value })} style={{ width: 90 }} /></td>
+                        <td className="right"><input type="number" value={l.unit} onChange={e => updateInstance(i, { unit: +e.target.value })} style={{ width: 120 }} /></td>
+                        <td className="right"><input type="number" value={l.qty} onChange={e => updateInstance(i, { qty: +e.target.value })} style={{ width: 60 }} /></td>
+                        <td>
+                          <input value={l.term} onChange={e => updateInstance(i, { term: e.target.value as InstanceLine['term'] })} style={{ width: 120 }} />
+                        </td>
+                        <td className="right tnum fw-6">MMK {formatMMK(instExt(l))}</td>
+                      </tr>
+                    ))}
+                    {sheet.backup.map((l, i) => (
+                      <tr key={`backup-${i}`}>
+                        <td><input value={l.spec} onChange={e => updateBackup(i, { spec: e.target.value })} /></td>
+                        <td><input type="number" value={l.storage} onChange={e => updateBackup(i, { storage: +e.target.value })} style={{ width: 70 }} /></td>
+                        <td colSpan={2}></td>
+                        <td className="right"><input type="number" value={l.unit} onChange={e => updateBackup(i, { unit: +e.target.value })} style={{ width: 120 }} /></td>
+                        <td className="right"><input type="number" value={1} readOnly style={{ width: 60, background: 'var(--surface-2)' }} /></td>
+                        <td>
+                          <input value={l.term} onChange={e => updateBackup(i, { term: e.target.value as BackupLine['term'] })} style={{ width: 120 }} />
+                        </td>
+                        <td className="right tnum fw-6">MMK {formatMMK(backupExt(l))}</td>
+                      </tr>
+                    ))}
+                    <tr>
+                      <td colSpan={7} className="right fw-6">Upgrade Total (One-time)</td>
+                      <td className="right tnum fw-7">MMK {formatMMK(instanceSub + backupSub)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              ) : isRenewal ? (
                 <table className="tbl" style={{ border: '1px solid var(--line)' }}>
                   <thead>
                     <tr style={{ background: 'oklch(0.78 0.08 250)', color: 'white' }}>
@@ -963,6 +939,118 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                         <td className="right tnum fw-7">MMK {formatMMK(addonServiceSub || 0)}</td>
                       </tr>
                     )}
+                  </tbody>
+                </table>
+              ) : (
+                <table className="tbl" style={{ border: '1px solid var(--line)' }}>
+                  <thead>
+                    <tr style={{ background: 'oklch(0.78 0.08 250)', color: 'white' }}>
+                      <th>Specification</th>
+                      <th>vCPU (Cores)</th>
+                      <th>RAM (GB)</th>
+                      <th>Storage (GB)</th>
+                      <th className="right">Unit Price (MMK)</th>
+                      <th className="right">QTY</th>
+                      <th>Billing Term/Month</th>
+                      <th className="right">Extended Price (MMK)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {/* Instance Cost section */}
+                    <tr><td colSpan={8} className="fw-6" style={{ background: 'var(--surface-2)' }}>Instance Cost</td></tr>
+                    {sheet.instance.map((l, i) => (
+                      <tr key={i}>
+                        <td><input value={l.spec} onChange={e => updateInstance(i, { spec: e.target.value })} /></td>
+                        <td><input type="number" value={l.vcpu} onChange={e => updateInstance(i, { vcpu: +e.target.value })} style={{ width: 70 }} /></td>
+                        <td><input type="number" value={l.ram} onChange={e => updateInstance(i, { ram: +e.target.value })} style={{ width: 70 }} /></td>
+                        <td><input type="number" value={l.storage} onChange={e => updateInstance(i, { storage: +e.target.value })} style={{ width: 90 }} /></td>
+                        <td className="right"><input type="number" value={l.unit} onChange={e => updateInstance(i, { unit: +e.target.value })} style={{ width: 120 }} /></td>
+                        <td className="right"><input type="number" value={l.qty} onChange={e => updateInstance(i, { qty: +e.target.value })} style={{ width: 60 }} /></td>
+                        <td>
+                          {['Monthly', 'Quarterly', 'Half Yearly', 'Yearly'].includes(l.term) ? (
+                            <select value={l.term} onChange={e => updateInstance(i, { term: e.target.value as InstanceLine['term'] })}>
+                              <option>Monthly</option>
+                              <option>Quarterly</option>
+                              <option>Half Yearly</option>
+                              <option>Yearly</option>
+                            </select>
+                          ) : (
+                            <input value={l.term} onChange={e => updateInstance(i, { term: e.target.value as InstanceLine['term'] })} style={{ width: 120 }} />
+                          )}
+                        </td>
+                        <td className="right tnum fw-6">MMK {formatMMK(instExt(l))}</td>
+                      </tr>
+                    ))}
+                    <tr>
+                      <td colSpan={7} className="right fw-6">Instance Cost Total</td>
+                      <td className="right tnum fw-7">MMK {formatMMK(instanceSub)}</td>
+                    </tr>
+
+                    {/* Backup Cost section */}
+                    <tr><td colSpan={8} className="fw-6" style={{ background: 'var(--surface-2)' }}>Backup Cost (GB)</td></tr>
+                    {sheet.backup.length === 0 && (
+                      <tr><td colSpan={8} className="text-mute">No backup lines yet</td></tr>
+                    )}
+                    {sheet.backup.map((l, i) => (
+                      <tr key={i}>
+                        <td><input value={l.spec} onChange={e => updateBackup(i, { spec: e.target.value })} /></td>
+                        <td></td>
+                        <td></td>
+                        <td><input type="number" value={l.storage} onChange={e => updateBackup(i, { storage: +e.target.value })} style={{ width: 90 }} /></td>
+                        <td className="right"><input type="number" value={l.unit} onChange={e => updateBackup(i, { unit: +e.target.value })} style={{ width: 120 }} /></td>
+                        <td></td>
+                        <td>
+                          {['Monthly', 'Quarterly', 'Half Yearly', 'Yearly'].includes(l.term) ? (
+                            <select value={l.term} onChange={e => updateBackup(i, { term: e.target.value as BackupLine['term'] })}>
+                              <option>Monthly</option>
+                              <option>Quarterly</option>
+                              <option>Half Yearly</option>
+                              <option>Yearly</option>
+                            </select>
+                          ) : (
+                            <input value={l.term} onChange={e => updateBackup(i, { term: e.target.value as BackupLine['term'] })} style={{ width: 120 }} />
+                          )}
+                        </td>
+                        <td className="right tnum fw-6">MMK {formatMMK(backupExt(l))}</td>
+                      </tr>
+                    ))}
+                    <tr>
+                      <td colSpan={7} className="right fw-6">Backup Cost Total {backupTotalGB > 0 ? `— ${backupTotalGB}GB` : ''}</td>
+                      <td className="right tnum fw-7">MMK {formatMMK(backupSub || 0)}</td>
+                    </tr>
+
+                    {/* Public IP Cost section */}
+                    <tr><td colSpan={8} className="fw-6" style={{ background: 'var(--surface-2)' }}>Public IP Cost</td></tr>
+                    {sheet.publicIP.length === 0 && (
+                      <tr><td colSpan={8} className="text-mute">No public IP</td></tr>
+                    )}
+                    {sheet.publicIP.map((l, i) => (
+                      <tr key={i}>
+                        <td><input value={l.spec} onChange={e => updatePublicIP(i, { spec: e.target.value })} /></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td className="right"><input type="number" value={l.unit} onChange={e => updatePublicIP(i, { unit: +e.target.value })} style={{ width: 120 }} /></td>
+                        <td></td>
+                        <td>
+                          {['Monthly', 'Quarterly', 'Half Yearly', 'Yearly'].includes(l.term) ? (
+                            <select value={l.term} onChange={e => updatePublicIP(i, { term: e.target.value as PublicIPLine['term'] })}>
+                              <option>Monthly</option>
+                              <option>Quarterly</option>
+                              <option>Half Yearly</option>
+                              <option>Yearly</option>
+                            </select>
+                          ) : (
+                            <input value={l.term} onChange={e => updatePublicIP(i, { term: e.target.value as PublicIPLine['term'] })} style={{ width: 120 }} />
+                          )}
+                        </td>
+                        <td className="right tnum fw-6">MMK {formatMMK(publicIPExt(l))}</td>
+                      </tr>
+                    ))}
+                    <tr>
+                      <td colSpan={7} className="right fw-6">Public IP Total</td>
+                      <td className="right tnum fw-7">MMK {formatMMK(publicIPSub)}</td>
+                    </tr>
                   </tbody>
                 </table>
               )}

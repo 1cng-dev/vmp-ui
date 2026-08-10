@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import Icon from "../../lib/icons";
 import type { Task } from "../../types";
 import { supabase } from "../../lib/supabase";
+import useUIStore from "../../store/uiStore";
 
 interface EngineerVMCreateFormProps {
   task: Task;
@@ -20,6 +21,7 @@ const EngineerVMCreateForm = ({
   task,
   onSubmit,
 }: EngineerVMCreateFormProps) => {
+  const { toast } = useUIStore();
   const qty = (task as any).qty || 1;
   const [publicIps, setPublicIps] = useState<string[]>(() =>
     Array(qty).fill(""),
@@ -89,19 +91,19 @@ const EngineerVMCreateForm = ({
 
   const handleSubmit = async () => {
     if (!username || !password) {
-      alert("Please fill in username and password");
+      toast("Please fill in username and password", "error");
       return;
     }
     if (publicIps.some((ip) => !ip) || privateIps.some((ip) => !ip)) {
-      alert("Please fill in all IP fields");
+      toast("Please fill in all IP fields", "error");
       return;
     }
     if (assigned_vmids.some((id) => id === 0)) {
-      alert("Please fill in all Assigned VM ID fields");
+      toast("Please fill in all Assigned VM ID fields", "error");
       return;
     }
     if (!node) {
-      alert("Please fill in Proxmox Node");
+      toast("Please fill in Proxmox Node", "error");
       return;
     }
     setIsSubmitting(true);
@@ -139,7 +141,7 @@ const EngineerVMCreateForm = ({
           </div>
           <div className="grid-3" style={{ gap: 12 }}>
             <div className="field">
-              <label>Public IP</label>
+              <label>Public IP <span style={{ color: "var(--bad)" }}>*</span></label>
               <input
                 type="text"
                 className="input"
@@ -149,7 +151,7 @@ const EngineerVMCreateForm = ({
               />
             </div>
             <div className="field">
-              <label>Private IP</label>
+              <label>Private IP <span style={{ color: "var(--bad)" }}>*</span></label>
               <input
                 type="text"
                 className="input"
@@ -159,7 +161,7 @@ const EngineerVMCreateForm = ({
               />
             </div>
             <div className="field">
-              <label>Assigned VM ID</label>
+              <label>Assigned VM ID <span style={{ color: "var(--bad)" }}>*</span></label>
               <input
                 type="number"
                 className="input"
@@ -196,7 +198,7 @@ const EngineerVMCreateForm = ({
 
       <div className="grid-2" style={{ gap: 12 }}>
         <div className="field">
-          <label>Username (shared for all VMs)</label>
+          <label>Username (shared for all VMs) <span style={{ color: "var(--bad)" }}>*</span></label>
           <input
             type="text"
             className="input"
@@ -206,7 +208,7 @@ const EngineerVMCreateForm = ({
           />
         </div>
         <div className="field">
-          <label>Password (shared for all VMs)</label>
+          <label>Password (shared for all VMs) <span style={{ color: "var(--bad)" }}>*</span></label>
           <input
             type="password"
             className="input"

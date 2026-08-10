@@ -64,39 +64,22 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ openModa
       </div>
 
       <div className="grid-4 mb-4">
-        {stats.map((s: any) => {
-          const active = filter === s.status
-          return (
-            <button
-              key={s.status}
-              onClick={() => setFilter(filter === s.status ? 'all' : s.status)}
-              style={{
-                textAlign: 'left',
-                padding: 16,
-                background: active ? s.bg : 'var(--surface)',
-                border: '1.5px solid',
-                borderColor: active ? s.color : 'var(--line)',
-                borderRadius: 12,
-                cursor: 'pointer',
-                fontFamily: 'inherit', color: 'var(--ink)',
-                transition: 'border-color 0.15s, background 0.15s, transform 0.1s',
-                boxShadow: active ? `0 0 0 3px ${s.bg}` : 'none',
-              }}
-            >
-              <div className="flex center between mb-2">
+        {stats.map((s: any) => (
+          <div key={s.status} className="card">
+            <div className="card-body">
+              <div className="flex center gap-2 mb-2">
                 <div style={{
                   width: 32, height: 32, borderRadius: 8,
                   background: `${s.color}1a`, color: s.color,
                   display: 'grid', placeItems: 'center',
                 }}><Icon name={s.icon} size={14}/></div>
-                {active && <Icon name="check" size={14} style={{ color: s.color }}/>}
+                <div className="fw-6 text-sm" style={{ color: s.color }}>{s.status}</div>
               </div>
               <div className="tnum fw-7" style={{ fontSize: 24, lineHeight: 1.1 }}>{s.count}</div>
-              <div className="fw-6 text-sm mt-1" style={{ color: s.color }}>{s.status}</div>
               <div className="text-xs text-mute mt-1">{s.desc}</div>
-            </button>
-          )
-        })}
+            </div>
+          </div>
+        ))}
       </div>
 
       <div className="flex gap-2 wrap mb-3">

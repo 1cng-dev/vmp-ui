@@ -105,7 +105,9 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
   // against a real suspended VM during smoke testing (see go-live checklist).
   const isSuspended = proxmoxStatus === 'paused' || (liveStatus as any)?.qmpstatus === 'paused'
   const isStopped = statusKnown && !isRunning && !isSuspended
-  const displayPowerState = !statusKnown ? vm.power_state : isRunning ? 'Running' : isSuspended ? 'Suspended' : 'Stopped'
+  // Show "Loading…" when status is not yet known from Proxmox to avoid
+  // showing incorrect DB status that may drift from reality
+  const displayPowerState = !statusKnown ? 'Loading…' : isRunning ? 'Running' : isSuspended ? 'Suspended' : 'Stopped'
 
   const { pending: actionPending, error: actionError, run: runPowerAction, clearError: clearActionError } =
     useVMPowerAction(recordId, refetchStatus)
@@ -255,7 +257,7 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
               </button>
               {vm.request_type === 'trial' && <button className="btn primary" onClick={() => setConvertToPaidOpen(true)}><Icon name="credit-card" size={12} />Convert to Paid</button>}
               {vmRequest?.request_type !== 'trial' && <button className="btn" onClick={() => setUpgradeOpen(true)}><Icon name="arrow-up" size={12} />Change Plan</button>}
-              <button className="btn accent" onClick={onRenew}><Icon name="refresh" size={12} />Renew</button>
+              {vm.request_type !== 'trial' && <button className="btn accent" onClick={onRenew}><Icon name="refresh" size={12} />Renew</button>}
             </>
           )}
         </div>
@@ -485,7 +487,7 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
               <InfoCard icon="server" title="Instance" mono rows={[
                 ['VM ID', vm.legacy_id || vm.id],
                 ['Hostname', vm.hostname],
-                ['Power state', vm.power_state],
+                ['Power state', displayPowerState],
                 ['Request ID', vmRequest?.legacy_id || vm.vm_request_id],
                 ['Request Type', vmRequest?.request_type || 'paid'],
                 ['Status', vmRequest?.status || '—'],

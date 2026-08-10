@@ -5,6 +5,7 @@ import useAddonServiceStore from '../store/addonServiceStore'
 import useUIStore from '../store/uiStore'
 import Icon from '../lib/icons'
 import { StatusPill, ExpiryCell, CircularSpinner } from '../components/ui/ui'
+import { useVMStatus } from '../hooks/useVMLiveStatus'
 
 interface VMListProps {
   openVM: (id: string) => void
@@ -13,29 +14,103 @@ interface VMListProps {
   userRole?: string
 }
 
-const VMList: React.FC<VMListProps> = ({ openVM, openModal, setView, userRole }) => {
-  const { vms, vmsLoading, loadVMs, updateVM } = useVMStore()
-  const { customers } = useCustomerStore()
-  const { getAddonServicesForVM } = useAddonServiceStore()
+// Helper component to fetch and display live status for a single VM in admin portal
+const AdminVMRow: React.FC<{ vm: any; customer: any; openVM: (id: string) => void; openModal: (kind: string, props?: any) => void; setMenu: (id: string | null) => void; menu: string | null; userRole?: string }> = ({ vm, customer, openVM, openModal, setMenu, menu, userRole }) => {
+  const { updateVM } = useVMStore()
+  const { getAddonServicesForVM, updateAddonService } = useAddonServiceStore()
   const { toast } = useUIStore()
-  const [filter, setFilter] = useState<Set<string>>(new Set(['all']))
-  const [search, setSearch] = useState('')
-  const [menu, setMenu] = useState<string | null>(null)
+  const assignedVmid: number | undefined = (vm as any).assigned_vmid
+  const { status: liveStatus } = useVMStatus(assignedVmid)
 
-  const handleActivate = async (vm: any) => {
-    // Get active addon services for this VM
+  const handleActivate = async () => {
     const addonServices = getAddonServicesForVM(vm.id)
-
-    // Activate the VM and set power state to Running
     updateVM(vm.id, { status: 'Active' as any, power_state: 'Running' as any })
+
+    // Reactivate associated addon services (including terminated ones)
+    for (const addon of addonServices) {
+      if (addon.operational_status === 'Terminated') {
+        await updateAddonService(addon.id, { operational_status: 'Active' })
+      }
+    }
 
     const addonCount = addonServices.length
     const message = addonCount > 0
       ? `VM ${vm.hostname} activated with ${addonCount} active add-on service(s)`
       : `VM ${vm.hostname} activated`
-
     toast(message, 'ok')
   }
+
+  const proxmoxStatus = liveStatus?.status
+  const statusKnown = !!proxmoxStatus
+  const isRunning = proxmoxStatus === 'running'
+  const isSuspended = proxmoxStatus === 'paused' || (liveStatus as any)?.qmpstatus === 'paused'
+  const displayPowerState = !statusKnown ? 'Loading…' : isRunning ? 'Running' : isSuspended ? 'Suspended' : 'Stopped'
+
+  return (
+    <tr onClick={() => openVM(vm.id)}>
+      <td>
+        <div className="flex center gap-2">
+          <div>
+            <div className="fw-6">{vm.hostname}</div>
+            <div className="text-xs text-mute mono">{vm.legacy_id || vm.id}</div>
+            {(vm as any).assigned_vmid && <div className="text-xs text-mute">Proxmox ID: {(vm as any).assigned_vmid}</div>}
+          </div>
+        </div>
+      </td>
+      <td>
+        <div className="fw-6 text-sm">{customer?.org_name}</div>
+        <div className="text-xs text-mute">{customer?.name}</div>
+      </td>
+      <td><StatusPill status={vm.status} expiry={vm.expiry} /></td>
+      <td><span className={`pill ${(vm as any).request_type === 'trial' ? 'accent' : 'subtle'}`}>{(vm as any).request_type === 'trial' ? 'Trial' : 'Paid'}</span></td>
+      <td><span className={`pill ${displayPowerState === 'Stopped' ? 'bad' : ''}`}><Icon name={displayPowerState === 'Running' ? 'play' : 'pause'} size={10}/>{displayPowerState}</span></td>
+      <td className="mono text-xs">
+        {vm.public_ip || '—'}
+      </td>
+      <td><ExpiryCell date={vm.expiry as any} /></td>
+      <td className="text-sm mono">{(vm as any).start_date ? new Date((vm as any).start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}</td>
+      <td className="text-sm mono">{(vm as any).end_date ? new Date((vm as any).end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}</td>
+      <td onClick={e => e.stopPropagation()} style={{ position: 'relative' }}>
+        {userRole !== 'Finance' && userRole !== 'Sales' && (
+          <button className="icon-btn" onClick={(e) => { e.stopPropagation(); setMenu(menu === vm.id ? null : vm.id); }}>
+            <Icon name="more" />
+          </button>
+        )}
+        {menu === vm.id && (
+          <div onClick={e => e.stopPropagation()} style={{
+            position: 'absolute', right: 14, top: 36, zIndex: 20,
+            background: 'var(--surface)', border: '1px solid var(--line)',
+            borderRadius: 8, boxShadow: 'var(--shadow)',
+            minWidth: 180, padding: 4,
+          }}>
+            <button className="nav-item" onClick={() => { openVM(vm.id); setMenu(null); }}><Icon name="eye" size={13} />View details</button>
+            {vm.status === 'Active' && userRole !== 'Sales' ? (
+              <>
+                <button className="nav-item" onClick={() => { openModal('terminate', { vm: vm }); setMenu(null); }}><Icon name="trash" size={13} />Terminate</button>
+              </>
+            ) : (
+              vm.status !== 'Active' && <button className="nav-item" onClick={() => { handleActivate(); setMenu(null); }}><Icon name="play" size={13} />Activate</button>
+            )}
+            {userRole !== 'Sales' && (
+              <>
+                <div style={{ height: 1, background: 'var(--line)', margin: '4px 0' }} />
+                <button className="nav-item" style={{ color: 'var(--bad)' }} onClick={() => { openModal('delete', { vm: vm }); setMenu(null); }}><Icon name="x" size={13} />Delete</button>
+              </>
+            )}
+          </div>
+        )}
+      </td>
+    </tr>
+  )
+}
+
+const VMList: React.FC<VMListProps> = ({ openVM, openModal, setView, userRole }) => {
+  const { vms, vmsLoading, loadVMs } = useVMStore()
+  const { customers } = useCustomerStore()
+  const { toast } = useUIStore()
+  const [filter, setFilter] = useState<Set<string>>(new Set(['all']))
+  const [search, setSearch] = useState('')
+  const [menu, setMenu] = useState<string | null>(null)
 
   // Ensure VMs are loaded when this page is opened
   useEffect(() => {
@@ -68,7 +143,7 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal, setView, userRole })
     return [v.hostname, v.id, v.public_ip, v.task_type, c?.org_name, c?.name].join(' ').toLowerCase().includes(search.toLowerCase())
   })
 
-  const exportToCSV = (vmsToExport: any[], filename: string) => {
+  const exportToCSV = async (vmsToExport: any[], filename: string) => {
     const headers = [
       'Legacy ID',
       'Hostname',
@@ -90,8 +165,32 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal, setView, userRole })
       'Created At'
     ]
 
+    // Fetch live power status from Proxmox for each VM
+    const vmStatuses = await Promise.all(
+      vmsToExport.map(async (v) => {
+        const assignedVmid: number | undefined = (v as any).assigned_vmid
+        if (!assignedVmid) return { vmId: v.id, status: null }
+        try {
+          const { getVMStatus } = await import('../lib/proxmoxApi')
+          const result = await getVMStatus(assignedVmid)
+          return { vmId: v.id, status: result.status }
+        } catch {
+          return { vmId: v.id, status: null }
+        }
+      })
+    )
+
+    const statusMap = new Map(vmStatuses.map(s => [s.vmId, s.status]))
+
     const rows = vmsToExport.map(v => {
       const c = customers.find(c => c.id === v.customer_id)
+      const liveStatus = statusMap.get(v.id)
+      const proxmoxStatus = liveStatus?.status
+      const statusKnown = !!proxmoxStatus
+      const isRunning = proxmoxStatus === 'running'
+      const isSuspended = proxmoxStatus === 'paused' || (liveStatus as any)?.qmpstatus === 'paused'
+      const displayPowerState = !statusKnown ? 'Unknown' : isRunning ? 'Running' : isSuspended ? 'Suspended' : 'Stopped'
+
       return [
         v.legacy_id || v.id,
         v.hostname || '',
@@ -105,7 +204,7 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal, setView, userRole })
         v.public_ip || '',
         v.private_ip || '',
         v.username || '',
-        v.power_state || '',
+        displayPowerState,
         (v as any).assigned_vmid || '',
         (v as any).start_date ? new Date((v as any).start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '',
         (v as any).end_date ? new Date((v as any).end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '',
@@ -130,8 +229,8 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal, setView, userRole })
     document.body.removeChild(link)
   }
 
-  const handleExportAll = () => {
-    exportToCSV(filtered, `vms_export_${new Date().toISOString().split('T')[0]}`)
+  const handleExportAll = async () => {
+    await exportToCSV(filtered, `vms_export_${new Date().toISOString().split('T')[0]}`)
     toast(`${filtered.length} VMs exported to CSV`, 'ok')
   }
 
@@ -209,60 +308,7 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal, setView, userRole })
               filtered.map(v => {
               const c = customers.find(c => c.id === v.customer_id)
               return (
-                <tr key={v.id} onClick={() => openVM(v.id)}>
-                  <td>
-                    <div className="flex center gap-2">
-                      <div>
-                        <div className="fw-6">{v.hostname}</div>
-                        <div className="text-xs text-mute mono">{v.legacy_id || v.id}</div>
-                        {(v as any).assigned_vmid && <div className="text-xs text-mute">Proxmox ID: {(v as any).assigned_vmid}</div>}
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="fw-6 text-sm">{c?.org_name}</div>
-                    <div className="text-xs text-mute">{c?.name}</div>
-                  </td>
-                  <td><StatusPill status={v.status} expiry={v.expiry} /></td>
-                  <td><span className={`pill ${(v as any).request_type === 'trial' ? 'accent' : 'subtle'}`}>{(v as any).request_type === 'trial' ? 'Trial' : 'Paid'}</span></td>
-                  <td><span className={`pill ${v.power_state === 'Stopped' ? 'bad' : ''}`}><Icon name={v.power_state === 'Running' ? 'play' : 'pause'} size={10}/>{v.power_state || 'Unknown'}</span></td>
-                  <td className="mono text-xs">
-                    {v.public_ip || '—'}
-                  </td>
-                  <td><ExpiryCell date={v.expiry as any} /></td>
-                  <td className="text-sm mono">{(v as any).start_date ? new Date((v as any).start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}</td>
-                  <td className="text-sm mono">{(v as any).end_date ? new Date((v as any).end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}</td>
-                  <td onClick={e => e.stopPropagation()} style={{ position: 'relative' }}>
-                    {userRole !== 'Finance' && userRole !== 'Sales' && (
-                      <button className="icon-btn" onClick={(e) => { e.stopPropagation(); setMenu(menu === v.id ? null : v.id); }}>
-                        <Icon name="more" />
-                      </button>
-                    )}
-                    {menu === v.id && (
-                      <div onClick={e => e.stopPropagation()} style={{
-                        position: 'absolute', right: 14, top: 36, zIndex: 20,
-                        background: 'var(--surface)', border: '1px solid var(--line)',
-                        borderRadius: 8, boxShadow: 'var(--shadow)',
-                        minWidth: 180, padding: 4,
-                      }}>
-                        <button className="nav-item" onClick={() => { openVM(v.id); setMenu(null); }}><Icon name="eye" size={13} />View details</button>
-                        {v.status === 'Active' && userRole !== 'Sales' ? (
-                          <>
-                            <button className="nav-item" onClick={() => { openModal('terminate', { vm: v }); setMenu(null); }}><Icon name="trash" size={13} />Terminate</button>
-                          </>
-                        ) : (
-                          v.status !== 'Active' && <button className="nav-item" onClick={() => { handleActivate(v); setMenu(null); }}><Icon name="play" size={13} />Activate</button>
-                        )}
-                        {userRole !== 'Sales' && (
-                          <>
-                            <div style={{ height: 1, background: 'var(--line)', margin: '4px 0' }} />
-                            <button className="nav-item" style={{ color: 'var(--bad)' }} onClick={() => { openModal('delete', { vm: v }); setMenu(null); }}><Icon name="x" size={13} />Delete</button>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </td>
-                </tr>
+                <AdminVMRow key={v.id} vm={v} customer={c} openVM={openVM} openModal={openModal} setMenu={setMenu} menu={menu} userRole={userRole} />
               )
             })
             )}

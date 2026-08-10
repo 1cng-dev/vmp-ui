@@ -13,7 +13,7 @@ interface TeamTicketDetailProps {
 }
 
 export const TeamTicketDetail: React.FC<TeamTicketDetailProps> = ({ ticket: initial, onClose, openModal }) => {
-  const { tickets, setTicketStatus, replyTicket } = useTicketStore()
+  const { tickets, setTicketStatus, replyTicket, deleteTicket } = useTicketStore()
   const { customers } = useCustomerStore()
   const { toast } = useUIStore()
   const ticket = tickets.find((t: any) => t.id === initial.id) || initial
@@ -143,6 +143,43 @@ export const TeamTicketDetail: React.FC<TeamTicketDetailProps> = ({ ticket: init
     }
   }
 
+  const handleClose = () => {
+    if (openModal) {
+      openModal('confirm', {
+        title: 'Close ticket',
+        message: 'Are you sure you want to close this ticket?',
+        onConfirm: () => handleStatusChange('Closed')
+      })
+    } else {
+      if (confirm('Are you sure you want to close this ticket?')) {
+        handleStatusChange('Closed')
+      }
+    }
+  }
+
+  const handleDelete = () => {
+    if (openModal) {
+      openModal('confirm', {
+        title: 'Delete ticket',
+        message: 'Are you sure you want to delete this ticket? This action cannot be undone.',
+        onConfirm: async () => {
+          try {
+            await deleteTicket(ticket.id)
+            toast('Ticket deleted successfully', 'ok')
+            onClose()
+          } catch (error) {
+            toast('Error deleting ticket', 'bad')
+          }
+        }
+      })
+    } else {
+      if (confirm('Are you sure you want to delete this ticket? This action cannot be undone.')) {
+        deleteTicket(ticket.id)
+        onClose()
+      }
+    }
+  }
+
   return (
     <div className="content">
       <div className="page-head">
@@ -160,7 +197,9 @@ export const TeamTicketDetail: React.FC<TeamTicketDetailProps> = ({ ticket: init
           </div>
         </div>
         <div className="page-actions">
-          {ticket.status === 'Closed' && <button className="btn" onClick={handleReopen}>Reopen ticket</button>}
+          {ticket.status?.toLowerCase() === 'open' && <button className="btn" onClick={handleClose}>Close ticket</button>}
+          {ticket.status?.toLowerCase() === 'closed' && <button className="btn" onClick={handleReopen}>Reopen ticket</button>}
+          <button className="btn danger" onClick={handleDelete}><Icon name="trash" size={12}/></button>
         </div>
       </div>
 
@@ -218,7 +257,7 @@ export const TeamTicketDetail: React.FC<TeamTicketDetailProps> = ({ ticket: init
             ))}
 
             {/* Reply box */}
-            {ticket.status === 'Open' && (
+            {ticket.status?.toLowerCase() === 'open' && (
               <div style={{ paddingTop: 16, borderTop: '1px solid var(--line)' }}>
                 {replyFiles.length > 0 && (
                   <div className="flex col gap-1" style={{ marginBottom: 8, alignItems: 'flex-start' }}>

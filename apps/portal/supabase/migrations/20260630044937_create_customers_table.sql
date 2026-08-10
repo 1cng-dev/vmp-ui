@@ -112,11 +112,20 @@ create or replace function public.assign_customer_code()
 returns trigger
 language plpgsql
 as $$
+declare
+  next_code integer;
 begin
   if new.legacy_id is null or new.legacy_id = '' then
+    next_code := nextval('public.customer_code_seq');
+    
+    -- Validate that customer code doesn't exceed 50
+    if next_code > 50 then
+      raise exception 'Customer legacy ID cannot exceed 50. Current value: %', next_code;
+    end if;
+    
     new.legacy_id :=
       'C-' || to_char(
-        nextval('public.customer_code_seq'),
+        next_code,
         'FM0000'
       );
   end if;

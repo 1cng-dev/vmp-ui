@@ -108,8 +108,8 @@ const InviteTeamMemberModal: React.FC<InviteTeamMemberModalProps> = ({ onClose, 
         </div>
         <div className="modal-body">
           <div className="flex col gap-3">
-            <div className="field"><label>Name</label><input value={f.name} onChange={e => set('name', e.target.value)} /></div>
-            <div className="field"><label>Work email</label><input type="email" value={f.email} onChange={e => set('email', e.target.value)} placeholder="@vpsmm.co" /></div>
+            <div className="field"><label>Name <span style={{ color: 'var(--bad)' }}>*</span></label><input value={f.name} onChange={e => set('name', e.target.value)} /></div>
+            <div className="field"><label>Work email <span style={{ color: 'var(--bad)' }}>*</span></label><input type="email" value={f.email} onChange={e => set('email', e.target.value)} placeholder="@vpsmm.co" /></div>
             <div className="grid-2" style={{ gap: 12 }}>
               <div className="field"><label>Role</label><select value={f.role} onChange={e => set('role', e.target.value)}><option>Admin</option><option>Sales</option><option>Engineer</option><option>Finance</option></select></div>
               <div className="field"><label>Team</label><select value={f.team} onChange={e => set('team', e.target.value)}><option>Sales</option><option>Provisioning</option><option>Network</option><option>Finance</option><option>Management</option></select></div>

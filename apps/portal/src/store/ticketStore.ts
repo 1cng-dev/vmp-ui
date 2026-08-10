@@ -104,27 +104,9 @@ export const TicketProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const addTicket = useCallback(async (t: any) => {
     try {
-      // Generate legacy_id
-      const { data: lastTicket } = await supabase
-        .from('tickets')
-        .select('legacy_id')
-        .order('created_at', { ascending: false })
-        .limit(1)
-      
-      const lastLegacyId = lastTicket?.[0]?.legacy_id
-      let nextNum = 1001
-      if (lastLegacyId) {
-        const match = lastLegacyId.match(/TKT-(\d+)/)
-        if (match) {
-          nextNum = parseInt(match[1]) + 1
-        }
-      }
-      const legacyId = `TKT-${nextNum}`
-
       const { data, error } = await supabase
         .from('tickets')
         .insert({
-          legacy_id: legacyId,
           customer_id: t.customer_id,
           category: t.category || null,
           subject: t.subject,
@@ -136,9 +118,20 @@ export const TicketProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         })
         .select()
         .single()
-      
+
       if (error) throw error
-      
+
+      // Query again to get the legacy_id (trigger-generated)
+      const { data: ticketWithLegacy } = await supabase
+        .from('tickets')
+        .select('legacy_id')
+        .eq('id', data.id)
+        .single()
+
+      if (ticketWithLegacy?.legacy_id) {
+        (data as any).legacy_id = ticketWithLegacy.legacy_id
+      }
+
       return data.id
     } catch (error) {
       console.error('Error adding ticket:', error)

@@ -1,15 +1,50 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import useAlertStore from '../../store/alertStore'
 import Icon from '../../lib/icons'
+import { supabase } from '../../lib/supabase'
+import { useAuth } from '../auth/Auth'
 
 export const AlertsView: React.FC = () => {
   const { alerts, markAlertRead, markAllAlertsRead } = useAlertStore()
   const [filter, setFilter] = useState('All')
   const [sev, setSev] = useState('All')
   const [search, setSearch] = useState('')
+  const [userRole, setUserRole] = useState<string | null>(null)
+  const auth = useAuth()
   const sevColor: Record<string, string> = { urgent: 'var(--bad)', warn: 'var(--warn)', info: 'var(--info)' }
   const sevLabel: Record<string, string> = { urgent: 'Urgent', warn: 'Warning', info: 'Info' }
   const typeIcon: Record<string, string> = { expiry: 'clock', kyc: 'shield', finance: 'invoice', task: 'tasks', system: 'settings', vm: 'server', addon: 'plus' }
+
+  // Get user's role
+  useEffect(() => {
+    const getRole = async () => {
+      if (!auth?.user?.id) return
+      try {
+        const { data: teamData } = await supabase
+          .from('team_members')
+          .select('role')
+          .eq('user_id', auth.user.id)
+          .maybeSingle()
+        setUserRole(teamData?.role || null)
+      } catch (error) {
+        setUserRole(null)
+      }
+    }
+    getRole()
+  }, [auth?.user?.id])
+
+  // Define filter options based on role
+  const getFilterOptions = () => {
+    const baseOptions = ['All', 'Unread']
+    if (userRole === 'Finance') {
+      return [...baseOptions, 'Expiry', 'Finance']
+    } else if (userRole === 'Engineer') {
+      return [...baseOptions, 'Expiry', 'Task', 'Addon']
+    }
+    return ['All', 'Unread', 'Expiry', 'Kyc', 'Finance', 'Task', 'Addon']
+  }
+
+  const filterOptions = getFilterOptions()
 
   const filtered = alerts.filter(a => {
     if (filter === 'Unread' && a.read) return false
@@ -35,7 +70,7 @@ export const AlertsView: React.FC = () => {
 
       <div className="card">
         <div className="filter-bar" style={{ flexWrap: 'wrap' }}>
-          {['All', 'Unread', 'Expiry', 'Kyc', 'Finance', 'Task', 'Addon'].map(f => {
+          {filterOptions.map(f => {
             const cnt = f === 'All' ? alerts.length : f === 'Unread' ? alerts.filter(a => !a.read).length : alerts.filter(a => a.type === f.toLowerCase()).length
             return (
               <button key={f} className={`filter-chip ${filter === f ? 'active' : ''}`} onClick={() => setFilter(f)}>

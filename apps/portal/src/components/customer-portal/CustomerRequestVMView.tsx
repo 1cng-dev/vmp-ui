@@ -137,6 +137,18 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
   }
 
   const confirmSubmit = async () => {
+    // Validate hostname
+    if (!f.hostname || !hostValid) {
+      toast('Please enter a valid hostname (2–31 chars, lowercase letters, digits, or hyphen)', 'error')
+      setIsSubmitting(false)
+      return
+    }
+    // Validate billing term for paid requests
+    if (f.requestType === 'paid' && !f.duration) {
+      toast('Please select a billing term', 'error')
+      setIsSubmitting(false)
+      return
+    }
     setIsSubmitting(true)
     try {
       await addVMRequest({
@@ -218,7 +230,7 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
           <div className="card-head"><h3 className="card-title">Hostname</h3></div>
           <div className="card-body">
             <div className="field">
-              <label>VM hostname</label>
+              <label>VM hostname <span style={{ color: 'var(--bad)' }}>*</span></label>
               <div style={{ position: 'relative' }}>
                 <input
                   value={f.hostname}

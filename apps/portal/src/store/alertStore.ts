@@ -32,6 +32,7 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       // Get user's role and customer_id
       let customerId: string | null = null
       let isCustomer = false
+      let userRole: string | null = null
 
       try {
         const { data: userData } = await supabase
@@ -48,16 +49,38 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         customerId = null
       }
 
+      // Get user's role from team_members table
+      try {
+        const { data: teamData } = await supabase
+          .from('team_members')
+          .select('role')
+          .eq('user_id', userId)
+          .maybeSingle()
+        userRole = teamData?.role || null
+      } catch (teamError) {
+        userRole = null
+      }
+
       let query = supabase
         .from('alerts')
         .select('*')
         .order('created_at', { ascending: false })
-      
+
       // Filter by customer_id for customer role
       if (isCustomer && customerId) {
         query = query.eq('customer_id', customerId)
       }
-      
+
+      // Filter out finance and customer-related alerts for Engineer role
+      if (userRole === 'Engineer') {
+        query = query.not('type', 'in', '("finance","kyc")')
+      }
+
+      // For Finance role, only show finance-related and expiry warnings
+      if (userRole === 'Finance') {
+        query = query.in('type', ['finance', 'expiry'])
+      }
+
       const { data, error } = await query
       
       if (error) throw error

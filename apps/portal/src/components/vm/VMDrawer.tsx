@@ -24,21 +24,29 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
   const { toast } = useUIStore()
   const [tab, setTab] = useState('overview')
   const v = vms.find((x: any) => x.id === vmId)
-  if (!v) return null
-  const c = customers.find((c: any) => c.id === v.customer_id)
+  const c = v ? customers.find((c: any) => c.id === v.customer_id) : null
 
   // Get data from store instead of fetching directly
-  const vmRequest = v.vm_request_id ? getVMRequest(v.vm_request_id) : null
-  const addonServices = getAddonServicesForVM(v.id)
-  const allAddonServices = getAllAddonServicesForVM(v.id)
+  const vmRequest = v && v.vm_request_id ? getVMRequest(v.vm_request_id) : null
+  const addonServices = v ? getAddonServicesForVM(v.id) : []
+  const allAddonServices = v ? getAllAddonServicesForVM(v.id) : []
 
   // Live usage from proxmox-proxcy — admins can view any VM's status here
   // (the proxy's admin bypass on the read-only status/stats routes is what
   // makes this work even though the logged-in admin doesn't own the VM).
-  const assignedVmid: number | undefined = (v as any).assigned_vmid
+  const assignedVmid: number | undefined = v ? (v as any).assigned_vmid : undefined
   const { status: liveStatus, error: statusError } = useVMStatus(assignedVmid)
   const { data: statsData, error: statsError } = useVMStats(assignedVmid, 'day')
   const liveError = statusError || statsError
+
+  if (!v) return null
+
+  // Use live status from Proxmox instead of DB power_state
+  const proxmoxStatus = liveStatus?.status
+  const statusKnown = !!proxmoxStatus
+  const isRunning = proxmoxStatus === 'running'
+  const isSuspended = proxmoxStatus === 'paused' || (liveStatus as any)?.qmpstatus === 'paused'
+  const displayPowerState = !statusKnown ? 'Loading…' : isRunning ? 'Running' : isSuspended ? 'Suspended' : 'Stopped'
 
   const cpu = pctSeries(statsData, p => p.cpu)
   const ram = ramPctSeries(statsData)
@@ -100,7 +108,7 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
               <div className="flex gap-2 mt-2">
                 <StatusPill status={v.status} expiry={v.expiry} />
                 <StatusPill status={v.task_type || 'new'} />
-                <span className="pill"><Icon name={v.power_state === 'Running' ? 'play' : 'pause'} size={10} />{v.power_state}</span>
+                <span className="pill"><Icon name={displayPowerState === 'Running' ? 'play' : 'pause'} size={10} />{displayPowerState}</span>
               </div>
             </div>
             <div className="flex gap-2">
@@ -338,7 +346,7 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
                     <dl className="dl">
                       <dt>VM ID</dt><dd className="mono">{v.legacy_id || v.id}</dd>
                       <dt>Hostname</dt><dd>{v.hostname}</dd>
-                      <dt>Power state</dt><dd>{v.power_state}</dd>
+                      <dt>Power state</dt><dd>{displayPowerState}</dd>
                       <dt>Status</dt><dd>{v.status}</dd>
                       <dt>Task Type</dt><dd>{v.task_type || 'New'}</dd>
                       <dt>Assigned VM ID</dt><dd>{(v as any).assigned_vmid || '—'}</dd>

@@ -35,6 +35,11 @@ BEGIN
     -- Get next VM number from sequence (4 digits)
     vm_number := LPAD(nextval('public.vm_seq')::TEXT, 4, '0');
     
+    -- Validate that VM sequence number doesn't exceed 3000
+    IF CAST(vm_number AS INTEGER) > 3000 THEN
+      RAISE EXCEPTION 'VM sequence number cannot exceed 3000. Current value: %', vm_number;
+    END IF;
+    
     -- Generate legacy_id: VPS-TDC-{customer_id_digits}-{vm_number}-{customer_name}
     NEW.legacy_id := 'VPS-TDC-' || customer_id_digits || '-' || vm_number || '-' || customer_name;
   END IF;

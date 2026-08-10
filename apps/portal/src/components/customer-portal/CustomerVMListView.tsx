@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { StatusPill, ExpiryCell } from '../ui/ui'
 import Icon from '../../lib/icons'
+import { useVMStatusByRecord } from '../../hooks/useVMLiveStatus'
 
 interface CustomerVMListViewProps {
   myVMs: any[]
@@ -11,6 +12,33 @@ interface CustomerVMListViewProps {
   // genuinely has none.
   loadError?: string | null
   onRetry?: () => void
+}
+
+// Helper component to fetch and display live status for a single VM
+const VMRow: React.FC<{ vm: any; setDetailVm: (vm: any) => void; setRenewVm: (vm: any) => void }> = ({ vm, setDetailVm, setRenewVm }) => {
+  const recordId: string | undefined = (vm as any).ownership_record_id || undefined
+  const { status: liveStatus } = useVMStatusByRecord(recordId)
+
+  const proxmoxStatus = liveStatus?.status
+  const statusKnown = !!proxmoxStatus
+  const isRunning = proxmoxStatus === 'running'
+  const isSuspended = proxmoxStatus === 'paused' || (liveStatus as any)?.qmpstatus === 'paused'
+  const displayPowerState = !statusKnown ? 'Loading…' : isRunning ? 'Running' : isSuspended ? 'Suspended' : 'Stopped'
+
+  return (
+    <tr onClick={() => setDetailVm(vm)}>
+      <td><div className="fw-6">{vm.hostname}</div><div className="text-xs text-mute mono">{vm.legacy_id || vm.id}</div></td>
+      <td><StatusPill status={vm.status} expiry={vm.expiry}/></td>
+      <td><span className={`pill ${vm.request_type === 'trial' ? 'accent' : 'subtle'}`}>{vm.request_type === 'trial' ? 'Trial' : 'Paid'}</span></td>
+      <td><span className={`pill ${displayPowerState === 'Stopped' ? 'bad' : ''}`}><Icon name={displayPowerState === 'Running' ? 'play' : 'pause'} size={10}/>{displayPowerState}</span></td>
+      <td className="mono text-xs">{vm.vcpu}c · {vm.ram_gb}GB · {vm.storage_gb}GB</td>
+      <td className="mono">{vm.public_ip || '—'}</td>
+      <td><ExpiryCell date={vm.expiry}/></td>
+      <td className="right" onClick={e => e.stopPropagation()}>
+        {vm.status !== 'Terminated' && <button className="btn sm" onClick={() => setRenewVm(vm)}><Icon name="refresh" size={11}/>Renew</button>}
+      </td>
+    </tr>
+  )
 }
 
 export const CustomerVMListView: React.FC<CustomerVMListViewProps> = ({ myVMs, setDetailVm, setRenewVm, loadError, onRetry }) => {
@@ -79,18 +107,7 @@ export const CustomerVMListView: React.FC<CustomerVMListViewProps> = ({ myVMs, s
             )}
             {filtered.length === 0 && !loadError && <tr><td colSpan={8}><div className="empty"><div className="title">No VMs yet</div><div className="sub">Click "Request VM" in the sidebar to deploy your first virtual machine.</div></div></td></tr>}
             {filtered.map((v: any) => (
-              <tr key={v.id} onClick={() => setDetailVm(v)}>
-                <td><div className="fw-6">{v.hostname}</div><div className="text-xs text-mute mono">{v.legacy_id || v.id}</div></td>
-                <td><StatusPill status={v.status} expiry={v.expiry}/></td>
-                <td><span className={`pill ${v.request_type === 'trial' ? 'accent' : 'subtle'}`}>{v.request_type === 'trial' ? 'Trial' : 'Paid'}</span></td>
-                <td><span className={`pill ${v.power_state === 'Stopped' ? 'bad' : ''}`}><Icon name={v.power_state === 'Running' ? 'play' : 'pause'} size={10}/>{v.power_state}</span></td>
-                <td className="mono text-xs">{v.vcpu}c · {v.ram_gb}GB · {v.storage_gb}GB</td>
-                <td className="mono">{v.public_ip || '—'}</td>
-                <td><ExpiryCell date={v.expiry}/></td>
-                <td className="right" onClick={e => e.stopPropagation()}>
-                  {v.status !== 'Terminated' && <button className="btn sm" onClick={() => setRenewVm(v)}><Icon name="refresh" size={11}/>Renew</button>}
-                </td>
-              </tr>
+              <VMRow key={v.id} vm={v} setDetailVm={setDetailVm} setRenewVm={setRenewVm} />
             ))}
           </tbody>
         </table>
