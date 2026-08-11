@@ -226,11 +226,6 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
                       minWidth: 200, padding: 4,
                     }}>
                       {isRunning && (
-                        <button className="nav-item" onClick={() => { setMoreMenuOpen(false); handleAction('suspend') }}>
-                          <Icon name="moon" size={13} />Suspend
-                        </button>
-                      )}
-                      {isRunning && (
                         <button className="nav-item" onClick={() => { setMoreMenuOpen(false); handleAction('reset', 'Reset performs a hard restart, like pressing the physical reset button. Unsaved data may be lost. Continue?') }}>
                           <Icon name="alert" size={13} />Reset (hard restart)
                         </button>
