@@ -67,6 +67,7 @@ export const MyAddonServicesView: React.FC<MyAddonServicesViewProps> = ({ myVMs,
               <th>Add-on Service</th>
               <th>VM</th>
               <th>Services</th>
+              <th>Billing Term</th>
               <th>Status</th>
               <th>Start Date</th>
               <th>Expires</th>
@@ -74,7 +75,7 @@ export const MyAddonServicesView: React.FC<MyAddonServicesViewProps> = ({ myVMs,
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td colSpan={6}><div className="empty"><div className="title">No active add-on services</div><div className="sub">Go to "Add-on Services" to request one.</div></div></td></tr>
+              <tr><td colSpan={7}><div className="empty"><div className="title">No active add-on services</div><div className="sub">Go to "Add-on Services" to request one.</div></div></td></tr>
             ) : (
               filtered.map((addon) => {
                 const vm = myVMs.find((v: any) => v.id === addon.vm_id)
@@ -93,6 +94,7 @@ export const MyAddonServicesView: React.FC<MyAddonServicesViewProps> = ({ myVMs,
                         {addon.ccis_enabled && <span className="pill subtle">CCIS ({addon.ccis_package})</span>}
                       </div>
                     </td>
+                    <td className="text-sm">{addon.duration || '—'}</td>
                     <td><StatusPill status={addon.operational_status || addon.status} expiry={addon.expiry} /></td>
                     <td className="text-sm">{addon.start_date ? new Date(addon.start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}</td>
                     <td><ExpiryCell date={addon.expiry as any} /></td>

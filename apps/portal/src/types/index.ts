@@ -280,6 +280,8 @@ export interface AddonRequest {
   status: "Pending" | "In Progress" | "Completed" | "Rejected";
   operational_status?: "Active" | "Expired" | "Terminated";
   notes?: string;
+  related_entity_id?: string;
+  related_entity_type?: string;
   created_at: string;
   updated_at: string;
 }

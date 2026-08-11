@@ -345,10 +345,10 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
         })
       }
 
-      // Fetch addon requests for this VM (for renewal)
+      // Fetch addon requests for this specific renewal request
       const vmAddonRequests = addonRequests.filter((a: any) =>
-        a.vm_id === currentVMData.id &&
-        a.status === 'Pending'
+        a.related_entity_id === selectedRequest.id &&
+        a.related_entity_type === 'vm_request'
       )
 
       // Track which services have been added to prevent duplicates

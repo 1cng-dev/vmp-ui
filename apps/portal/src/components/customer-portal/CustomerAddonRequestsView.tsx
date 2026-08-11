@@ -46,12 +46,21 @@ export const CustomerAddonRequestsView: React.FC<CustomerAddonRequestsViewProps>
     return status
   }
 
+  // Filter out add-on requests that are part of VM renewals
+  // These are identified by notes containing "along with VM renewal" or having a related_entity_id
+  const standaloneAddonRequests = myAddonRequests.filter((t: any) => {
+    const isPartOfRenewal = t.notes?.toLowerCase().includes('along with vm renewal') || 
+                            t.related_entity_id || 
+                            t.vm_request_id
+    return !isPartOfRenewal
+  })
+
   return (
     <div className="content">
       <div className="page-head">
         <div>
           <h1 className="page-title">My add-on requests</h1>
-          <p className="page-subtitle">Add-on service requests you've submitted · {myAddonRequests.length} total · click any row to see details</p>
+          <p className="page-subtitle">Add-on service requests you've submitted · {standaloneAddonRequests.length} total · click any row to see details</p>
         </div>
       </div>
       <div className="card">
@@ -59,8 +68,8 @@ export const CustomerAddonRequestsView: React.FC<CustomerAddonRequestsViewProps>
           <table className="tbl">
             <thead><tr><th>Request ID</th><th>Services</th><th>Submitted</th><th>Start Date</th><th>Expiry</th><th>Billing Term</th><th>Provision Status</th><th>Operational Status</th><th></th></tr></thead>
             <tbody>
-              {myAddonRequests.length === 0 && <tr><td colSpan={9}><div className="empty"><div className="title">No add-on requests yet</div><div className="sub">Click "Add-on Services" in the sidebar to submit your first.</div></div></td></tr>}
-              {myAddonRequests.map((t: any) => (
+              {standaloneAddonRequests.length === 0 && <tr><td colSpan={9}><div className="empty"><div className="title">No add-on requests yet</div><div className="sub">Click "Add-on Services" in the sidebar to submit your first.</div></div></td></tr>}
+              {standaloneAddonRequests.map((t: any) => (
                 <tr key={t.id} onClick={() => setDetailRequest({ ...t, requestType: 'addon' })}>
                   <td>
                     <div className="fw-6">{t.legacy_id || t.id}</div>

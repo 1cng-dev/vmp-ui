@@ -84,7 +84,6 @@ const AddonServicesView: React.FC<AddonServicesViewProps> = ({ openTask, setView
 
   const filters = [
     { id: 'all', label: 'All' },
-    { id: 'Active', label: 'Active Services' },
     ...(userRole === 'Sales' || userRole === 'Admin' ? [{ id: 'Pending', label: 'Pending' }] : []),
     { id: 'In Progress', label: 'In Progress' },
     { id: 'Completed', label: 'Completed' },
@@ -97,13 +96,20 @@ const AddonServicesView: React.FC<AddonServicesViewProps> = ({ openTask, setView
     filteredByRole = filteredByRole.filter(r => ['In Progress', 'Network', 'Testing', 'Completed'].includes(r.status))
   }
 
+  // Filter out add-on requests that are part of VM renewals
+  // These are identified by notes containing "along with VM renewal" or having a related_entity_id
+  const standaloneAddonRequests = filteredByRole.filter((t: any) => {
+    const isPartOfRenewal = t.notes?.toLowerCase().includes('along with vm renewal') || 
+                            t.related_entity_id || 
+                            t.vm_request_id
+    return !isPartOfRenewal
+  })
+
   // Combine addon_services (active) and addon_requests (pending/completed)
-  const combinedList = filter === 'Active'
-    ? addonServices.map(s => ({ ...s, isService: true }))
-    : filteredByRole.map(r => ({ ...r, isService: false }))
+  const combinedList = standaloneAddonRequests.map(r => ({ ...r, isService: false }))
 
   const list = combinedList
-    .filter(r => filter === 'all' || filter === 'Active' ? true : r.status === filter)
+    .filter(r => filter === 'all' ? true : r.status === filter)
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
   return (
@@ -111,7 +117,7 @@ const AddonServicesView: React.FC<AddonServicesViewProps> = ({ openTask, setView
       <div className="page-head">
         <div>
           <h1 className="page-title">Add-on Requests</h1>
-          <p className="page-subtitle">Manage CPFS/CCIS requests across customers · {filteredByRole.length} total</p>
+          <p className="page-subtitle">Manage CPFS/CCIS requests across customers · {standaloneAddonRequests.length} total</p>
         </div>
       </div>
 
@@ -119,7 +125,7 @@ const AddonServicesView: React.FC<AddonServicesViewProps> = ({ openTask, setView
         <div className="filter-bar">
           {filters.map(f => (
             <button key={f.id} className={`filter-chip ${filter === f.id ? 'active' : ''}`} onClick={() => setFilter(filter === f.id ? 'all' as any : f.id as any)}>
-              {f.label}<span className="ct">{f.id === 'all' ? filteredByRole.length : addonRequests.filter(r => r.status === f.id).length}</span>
+              {f.label}<span className="ct">{f.id === 'all' ? standaloneAddonRequests.length : standaloneAddonRequests.filter(r => r.status === f.id).length}</span>
             </button>
           ))}
           <div style={{ flex: 1 }} />

@@ -179,6 +179,7 @@ const AddonServicesList: React.FC<AddonServicesListProps> = ({ userRole }) => {
               <th>VM</th>
               <th>Customer</th>
               <th>Services</th>
+              <th>Billing Term</th>
               <th>Status</th>
               <th>Start Date</th>
               <th>Expires</th>
@@ -187,9 +188,9 @@ const AddonServicesList: React.FC<AddonServicesListProps> = ({ userRole }) => {
           </thead>
           <tbody>
             {addonServicesLoading ? (
-              <tr><td colSpan={8}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
+              <tr><td colSpan={9}><div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div></td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={8}><div className="empty"><div className="title">No add-on services match these filters</div><div className="sub">Try a different status or clear the search.</div></div></td></tr>
+              <tr><td colSpan={9}><div className="empty"><div className="title">No add-on services match these filters</div><div className="sub">Try a different status or clear the search.</div></div></td></tr>
             ) : (
               filtered.map(a => {
               const vm = vms.find(v => v.id === a.vm_id)
@@ -213,6 +214,7 @@ const AddonServicesList: React.FC<AddonServicesListProps> = ({ userRole }) => {
                       {a.ccis_enabled && <span className="pill subtle">CCIS ({a.ccis_package})</span>}
                     </div>
                   </td>
+                  <td className="text-sm">{a.duration || '—'}</td>
                   <td><StatusPill status={a.operational_status || a.status} expiry={a.expiry} /></td>
                   <td className="text-sm">{a.start_date ? new Date(a.start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}</td>
                   <td><ExpiryCell date={a.expiry as any} /></td>

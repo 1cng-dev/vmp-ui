@@ -1,6 +1,8 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import Icon from '../../lib/icons'
 import { StatusPill } from '../ui/ui'
+import useVMStore from '../../store/vmStore'
+import useAddonRequestStore from '../../store/addonRequestStore'
 
 interface CustomerRequestDetailProps {
   request: any
@@ -9,6 +11,24 @@ interface CustomerRequestDetailProps {
 
 export const CustomerRequestDetail: React.FC<CustomerRequestDetailProps> = ({ request, onClose }) => {
   const t = request
+  const { getVMById } = useVMStore()
+  const { addonRequests } = useAddonRequestStore()
+  const [relatedAddonRequests, setRelatedAddonRequests] = useState<any[]>([])
+  
+  const isRenewal = t.task_type?.toLowerCase() === 'renewal'
+  
+  // Fetch related add-on requests for renewal
+  useEffect(() => {
+    if (isRenewal && t.id) {
+      const related = addonRequests.filter((ar: any) => 
+        ar.related_entity_id === t.id && ar.related_entity_type === 'vm_request'
+      )
+      setRelatedAddonRequests(related)
+    }
+  }, [isRenewal, t.id, addonRequests])
+  
+  // Get VM data
+  const vmData = t.vm_id ? getVMById(t.vm_id) : null
   
   const transformStatus = (status: string) => {
     if (status === 'Pending') return 'Under Review'
@@ -50,6 +70,12 @@ export const CustomerRequestDetail: React.FC<CustomerRequestDetailProps> = ({ re
             <div className="card-body">
               <dl className="dl">
                 <dt>Purpose</dt><dd className="mono">{t.purpose || 'No purpose specified'}</dd>
+                {isRenewal && vmData && (
+                  <>
+                    <dt>VM being renewed</dt>
+                    <dd className="mono">{vmData.legacy_id || vmData.id} · {vmData.hostname}</dd>
+                  </>
+                )}
                 <dt>Hostname</dt><dd className="mono">{t.hostname}</dd>
                 {!isChangePlan || isSpecChange ? (
                   <>
@@ -112,6 +138,38 @@ export const CustomerRequestDetail: React.FC<CustomerRequestDetailProps> = ({ re
               </dl>
             </div>
           </div>
+
+          {/* Add-on Services for Renewal */}
+          {isRenewal && relatedAddonRequests.length > 0 && (
+            <div className="card">
+              <div className="card-head"><h3 className="card-title">Add-on Services being renewed</h3></div>
+              <div className="card-body">
+                {relatedAddonRequests.map((ar: any) => (
+                  <div key={ar.id} style={{ padding: 12, background: 'var(--surface-2)', borderRadius: 8, marginBottom: 8 }}>
+                    <div className="flex center between mb-2">
+                      <span className="fw-6 text-sm">{ar.legacy_id || ar.id}</span>
+                      <span className="pill subtle">{ar.status}</span>
+                    </div>
+                    <dl className="dl" style={{ fontSize: 13 }}>
+                      {ar.cpfs_enabled && (
+                        <>
+                          <dt>CPFS</dt>
+                          <dd className="mono">Cloud Protection Firewall Service - {ar.cpfs_package || 'standard'}</dd>
+                        </>
+                      )}
+                      {ar.ccis_enabled && (
+                        <>
+                          <dt>CCIS</dt>
+                          <dd className="mono">Cloud Container Image Service - {ar.ccis_package || 'standard'}</dd>
+                        </>
+                      )}
+                      <dt>Billing Term</dt><dd className="mono">{ar.duration}</dd>
+                    </dl>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Timeline */}
           <div className="card">

@@ -179,7 +179,53 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      setVms((data as any) || []);
+      const baseVms = ((data as any[]) || []).map((vm) => ({
+        ...vm,
+        node: undefined,
+      }));
+
+      if (!isStaff) {
+        setVms(baseVms as any);
+        setVmsError(null);
+        return;
+      }
+
+      const assignedVmids = Array.from(
+        new Set(
+          baseVms
+            .map((vm: any) => vm.assigned_vmid)
+            .filter((vmid: number | null | undefined): vmid is number => vmid != null),
+        ),
+      );
+
+      if (assignedVmids.length === 0) {
+        setVms(baseVms as any);
+        setVmsError(null);
+        return;
+      }
+
+      const { data: ownershipRows, error: ownershipError } = await supabase
+        .from("vm_ownership")
+        .select("vmid, node")
+        .in("vmid", assignedVmids);
+
+      if (ownershipError) {
+        console.error("[vmStore] loadVMs vm_ownership lookup failed:", ownershipError);
+        setVms(baseVms as any);
+        setVmsError(null);
+        return;
+      }
+
+      const ownershipNodeByVmid = new Map(
+        ((ownershipRows as any[]) || []).map((row) => [row.vmid, row.node]),
+      );
+
+      const vmsWithOwnershipNode = baseVms.map((vm: any) => ({
+        ...vm,
+        node: vm.assigned_vmid != null ? ownershipNodeByVmid.get(vm.assigned_vmid) : undefined,
+      }));
+
+      setVms(vmsWithOwnershipNode as any);
       setVmsError(null);
     } catch (err: any) {
       // Never let this become an unhandled rejection that silently renders

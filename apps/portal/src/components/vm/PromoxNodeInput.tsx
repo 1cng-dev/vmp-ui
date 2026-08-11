@@ -7,6 +7,7 @@ interface ProxmoxNodeInputProps {
   placeholder?: string;
   id?: string;
   className?: string;
+  asSelect?: boolean;
 }
 
 // Free-text input for a VM's Proxmox node, with live autocomplete from
@@ -21,9 +22,35 @@ export default function ProxmoxNodeInput({
   placeholder,
   id,
   className,
+  asSelect,
 }: ProxmoxNodeInputProps) {
   const listId = useId();
   const { nodes, loading } = useProxmoxNodes();
+
+  if (asSelect) {
+    const hasCurrentValue = !!value && nodes.every((n) => n.node !== value);
+
+    return (
+      <select
+        id={id}
+        className={className}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        {!value && (
+          <option value="">
+            {loading ? "Loading nodes…" : placeholder || "Select Proxmox node"}
+          </option>
+        )}
+        {hasCurrentValue && <option value={value}>{value}</option>}
+        {nodes.map((n) => (
+          <option key={n.node} value={n.node}>
+            {n.node}
+          </option>
+        ))}
+      </select>
+    );
+  }
 
   return (
     <>

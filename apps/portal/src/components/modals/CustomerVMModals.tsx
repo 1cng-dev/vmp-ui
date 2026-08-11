@@ -70,6 +70,7 @@ const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, me }) => {
   const [months, setMonths] = useState(12)
   const [customMode, setCustomMode] = useState(false)
   const [customValue, setCustomValue] = useState('12')
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const periods = [1, 3, 6, 12]
 
   // Get existing add-on services for this VM
@@ -127,6 +128,9 @@ const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, me }) => {
       toast('Customer information not found', 'error')
       return
     }
+
+    if (isSubmitting) return
+    setIsSubmitting(true)
 
     try {
       // Create VM request with task_type='renewal'
@@ -188,7 +192,9 @@ const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, me }) => {
           notes: `Add-on renewal for ${months} month${months > 1 ? 's' : ''} along with VM renewal${selectedAddons.cpfs ? ' (CPFS: ' + cpfsPackage + ')' : ''}${selectedAddons.ccis ? ' (CCIS: ' + ccisPackage + ')' : ''}`,
           start_date: vm.expiry,
           end_date: newExpiry,
-          expiry: newExpiry
+          expiry: newExpiry,
+          related_entity_id: insertedData.id, // Link to the renewal request for safe filtering
+          related_entity_type: 'vm_request'
         })
       }
 
@@ -229,6 +235,8 @@ const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, me }) => {
     } catch (err) {
       console.error('Error creating renewal request:', err)
       toast('Failed to submit renewal request', 'error')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -387,8 +395,18 @@ const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, me }) => {
           )}
         </div>
         <div className="modal-foot">
-          <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <button className="btn accent" onClick={submit}><Icon name="check" size={12} />Submit renewal request</button>
+          <button className="btn ghost" onClick={onClose} disabled={isSubmitting}>Cancel</button>
+          <button className="btn accent" onClick={submit} disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <Icon name="loader" size={12} className="spin" /> Submitting...
+              </>
+            ) : (
+              <>
+                <Icon name="check" size={12} /> Submit renewal request
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>
@@ -410,6 +428,7 @@ const CustUpgradeModal: React.FC<CustUpgradeModalProps> = ({ vm, onClose, me }) 
   const [backupEnabled, setBackupEnabled] = useState((vm as any).backup_enabled || false)
   const [backupType, setBackupType] = useState(() => (vm as any).backup_type || 'daily')
   const [errors, setErrors] = useState({ vcpu: '', ram: '', storage: '' })
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const currentVcpu = vm.vcpu
   const currentRam = (vm as any).ram_gb || vm.ram
@@ -439,10 +458,14 @@ const CustUpgradeModal: React.FC<CustUpgradeModalProps> = ({ vm, onClose, me }) 
       return
     }
 
+    if (isSubmitting) return
+    setIsSubmitting(true)
+
     // Validate all fields
     const isValid = validateField('vcpu', spec.vcpu) && validateField('ram', spec.ram) && validateField('storage', spec.storage)
     if (!isValid) {
       toast('Please fix validation errors before submitting', 'error')
+      setIsSubmitting(false)
       return
     }
 
@@ -575,6 +598,8 @@ ${backupChanged ? `Backup: ${backupEnabled ? `${backupType === 'daily' ? 'Daily'
     } catch (err) {
       console.error('Error creating upgrade request:', err)
       toast('Failed to submit upgrade request', 'error')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -674,9 +699,17 @@ ${backupChanged ? `Backup: ${backupEnabled ? `${backupType === 'daily' ? 'Daily'
           </div>
         </div>
         <div className="modal-foot">
-          <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <button className="btn accent" disabled={spec.vcpu === vm.vcpu && spec.ram === vm.ram && spec.storage === vm.storage && !backupEnabled} onClick={submit}>
-            <Icon name="arrow-up" size={12} />Submit upgrade request
+          <button className="btn ghost" onClick={onClose} disabled={isSubmitting}>Cancel</button>
+          <button className="btn accent" disabled={spec.vcpu === vm.vcpu && spec.ram === vm.ram && spec.storage === vm.storage && !backupEnabled || isSubmitting} onClick={submit}>
+            {isSubmitting ? (
+              <>
+                <Icon name="loader" size={12} className="spin" /> Submitting...
+              </>
+            ) : (
+              <>
+                <Icon name="arrow-up" size={12} />Submit upgrade request
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -695,6 +728,7 @@ const CustChangePlanModal: React.FC<CustChangePlanModalProps> = ({ vm, onClose }
   const { customers } = useCustomerStore()
   const { toast } = useUIStore()
   const me = customers.find((c: any) => c.id === vm.customer)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const plans = [
     { id: 'starter', label: 'Starter', vcpu: 2, ram: 4, storage: 50, price: 90000, desc: 'Small services, dev work' },
@@ -713,6 +747,8 @@ const CustChangePlanModal: React.FC<CustChangePlanModalProps> = ({ vm, onClose }
 
   const submit = () => {
     if (!target) return
+    if (isSubmitting) return
+    setIsSubmitting(true)
     addTask({
       title: `Plan change — ${vm.name} (${currentPlan.label} → ${target.label})`,
       customer: vm.customer, vm: vm.id, type: 'Upgrade', priority: 'Normal', status: 'Pending', team: 'Sales',
@@ -726,6 +762,7 @@ Cost diff: ${diff >= 0 ? '+' : ''}MMK ${formatMMK(Math.abs(diff))}/mo`,
     })
     toast(`${direction} request sent to Sales`, 'ok')
     onClose()
+    setIsSubmitting(false)
   }
 
   return (
@@ -778,9 +815,17 @@ Cost diff: ${diff >= 0 ? '+' : ''}MMK ${formatMMK(Math.abs(diff))}/mo`,
           )}
         </div>
         <div className="modal-foot">
-          <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <button className="btn accent" disabled={!target || target.id === currentPlan.id} onClick={submit}>
-            <Icon name="check" size={12} />Submit {direction.toLowerCase()} request
+          <button className="btn ghost" onClick={onClose} disabled={isSubmitting}>Cancel</button>
+          <button className="btn accent" disabled={!target || target.id === currentPlan.id || isSubmitting} onClick={submit}>
+            {isSubmitting ? (
+              <>
+                <Icon name="loader" size={12} className="spin" /> Submitting...
+              </>
+            ) : (
+              <>
+                <Icon name="check" size={12} />Submit {direction.toLowerCase()} request
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -804,6 +849,7 @@ const CustConvertToPaidModal: React.FC<CustConvertToPaidModalProps> = ({ vm, onC
   const [duration, setDuration] = useState(12)
   const [customMode, setCustomMode] = useState(false)
   const [customValue, setCustomValue] = useState('12')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const getDurationLabel = (months: number) => {
     const labels: Record<number, string> = {
@@ -835,6 +881,9 @@ const CustConvertToPaidModal: React.FC<CustConvertToPaidModalProps> = ({ vm, onC
       toast('Customer information not found', 'error')
       return
     }
+
+    if (isSubmitting) return
+    setIsSubmitting(true)
 
     try {
       // Create VM request for conversion with task_type='New' and request_type='paid'
@@ -918,6 +967,8 @@ const CustConvertToPaidModal: React.FC<CustConvertToPaidModalProps> = ({ vm, onC
       onClose()
     } catch (error: any) {
       toast('Failed to submit conversion request: ' + error.message, 'error')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -973,9 +1024,17 @@ const CustConvertToPaidModal: React.FC<CustConvertToPaidModalProps> = ({ vm, onC
           </div>
         </div>
         <div className="modal-foot">
-          <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <button className="btn primary" onClick={submit}>
-            <Icon name="check" size={12} />Submit Conversion Request
+          <button className="btn ghost" onClick={onClose} disabled={isSubmitting}>Cancel</button>
+          <button className="btn primary" onClick={submit} disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <Icon name="loader" size={12} className="spin" /> Submitting...
+              </>
+            ) : (
+              <>
+                <Icon name="check" size={12} />Submit Conversion Request
+              </>
+            )}
           </button>
         </div>
       </div>

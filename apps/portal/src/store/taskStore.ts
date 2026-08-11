@@ -22,7 +22,7 @@ export interface TaskStoreValue {
       assigned_vmids: number[];
       username: string;
       password: string;
-      node?: string  // ADD THIS
+      nodes?: string[]  // ADD THIS
       pmx_type?: string  // ADD THIS
     },
     addVM: (vm: any) => Promise<string>,
@@ -36,6 +36,7 @@ export interface TaskStoreValue {
   updateAddonExpiryForVM: (
     vmId: string,
     durationMonths: number,
+    renewalRequestId?: string,
   ) => Promise<void>;
 }
 
@@ -124,21 +125,27 @@ const useTaskStore = (): TaskStoreValue => {
 
   const createVMManually = useCallback(
     async (
-      task: any,
+      taskId: string,
       vmDetails: {
         publicIps: string[];
         privateIps: string[];
         assigned_vmids: number[];
         username: string;
         password: string;
-        node?: string; // ADD THIS
+        nodes?: string[]; // ADD THIS
         pmx_type?: string; // ADD THIS
       },
       addVM: (vm: any) => Promise<string>,
     ) => {
+      const { data: task } = await supabase
+        .from("vm_requests")
+        .select("*")
+        .eq("id", taskId)
+        .single();
+      
       const t = task;
       if (!t) {
-        console.error("Task is null/undefined");
+        console.error("Task not found");
         return;
       }
 
@@ -287,7 +294,7 @@ const useTaskStore = (): TaskStoreValue => {
             end_date: end_date,
             legacy_id: undefined, // Let database trigger generate VPS-TDC-{customer_id}-{vm_number}-{customer_name} format
             assigned_vmid: assignedVmid,
-            node: vmDetails.node || "pve1", // ADD THIS
+            node: vmDetails.nodes?.[i] || "", // ADD THIS
             pmx_type: vmDetails.pmx_type || "qemu", // ADD THIS
             backup_enabled: t.backup_enabled || false,
             backup_type: t.backup_type || "weekly",
@@ -380,14 +387,60 @@ const useTaskStore = (): TaskStoreValue => {
 
   // Function to update add-on service duration when renewal is complete
   const updateAddonExpiryForVM = useCallback(
-    async (vmId: string, durationMonths: number) => {
+    async (vmId: string, durationMonths: number, renewalRequestId?: string) => {
 
-      // Get ONLY pending add-on requests for this VM (renewal requests)
-      const { data: pendingAddonRequests } = await supabase
-        .from("addon_requests")
-        .select("*")
-        .eq("vm_id", vmId)
-        .eq("status", "Pending");
+      // Get pending add-on requests for this VM
+      // If renewalRequestId is provided, try to filter by related_entity_id first
+      // If that returns no results (backward compatibility), fall back to vm_id filtering
+      let pendingAddonRequests;
+      
+      if (renewalRequestId) {
+        // Try to filter by related_entity_id (new approach)
+        const { data: relatedAddonRequests } = await supabase
+          .from("addon_requests")
+          .select("*")
+          .eq("vm_id", vmId)
+          .eq("status", "Pending")
+          .eq("related_entity_type", "vm_request")
+          .eq("related_entity_id", renewalRequestId);
+        
+        if (relatedAddonRequests && relatedAddonRequests.length > 0) {
+          pendingAddonRequests = relatedAddonRequests;
+        } else {
+          // Fallback: filter by vm_id and status (backward compatibility)
+          // Then we'll match by duration to ensure we get the right ones
+          const { data: vmAddonRequests } = await supabase
+            .from("addon_requests")
+            .select("*")
+            .eq("vm_id", vmId)
+            .eq("status", "Pending");
+          
+          // Filter by duration to match the renewal request duration
+          // Get the renewal request to check its duration
+          const { data: renewalRequest } = await supabase
+            .from("vm_requests")
+            .select("duration")
+            .eq("id", renewalRequestId)
+            .single();
+          
+          if (renewalRequest && vmAddonRequests) {
+            pendingAddonRequests = vmAddonRequests.filter((ar: any) => {
+              // Match by duration string (e.g., "1 month", "3 months")
+              return ar.duration === renewalRequest.duration;
+            });
+          } else {
+            pendingAddonRequests = vmAddonRequests;
+          }
+        }
+      } else {
+        // No renewalRequestId provided, fall back to vm_id filtering
+        const { data: vmAddonRequests } = await supabase
+          .from("addon_requests")
+          .select("*")
+          .eq("vm_id", vmId)
+          .eq("status", "Pending");
+        pendingAddonRequests = vmAddonRequests;
+      }
 
       if (pendingAddonRequests && pendingAddonRequests.length > 0) {
 

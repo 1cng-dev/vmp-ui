@@ -69,7 +69,7 @@ const AdminDirectVMCreate: React.FC = () => {
     start_date: new Date().toISOString().slice(0, 10),
     legacy_id: "",
     assigned_vmid: "",
-    node: "pve1", // ADD THIS
+    node: "", // ADD THIS
     pmx_type: "qemu", // ADD THIS
     assigned_to: "",
     public_ip: "",
@@ -317,6 +317,11 @@ const AdminDirectVMCreate: React.FC = () => {
       }
       if (!f.assigned_vmid) {
         toast("Assigned VM ID is required", "bad");
+        setIsSubmitting(false);
+        return;
+      }
+      if (!f.node.trim()) {
+        toast("Proxmox Node is required", "bad");
         setIsSubmitting(false);
         return;
       }
@@ -909,6 +914,7 @@ const AdminDirectVMCreate: React.FC = () => {
                     Proxmox Node <span style={{ color: "var(--bad)" }}>*</span>
                   </label>
                   <ProxmoxNodeInput
+                    asSelect
                     value={f.node}
                     onChange={(v) => set("node", v)}
                   />
@@ -999,7 +1005,9 @@ const AdminDirectVMCreate: React.FC = () => {
                 <option value="">Select customer...</option>
                 {actualCustomers.map((c: any) => (
                   <option key={c.id} value={c.id}>
-                    {c.org_name || c.company || c.name}
+                    {c.org_name || c.company
+                      ? `${c.name} (${c.org_name || c.company})`
+                      : c.name}
                   </option>
                 ))}
               </select>
@@ -2252,6 +2260,7 @@ const AdminDirectVMCreate: React.FC = () => {
                   Proxmox Node <span style={{ color: "var(--bad)" }}>*</span>
                 </label>
                 <ProxmoxNodeInput
+                  asSelect
                   value={f.node}
                   onChange={(v) => set("node", v)}
                 />

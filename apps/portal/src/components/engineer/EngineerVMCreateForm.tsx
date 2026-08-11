@@ -13,7 +13,7 @@ interface EngineerVMCreateFormProps {
     assigned_vmids: number[];
     username: string;
     password: string;
-    node: string;
+    nodes: string[];
     pmx_type: string;
   }) => Promise<void>;
 }
@@ -35,7 +35,7 @@ const EngineerVMCreateForm = ({
   );
   const [username, setUsername] = useState<string>("");
   const [password, setPassword] = useState<string>("");
-  const [node, setNode] = useState<string>("pve1");
+  const [nodes, setNodes] = useState<string[]>(() => Array(qty).fill(""));
   const [pmx_type, setPmxType] = useState<string>("qemu");
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [nextHostnameNumber, setNextHostnameNumber] = useState<number>(1);
@@ -72,6 +72,7 @@ const EngineerVMCreateForm = ({
     setPublicIps(Array(qty).fill(""));
     setPrivateIps(Array(qty).fill(""));
     setAssigned_vmids(Array(qty).fill(0));
+    setNodes(Array(qty).fill(""));
   }, [qty]);
 
   const handlePublicIpChange = (index: number, value: string) => {
@@ -92,6 +93,12 @@ const EngineerVMCreateForm = ({
     setAssigned_vmids(newIds);
   };
 
+  const handleNodeChange = (index: number, value: string) => {
+    const newNodes = [...nodes];
+    newNodes[index] = value;
+    setNodes(newNodes);
+  };
+
   const handleSubmit = async () => {
     if (!username || !password) {
       toast("Please fill in username and password", "error");
@@ -105,8 +112,8 @@ const EngineerVMCreateForm = ({
       toast("Please fill in all Assigned VM ID fields", "error");
       return;
     }
-    if (!node) {
-      toast("Please fill in Proxmox Node", "error");
+    if (nodes.some((n) => !n)) {
+      toast("Please fill in Proxmox Node for all VMs", "error");
       return;
     }
     setIsSubmitting(true);
@@ -117,7 +124,7 @@ const EngineerVMCreateForm = ({
         assigned_vmids,
         username,
         password,
-        node,
+        nodes,
         pmx_type,
       });
     } finally {
@@ -194,8 +201,9 @@ const EngineerVMCreateForm = ({
               </label>
               <ProxmoxNodeInput
                 className="input"
-                value={node}
-                onChange={setNode}
+                asSelect
+                value={nodes[i] || ""}
+                onChange={(v) => handleNodeChange(i, v)}
               />
             </div>
             <div className="field">

@@ -6,7 +6,7 @@ import useUIStore from "../../store/uiStore";
 import Icon from "../../lib/icons";
 import { Avatar } from "../ui/ui";
 import { supabase } from "../../lib/supabase";
-import ProxmoxNodeInput from "../vm/ProxmoxNodeInput";
+import PromoxNodeInput from "../vm/PromoxNodeInput";
 
 interface AdminDirectVMModalProps {
   onClose: () => void;
@@ -704,9 +704,10 @@ const AdminDirectVMModal: React.FC<AdminDirectVMModalProps> = ({ onClose }) => {
                 </div>
                 <div className="field">
                   <label>Proxmox Node</label>
-                  <ProxmoxNodeInput
+                  <PromoxNodeInput
+                    asSelect
                     value={f.node}
-                    onChange={(v) => set("node", v)}
+                    onChange={(v: string) => set("node", v)}
                   />
                 </div>
               </div>

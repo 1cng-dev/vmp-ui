@@ -52,8 +52,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ view, setView, role, roleNames
   const unreadAlertsCount = alerts.filter((a: any) => !a.read).length
   const customerTransferredInvoicesCount = invoices.filter((i: any) => i.status === 'Customer Transferred').length
   const sentQuotesCount = quotes.filter((q: any) => q.status === 'Sent').length
-  const pendingAddonRequestsCount = addonRequests.filter((a: any) => a.status === 'Pending').length
-  const inProgressAddonRequestsCount = addonRequests.filter((a: any) => ['In Progress', 'Network', 'Testing'].includes(a.status)).length
+  const pendingAddonRequestsCount = addonRequests.filter((a: any) => 
+    a.status === 'Pending' && 
+    !a.notes?.toLowerCase().includes('along with vm renewal') &&
+    !a.related_entity_id &&
+    !a.vm_request_id
+  ).length
+  const inProgressAddonRequestsCount = addonRequests.filter((a: any) => 
+    ['In Progress', 'Network', 'Testing'].includes(a.status) &&
+    !a.notes?.toLowerCase().includes('along with vm renewal') &&
+    !a.related_entity_id &&
+    !a.vm_request_id
+  ).length
 
   React.useEffect(() => {
     loadCustomers()
