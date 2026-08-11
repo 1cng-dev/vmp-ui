@@ -17,13 +17,13 @@ interface VMListProps {
 // Helper component to fetch and display live status for a single VM in admin portal
 const AdminVMRow: React.FC<{ vm: any; customer: any; openVM: (id: string) => void; openModal: (kind: string, props?: any) => void; setMenu: (id: string | null) => void; menu: string | null; userRole?: string }> = ({ vm, customer, openVM, openModal, setMenu, menu, userRole }) => {
   const { updateVM } = useVMStore()
-  const { getAddonServicesForVM, updateAddonService } = useAddonServiceStore()
+  const { getAllAddonServicesForVM, updateAddonService } = useAddonServiceStore()
   const { toast } = useUIStore()
   const assignedVmid: number | undefined = (vm as any).assigned_vmid
   const { status: liveStatus } = useVMStatus(assignedVmid)
 
   const handleActivate = async () => {
-    const addonServices = getAddonServicesForVM(vm.id)
+    const addonServices = getAllAddonServicesForVM(vm.id)
     updateVM(vm.id, { status: 'Active' as any, power_state: 'Running' as any })
 
     // Reactivate associated addon services (including terminated ones)

@@ -186,10 +186,38 @@ export const QuoteProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }, [loadQuotes, quotes, logActivity])
 
   const deleteQuote = useCallback(async (id: string) => {
+    const previousQuote = quotes.find(q => q.id === id)
     const { error } = await supabase.from('quotes').delete().eq('id', id)
     if (error) throw error
+
+    // Log activity for quote deletion
+    const { data: { user } } = await supabase.auth.getUser()
+    let actorName = 'System'
+    if (user) {
+      const { data: staff } = await supabase
+        .from('team_members')
+        .select('name, staff_code')
+        .eq('id', user.id)
+        .single()
+      if (staff) {
+        actorName = `${staff.name} (${staff.staff_code})`
+      } else {
+        actorName = user.user_metadata?.name || user.email || 'System'
+      }
+    }
+
+    if (previousQuote) {
+      const quoteId = previousQuote.legacy_id || previousQuote.id
+      await logActivity(
+        `Deleted quote ${quoteId} - MMK ${previousQuote.grand_total}`,
+        'finance',
+        actorName,
+        { quoteId, amount: previousQuote.grand_total, customerId: previousQuote.customer_id, status: previousQuote.status }
+      )
+    }
+
     await loadQuotes()
-  }, [loadQuotes])
+  }, [loadQuotes, quotes, logActivity])
 
   // Subscribe to realtime changes when provider mounts
   useEffect(() => {

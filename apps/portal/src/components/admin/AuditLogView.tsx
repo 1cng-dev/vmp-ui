@@ -23,7 +23,7 @@ export const AuditLogView: React.FC = () => {
   }, [activity])
 
   const actors = ['All', ...new Set(auditData.map((a: any) => a.actor))]
-  const actions = ['All', 'vm', 'finance', 'customer', 'task', 'alert', 'auth', 'creds', 'role', 'settings', 'export']
+  const actions = ['All', 'vm', 'finance', 'customer', 'task', 'alert', 'auth', 'creds', 'role', 'settings', 'export', 'addon', 'ticket', 'announcement']
 
   const filtered = auditData.filter((a: any) => {
     if (actor !== 'All' && a.actor !== actor) return false

@@ -232,18 +232,45 @@ export const VMRequestProvider: React.FC<{ children: ReactNode }> = ({ children 
   }, [loadVMRequests, vmRequests, logActivity])
 
   const deleteVMRequest = useCallback(async (id: string) => {
+    const previousRequest = vmRequests.find(r => r.id === id)
     const { error } = await supabase
       .from('vm_requests')
       .delete()
       .eq('id', id)
 
     if (!error) {
+      // Log activity for VM request deletion
+      const { data: { user } } = await supabase.auth.getUser()
+      let actorName = 'System'
+      if (user) {
+        const { data: staff } = await supabase
+          .from('team_members')
+          .select('name, staff_code')
+          .eq('id', user.id)
+          .single()
+        if (staff) {
+          actorName = `${staff.name} (${staff.staff_code})`
+        } else {
+          actorName = user.user_metadata?.name || user.email || 'System'
+        }
+      }
+
+      if (previousRequest) {
+        const requestId = previousRequest.legacy_id || previousRequest.id
+        await logActivity(
+          `Deleted VM request ${requestId} for ${previousRequest.hostname} (${previousRequest.vcpu} vCPU, ${previousRequest.ram_gb}GB RAM)`,
+          'task',
+          actorName,
+          { vmRequestId: requestId, hostname: previousRequest.hostname, requestType: previousRequest.request_type, vcpu: previousRequest.vcpu, ramGb: previousRequest.ram_gb, customerId: previousRequest.customer_id }
+        )
+      }
+
       await loadVMRequests()
     } else {
       console.error('Error deleting vm_request:', error)
       throw error
     }
-  }, [loadVMRequests])
+  }, [loadVMRequests, vmRequests, logActivity])
 
   const value: VMRequestStoreValue = {
     vmRequests,

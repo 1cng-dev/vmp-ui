@@ -297,10 +297,42 @@ const str = String(durationStr);
   }, [addonRequests, logActivity, addAddonService])
 
   const deleteAddonRequest = useCallback(async (id: string) => {
+    const previousRequest = addonRequests.find(r => r.id === id)
     const { error } = await supabase.from('addon_requests').delete().eq('id', id)
     if (error) throw error
+
+    // Log activity for addon request deletion
+    const { data: { user } } = await supabase.auth.getUser()
+    let actorName = 'System'
+    if (user) {
+      const { data: staff } = await supabase
+        .from('team_members')
+        .select('name, staff_code')
+        .eq('id', user.id)
+        .single()
+      if (staff) {
+        actorName = `${staff.name} (${staff.staff_code})`
+      } else {
+        actorName = user.user_metadata?.name || user.email || 'System'
+      }
+    }
+
+    if (previousRequest) {
+      const requestId = previousRequest.legacy_id || previousRequest.id
+      const services = []
+      if (previousRequest.cpfs_enabled) services.push(`CPFS (${previousRequest.cpfs_package})`)
+      if (previousRequest.ccis_enabled) services.push(`CCIS (${previousRequest.ccis_package})`)
+
+      await logActivity(
+        `Deleted addon request ${requestId} for VM ${previousRequest.vm_id}: ${services.join(', ')}`,
+        'task',
+        actorName,
+        { addonRequestId: requestId, vmId: previousRequest.vm_id, customerId: previousRequest.customer_id, services }
+      )
+    }
+
     // Real-time subscription will handle data update, no need to call loadAddonRequests
-  }, [])
+  }, [addonRequests, logActivity])
 
   const value = { addonRequests, addonRequestsLoading, loadAddonRequests, createAddonRequest, updateAddonRequest, deleteAddonRequest }
   return React.createElement(AddonRequestContext.Provider, { value }, children as any)

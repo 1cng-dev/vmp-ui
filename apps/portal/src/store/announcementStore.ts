@@ -173,6 +173,7 @@ export const AnnouncementProvider: React.FC<{ children: ReactNode }> = ({ childr
   }, [logActivity])
 
   const updateAnnouncement = useCallback(async (id: string, patch: Partial<Announcement>) => {
+    const previousAnnouncement = announcements.find(a => a.id === id)
     const updateData: any = { ...patch }
     if (patch.status === 'Sent' && !patch.sent_at) {
       updateData.sent_at = new Date().toISOString()
@@ -187,10 +188,36 @@ export const AnnouncementProvider: React.FC<{ children: ReactNode }> = ({ childr
       console.error('Failed to update announcement:', error)
       throw error
     }
+
+    // Log activity for status changes
+    if (patch.status && previousAnnouncement && patch.status !== previousAnnouncement.status) {
+      const { data: { user } } = await supabase.auth.getUser()
+      let actorName = 'System'
+      if (user) {
+        const { data: staff } = await supabase
+          .from('team_members')
+          .select('name, staff_code')
+          .eq('user_id', user.id)
+          .maybeSingle()
+        if (staff) {
+          actorName = `${staff.name} (${staff.staff_code})`
+        } else {
+          actorName = user.user_metadata?.name || user.email || 'System'
+        }
+      }
+
+      await logActivity(
+        `Changed announcement "${previousAnnouncement.title}" status from ${previousAnnouncement.status} to ${patch.status}`,
+        'announcement',
+        actorName,
+        { announcementId: id, previousStatus: previousAnnouncement.status, newStatus: patch.status }
+      )
+    }
     // Don't call loadAnnouncements - real-time subscription will handle it
-  }, [])
+  }, [announcements, logActivity])
 
   const deleteAnnouncement = useCallback(async (id: string) => {
+    const previousAnnouncement = announcements.find(a => a.id === id)
     const { error } = await supabase
       .from('announcements')
       .delete()
@@ -200,8 +227,33 @@ export const AnnouncementProvider: React.FC<{ children: ReactNode }> = ({ childr
       console.error('Failed to delete announcement:', error)
       throw error
     }
+
+    // Log activity for announcement deletion
+    const { data: { user } } = await supabase.auth.getUser()
+    let actorName = 'System'
+    if (user) {
+      const { data: staff } = await supabase
+        .from('team_members')
+        .select('name, staff_code')
+        .eq('user_id', user.id)
+        .maybeSingle()
+      if (staff) {
+        actorName = `${staff.name} (${staff.staff_code})`
+      } else {
+        actorName = user.user_metadata?.name || user.email || 'System'
+      }
+    }
+
+    if (previousAnnouncement) {
+      await logActivity(
+        `Deleted announcement: ${previousAnnouncement.title}`,
+        'announcement',
+        actorName,
+        { announcementId: id, title: previousAnnouncement.title, status: previousAnnouncement.status }
+      )
+    }
     // Don't call loadAnnouncements - real-time subscription will handle it
-  }, [])
+  }, [announcements, logActivity])
 
   const markAnnouncementRead = useCallback(async (id: string) => {
     try {

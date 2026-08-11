@@ -565,7 +565,7 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     async (id: string) => {
       const { data: vm, error: vmLookupError } = await supabase
         .from("vms")
-        .select("assigned_vmid")
+        .select("id, assigned_vmid, hostname, legacy_id, customer_id")
         .eq("id", id)
         .maybeSingle();
       if (vmLookupError) throw vmLookupError;
@@ -591,9 +591,36 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
       const { error } = await supabase.from("vms").delete().eq("id", id);
       if (error) throw error;
+
+      // Log activity for VM deletion
+      const { data: { user } } = await supabase.auth.getUser()
+      let actorName = 'System'
+      if (user) {
+        const { data: staff } = await supabase
+          .from("team_members")
+          .select('name, staff_code')
+          .eq('id', user.id)
+          .single()
+        if (staff) {
+          actorName = `${staff.name} (${staff.staff_code})`
+        } else {
+          actorName = user.user_metadata?.name || user.email || 'System'
+        }
+      }
+
+      if (vm) {
+        const vmId = vm.legacy_id || vm.id
+        await logActivity(
+          `Deleted VM ${vm.hostname} (${vmId})`,
+          'vm',
+          actorName,
+          { vmId, hostname: vm.hostname, customerId: vm.customer_id, assignedVmid: vm.assigned_vmid }
+        )
+      }
+
       await loadVMs();
     },
-    [loadVMs],
+    [loadVMs, logActivity],
   );
 
   const checkDuplicateLegacyId = useCallback((legacyId: string): boolean => {

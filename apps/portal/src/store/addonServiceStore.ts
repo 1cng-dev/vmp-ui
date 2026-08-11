@@ -1,5 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import useActivityStore from './activityStore'
+import { createAlert } from '../services/notificationService'
 
 export interface AddonService {
   id: string
@@ -35,6 +37,7 @@ const AddonServiceContext = React.createContext<AddonServiceStoreValue | null>(n
 export const AddonServiceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [addonServices, setAddonServices] = useState<AddonService[]>([])
   const [addonServicesLoading, setAddonServicesLoading] = useState(false)
+  const { logActivity } = useActivityStore()
 
   const loadAddonServices = useCallback(async () => {
     setAddonServicesLoading(true)
@@ -55,15 +58,137 @@ export const AddonServiceProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (!data || data.length === 0) {
       throw new Error('Addon service insert returned no data')
     }
+
+    // Log activity for addon service creation
+    const { data: { user } } = await supabase.auth.getUser()
+    let actorName = 'System'
+    if (user) {
+      const { data: staff } = await supabase
+        .from('team_members')
+        .select('name, staff_code')
+        .eq('id', user.id)
+        .single()
+      if (staff) {
+        actorName = `${staff.name} (${staff.staff_code})`
+      } else {
+        actorName = user.user_metadata?.name || user.email || 'System'
+      }
+    }
+
+    const serviceId = data[0].legacy_id || data[0].id
+    const services = []
+    if (service.cpfs_enabled) services.push(`CPFS (${service.cpfs_package})`)
+    if (service.ccis_enabled) services.push(`CCIS (${service.ccis_package})`)
+
+    await logActivity(
+      `Created addon service ${serviceId} for VM ${service.vm_id}: ${services.join(', ')}`,
+      'addon',
+      actorName,
+      { addonServiceId: serviceId, vmId: service.vm_id, customerId: service.customer_id, services }
+    )
+
     // Real-time subscription will handle data update
     return data[0].id
-  }, [])
+  }, [logActivity])
 
   const updateAddonService = useCallback(async (id: string, patch: Partial<AddonService>) => {
+    const previousService = addonServices.find(s => s.id === id)
     const { error } = await supabase.from('addon_services').update(patch).eq('id', id)
     if (error) throw error
+
+    // Log activity and create alerts when operational_status changes
+    if (patch.operational_status && previousService && patch.operational_status !== previousService.operational_status) {
+      const { data: { user } } = await supabase.auth.getUser()
+      let actorName = 'System'
+      if (user) {
+        const { data: staff } = await supabase
+          .from('team_members')
+          .select('name, staff_code')
+          .eq('id', user.id)
+          .single()
+        if (staff) {
+          actorName = `${staff.name} (${staff.staff_code})`
+        } else {
+          actorName = user.user_metadata?.name || user.email || 'System'
+        }
+      }
+
+      const serviceId = previousService.legacy_id || previousService.id
+      if (patch.operational_status === 'Terminated') {
+        await logActivity(
+          `Terminated addon service ${serviceId}`,
+          'addon',
+          actorName,
+          { addonServiceId: serviceId, vmId: previousService.vm_id, customerId: previousService.customer_id, previousStatus: previousService.operational_status }
+        )
+        await createAlert({
+          sev: 'warn',
+          title: 'Add-on Service Terminated',
+          body: `Add-on service ${serviceId} has been terminated`,
+          type: 'addon',
+          related_entity_id: id,
+          customer_id: null, // NULL so team roles see it, customer doesn't
+          actor_id: user?.id,
+          actor_name: actorName,
+          related_entity_type: 'addon_service',
+          metadata: {
+            addonServiceId: serviceId,
+            vmId: previousService.vm_id,
+            customerId: previousService.customer_id
+          }
+        })
+      } else if (patch.operational_status === 'Active' && previousService.operational_status === 'Terminated') {
+        await logActivity(
+          `Activated addon service ${serviceId}`,
+          'addon',
+          actorName,
+          { addonServiceId: serviceId, vmId: previousService.vm_id, customerId: previousService.customer_id, previousStatus: previousService.operational_status }
+        )
+        await createAlert({
+          sev: 'info',
+          title: 'Add-on Service Activated',
+          body: `Add-on service ${serviceId} has been activated`,
+          type: 'addon',
+          related_entity_id: id,
+          customer_id: null, // NULL so team roles see it, customer doesn't
+          actor_id: user?.id,
+          actor_name: actorName,
+          related_entity_type: 'addon_service',
+          metadata: {
+            addonServiceId: serviceId,
+            vmId: previousService.vm_id,
+            customerId: previousService.customer_id
+          }
+        })
+      }
+    } else if (previousService && Object.keys(patch).some(key => key !== 'operational_status' && patch[key as keyof AddonService] !== previousService[key as keyof AddonService])) {
+      // Log activity for other field changes (not operational_status)
+      const { data: { user } } = await supabase.auth.getUser()
+      let actorName = 'System'
+      if (user) {
+        const { data: staff } = await supabase
+          .from('team_members')
+          .select('name, staff_code')
+          .eq('id', user.id)
+          .single()
+        if (staff) {
+          actorName = `${staff.name} (${staff.staff_code})`
+        } else {
+          actorName = user.user_metadata?.name || user.email || 'System'
+        }
+      }
+
+      const serviceId = previousService.legacy_id || previousService.id
+      await logActivity(
+        `Updated addon service ${serviceId}`,
+        'addon',
+        actorName,
+        { addonServiceId: serviceId, vmId: previousService.vm_id, customerId: previousService.customer_id }
+      )
+    }
+
     // Real-time subscription will handle data update
-  }, [])
+  }, [addonServices, logActivity])
 
   const getAddonServicesForVM = useCallback((vmId: string): AddonService[] => {
     return addonServices.filter(

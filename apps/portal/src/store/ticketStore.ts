@@ -1,6 +1,7 @@
 import React, { useState, useCallback, createContext, useContext, type ReactNode, useEffect } from 'react'
 import type { Ticket } from '../types'
 import { supabase } from '../lib/supabase'
+import useActivityStore from './activityStore'
 
 export interface TicketStoreValue {
   tickets: Ticket[]
@@ -20,6 +21,7 @@ const TicketContext = createContext<TicketStoreValue | null>(null)
 export const TicketProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [ticketsLoading, setTicketsLoading] = useState(false)
+  const { logActivity } = useActivityStore()
 
   const loadTickets = useCallback(async () => {
     setTicketsLoading(true)
@@ -132,26 +134,77 @@ export const TicketProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         (data as any).legacy_id = ticketWithLegacy.legacy_id
       }
 
+      // Log activity for ticket creation
+      const { data: { user } } = await supabase.auth.getUser()
+      let actorName = 'System'
+      if (user) {
+        const { data: staff } = await supabase
+          .from('team_members')
+          .select('name, staff_code')
+          .eq('id', user.id)
+          .single()
+        if (staff) {
+          actorName = `${staff.name} (${staff.staff_code})`
+        } else {
+          actorName = user.user_metadata?.name || user.email || 'System'
+        }
+      }
+
+      const ticketId = data.legacy_id || data.id
+      await logActivity(
+        `Created support ticket ${ticketId}: ${t.subject}`,
+        'ticket',
+        actorName,
+        { ticketId, customerId: t.customer_id, category: t.category, priority: t.priority }
+      )
+
       return data.id
     } catch (error) {
       console.error('Error adding ticket:', error)
       throw error
     }
-  }, [])
+  }, [logActivity])
 
   const updateTicket = useCallback(async (id: string, patch: any) => {
     try {
+      const previousTicket = tickets.find(t => t.id === id)
       const { error } = await supabase
         .from('tickets')
         .update(patch)
         .eq('id', id)
-      
+
       if (error) throw error
+
+      // Log activity for status changes
+      if (patch.status && previousTicket && patch.status !== previousTicket.status) {
+        const { data: { user } } = await supabase.auth.getUser()
+        let actorName = 'System'
+        if (user) {
+          const { data: staff } = await supabase
+            .from('team_members')
+            .select('name, staff_code')
+            .eq('id', user.id)
+            .single()
+          if (staff) {
+            actorName = `${staff.name} (${staff.staff_code})`
+          } else {
+            actorName = user.user_metadata?.name || user.email || 'System'
+          }
+        }
+
+        const ticketId = previousTicket.legacy_id || previousTicket.id
+        await logActivity(
+          `Changed ticket ${ticketId} status from ${previousTicket.status} to ${patch.status}`,
+          'ticket',
+          actorName,
+          { ticketId, previousStatus: previousTicket.status, newStatus: patch.status, customerId: previousTicket.customer_id }
+        )
+      }
     } catch (error) {
       console.error('Error updating ticket:', error)
       throw error
     }
-  }, [])
+  }, [tickets, logActivity])
 
   const setTicketStatus = useCallback(async (id: string, status: string) => {
     await updateTicket(id, { status })
@@ -159,47 +212,102 @@ export const TicketProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const replyTicket = useCallback(async (id: string, who: string, body: string, attachments: string[] = []) => {
     try {
+      const ticket = tickets.find(t => t.id === id)
       const dataToInsert: any = {
         ticket_id: id,
         who: who,
         body: body
       }
-      
+
       // Only include attachments if it has items
       if (attachments && attachments.length > 0) {
         dataToInsert.attachments = attachments
       }
-      
+
       const { error } = await supabase
         .from('ticket_replies')
         .insert(dataToInsert)
-      
+
       if (error) throw error
-      
+
+      // Log activity for ticket reply
+      const { data: { user } } = await supabase.auth.getUser()
+      let actorName = 'System'
+      if (user) {
+        const { data: staff } = await supabase
+          .from('team_members')
+          .select('name, staff_code')
+          .eq('id', user.id)
+          .single()
+        if (staff) {
+          actorName = `${staff.name} (${staff.staff_code})`
+        } else {
+          actorName = user.user_metadata?.name || user.email || 'System'
+        }
+      }
+
+      if (ticket) {
+        const ticketId = ticket.legacy_id || ticket.id
+        await logActivity(
+          `Replied to ticket ${ticketId}`,
+          'ticket',
+          actorName,
+          { ticketId, customerId: ticket.customer_id, replyBy: who }
+        )
+      }
+
       // Reload tickets to get the new reply
       await loadTickets()
     } catch (error) {
       console.error('Error replying to ticket:', error)
       throw error
     }
-  }, [loadTickets])
+  }, [tickets, loadTickets, logActivity])
 
   const deleteTicket = useCallback(async (id: string) => {
     try {
+      const ticket = tickets.find(t => t.id === id)
+
       const { error } = await supabase
         .from('tickets')
         .delete()
         .eq('id', id)
-      
+
       if (error) throw error
-      
+
+      // Log activity for ticket deletion
+      const { data: { user } } = await supabase.auth.getUser()
+      let actorName = 'System'
+      if (user) {
+        const { data: staff } = await supabase
+          .from('team_members')
+          .select('name, staff_code')
+          .eq('id', user.id)
+          .single()
+        if (staff) {
+          actorName = `${staff.name} (${staff.staff_code})`
+        } else {
+          actorName = user.user_metadata?.name || user.email || 'System'
+        }
+      }
+
+      if (ticket) {
+        const ticketId = ticket.legacy_id || ticket.id
+        await logActivity(
+          `Deleted support ticket ${ticketId}: ${ticket.subject}`,
+          'ticket',
+          actorName,
+          { ticketId, customerId: ticket.customer_id, category: ticket.category }
+        )
+      }
+
       // Reload tickets after deletion to update UI
       await loadTickets()
     } catch (error) {
       console.error('Error deleting ticket:', error)
       throw error
     }
-  }, [loadTickets])
+  }, [tickets, loadTickets, logActivity])
 
   const value: TicketStoreValue = {
     tickets,

@@ -185,6 +185,7 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
   }, [updateCustomer])
 
   const resetPassword = useCallback(async (id: string, password: string) => {
+    const previousCustomer = customers.find(c => c.id === id)
     const { error } = await supabaseAdmin.auth.admin.updateUserById(id, {
       password: password
     })
@@ -193,7 +194,32 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
       console.error('Failed to reset password:', error)
       throw error
     }
-  }, [])
+
+    // Log activity for password reset
+    const { data: { user } } = await supabase.auth.getUser()
+    let actorName = 'System'
+    if (user) {
+      const { data: staff } = await supabase
+        .from('team_members')
+        .select('name, staff_code')
+        .eq('id', user.id)
+        .single()
+      if (staff) {
+        actorName = `${staff.name} (${staff.staff_code})`
+      } else {
+        actorName = user.user_metadata?.name || user.email || 'System'
+      }
+    }
+
+    if (previousCustomer) {
+      await logActivity(
+        `Reset password for customer ${previousCustomer.name} (${previousCustomer.org_name || previousCustomer.company || 'Individual'})`,
+        'customer',
+        actorName,
+        { customerId: id, customerName: previousCustomer.name, orgName: previousCustomer.org_name || previousCustomer.company, accountType: previousCustomer.account_type }
+      )
+    }
+  }, [customers, logActivity])
 
   const deleteCustomer = useCallback(async (id: string) => {
     const customer = customers.find(c => c.id === id)

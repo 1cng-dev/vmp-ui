@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { supabase, supabaseAdmin } from '../lib/supabase'
 import type { TeamMember } from '../types'
+import useActivityStore from './activityStore'
 
 // Helper function to format timestamp to relative time
 const formatDate = (dateString: string): string => {
@@ -31,6 +32,7 @@ export interface TeamStoreValue {
 const useTeamStore = (): TeamStoreValue => {
   const [team, setTeam] = useState<TeamMember[]>([])
   const [teamLoading, setTeamLoading] = useState(false)
+  const { logActivity } = useActivityStore()
 
   const loadTeam = useCallback(async () => {
     setTeamLoading(true)
@@ -132,14 +134,38 @@ const useTeamStore = (): TeamStoreValue => {
       console.error('Failed to add member:', error)
       throw error
     }
+
+    // Log activity for team member addition
+    const { data: { user } } = await supabase.auth.getUser()
+    let actorName = 'System'
+    if (user) {
+      const { data: staff } = await supabase
+        .from('team_members')
+        .select('name')
+        .eq('id', user.id)
+        .single()
+      if (staff) {
+        actorName = staff.name
+      } else {
+        actorName = user.user_metadata?.name || user.email || 'System'
+      }
+    }
+
+    await logActivity(
+      `Added team member ${member.name} (${member.role})`,
+      'role',
+      actorName,
+      { memberId: userId, name: member.name, role: member.role, team: member.team }
+    )
     
     await loadTeam()
     
     // Return the temporary password for the admin to share
     return { password: tempPassword }
-  }, [loadTeam])
+  }, [loadTeam, logActivity])
 
   const updateMember = useCallback(async (id: string, patch: any) => {
+    const previousMember = team.find(m => m.id === id)
     const { error } = await supabase
       .from('team_members')
       .update(patch)
@@ -149,25 +175,77 @@ const useTeamStore = (): TeamStoreValue => {
       console.error('Failed to update member:', error)
       throw error
     }
+
+    // Log activity for role changes
+    if (patch.role && previousMember && patch.role !== previousMember.role) {
+      const { data: { user } } = await supabase.auth.getUser()
+      let actorName = 'System'
+      if (user) {
+        const { data: staff } = await supabase
+          .from('team_members')
+          .select('name')
+          .eq('id', user.id)
+          .single()
+        if (staff) {
+          actorName = staff.name
+        } else {
+          actorName = user.user_metadata?.name || user.email || 'System'
+        }
+      }
+
+      await logActivity(
+        `Changed team member ${previousMember.name} role from ${previousMember.role} to ${patch.role}`,
+        'role',
+        actorName,
+        { memberId: id, name: previousMember.name, previousRole: previousMember.role, newRole: patch.role, team: previousMember.team }
+      )
+    }
     
     await loadTeam()
-  }, [loadTeam])
+  }, [loadTeam, team, logActivity])
 
   const removeMember = useCallback(async (id: string) => {
+    const previousMember = team.find(m => m.id === id)
     const { error } = await supabase
       .from('team_members')
       .delete()
       .eq('user_id', id)
-    
+
     if (error) {
       console.error('Failed to remove member:', error)
       throw error
     }
-    
+
+    // Log activity for team member removal
+    const { data: { user } } = await supabase.auth.getUser()
+    let actorName = 'System'
+    if (user) {
+      const { data: staff } = await supabase
+        .from('team_members')
+        .select('name')
+        .eq('id', user.id)
+        .single()
+      if (staff) {
+        actorName = staff.name
+      } else {
+        actorName = user.user_metadata?.name || user.email || 'System'
+      }
+    }
+
+    if (previousMember) {
+      await logActivity(
+        `Removed team member ${previousMember.name}`,
+        'role',
+        actorName,
+        { memberId: previousMember.id, name: previousMember.name, role: previousMember.role, team: previousMember.team }
+      )
+    }
+
     await loadTeam()
-  }, [loadTeam])
+  }, [loadTeam, team, logActivity])
 
   const resetPassword = useCallback(async (id: string, password: string) => {
+    const previousMember = team.find(m => m.id === id)
     const { error } = await supabaseAdmin.auth.admin.updateUserById(id, {
       password: password
     })
@@ -176,7 +254,32 @@ const useTeamStore = (): TeamStoreValue => {
       console.error('Failed to reset password:', error)
       throw error
     }
-  }, [])
+
+    // Log activity for password reset
+    const { data: { user } } = await supabase.auth.getUser()
+    let actorName = 'System'
+    if (user) {
+      const { data: staff } = await supabase
+        .from('team_members')
+        .select('name')
+        .eq('id', user.id)
+        .single()
+      if (staff) {
+        actorName = staff.name
+      } else {
+        actorName = user.user_metadata?.name || user.email || 'System'
+      }
+    }
+
+    if (previousMember) {
+      await logActivity(
+        `Reset password for team member ${previousMember.name}`,
+        'role',
+        actorName,
+        { memberId: previousMember.id, name: previousMember.name, role: previousMember.role, team: previousMember.team }
+      )
+    }
+  }, [team, logActivity])
 
   return {
     teamLoading,
