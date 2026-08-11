@@ -3,6 +3,7 @@ import Icon from "../../lib/icons";
 import type { Task } from "../../types";
 import { supabase } from "../../lib/supabase";
 import useUIStore from "../../store/uiStore";
+import ProxmoxNodeInput from "../vm/PromoxNodeInput";
 
 interface EngineerVMCreateFormProps {
   task: Task;
@@ -50,7 +51,9 @@ const EngineerVMCreateForm = ({
       let maxNumber = 0;
       if (existingVMs) {
         existingVMs.forEach((vm: any) => {
-          const match = vm.hostname.match(new RegExp(`^${(task as any).hostname}-(\\d+)$`));
+          const match = vm.hostname.match(
+            new RegExp(`^${(task as any).hostname}-(\\d+)$`),
+          );
           if (match) {
             const num = parseInt(match[1], 10);
             if (num > maxNumber) {
@@ -108,7 +111,15 @@ const EngineerVMCreateForm = ({
     }
     setIsSubmitting(true);
     try {
-      await onSubmit({ publicIps, privateIps, assigned_vmids, username, password, node, pmx_type });
+      await onSubmit({
+        publicIps,
+        privateIps,
+        assigned_vmids,
+        username,
+        password,
+        node,
+        pmx_type,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -141,7 +152,9 @@ const EngineerVMCreateForm = ({
           </div>
           <div className="grid-3" style={{ gap: 12 }}>
             <div className="field">
-              <label>Public IP <span style={{ color: "var(--bad)" }}>*</span></label>
+              <label>
+                Public IP <span style={{ color: "var(--bad)" }}>*</span>
+              </label>
               <input
                 type="text"
                 className="input"
@@ -151,7 +164,9 @@ const EngineerVMCreateForm = ({
               />
             </div>
             <div className="field">
-              <label>Private IP <span style={{ color: "var(--bad)" }}>*</span></label>
+              <label>
+                Private IP <span style={{ color: "var(--bad)" }}>*</span>
+              </label>
               <input
                 type="text"
                 className="input"
@@ -161,7 +176,9 @@ const EngineerVMCreateForm = ({
               />
             </div>
             <div className="field">
-              <label>Assigned VM ID <span style={{ color: "var(--bad)" }}>*</span></label>
+              <label>
+                Assigned VM ID <span style={{ color: "var(--bad)" }}>*</span>
+              </label>
               <input
                 type="number"
                 className="input"
@@ -172,17 +189,19 @@ const EngineerVMCreateForm = ({
             </div>
 
             <div className="field">
-              <label>Proxmox Node <span style={{ color: "var(--bad)" }}>*</span></label>
-              <input
-                type="text"
+              <label>
+                Proxmox Node <span style={{ color: "var(--bad)" }}>*</span>
+              </label>
+              <ProxmoxNodeInput
                 className="input"
                 value={node}
-                onChange={(e) => setNode(e.target.value)}
-                placeholder="e.g., pve1"
+                onChange={setNode}
               />
             </div>
             <div className="field">
-              <label>VM Type <span style={{ color: "var(--bad)" }}>*</span></label>
+              <label>
+                VM Type <span style={{ color: "var(--bad)" }}>*</span>
+              </label>
               <select
                 className="input"
                 value={pmx_type}
@@ -198,7 +217,10 @@ const EngineerVMCreateForm = ({
 
       <div className="grid-2" style={{ gap: 12 }}>
         <div className="field">
-          <label>Username (shared for all VMs) <span style={{ color: "var(--bad)" }}>*</span></label>
+          <label>
+            Username (shared for all VMs){" "}
+            <span style={{ color: "var(--bad)" }}>*</span>
+          </label>
           <input
             type="text"
             className="input"
@@ -208,7 +230,10 @@ const EngineerVMCreateForm = ({
           />
         </div>
         <div className="field">
-          <label>Password (shared for all VMs) <span style={{ color: "var(--bad)" }}>*</span></label>
+          <label>
+            Password (shared for all VMs){" "}
+            <span style={{ color: "var(--bad)" }}>*</span>
+          </label>
           <input
             type="password"
             className="input"
@@ -220,8 +245,20 @@ const EngineerVMCreateForm = ({
       </div>
 
       <div className="flex gap-2">
-        <button className="btn primary" onClick={handleSubmit} disabled={isSubmitting}>
-          {isSubmitting ? <><Icon name="loader" size={12} className="spin" /> Creating...</> : <><Icon name="check" size={12} /> Create VM Records</>}
+        <button
+          className="btn primary"
+          onClick={handleSubmit}
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? (
+            <>
+              <Icon name="loader" size={12} className="spin" /> Creating...
+            </>
+          ) : (
+            <>
+              <Icon name="check" size={12} /> Create VM Records
+            </>
+          )}
         </button>
       </div>
     </div>

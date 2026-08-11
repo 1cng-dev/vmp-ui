@@ -8,10 +8,14 @@ the original start/stop/shutdown/reboot. **Phase 2** (see
 [Phase 2 — Power Actions, Console, Go-Live](#phase-2--power-actions-console-go-live)
 below) wired the customer portal's power-action buttons and console viewer to those
 Phase 1 backend routes for real, and closed two gaps Phase 1's own write-up got wrong
-once looked at closely. Still out of scope: actually creating/deleting/migrating a VM
-on Proxmox, snapshots, and backups — "operations" here means controlling the power
-state of a VM that already exists and is already bound to a customer via
-`vm_ownership`, not provisioning lifecycle.
+once looked at closely. **Phase 3** (see
+[Phase 3 — Multi-node & VM migration support](#phase-3--multi-node--vm-migration-support)
+below) made both `proxmox-proxcy` and the portal's VM-binding forms treat the Proxmox
+cluster's node topology as dynamic — nodes get added/removed, and a VM's node changes
+whenever Proxmox migrates it — instead of assuming a fixed vmid→node mapping. Still out
+of scope: actually creating/deleting/migrating a VM on Proxmox, snapshots, and backups —
+"operations" here means controlling the power state of a VM that already exists and is
+already bound to a customer via `vm_ownership`, not provisioning lifecycle.
 
 ## Architecture & data flow
 
@@ -438,3 +442,94 @@ things fixed as a result, beyond just applying the migration:
 - The schema-cache-reload + `smoke:schema` steps above, so a missing/stale relation is
   caught by an explicit, scriptable gate immediately after migrating, not discovered
   later by a customer.
+
+## Phase 3 — Multi-node & VM migration support
+
+Both Phase 1 and Phase 2 assumed a VM's `vm_ownership.node` value was stable enough
+to trust as-is for routing a Proxmox call. In reality a Proxmox cluster is dynamic on
+two axes, independently of anything either repo does: which nodes exist (an operator
+can add or remove a node at any time), and which node a given vmid currently runs on
+(Proxmox — or its own HA manager — can live-migrate a VM to a different node at any
+time, for any reason, including every VM on a node at once if that node goes down).
+Nothing changed the *shape* of the customer/admin-facing contract here — every route,
+response field, and UI flow from Phase 1/2 is unchanged. This phase closes a
+correctness gap in how the two repos handle that dynamism, on both sides of the
+integration.
+
+### `proxmox-proxcy` side: self-healing node cache
+
+`vm_ownership.node` is a cache — written once at bind time
+(`POST /api/admin/vms/:vmId/bindings`) and refreshed cluster-wide every 2 minutes by
+`syncVmStatus`. A VM that migrates in between those refreshes previously left every
+per-VM route (status, power actions, console, stats, delete) targeting a node the vmid
+no longer lived on, failing outright until the next sync tick corrected it. `proxmox-proxcy`
+now retries once against the vmid's real current node (re-resolved live from
+`/cluster/resources`) when it detects that specific "wrong node" failure, and self-heals
+`vm_ownership.node` immediately on a successful retry — see
+[proxmox-proxcy's README, "Multi-node & VM migration handling"](../../proxmox-proxy/README.md#multi-node--vm-migration-handling)
+for the full mechanism, plus a manual testing guide (no automated test framework exists
+in that project). Task-status routes (`.../task/:upid`) don't rely on the cache at
+all — a Proxmox UPID encodes the node a task ran on directly in its own string, which
+is exact and can't go stale.
+
+This is entirely internal to `proxmox-proxcy` — no response shape changed, so no portal
+code needed to change to benefit from it. Every `by-record` and `:vmid` route a portal
+hook already calls (`useVMStatusByRecord`, `useVMPowerAction`, etc. in
+`hooks/useVMLiveStatus.ts`) is more resilient to a migration happening mid-session with
+zero changes on this side.
+
+### Portal side: the node picker itself was the fixed-topology assumption
+
+The backend fix above only helps once a VM is *correctly bound* to a real node in the
+first place. Auditing the three portal forms that write `assigned_vmid`/`node` via
+`createVMBindings` (`lib/proxmoxApi.ts`) turned up the actual "proxcy only seems to know
+one node" symptom described when this phase was scoped — it wasn't in the backend at
+all, it was in these forms:
+
+- **`components/admin/AdminDirectVMModal.tsx` had no Proxmox Node field at all.**
+  `assigned_vmid` was collected and sent, but `node` was never included in the `addVM()`
+  call — meaning `vmStore.addVM()`'s own fallback (`node: vm.node || "pve1"`) silently
+  bound *every* VM created through this modal to `"pve1"`, regardless of which node an
+  engineer had actually provisioned it on. On anything but a single-node cluster (or a
+  cluster where node 1 happens to always be named `pve1`), this bound VMs to the wrong
+  node with no error at creation time — it would only surface later, as every
+  status/power-action call for that VM failing. Fixed: the field now exists, and
+  submission is blocked client-side if `assigned_vmid` is set without a `node`.
+- **`components/engineer/EngineerVMCreateForm.tsx`** and **`pages/AdminDirectVMCreate.tsx`**
+  (two occurrences) *did* have a node field, but as free text defaulting to the literal
+  string `"pve1"` — functional, but with zero connection to what nodes actually exist on
+  the live cluster right now, and no protection against a typo silently producing a
+  binding to a node that doesn't exist.
+- **`components/modals/AdminVMModals.tsx`'s `NewVMModal`** has a `node` field rendered as
+  a `<select>` hardcoded to five fake options (`pve-node-01`..`pve-node-05`) — but this
+  form never sets `assigned_vmid`, so `vmStore.addVM()`'s binding-write branch never
+  runs for it; the field is inert (stored nowhere meaningful), not a live routing bug.
+  Left alone in this pass — fixing dead UI has no user-facing effect, and touching it
+  would be scope creep unconnected to any actual routing behavior.
+
+**Fix**: `lib/proxmoxApi.ts` gained `listNodes()` (`GET /api/nodes` — already a live,
+uncached, cluster-wide call server-side, see above), backing a new
+`hooks/useProxmoxNodes.ts` and `components/vm/ProxmoxNodeInput.tsx` — a plain text input
+(not a `<select>`) with a live `<datalist>` of real node names for autocomplete. It stays
+free text deliberately: a hard dropdown would block an admin/engineer from binding a VM
+at all if `proxmox-proxcy` is briefly unreachable when the form happens to be open, which
+is exactly the wrong failure mode for a form staff may need during an incident. All three
+real (non-inert) node inputs — `AdminDirectVMModal.tsx`, `EngineerVMCreateForm.tsx`, and
+both occurrences in `AdminDirectVMCreate.tsx` — now use this component.
+
+### Testing this
+
+- **Backend**: see `proxmox-proxcy`'s README testing section linked above — pure-logic
+  checks, a mocked failover run, and a live-cluster migration test, none of which need
+  portal changes.
+- **Portal — node picker**: open any of the three real VM-binding forms
+  (Engineer "Provision VM" task flow, Admin "Direct VM Create" page, Admin "Create VM
+  directly" modal) while `proxmox-proxcy` is reachable and confirm typing into the
+  Proxmox Node field shows an autocomplete dropdown of real node names (`GET /api/nodes`
+  in the browser network tab should return the live list, not a fixture). With
+  `proxmox-proxcy` unreachable, confirm the field still accepts manual text entry (no
+  hard block) and shows a "Loading nodes…" placeholder rather than an error state.
+- **Portal — `AdminDirectVMModal` regression check**: create a VM through this modal with
+  an `assigned_vmid` set and the Node field left empty — confirm submission is blocked
+  client-side with "Please enter the Proxmox node this VM ID is on" rather than silently
+  binding to `pve1`.

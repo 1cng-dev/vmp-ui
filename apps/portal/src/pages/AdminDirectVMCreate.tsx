@@ -9,6 +9,7 @@ import useActivityStore from "../store/activityStore";
 import Icon from "../lib/icons";
 import { Avatar } from "../components/ui/ui";
 import { IaaSCard } from "../components/customer-portal/VMHelperComponents";
+import ProxmoxNodeInput from "../components/vm/PromoxNodeInput";
 import { supabase } from "../lib/supabase";
 
 const AdminDirectVMCreate: React.FC = () => {
@@ -169,10 +170,10 @@ const AdminDirectVMCreate: React.FC = () => {
   const selectedOS =
     f.os === "custom"
       ? {
-        name: f.customOsName || "Other OS",
-        accent: "var(--accent)",
-        versions: [f.customOsVersion || "Custom version"],
-      }
+          name: f.customOsName || "Other OS",
+          accent: "var(--accent)",
+          versions: [f.customOsVersion || "Custom version"],
+        }
       : osCatalog.find((o) => o.id === f.os) || osCatalog[0];
   const selectedZone = zones.find((z) => z.id === f.zone) || zones[0];
   const hostValid = /^[a-z0-9][a-z0-9-]{1,30}$/i.test(f.hostname);
@@ -243,7 +244,10 @@ const AdminDirectVMCreate: React.FC = () => {
   const addCustomOutboundPort = () => {
     const port = customOutboundPort.trim();
     if (port && !f.firewallOutboundCustomPorts.includes(port)) {
-      set("firewallOutboundCustomPorts", [...f.firewallOutboundCustomPorts, port]);
+      set("firewallOutboundCustomPorts", [
+        ...f.firewallOutboundCustomPorts,
+        port,
+      ]);
       setCustomOutboundPort("");
     }
   };
@@ -262,29 +266,29 @@ const AdminDirectVMCreate: React.FC = () => {
   const validateLegacyIdFormat = (legacyId: string): boolean => {
     // New format: VPS-TDC-{customer_id_digits}-{vm_number}-{customer_name}
     // Example: VPS-TDC-0001-3000-1CNG
-    const pattern = /^VPS-TDC-\d{4}-\d{4}-[\w\s]+$/
+    const pattern = /^VPS-TDC-\d{4}-\d{4}-[\w\s]+$/;
     if (!pattern.test(legacyId)) {
-      return false
+      return false;
     }
-    
+
     // Extract VM sequence number (4th part of the legacy ID)
-    const parts = legacyId.split('-')
+    const parts = legacyId.split("-");
     if (parts.length < 4) {
-      return false
+      return false;
     }
-    
-    const vmSequence = parseInt(parts[3], 10)
+
+    const vmSequence = parseInt(parts[3], 10);
     if (isNaN(vmSequence)) {
-      return false
+      return false;
     }
-    
+
     // Validate that VM sequence number doesn't exceed 3000
     if (vmSequence > 3000) {
-      return false
+      return false;
     }
-    
-    return true
-  }
+
+    return true;
+  };
 
   const confirmSubmit = async () => {
     let vmId: string | null = null;
@@ -304,7 +308,10 @@ const AdminDirectVMCreate: React.FC = () => {
         return;
       }
       if (!validateLegacyIdFormat(f.legacy_id)) {
-        toast("Invalid legacy ID format or VM sequence exceeds 3000. Expected: VPS-TDC-0001-3000-Customer Name", "bad");
+        toast(
+          "Invalid legacy ID format or VM sequence exceeds 3000. Expected: VPS-TDC-0001-3000-Customer Name",
+          "bad",
+        );
         setIsSubmitting(false);
         return;
       }
@@ -351,7 +358,10 @@ const AdminDirectVMCreate: React.FC = () => {
           .maybeSingle();
 
         if (existingVM) {
-          toast(`Proxmox VM ID ${assignedVmid} is already in use. Please use a different VM ID.`, "bad");
+          toast(
+            `Proxmox VM ID ${assignedVmid} is already in use. Please use a different VM ID.`,
+            "bad",
+          );
           setIsSubmitting(false);
           return;
         }
@@ -363,7 +373,10 @@ const AdminDirectVMCreate: React.FC = () => {
           .maybeSingle();
 
         if (existingOwnership) {
-          toast(`Proxmox VM ID ${assignedVmid} is already assigned in ownership records. Please use a different VM ID.`, "bad");
+          toast(
+            `Proxmox VM ID ${assignedVmid} is already assigned in ownership records. Please use a different VM ID.`,
+            "bad",
+          );
           setIsSubmitting(false);
           return;
         }
@@ -383,7 +396,10 @@ const AdminDirectVMCreate: React.FC = () => {
       expiryDate.setMonth(expiryDate.getMonth() + f.duration);
       expiryDate.setDate(expiryDate.getDate() + 1); // Add 1 day to expiry
 
-      const durationString = f.requestType === 'trial' ? '14 days' : `${f.duration} month${f.duration > 1 ? 's' : ''}`;
+      const durationString =
+        f.requestType === "trial"
+          ? "14 days"
+          : `${f.duration} month${f.duration > 1 ? "s" : ""}`;
 
       vmId = await addVM({
         hostname: f.hostname,
@@ -459,7 +475,9 @@ const AdminDirectVMCreate: React.FC = () => {
             operational_status: "Active",
           });
         } catch (addonError: any) {
-          throw new Error(`Failed to create addon services: ${addonError.message}`);
+          throw new Error(
+            `Failed to create addon services: ${addonError.message}`,
+          );
         }
       }
 
@@ -469,13 +487,22 @@ const AdminDirectVMCreate: React.FC = () => {
         try {
           await deleteVM(vmId);
         } catch (rollbackError) {
-          console.error("Failed to rollback VM after direct create error:", rollbackError);
+          console.error(
+            "Failed to rollback VM after direct create error:",
+            rollbackError,
+          );
         }
       }
 
       // Check for VM sequence exceeding 3000 error
-      if (err.message && err.message.includes("VM sequence number cannot exceed 3000")) {
-        toast("VM sequence number cannot exceed 3000. Please contact administrator to reset the sequence.", "bad");
+      if (
+        err.message &&
+        err.message.includes("VM sequence number cannot exceed 3000")
+      ) {
+        toast(
+          "VM sequence number cannot exceed 3000. Please contact administrator to reset the sequence.",
+          "bad",
+        );
       } else {
         toast(err.message || "Failed to create VM", "bad");
       }
@@ -749,21 +776,29 @@ const AdminDirectVMCreate: React.FC = () => {
               </div>
               <div className="grid-2" style={{ gap: 12 }}>
                 <div>
-                  <div className="text-xs text-mute mb-1">Firewall inbound ports</div>
+                  <div className="text-xs text-mute mb-1">
+                    Firewall inbound ports
+                  </div>
                   <div className="fw-6 text-sm">
                     {f.firewallPorts.join(", ") || "none"}
                   </div>
                 </div>
                 <div>
-                  <div className="text-xs text-mute mb-1">Firewall outbound</div>
+                  <div className="text-xs text-mute mb-1">
+                    Firewall outbound
+                  </div>
                   <div className="fw-6 text-sm">
-                    {f.firewallOutboundAllowAll ? 'Allow All (Inbound Ports)' : 'Custom'}
+                    {f.firewallOutboundAllowAll
+                      ? "Allow All (Inbound Ports)"
+                      : "Custom"}
                   </div>
                 </div>
               </div>
               {!f.firewallOutboundAllowAll && (
                 <div>
-                  <div className="text-xs text-mute mb-1">Firewall outbound ports</div>
+                  <div className="text-xs text-mute mb-1">
+                    Firewall outbound ports
+                  </div>
                   <div className="fw-6 text-sm">
                     {f.firewallOutboundCustomPorts.join(", ") || "none"}
                   </div>
@@ -873,10 +908,9 @@ const AdminDirectVMCreate: React.FC = () => {
                   <label>
                     Proxmox Node <span style={{ color: "var(--bad)" }}>*</span>
                   </label>
-                  <input
+                  <ProxmoxNodeInput
                     value={f.node}
-                    onChange={(e) => set("node", e.target.value)}
-                    placeholder="e.g., pve1"
+                    onChange={(v) => set("node", v)}
                   />
                 </div>
                 <div className="field">
@@ -955,7 +989,9 @@ const AdminDirectVMCreate: React.FC = () => {
           </div>
           <div className="card-body">
             <div className="field">
-              <label>Select Customer <span style={{ color: "var(--bad)" }}>*</span></label>
+              <label>
+                Select Customer <span style={{ color: "var(--bad)" }}>*</span>
+              </label>
               <select
                 value={f.customer}
                 onChange={(e) => set("customer", e.target.value)}
@@ -1694,43 +1730,75 @@ const AdminDirectVMCreate: React.FC = () => {
             <h3 className="card-title">Firewall rules — outbound</h3>
           </div>
           <div className="card-body">
-            <div className="text-xs text-mute fw-6 mb-3"
-              style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+            <div
+              className="text-xs text-mute fw-6 mb-3"
+              style={{ letterSpacing: "0.04em", textTransform: "uppercase" }}
+            >
               Outbound Configuration
             </div>
 
             {/* Allow All Toggle */}
-            <div className="flex center between" style={{ padding: '12px 0', borderBottom: '1px solid var(--line)' }}>
+            <div
+              className="flex center between"
+              style={{
+                padding: "12px 0",
+                borderBottom: "1px solid var(--line)",
+              }}
+            >
               <div>
                 <div className="fw-6 text-sm">Allow All (Inbound Ports)</div>
-                <div className="text-xs text-mute">Allow outbound to all selected inbound ports: {f.firewallPorts.join(', ')}</div>
+                <div className="text-xs text-mute">
+                  Allow outbound to all selected inbound ports:{" "}
+                  {f.firewallPorts.join(", ")}
+                </div>
               </div>
-              <span className={`toggle ${f.firewallOutboundAllowAll ? 'on' : ''}`}
-                onClick={() => set('firewallOutboundAllowAll', !f.firewallOutboundAllowAll)} />
+              <span
+                className={`toggle ${f.firewallOutboundAllowAll ? "on" : ""}`}
+                onClick={() =>
+                  set("firewallOutboundAllowAll", !f.firewallOutboundAllowAll)
+                }
+              />
             </div>
 
             {/* Custom Ports (shown when Allow All is OFF) */}
             {!f.firewallOutboundAllowAll && (
               <div style={{ marginTop: 16 }}>
-                <div className="text-xs text-mute fw-6 mb-3"
-                  style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                <div
+                  className="text-xs text-mute fw-6 mb-3"
+                  style={{
+                    letterSpacing: "0.04em",
+                    textTransform: "uppercase",
+                  }}
+                >
                   Custom outbound ports
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(4, 1fr)",
+                    gap: 8,
+                  }}
+                >
                   {commonPorts.map((p) => {
-                    const active = f.firewallOutboundCustomPorts.includes(p.port);
+                    const active = f.firewallOutboundCustomPorts.includes(
+                      p.port,
+                    );
                     return (
                       <button
                         key={p.port}
                         onClick={() => toggleOutboundPort(p.port)}
                         style={{
-                          padding: '10px 12px',
-                          background: active ? 'var(--accent-soft)' : 'var(--surface)',
-                          border: active ? '1.5px solid var(--accent)' : '1px solid var(--line)',
+                          padding: "10px 12px",
+                          background: active
+                            ? "var(--accent-soft)"
+                            : "var(--surface)",
+                          border: active
+                            ? "1.5px solid var(--accent)"
+                            : "1px solid var(--line)",
                           borderRadius: 8,
-                          cursor: 'pointer',
-                          textAlign: 'left',
-                          transition: 'all 0.15s',
+                          cursor: "pointer",
+                          textAlign: "left",
+                          transition: "all 0.15s",
                         }}
                       >
                         <div className="fw-6 text-sm">{p.port}</div>
@@ -1746,7 +1814,12 @@ const AdminDirectVMCreate: React.FC = () => {
                     value={customOutboundPort}
                     onChange={(e) => setCustomOutboundPort(e.target.value)}
                     placeholder="Add custom port (e.g., 8080)"
-                    style={{ flex: 1, padding: '8px 12px', border: '1px solid var(--line)', borderRadius: 6 }}
+                    style={{
+                      flex: 1,
+                      padding: "8px 12px",
+                      border: "1px solid var(--line)",
+                      borderRadius: 6,
+                    }}
                   />
                   <button
                     className="btn sm"
@@ -1758,13 +1831,38 @@ const AdminDirectVMCreate: React.FC = () => {
                 </div>
 
                 {f.firewallOutboundCustomPorts.length > 0 && (
-                  <div style={{ marginTop: 16, padding: 12, background: 'var(--surface-2)', borderRadius: 8 }}>
-                    <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>Selected outbound ports</div>
+                  <div
+                    style={{
+                      marginTop: 16,
+                      padding: 12,
+                      background: "var(--surface-2)",
+                      borderRadius: 8,
+                    }}
+                  >
+                    <div
+                      className="text-xs text-mute fw-6 mb-2"
+                      style={{
+                        letterSpacing: "0.04em",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      Selected outbound ports
+                    </div>
                     <div className="flex gap-1 wrap">
                       {f.firewallOutboundCustomPorts.map((p) => (
-                        <span key={p} className="pill accent" style={{ paddingRight: 4 }}>
+                        <span
+                          key={p}
+                          className="pill accent"
+                          style={{ paddingRight: 4 }}
+                        >
                           <span className="mono">{p}</span>
-                          <button className="icon-btn" style={{ width: 16, height: 16, marginLeft: 2 }} onClick={() => removeCustomOutboundPort(p)}><Icon name="x" size={9} /></button>
+                          <button
+                            className="icon-btn"
+                            style={{ width: 16, height: 16, marginLeft: 2 }}
+                            onClick={() => removeCustomOutboundPort(p)}
+                          >
+                            <Icon name="x" size={9} />
+                          </button>
                         </span>
                       ))}
                     </div>
@@ -2091,10 +2189,10 @@ const AdminDirectVMCreate: React.FC = () => {
                                 set(
                                   "ccis_package",
                                   plan.id as
-                                  | "basic"
-                                  | "standard"
-                                  | "professional"
-                                  | "enterprise",
+                                    | "basic"
+                                    | "standard"
+                                    | "professional"
+                                    | "enterprise",
                                 )
                               }
                               padding={16 as any}
@@ -2153,10 +2251,9 @@ const AdminDirectVMCreate: React.FC = () => {
                 <label>
                   Proxmox Node <span style={{ color: "var(--bad)" }}>*</span>
                 </label>
-                <input
+                <ProxmoxNodeInput
                   value={f.node}
-                  onChange={(e) => set("node", e.target.value)}
-                  placeholder="e.g. pve1"
+                  onChange={(v) => set("node", v)}
                 />
               </div>
               <div className="field">
@@ -2218,10 +2315,7 @@ const AdminDirectVMCreate: React.FC = () => {
 
         {/* Actions */}
         <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
-          <button
-            className="btn ghost"
-            onClick={() => navigate("/admin/vms")}
-          >
+          <button className="btn ghost" onClick={() => navigate("/admin/vms")}>
             Cancel
           </button>
           <button className="btn accent" onClick={submit}>

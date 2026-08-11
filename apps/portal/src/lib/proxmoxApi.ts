@@ -71,7 +71,14 @@ export interface ProxmoxRRDPoint {
 
 export type RRDTimeframe = "hour" | "day" | "week" | "month" | "year";
 
-export type PowerAction = "start" | "stop" | "shutdown" | "reboot" | "reset" | "suspend" | "resume";
+export type PowerAction =
+  | "start"
+  | "stop"
+  | "shutdown"
+  | "reboot"
+  | "reset"
+  | "suspend"
+  | "resume";
 
 export interface VMCredentials {
   username: string | null;
@@ -82,9 +89,31 @@ export interface VMCredentials {
 // (the admin portal already has assigned_vmid via the full `vms` table, and
 // proxmox-proxcy's admin bypass on these routes lets staff view any VM.)
 
-export async function listVMs(): Promise<{ scope: "all" | "owned"; data: ProxmoxVMSummary[] }> {
+export async function listVMs(): Promise<{
+  scope: "all" | "owned";
+  data: ProxmoxVMSummary[];
+}> {
   const { data } = await proxmoxApi.get("/api/vms");
   return { scope: data.scope, data: data.data };
+}
+
+export interface ProxmoxNode {
+  node: string;
+  status?: string;
+  cpu?: number;
+  maxcpu?: number;
+  mem?: number;
+  maxmem?: number;
+  uptime?: number;
+}
+
+// Cluster node topology, live from Proxmox (proxmox-proxcy's GET /api/nodes
+// queries /cluster/resources on every call — never cached), not a fixed
+// list — nodes can be added or removed at any time. Backs node-picker
+// autocomplete in the VM binding forms (see ProxmoxNodeInput).
+export async function listNodes(): Promise<ProxmoxNode[]> {
+  const { data } = await proxmoxApi.get("/api/nodes");
+  return data.data || [];
 }
 
 export async function getVMStatus(vmid: number): Promise<ProxmoxVMDetail> {
@@ -106,7 +135,9 @@ export async function getVMStats(
 // The browser never holds or sends the real Proxmox vmid for these; the
 // opaque record ID comes from vms_customer_safe.ownership_record_id.
 
-export async function getVMStatusByRecord(recordId: string): Promise<ProxmoxVMStatus> {
+export async function getVMStatusByRecord(
+  recordId: string,
+): Promise<ProxmoxVMStatus> {
   const { data } = await proxmoxApi.get(`/api/vms/by-record/${recordId}`);
   return data.status;
 }
@@ -115,14 +146,21 @@ export async function getVMStatsByRecord(
   recordId: string,
   timeframe: RRDTimeframe = "hour",
 ): Promise<ProxmoxRRDPoint[]> {
-  const { data } = await proxmoxApi.get(`/api/vms/by-record/${recordId}/stats`, {
-    params: { timeframe },
-  });
+  const { data } = await proxmoxApi.get(
+    `/api/vms/by-record/${recordId}/stats`,
+    {
+      params: { timeframe },
+    },
+  );
   return data.data || [];
 }
 
-export async function getVMCredentials(recordId: string): Promise<VMCredentials> {
-  const { data } = await proxmoxApi.get(`/api/vms/by-record/${recordId}/credentials`);
+export async function getVMCredentials(
+  recordId: string,
+): Promise<VMCredentials> {
+  const { data } = await proxmoxApi.get(
+    `/api/vms/by-record/${recordId}/credentials`,
+  );
   return { username: data.username ?? null, password: data.password ?? null };
 }
 
@@ -130,7 +168,9 @@ export async function runVMPowerAction(
   recordId: string,
   action: PowerAction,
 ): Promise<{ upid?: string }> {
-  const { data } = await proxmoxApi.post(`/api/vms/by-record/${recordId}/${action}`);
+  const { data } = await proxmoxApi.post(
+    `/api/vms/by-record/${recordId}/${action}`,
+  );
   // Proxmox task objects are just the UPID string itself (data.task), not an object.
   const upid = typeof data.task === "string" ? data.task : undefined;
   return { upid };
@@ -141,8 +181,13 @@ export interface ProxmoxTaskStatus {
   exitstatus?: string; // present once status === 'stopped'; 'OK' on success
 }
 
-export async function getVMTaskStatus(recordId: string, upid: string): Promise<ProxmoxTaskStatus> {
-  const { data } = await proxmoxApi.get(`/api/vms/by-record/${recordId}/task/${encodeURIComponent(upid)}`);
+export async function getVMTaskStatus(
+  recordId: string,
+  upid: string,
+): Promise<ProxmoxTaskStatus> {
+  const { data } = await proxmoxApi.get(
+    `/api/vms/by-record/${recordId}/task/${encodeURIComponent(upid)}`,
+  );
   return data.task;
 }
 
@@ -155,9 +200,17 @@ export interface VMConsoleSession {
 // ticket is required for the RFB handshake tunneled inside the websocket at
 // wsPath — see the console route's comment in proxmox-proxcy for why. Fetch
 // this only right before opening the console; never persist it.
-export async function getVMConsoleSession(recordId: string): Promise<VMConsoleSession> {
-  const { data } = await proxmoxApi.get(`/api/vms/by-record/${recordId}/console`);
-  return { sessionToken: data.sessionToken, wsPath: data.wsPath, ticket: data.ticket };
+export async function getVMConsoleSession(
+  recordId: string,
+): Promise<VMConsoleSession> {
+  const { data } = await proxmoxApi.get(
+    `/api/vms/by-record/${recordId}/console`,
+  );
+  return {
+    sessionToken: data.sessionToken,
+    wsPath: data.wsPath,
+    ticket: data.ticket,
+  };
 }
 
 // ── Admin-only ──────────────────────────────────────────────────────────
@@ -179,7 +232,10 @@ export async function createVMBindings(
   vmId: string,
   bindings: VMBindingsInput,
 ): Promise<{ vmid: number; node: string }> {
-  const { data } = await proxmoxApi.post(`/api/admin/vms/${vmId}/bindings`, bindings);
+  const { data } = await proxmoxApi.post(
+    `/api/admin/vms/${vmId}/bindings`,
+    bindings,
+  );
   return { vmid: data.vmid, node: data.node };
 }
 
