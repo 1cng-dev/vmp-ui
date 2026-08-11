@@ -193,10 +193,66 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const channel = supabase.channel(channelName)
     
     channel
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'alerts' }, (payload) => {
-        // Handle real-time updates directly without full reload
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'alerts' }, async (payload) => {
+        const alert = payload.new as Alert
+        
+        // Apply role-based filtering for INSERT events
         if (payload.eventType === 'INSERT') {
-          setAlerts(prev => [payload.new as Alert, ...prev])
+          // Get user's role for filtering
+          let userRole: string | null = null
+          let customerId: string | null = null
+          let isCustomer = false
+          
+          try {
+            const { data: { user } } = await supabase.auth.getUser()
+            const userId = user?.id
+            
+            if (userId) {
+              // Check if user is a customer
+              try {
+                const { data: userData } = await supabase
+                  .from('customers')
+                  .select('id')
+                  .eq('id', userId)
+                  .maybeSingle()
+                customerId = userData?.id || null
+                isCustomer = !!customerId
+              } catch (customerError) {
+                isCustomer = false
+              }
+              
+              // Get user's role from team_members table
+              try {
+                const { data: teamData } = await supabase
+                  .from('team_members')
+                  .select('role')
+                  .eq('user_id', userId)
+                  .maybeSingle()
+                userRole = teamData?.role || null
+              } catch (teamError) {
+                userRole = null
+              }
+            }
+          } catch (error) {
+            console.error('Error getting user role for subscription:', error)
+          }
+          
+          // Filter by customer_id for customer role
+          if (isCustomer && customerId && alert.customer_id !== customerId) {
+            return
+          }
+          
+          // Filter out finance and kyc alerts for Engineer role
+          if (userRole === 'Engineer' && (alert.type === 'finance' || alert.type === 'kyc')) {
+            return
+          }
+          
+          // For Finance role, only show finance-related and expiry warnings
+          if (userRole === 'Finance' && alert.type !== 'finance' && alert.type !== 'expiry') {
+            return
+          }
+          
+          setAlerts(prev => [alert, ...prev])
         } else if (payload.eventType === 'UPDATE') {
           setAlerts(prev => prev.map(a => a.id === payload.new.id ? payload.new as Alert : a))
         } else if (payload.eventType === 'DELETE') {

@@ -168,6 +168,7 @@ export interface Alert {
   related_entity_type?: string;
   actor_id?: string;
   actor_name?: string;
+  customer_id?: string | null;
   metadata?: any;
 }
 
