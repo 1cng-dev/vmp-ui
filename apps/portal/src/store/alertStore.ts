@@ -81,6 +81,9 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         query = query.in('type', ['finance', 'expiry'])
       }
 
+      // Apply limit after filters to ensure we get 50 notifications that match the user's role
+      query = query.limit(50)
+
       const { data, error } = await query
       
       if (error) throw error

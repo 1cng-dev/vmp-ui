@@ -24,22 +24,55 @@ export const ActivityProvider: React.FC<{ children: ReactNode }> = ({ children }
     const startTime = Date.now()
     
     try {
-      const { data, error } = await supabase
+      // Fetch from activity_log table
+      const { data: activityLogData, error: activityLogError } = await supabase
         .from('activity_log')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(100)
       
-      if (error) throw error
+      if (activityLogError) throw activityLogError
       
-      const transformedActivity = (data || []).map((a: any) => ({
+      // Fetch from vm_action_audit table
+      const { data: vmAuditData, error: vmAuditError } = await supabase
+        .from('vm_action_audit')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100)
+      
+      if (vmAuditError) throw vmAuditError
+      
+      // Transform activity_log data
+      const transformedActivityLog = (activityLogData || []).map((a: any) => ({
         ts: new Date(a.created_at).toLocaleString(),
         actor: a.actor || 'System',
         kind: a.kind || 'system',
         text: a.text,
+        source: 'activity_log',
+        createdAt: a.created_at,
       }))
       
-      setActivity(transformedActivity)
+      // Transform vm_action_audit data
+      const transformedVmAudit = (vmAuditData || []).map((a: any) => ({
+        ts: new Date(a.created_at).toLocaleString(),
+        actor: a.user_id || 'System',
+        kind: 'vm',
+        text: `VM ${a.vmid} on ${a.node}: ${a.action} - ${a.result}`,
+        source: 'vm_action_audit',
+        createdAt: a.created_at,
+        vmid: a.vmid,
+        node: a.node,
+        action: a.action,
+        result: a.result,
+        ip_address: a.ip_address,
+      }))
+      
+      // Merge and sort by created_at
+      const combinedActivity = [...transformedActivityLog, ...transformedVmAudit]
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 100)
+      
+      setActivity(combinedActivity)
     } catch (error) {
       console.error('Error loading activity:', error)
     } finally {
@@ -82,6 +115,9 @@ export const ActivityProvider: React.FC<{ children: ReactNode }> = ({ children }
     
     channel
       .on('postgres_changes', { event: '*', schema: 'public', table: 'activity_log' }, () => {
+        loadActivity()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vm_action_audit' }, () => {
         loadActivity()
       })
       .subscribe()

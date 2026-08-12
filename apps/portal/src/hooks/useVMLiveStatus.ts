@@ -189,6 +189,33 @@ function actionToPowerState(action: PowerAction): "Running" | "Stopped" | "Pause
   return "Stopped"; // stop, shutdown
 }
 
+function actionToExpectedStatus(action: PowerAction): "running" | "stopped" | "paused" | null {
+  if (action === "start" || action === "resume") {
+    return "running";
+  }
+  if (action === "stop" || action === "shutdown") {
+    return "stopped";
+  }
+  if (action === "suspend") {
+    return "paused";
+  }
+  return null;
+}
+
+function hasReachedExpectedStatus(action: PowerAction, status: ProxmoxVMStatus | null | undefined): boolean {
+  if (!status) {
+    return false;
+  }
+  if (action === "suspend") {
+    return status.status === "paused" || status.qmpstatus === "paused";
+  }
+  const expectedStatus = actionToExpectedStatus(action);
+  if (!expectedStatus) {
+    return true;
+  }
+  return status.status === expectedStatus;
+}
+
 // Runs a power action (start/stop/shutdown/reboot/reset/suspend/resume)
 // against proxmox-proxcy's by-record route, polls the returned task to
 // completion, then calls onSettled (typically the status hook's refetch) so
@@ -198,11 +225,13 @@ export function useVMPowerAction(recordId?: string | null, onSettled?: () => voi
   const [pending, setPending] = useState<PowerAction | null>(null);
   const [error, setError] = useState<string | null>(null);
   const onSettledRef = useRef(onSettled);
+  const pendingRef = useRef<PowerAction | null>(null);
   onSettledRef.current = onSettled;
 
   const run = useCallback(
     async (action: PowerAction) => {
-      if (!recordId || pending) return;
+      if (!recordId || pendingRef.current) return;
+      pendingRef.current = action;
       setPending(action);
       setError(null);
       try {
@@ -217,6 +246,22 @@ export function useVMPowerAction(recordId?: string | null, onSettled?: () => voi
           }
         }
 
+        const expectedStatus = actionToExpectedStatus(action);
+        let reachedExpectedStatus = !expectedStatus;
+
+        if (expectedStatus) {
+          const start = Date.now();
+          for (;;) {
+            const status = await getVMStatusByRecord(recordId).catch(() => null);
+            if (hasReachedExpectedStatus(action, status)) {
+              reachedExpectedStatus = true;
+              break;
+            }
+            if (Date.now() - start > TASK_POLL_TIMEOUT_MS) break;
+            await new Promise((r) => setTimeout(r, TASK_POLL_INTERVAL_MS));
+          }
+        }
+
         // Update database power_state to keep VMs list in sync
         // Find VM by ownership_record_id and update its power_state
         const { data: vm } = await supabase
@@ -225,7 +270,7 @@ export function useVMPowerAction(recordId?: string | null, onSettled?: () => voi
           .eq("ownership_record_id", recordId)
           .single();
 
-        if (vm) {
+        if (vm && reachedExpectedStatus) {
           const newPowerState = actionToPowerState(action);
           await supabase
             .from("vms")
@@ -235,11 +280,12 @@ export function useVMPowerAction(recordId?: string | null, onSettled?: () => voi
       } catch (err: any) {
         setError(friendlyError(err));
       } finally {
+        pendingRef.current = null;
         setPending(null);
         onSettledRef.current?.();
       }
     },
-    [recordId, pending],
+    [recordId],
   );
 
   return { pending, error, run, clearError: () => setError(null) };

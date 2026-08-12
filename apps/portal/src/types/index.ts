@@ -143,6 +143,13 @@ export interface Activity {
   actor: string;
   kind: string;
   text: string;
+  source?: string;
+  createdAt?: string;
+  vmid?: number;
+  node?: string;
+  action?: string;
+  result?: string;
+  ip_address?: string;
 }
 
 export interface TeamMember {
