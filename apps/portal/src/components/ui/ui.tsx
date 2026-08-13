@@ -36,7 +36,7 @@ const StatusPill: React.FC<StatusPillProps> = ({ status, transformStatus, expiry
 
 const formatMMK = (n: number) => {
   if (!n) return '0'
-  return n.toLocaleString('en-US')
+  return new Intl.NumberFormat('en-MM', { style: 'currency', currency: 'MMK' }).format(n)
 }
 
 interface ExpiryCellProps {

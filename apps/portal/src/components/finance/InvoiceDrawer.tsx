@@ -141,8 +141,8 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
                       </td>
                       <td className="text-xs">{item.spec}</td>
                       <td className="right tnum">{item.qty || 1}</td>
-                      <td className="right tnum">MMK {formatMMK(item.unit)}</td>
-                      <td className="right tnum fw-6">MMK {formatMMK((item.unit || 0) * (item.qty || 1))}</td>
+                      <td className="right tnum">{formatMMK(item.unit)}</td>
+                      <td className="right tnum fw-6">{formatMMK((item.unit || 0) * (item.qty || 1))}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -152,24 +152,24 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
                 <div style={{ minWidth: 280 }}>
                   <div className="flex between" style={{ padding: '6px 0' }}>
                     <span className="text-mute">Subtotal</span>
-                    <span className="tnum">MMK {formatMMK(live.amount)}</span>
+                    <span className="tnum">{formatMMK(live.amount)}</span>
                   </div>
                   <div className="flex between" style={{ padding: '6px 0' }}>
                     <span className="text-mute">Discount</span>
-                    <span className="tnum text-mute">MMK {formatMMK(live.discount || 0)}</span>
+                    <span className="tnum text-mute">{formatMMK(live.discount || 0)}</span>
                   </div>
                   <div className="flex between" style={{ padding: '6px 0' }}>
                     <span className="text-mute">Net Amount</span>
-                    <span className="tnum">MMK {formatMMK(live.net_amount || live.amount)}</span>
+                    <span className="tnum">{formatMMK(live.net_amount || live.amount)}</span>
                   </div>
                   <div className="flex between" style={{ padding: '6px 0' }}>
                     <span className="text-mute">VAT</span>
-                    <span className="tnum text-mute">MMK {formatMMK(live.vat || 0)}</span>
+                    <span className="tnum text-mute">{formatMMK(live.vat || 0)}</span>
                   </div>
                   <div className="divider" style={{ margin: '6px 0' }} />
                   <div className="flex between" style={{ padding: '6px 0' }}>
                     <span className="fw-7">Gross Amount</span>
-                    <span className="tnum fw-7" style={{ fontSize: 18 }}>MMK {formatMMK(live.gross_amount || live.amount)}</span>
+                    <span className="tnum fw-7" style={{ fontSize: 18 }}>{formatMMK(live.gross_amount || live.amount)}</span>
                   </div>
                 </div>
               </div>

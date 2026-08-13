@@ -129,7 +129,7 @@ const QuoteDrawer = ({ quote, onClose }: QuoteDrawerProps) => {
                     <div key={i} className="card" style={{ padding: 12, background: 'var(--surface-2)' }}>
                       <div className="flex between">
                         <div className="fw-6">{item.spec || `Item ${i + 1}`}</div>
-                        <div className="tnum">MMK {formatMMK(item.unit || 0)}</div>
+                        <div className="tnum">{formatMMK(item.unit || 0)}</div>
                       </div>
                       <div className="flex between text-sm text-mute mt-1">
                         <div>
@@ -151,27 +151,27 @@ const QuoteDrawer = ({ quote, onClose }: QuoteDrawerProps) => {
               <h3 className="fw-6 mb-2">Totals</h3>
               <div className="flex between text-sm mb-1">
                 <div>Instance Total</div>
-                <div className="tnum">MMK {formatMMK((quote as any).instance_total)}</div>
+                <div className="tnum">{formatMMK((quote as any).instance_total)}</div>
               </div>
               <div className="flex between text-sm mb-1">
                 <div>Public IP Total</div>
-                <div className="tnum">MMK {formatMMK((quote as any).public_ip_total)}</div>
+                <div className="tnum">{formatMMK((quote as any).public_ip_total)}</div>
               </div>
               <div className="flex between text-sm mb-1">
                 <div>Backup Total</div>
-                <div className="tnum">MMK {formatMMK((quote as any).backup_total)}</div>
+                <div className="tnum">{formatMMK((quote as any).backup_total)}</div>
               </div>
               <div className="flex between text-sm mb-1">
                 <div>Discount</div>
-                <div className="tnum">MMK {formatMMK((quote as any).discount_amount)}</div>
+                <div className="tnum">{formatMMK((quote as any).discount_amount)}</div>
               </div>
               <div className="flex between text-sm mb-1">
                 <div>Net Amount</div>
-                <div className="tnum">MMK {formatMMK((quote as any).net_amount)}</div>
+                <div className="tnum">{formatMMK((quote as any).net_amount)}</div>
               </div>
               <div className="flex between text-sm mb-1">
                 <div>Tax</div>
-                <div className="tnum">MMK {formatMMK((quote as any).tax_amount)}</div>
+                <div className="tnum">{formatMMK((quote as any).tax_amount)}</div>
               </div>
               <div className="flex between text-sm mb-1">
                 <div>Billing Term</div>
@@ -179,7 +179,7 @@ const QuoteDrawer = ({ quote, onClose }: QuoteDrawerProps) => {
               </div>
               <div className="flex between fw-6">
                 <div>Grand Total</div>
-                <div className="tnum">MMK {formatMMK((quote as any).grand_total)}</div>
+                <div className="tnum">{formatMMK((quote as any).grand_total)}</div>
               </div>
             </div>
           </div>

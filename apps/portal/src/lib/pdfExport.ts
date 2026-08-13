@@ -65,14 +65,13 @@ export const exportQuoteToPDF = async (quote: any, customer: any) => {
   const lineItems = quote.line_items || []
 
   const formatDate = (date: string) => {
-  const d = new Date(date)
-  const day = d.getDate()
-  const month = d.toLocaleDateString('en-GB', { month: 'short' })
-  const year = d.getFullYear().toString().slice(-2)
-  return `${day}-${month}-${year}`
-}
-  const formatMMK = (amount: number) => new Intl.NumberFormat('en-MM', { style: 'currency', currency: 'MMK', maximumFractionDigits: 0 }).format(amount)
-
+    const d = new Date(date)
+    const day = d.getDate()
+    const month = d.toLocaleDateString('en-GB', { month: 'short' })
+    const year = d.getFullYear().toString().slice(-2)
+    return `${day}-${month}-${year}`
+  }
+  const formatMMK = (amount: number) => new Intl.NumberFormat('en-MM', { style: 'currency', currency: 'MMK' }).format(amount)
   // Helper: fetch image and convert to data URL
   const toDataUrl = async (path: string): Promise<string | null> => {
     try {
@@ -133,23 +132,14 @@ export const exportQuoteToPDF = async (quote: any, customer: any) => {
   const backupItems = lineItems.filter((item: any) => item.kind === 'backup')
   const publicIPItems = lineItems.filter((item: any) => item.kind === 'publicIP')
 
-  // Calculate totals from line items
-  const instanceTotal = instanceItems.reduce((sum: number, item: any) => {
-    const extended = item.extended_price || (item.unit * item.qty * getTermMultiplier(item.term))
-    return sum + extended
-  }, 0)
-  const backupTotal = backupItems.reduce((sum: number, item: any) => {
-    const extended = item.extended_price || (item.unit * getTermMultiplier(item.term))
-    return sum + extended
-  }, 0)
-  const publicIPTotal = publicIPItems.reduce((sum: number, item: any) => {
-    const extended = item.extended_price || (item.unit * getTermMultiplier(item.term))
-    return sum + extended
-  }, 0)
-  const subtotal = instanceTotal + backupTotal + publicIPTotal
-  const discount = quote.discount_amount || 0
-  const tax = quote.tax_amount || 0
-  const grandTotal = subtotal - discount + tax
+  // Use saved totals from quote instead of recalculating
+  const instanceTotal = parseFloat(quote.instance_total) || 0
+  const backupTotal = parseFloat(quote.backup_total) || 0
+  const publicIPTotal = parseFloat(quote.public_ip_total) || 0
+  const subtotal = parseFloat(quote.subtotal) || (instanceTotal + backupTotal + publicIPTotal)
+  const discount = parseFloat(quote.discount_amount) || 0
+  const tax = parseFloat(quote.tax_amount) || 0
+  const grandTotal = parseFloat(quote.grand_total) || 0
 
   const html = `
     <html>
@@ -242,7 +232,7 @@ export const exportQuoteToPDF = async (quote: any, customer: any) => {
             </thead>
             <tbody>
               ${instanceItems.map((item: any) => {
-    const extendedPrice = item.extended_price || (item.unit * item.qty * getTermMultiplier(item.term))
+    const extendedPrice = item.extended_price || Math.round((item.unit * item.qty * getTermMultiplier(item.term)) * 100) / 100
     return `
                 <tr>
                   <td>${item.spec || 'VM Instance'}</td>
@@ -287,7 +277,7 @@ export const exportQuoteToPDF = async (quote: any, customer: any) => {
             </thead>
             <tbody>
               ${backupItems.map((item: any) => {
-    const extendedPrice = item.extended_price || (item.unit * getTermMultiplier(item.term))
+    const extendedPrice = item.extended_price || Math.round((item.unit * getTermMultiplier(item.term)) * 100) / 100
     return `
                 <tr>
                   <td>${item.spec || 'Backup'}</td>
@@ -327,7 +317,7 @@ export const exportQuoteToPDF = async (quote: any, customer: any) => {
             </thead>
             <tbody>
               ${publicIPItems.map((item: any) => {
-    const extendedPrice = item.extended_price || (item.unit * getTermMultiplier(item.term))
+    const extendedPrice = item.extended_price || Math.round((item.unit * getTermMultiplier(item.term)) * 100) / 100
     return `
                 <tr>
                   <td>${item.spec || 'Public IP'}</td>
@@ -444,14 +434,13 @@ export const exportInvoiceToPDF = async (invoice: any, customer: any) => {
   const lineItems = invoice.line_items || []
 
   const formatDate = (date: string) => {
-  const d = new Date(date)
-  const day = d.getDate()
-  const month = d.toLocaleDateString('en-GB', { month: 'short' })
-  const year = d.getFullYear().toString().slice(-2)
-  return `${day}-${month}-${year}`
-}
-  const formatMMK = (amount: number) => new Intl.NumberFormat('en-MM', { style: 'currency', currency: 'MMK', maximumFractionDigits: 0 }).format(amount)
-
+    const d = new Date(date)
+    const day = d.getDate()
+    const month = d.toLocaleDateString('en-GB', { month: 'short' })
+    const year = d.getFullYear().toString().slice(-2)
+    return `${day}-${month}-${year}`
+  }
+  const formatMMK = (amount: number) => new Intl.NumberFormat('en-MM', { style: 'currency', currency: 'MMK' }).format(amount)
   // Helper: fetch image and convert to data URL
   const toDataUrl = async (path: string): Promise<string | null> => {
     try {
@@ -506,23 +495,14 @@ export const exportInvoiceToPDF = async (invoice: any, customer: any) => {
   const backupItems = lineItems.filter((item: any) => item.kind === 'backup')
   const publicIPItems = lineItems.filter((item: any) => item.kind === 'publicIP')
 
-  // Calculate totals from line items
-  const instanceTotal = instanceItems.reduce((sum: number, item: any) => {
-    const extended = item.extended_price || (item.unit * item.qty * getTermMultiplier(item.term))
-    return sum + extended
-  }, 0)
-  const backupTotal = backupItems.reduce((sum: number, item: any) => {
-    const extended = item.extended_price || (item.unit * getTermMultiplier(item.term))
-    return sum + extended
-  }, 0)
-  const publicIPTotal = publicIPItems.reduce((sum: number, item: any) => {
-    const extended = item.extended_price || (item.unit * getTermMultiplier(item.term))
-    return sum + extended
-  }, 0)
-  const subtotal = instanceTotal + backupTotal + publicIPTotal
-  const discount = invoice.discount || 0
-  const tax = invoice.vat || 0
-  const grandTotal = subtotal - discount + tax
+  // Use saved totals from invoice instead of recalculating
+  const instanceTotal = parseFloat(invoice.amount) || 0 // Invoice uses single amount field
+  const backupTotal = 0
+  const publicIPTotal = 0
+  const subtotal = parseFloat(invoice.amount) || 0
+  const discount = parseFloat(invoice.discount) || 0
+  const tax = parseFloat(invoice.vat) || 0
+  const grandTotal = parseFloat(invoice.gross_amount) || 0
 
   const html = `
     <html>
@@ -616,7 +596,7 @@ export const exportInvoiceToPDF = async (invoice: any, customer: any) => {
             </thead>
             <tbody>
               ${instanceItems.map((item: any) => {
-    const extendedPrice = item.extended_price || (item.unit * item.qty * getTermMultiplier(item.term))
+    const extendedPrice = item.extended_price || Math.round((item.unit * item.qty * getTermMultiplier(item.term)) * 100) / 100
     return `
                 <tr>
                   <td>${item.spec || 'VM Instance'}</td>
@@ -661,7 +641,7 @@ export const exportInvoiceToPDF = async (invoice: any, customer: any) => {
             </thead>
             <tbody>
               ${backupItems.map((item: any) => {
-    const extendedPrice = item.extended_price || (item.unit * getTermMultiplier(item.term))
+    const extendedPrice = item.extended_price || Math.round((item.unit * getTermMultiplier(item.term)) * 100) / 100
     return `
                 <tr>
                   <td>${item.spec || 'Backup'}</td>
@@ -701,7 +681,7 @@ export const exportInvoiceToPDF = async (invoice: any, customer: any) => {
             </thead>
             <tbody>
               ${publicIPItems.map((item: any) => {
-    const extendedPrice = item.extended_price || (item.unit * getTermMultiplier(item.term))
+    const extendedPrice = item.extended_price || Math.round((item.unit * getTermMultiplier(item.term)) * 100) / 100
     return `
                 <tr>
                   <td>${item.spec || 'Public IP'}</td>

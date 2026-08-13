@@ -112,7 +112,7 @@ const FinanceQuoteReviewView = () => {
                       </td>
                       <td className="tnum text-sm">{(q as any).billing_term || '—'}</td>
                       <td className="right tnum">{(q.line_items || []).length}</td>
-                      <td className="right tnum fw-6">MMK {formatMMK((q as any).grand_total)}</td>
+                      <td className="right tnum fw-6">{formatMMK((q as any).grand_total)}</td>
                       <td className="tnum text-sm">{new Date(q.validity_date).toLocaleDateString()}</td>
                       <td className="right">
                         <div className="flex gap-1" onClick={e => e.stopPropagation()}>

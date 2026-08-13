@@ -185,10 +185,10 @@ export const CustomerInvoicesView: React.FC<CustomerInvoicesViewProps> = ({ myIn
                       return quote?.legacy_id || '—'
                     })()}</td>
                     <td><StatusPill status={i.status} transformStatus={transformStatus}/></td>
-                    <td className="right tnum text-sm">MMK {formatMMK(i.discount || 0)}</td>
-                    <td className="right tnum text-sm">MMK {formatMMK(i.net_amount || i.amount)}</td>
-                    <td className="right tnum text-sm">MMK {formatMMK(i.vat || 0)}</td>
-                    <td className="right tnum fw-6 text-sm">MMK {formatMMK(i.gross_amount || i.amount)}</td>
+                    <td className="right tnum text-sm">{formatMMK(i.discount || 0)}</td>
+                    <td className="right tnum text-sm">{formatMMK(i.net_amount || i.amount)}</td>
+                    <td className="right tnum text-sm">{formatMMK(i.vat || 0)}</td>
+                    <td className="right tnum fw-6 text-sm">{formatMMK(i.gross_amount || i.amount)}</td>
                     <td className="tnum text-sm">{i.paid_date ? new Date(i.paid_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).replace(',', '') : '—'}</td>
                     <td className="right" onClick={e => e.stopPropagation()}>
                       <button className="btn sm" onClick={async () => {

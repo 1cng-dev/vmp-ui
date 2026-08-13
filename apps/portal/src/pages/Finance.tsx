@@ -138,7 +138,7 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal, userRole
           <div className="page-head">
             <div>
               <h1 className="page-title">Invoices</h1>
-              <p className="page-subtitle">{invoices.length} invoices · MMK {formatMMK(total)} total billed</p>
+              <p className="page-subtitle">{invoices.length} invoices · {formatMMK(total)} total billed</p>
             </div>
             <div className="page-actions">
              
@@ -312,10 +312,10 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal, userRole
           </div>
 
           <div className="grid-4 mb-4">
-            <div className="metric"><div className="label">Total billed ({new Date().toLocaleDateString('en-US', { month: 'long' })})</div><div className="value tnum" style={{ fontSize: 22 }}>MMK {formatMMK(total)}</div></div>
-            <div className="metric"><div className="label">Received</div><div className="value tnum" style={{ fontSize: 22, color: 'var(--ok)' }}>MMK {formatMMK(received)}</div></div>
-            <div className="metric"><div className="label">Pending</div><div className="value tnum" style={{ fontSize: 22, color: 'oklch(0.55 0.16 75)' }}>MMK {formatMMK(pending)}</div></div>
-            <div className="metric"><div className="label">Overdue</div><div className="value tnum" style={{ fontSize: 22, color: 'var(--bad)' }}>MMK {formatMMK(overdue)}</div></div>
+            <div className="metric"><div className="label">Total billed ({new Date().toLocaleDateString('en-US', { month: 'long' })})</div><div className="value tnum" style={{ fontSize: 22 }}>{formatMMK(total)}</div></div>
+            <div className="metric"><div className="label">Received</div><div className="value tnum" style={{ fontSize: 22, color: 'var(--ok)' }}>{formatMMK(received)}</div></div>
+            <div className="metric"><div className="label">Pending</div><div className="value tnum" style={{ fontSize: 22, color: 'oklch(0.55 0.16 75)' }}>{formatMMK(pending)}</div></div>
+            <div className="metric"><div className="label">Overdue</div><div className="value tnum" style={{ fontSize: 22, color: 'var(--bad)' }}>{formatMMK(overdue)}</div></div>
           </div>
 
           <div className="card">
@@ -428,10 +428,10 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal, userRole
                             {[...vmRequestsList.map((v: any) => v.legacy_id || v.id.slice(0, 8)), ...addonRequestsList.map((a: any) => a.legacy_id || a.id.slice(0, 8))].join(', ')}
                           </td>
                         )}
-                        {selectedExportColumns.includes('discount') && <td className="right tnum text-sm">MMK {formatMMK(i.discount || 0)}</td>}
-                        {selectedExportColumns.includes('netAmount') && <td className="right tnum text-sm">MMK {formatMMK(i.net_amount || i.amount)}</td>}
-                        {selectedExportColumns.includes('vat') && <td className="right tnum text-sm">MMK {formatMMK(i.vat || 0)}</td>}
-                        {selectedExportColumns.includes('grossAmount') && <td className="right tnum fw-6 text-sm">MMK {formatMMK(i.gross_amount || i.amount)}</td>}
+                        {selectedExportColumns.includes('discount') && <td className="right tnum text-sm">{formatMMK(i.discount || 0)}</td>}
+                        {selectedExportColumns.includes('netAmount') && <td className="right tnum text-sm">{formatMMK(i.net_amount || i.amount)}</td>}
+                        {selectedExportColumns.includes('vat') && <td className="right tnum text-sm">{formatMMK(i.vat || 0)}</td>}
+                        {selectedExportColumns.includes('grossAmount') && <td className="right tnum fw-6 text-sm">{formatMMK(i.gross_amount || i.amount)}</td>}
                         <td onClick={e => e.stopPropagation()} className="right">
                           {i.status === 'Payment Received' && userRole !== 'Sales' ? (
                             <button className="btn sm" onClick={async () => {

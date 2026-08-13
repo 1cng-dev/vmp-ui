@@ -591,19 +591,19 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
     }
   }
 
-  const instExt = (l: InstanceLine) => (l.unit || 0) * (l.qty || 0) * getTermMultiplier(l.term)
-  const backupExt = (l: BackupLine) => (l.unit || 0) * getTermMultiplier(l.term)
-  const publicIPExt = (l: PublicIPLine) => (l.unit || 0) * getTermMultiplier(l.term)
-  const addonServiceExt = (l: AddonServiceLine) => (l.unit || 0) * getTermMultiplier(l.term)
-  const instanceSub = sheet.instance.reduce((a: number, l: InstanceLine) => a + instExt(l), 0)
-  const backupSub = sheet.backup.reduce((a: number, l: BackupLine) => a + backupExt(l), 0)
-  const publicIPSub = sheet.publicIP.reduce((a: number, l: PublicIPLine) => a + publicIPExt(l), 0)
-  const addonServiceSub = sheet.addonServices.reduce((a: number, l: AddonServiceLine) => a + addonServiceExt(l), 0)
-  const subTotal = instanceSub + backupSub + publicIPSub + addonServiceSub
-  const discountAmount = Math.round(subTotal * (sheet.discountPct / 100))
-  const netAmount = subTotal - discountAmount
-  const tax = Math.round(netAmount * (sheet.taxPct / 100))
-  const grand = netAmount + tax
+  const instExt = (l: InstanceLine) => Math.round(((l.unit || 0) * (l.qty || 0) * getTermMultiplier(l.term)) * 100) / 100
+  const backupExt = (l: BackupLine) => Math.round(((l.unit || 0) * getTermMultiplier(l.term)) * 100) / 100
+  const publicIPExt = (l: PublicIPLine) => Math.round(((l.unit || 0) * getTermMultiplier(l.term)) * 100) / 100
+  const addonServiceExt = (l: AddonServiceLine) => Math.round(((l.unit || 0) * getTermMultiplier(l.term)) * 100) / 100
+  const instanceSub = Math.round(sheet.instance.reduce((a: number, l: InstanceLine) => a + instExt(l), 0) * 100) / 100
+  const backupSub = Math.round(sheet.backup.reduce((a: number, l: BackupLine) => a + backupExt(l), 0) * 100) / 100
+  const publicIPSub = Math.round(sheet.publicIP.reduce((a: number, l: PublicIPLine) => a + publicIPExt(l), 0) * 100) / 100
+  const addonServiceSub = Math.round(sheet.addonServices.reduce((a: number, l: AddonServiceLine) => a + addonServiceExt(l), 0) * 100) / 100
+  const subTotal = Math.round((instanceSub + backupSub + publicIPSub + addonServiceSub) * 100) / 100
+  const discountAmount = Math.round(subTotal * (sheet.discountPct / 100) * 100) / 100
+  const netAmount = Math.round((subTotal - discountAmount) * 100) / 100
+  const tax = Math.round(netAmount * (sheet.taxPct / 100) * 100) / 100
+  const grand = Math.round((netAmount + tax) * 100) / 100
   const backupTotalGB = sheet.backup.reduce((a: number, l: BackupLine) => a + (l.storage || 0), 0)
 
   const updateInstance = (i: number, patch: Partial<InstanceLine>) => {
@@ -724,12 +724,12 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                             <input value={l.term} onChange={e => updateInstance(i, { term: e.target.value as InstanceLine['term'] })} style={{ width: 120 }} />
                           )}
                         </td>
-                        <td className="right tnum fw-6">MMK {formatMMK(instExt(l))}</td>
+                        <td className="right tnum fw-6">{formatMMK(instExt(l))}</td>
                       </tr>
                     ))}
                     <tr>
                       <td colSpan={5} className="right fw-6">Add-on Services Total</td>
-                      <td className="right tnum fw-7">MMK {formatMMK(instanceSub)}</td>
+                      <td className="right tnum fw-7">{formatMMK(instanceSub)}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -772,7 +772,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                         <td>
                           <input value={l.term} onChange={e => updateInstance(i, { term: e.target.value as InstanceLine['term'] })} style={{ width: 120 }} />
                         </td>
-                        <td className="right tnum fw-6">MMK {formatMMK(instExt(l))}</td>
+                        <td className="right tnum fw-6">{formatMMK(instExt(l))}</td>
                       </tr>
                     ))}
                     {sheet.backup.map((l, i) => (
@@ -785,12 +785,12 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                         <td>
                           <input value={l.term} onChange={e => updateBackup(i, { term: e.target.value as BackupLine['term'] })} style={{ width: 120 }} />
                         </td>
-                        <td className="right tnum fw-6">MMK {formatMMK(backupExt(l))}</td>
+                        <td className="right tnum fw-6">{formatMMK(backupExt(l))}</td>
                       </tr>
                     ))}
                     <tr>
                       <td colSpan={7} className="right fw-6">Upgrade Total (One-time)</td>
-                      <td className="right tnum fw-7">MMK {formatMMK(instanceSub + backupSub)}</td>
+                      <td className="right tnum fw-7">{formatMMK(instanceSub + backupSub)}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -831,12 +831,12 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                             <input value={l.term} onChange={e => updateInstance(i, { term: e.target.value as InstanceLine['term'] })} style={{ width: 120 }} />
                           )}
                         </td>
-                        <td className="right tnum fw-6">MMK {formatMMK(instExt(l))}</td>
+                        <td className="right tnum fw-6">{formatMMK(instExt(l))}</td>
                       </tr>
                     ))}
                     <tr>
                       <td colSpan={7} className="right fw-6">Instance Cost Total</td>
-                      <td className="right tnum fw-7">MMK {formatMMK(instanceSub)}</td>
+                      <td className="right tnum fw-7">{formatMMK(instanceSub)}</td>
                     </tr>
 
                     {/* Public IP Cost section */}
@@ -864,12 +864,12 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                             <input value={l.term} onChange={e => updatePublicIP(i, { term: e.target.value as PublicIPLine['term'] })} style={{ width: 120 }} />
                           )}
                         </td>
-                        <td className="right tnum fw-6">MMK {formatMMK(publicIPExt(l))}</td>
+                        <td className="right tnum fw-6">{formatMMK(publicIPExt(l))}</td>
                       </tr>
                     ))}
                     <tr>
                       <td colSpan={7} className="right fw-6">Public IP Total</td>
-                      <td className="right tnum fw-7">MMK {formatMMK(publicIPSub)}</td>
+                      <td className="right tnum fw-7">{formatMMK(publicIPSub)}</td>
                     </tr>
 
                     {/* Backup Cost section */}
@@ -897,12 +897,12 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                             <input value={l.term} onChange={e => updateBackup(i, { term: e.target.value as BackupLine['term'] })} style={{ width: 120 }} />
                           )}
                         </td>
-                        <td className="right tnum fw-6">MMK {formatMMK(backupExt(l))}</td>
+                        <td className="right tnum fw-6">{formatMMK(backupExt(l))}</td>
                       </tr>
                     ))}
                     <tr>
                       <td colSpan={7} className="right fw-6">Backup Cost Total {backupTotalGB > 0 ? `— ${backupTotalGB}GB` : ''}</td>
-                      <td className="right tnum fw-7">MMK {formatMMK(backupSub || 0)}</td>
+                      <td className="right tnum fw-7">{formatMMK(backupSub || 0)}</td>
                     </tr>
 
                     {/* Add-on Service Cost section */}
@@ -930,13 +930,13 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                             <input value={l.term} onChange={e => updateAddonService(i, { term: e.target.value as AddonServiceLine['term'] })} style={{ width: 120 }} />
                           )}
                         </td>
-                        <td className="right tnum fw-6">MMK {formatMMK(addonServiceExt(l))}</td>
+                        <td className="right tnum fw-6">{formatMMK(addonServiceExt(l))}</td>
                       </tr>
                     ))}
                     {sheet.addonServices.length > 0 && (
                       <tr>
                         <td colSpan={7} className="right fw-6">Add-on Service Total</td>
-                        <td className="right tnum fw-7">MMK {formatMMK(addonServiceSub || 0)}</td>
+                        <td className="right tnum fw-7">{formatMMK(addonServiceSub || 0)}</td>
                       </tr>
                     )}
                   </tbody>
@@ -978,12 +978,12 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                             <input value={l.term} onChange={e => updateInstance(i, { term: e.target.value as InstanceLine['term'] })} style={{ width: 120 }} />
                           )}
                         </td>
-                        <td className="right tnum fw-6">MMK {formatMMK(instExt(l))}</td>
+                        <td className="right tnum fw-6">{formatMMK(instExt(l))}</td>
                       </tr>
                     ))}
                     <tr>
                       <td colSpan={7} className="right fw-6">Instance Cost Total</td>
-                      <td className="right tnum fw-7">MMK {formatMMK(instanceSub)}</td>
+                      <td className="right tnum fw-7">{formatMMK(instanceSub)}</td>
                     </tr>
 
                     {/* Backup Cost section */}
@@ -1011,12 +1011,12 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                             <input value={l.term} onChange={e => updateBackup(i, { term: e.target.value as BackupLine['term'] })} style={{ width: 120 }} />
                           )}
                         </td>
-                        <td className="right tnum fw-6">MMK {formatMMK(backupExt(l))}</td>
+                        <td className="right tnum fw-6">{formatMMK(backupExt(l))}</td>
                       </tr>
                     ))}
                     <tr>
                       <td colSpan={7} className="right fw-6">Backup Cost Total {backupTotalGB > 0 ? `— ${backupTotalGB}GB` : ''}</td>
-                      <td className="right tnum fw-7">MMK {formatMMK(backupSub || 0)}</td>
+                      <td className="right tnum fw-7">{formatMMK(backupSub || 0)}</td>
                     </tr>
 
                     {/* Public IP Cost section */}
@@ -1044,12 +1044,12 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                             <input value={l.term} onChange={e => updatePublicIP(i, { term: e.target.value as PublicIPLine['term'] })} style={{ width: 120 }} />
                           )}
                         </td>
-                        <td className="right tnum fw-6">MMK {formatMMK(publicIPExt(l))}</td>
+                        <td className="right tnum fw-6">{formatMMK(publicIPExt(l))}</td>
                       </tr>
                     ))}
                     <tr>
                       <td colSpan={7} className="right fw-6">Public IP Total</td>
-                      <td className="right tnum fw-7">MMK {formatMMK(publicIPSub)}</td>
+                      <td className="right tnum fw-7">{formatMMK(publicIPSub)}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -1062,7 +1062,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
               <div />
               <div className="card" style={{ background: 'var(--surface-2)' }}>
                 <div className="card-body">
-                  <div className="flex between"><div>Sub Total</div><div className="tnum fw-7">MMK {formatMMK(subTotal)}</div></div>
+                  <div className="flex between"><div>Sub Total</div><div className="tnum fw-7">{formatMMK(subTotal)}</div></div>
                   <div className="flex between mt-1" style={{ alignItems: 'center' }}>
                     <div className="flex center gap-2">
                       <div>(-) Reseller Discount</div>
@@ -1076,18 +1076,18 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                       />
                       <div>%</div>
                     </div>
-                    <div className="tnum fw-7">MMK {formatMMK(discountAmount)}</div>
+                    <div className="tnum fw-7">{formatMMK(discountAmount)}</div>
                   </div>
                   <div className="flex between mt-1">
                     <div>Net Amount</div>
-                    <div className="tnum fw-7">MMK {formatMMK(netAmount)}</div>
+                    <div className="tnum fw-7">{formatMMK(netAmount)}</div>
                   </div>
                   <div className="flex between mt-1">
                     <div>(+) Commercial Tax {sheet.taxPct}%</div>
-                    <div className="tnum fw-7">MMK {formatMMK(tax)}</div>
+                    <div className="tnum fw-7">{formatMMK(tax)}</div>
                   </div>
                   <div className="divider" />
-                  <div className="flex between fw-7"><div>Grand Total</div><div className="tnum">MMK {formatMMK(grand)}</div></div>
+                  <div className="flex between fw-7"><div>Grand Total</div><div className="tnum">{formatMMK(grand)}</div></div>
                 </div>
               </div>
             </div>
@@ -1227,7 +1227,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                           <td>{requestHostname}</td>
                           <td>{q.billing_term || 'Monthly'}</td>
                           <td className="right tnum">{(q.line_items || []).length}</td>
-                          <td className="right tnum fw-6">MMK {formatMMK(q.grand_total || 0)}</td>
+                          <td className="right tnum fw-6">{formatMMK(q.grand_total || 0)}</td>
                           <td className="tnum text-sm">{new Date(q.validity_date).toLocaleDateString()}</td>
                           <td><span className={`pill ${q.status === 'Accepted' ? 'ok' : q.status === 'Sent' ? 'accent' : 'subtle'}`}><span className="dot" />{q.status}</span></td>
                           <td className="right" onClick={e => e.stopPropagation()}><button className="btn sm" onClick={async () => {

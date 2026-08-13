@@ -220,8 +220,8 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
                       </td>
                       <td className="text-xs">{item.spec}</td>
                       <td className="right tnum">{item.qty || 1}</td>
-                      <td className="right tnum">MMK {formatMMK(item.unit)}</td>
-                      <td className="right tnum fw-6">MMK {formatMMK((item.unit || 0) * (item.qty || 1))}</td>
+                      <td className="right tnum">{formatMMK(item.unit)}</td>
+                      <td className="right tnum fw-6">{formatMMK((item.unit || 0) * (item.qty || 1))}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -231,24 +231,24 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
                 <div style={{ minWidth: 280 }}>
                   <div className="flex between" style={{ padding: '6px 0' }}>
                     <span className="text-mute">Subtotal</span>
-                    <span className="tnum">MMK {formatMMK(inv.amount)}</span>
+                    <span className="tnum">{formatMMK(inv.amount)}</span>
                   </div>
                   <div className="flex between" style={{ padding: '6px 0' }}>
                     <span className="text-mute">Discount</span>
-                    <span className="tnum text-mute">MMK {formatMMK(inv.discount || 0)}</span>
+                    <span className="tnum text-mute">{formatMMK(inv.discount || 0)}</span>
                   </div>
                   <div className="flex between" style={{ padding: '6px 0' }}>
                     <span className="text-mute">Net Amount</span>
-                    <span className="tnum">MMK {formatMMK(inv.net_amount || inv.amount)}</span>
+                    <span className="tnum">{formatMMK(inv.net_amount || inv.amount)}</span>
                   </div>
                   <div className="flex between" style={{ padding: '6px 0' }}>
                     <span className="text-mute">VAT</span>
-                    <span className="tnum text-mute">MMK {formatMMK(inv.vat || 0)}</span>
+                    <span className="tnum text-mute">{formatMMK(inv.vat || 0)}</span>
                   </div>
                   <div className="divider" style={{ margin: '6px 0' }} />
                   <div className="flex between" style={{ padding: '6px 0' }}>
                     <span className="fw-7">Gross Amount</span>
-                    <span className="tnum fw-7" style={{ fontSize: 18 }}>MMK {formatMMK(inv.gross_amount || inv.amount)}</span>
+                    <span className="tnum fw-7" style={{ fontSize: 18 }}>{formatMMK(inv.gross_amount || inv.amount)}</span>
                   </div>
                 </div>
               </div>
@@ -364,7 +364,7 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
                 style={{ maxWidth: '100%', height: 'auto', marginBottom: 16 }}
               />
               <div className="text-sm text-mute mb-2">Scan to pay</div>
-              <div className="fw-7" style={{ fontSize: 20 }}>MMK {formatMMK(inv.gross_amount || inv.amount)}</div>
+              <div className="fw-7" style={{ fontSize: 20 }}>{formatMMK(inv.gross_amount || inv.amount)}</div>
               <div className="text-xs text-mute mt-1">Invoice: {inv.legacy_id || inv.id}</div>
               <div className="text-xs text-mute mt-3">After payment, upload proof using the button below</div>
             </div>

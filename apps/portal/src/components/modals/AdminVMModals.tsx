@@ -1330,18 +1330,18 @@ const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({ onClose, presetCustom
 
   // Use quote totals if provided, otherwise calculate from VM request pricing
   const amount = presetQuote
-    ? (presetQuote as any).instance_total + (presetQuote as any).public_ip_total + (presetQuote as any).backup_total
-    : selectedVMRequests
+    ? Math.round(((presetQuote as any).instance_total + (presetQuote as any).public_ip_total + (presetQuote as any).backup_total) * 100) / 100
+    : Math.round(selectedVMRequests
       .filter((r: any) => f.vm_request_ids.includes(r.id))
       .reduce((a: number, r: any) => {
         const monthlyPrice = r.estimated_monthly_cost || 0
         return a + (monthlyPrice * f.months)
-      }, 0)
+      }, 0) * 100) / 100
 
-  const vat = presetQuote ? (presetQuote as any).tax_amount : amount * (f.vatRate / 100)
-  const grossAmount = presetQuote ? (presetQuote as any).grand_total : amount + vat
-  const discount = presetQuote ? (presetQuote as any).discount_amount : 0
-  const netAmount = presetQuote ? (presetQuote as any).net_amount : amount - discount
+  const vat = presetQuote ? Math.round(parseFloat((presetQuote as any).tax_amount) * 100) / 100 : Math.round(amount * (f.vatRate / 100) * 100) / 100
+  const grossAmount = presetQuote ? Math.round(parseFloat((presetQuote as any).grand_total) * 100) / 100 : Math.round((amount + vat) * 100) / 100
+  const discount = presetQuote ? Math.round(parseFloat((presetQuote as any).discount_amount) * 100) / 100 : 0
+  const netAmount = presetQuote ? Math.round(parseFloat((presetQuote as any).net_amount) * 100) / 100 : Math.round((amount - discount) * 100) / 100
 
   const toggle = (id: string) => set('vm_request_ids', f.vm_request_ids.includes(id) ? f.vm_request_ids.filter((x: string) => x !== id) : [...f.vm_request_ids, id])
 
@@ -1464,18 +1464,18 @@ const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({ onClose, presetCustom
                 </div>
                 <div className="card" style={{ background: 'var(--surface-2)' }}>
                   <div className="card-body">
-                    <div className="flex between"><span className="text-mute">Instance Total</span><span className="tnum fw-6">MMK {formatMMK((presetQuote as any).instance_total || 0)}</span></div>
-                    <div className="flex between"><span className="text-mute">Public IP Total</span><span className="tnum fw-6">MMK {formatMMK((presetQuote as any).public_ip_total || 0)}</span></div>
-                    <div className="flex between"><span className="text-mute">Backup Total</span><span className="tnum fw-6">MMK {formatMMK((presetQuote as any).backup_total || 0)}</span></div>
-                    {discount > 0 && <div className="flex between"><span className="text-mute">Discount</span><span className="tnum fw-6">MMK {formatMMK(discount)}</span></div>}
+                    <div className="flex between"><span className="text-mute">Instance Total</span><span className="tnum fw-6">{formatMMK((presetQuote as any).instance_total || 0)}</span></div>
+                    <div className="flex between"><span className="text-mute">Public IP Total</span><span className="tnum fw-6">{formatMMK((presetQuote as any).public_ip_total || 0)}</span></div>
+                    <div className="flex between"><span className="text-mute">Backup Total</span><span className="tnum fw-6">{formatMMK((presetQuote as any).backup_total || 0)}</span></div>
+                    {discount > 0 && <div className="flex between"><span className="text-mute">Discount</span><span className="tnum fw-6">{formatMMK(discount)}</span></div>}
                     <div className="divider" />
-                    <div className="flex between"><span className="text-mute">Net Amount</span><span className="tnum fw-6">MMK {formatMMK(netAmount)}</span></div>
-                    <div className="flex between"><span className="text-mute">VAT</span><span className="tnum fw-6">MMK {formatMMK(vat)}</span></div>
+                    <div className="flex between"><span className="text-mute">Net Amount</span><span className="tnum fw-6">{formatMMK(netAmount)}</span></div>
+                    <div className="flex between"><span className="text-mute">VAT</span><span className="tnum fw-6">{formatMMK(vat)}</span></div>
                     <div className="flex between"><span className="text-mute">Billing Term</span><span className="tnum fw-6">{(presetQuote as any).billing_term || '—'}</span></div>
                     <div className="flex between"><span className="text-mute">Invoice Date</span><input type="date" value={f.invoiceDate} onChange={e => set('invoiceDate', e.target.value)} style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--line)', width: 140 }} /></div>
                     <div className="flex between"><span className="text-mute">Due Date</span><span className="tnum fw-6">{dueDate.toISOString().slice(0, 10)}</span></div>
                     <div className="divider" />
-                    <div className="flex between"><span className="fw-7">Grand Total</span><span className="tnum fw-7" style={{ fontSize: 16 }}>MMK {formatMMK(grossAmount)}</span></div>
+                    <div className="flex between"><span className="fw-7">Grand Total</span><span className="tnum fw-7" style={{ fontSize: 16 }}>{formatMMK(grossAmount)}</span></div>
                   </div>
                 </div>
               </>
