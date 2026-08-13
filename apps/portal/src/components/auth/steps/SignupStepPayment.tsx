@@ -50,7 +50,7 @@ const SignupStepPayment: React.FC<SignupStepPaymentProps> = ({ f, set }) => (
     <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer' }}>
       <input type="checkbox" checked={f.agreedToTerms} onChange={e => set('agreedToTerms', e.target.checked)} style={{ marginTop: 3 }} />
       <div className="text-sm">
-        I agree to the <a href="/assets/1CNG Standard SLA - 2026 (updated).pdf" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-strong)', fontWeight: 600, textDecoration: 'none' }}>Terms of Service and Privacy Policy</a>, and confirm the information provided is accurate. <span style={{ color: 'red' }}>*</span>
+        I agree to the <a href="/assets/1CNG Standard SLA - 2026.pdf" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-strong)', fontWeight: 600, textDecoration: 'none' }}>Terms of Service and Privacy Policy</a>, and confirm the information provided is accurate. <span style={{ color: 'red' }}>*</span>
       </div>
     </label>
   </div>
