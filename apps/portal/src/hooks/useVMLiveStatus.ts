@@ -173,10 +173,17 @@ export function useVMCredentials(recordId?: string | null) {
 }
 
 const TASK_POLL_INTERVAL_MS = 2000;
-// Ceiling on how long the UI waits for the task to report done — the action
-// itself isn't cancelled server-side if this is hit, only the UI stops
-// polling and re-enables controls so the customer isn't stuck forever.
-const TASK_POLL_TIMEOUT_MS = 90000;
+
+// Maps power actions to expected Proxmox status strings
+function actionToExpectedStatus(action: PowerAction): string {
+  if (action === "start" || action === "reboot" || action === "reset" || action === "resume") {
+    return "running";
+  }
+  if (action === "suspend") {
+    return "paused";
+  }
+  return "stopped"; // stop, shutdown
+}
 
 // Maps power actions to database power_state values
 function actionToPowerState(action: PowerAction): "Running" | "Stopped" | "Paused" {
@@ -207,13 +214,32 @@ export function useVMPowerAction(recordId?: string | null, onSettled?: () => voi
       setError(null);
       try {
         const { upid } = await runVMPowerAction(recordId, action);
+        let taskFailed = false;
         if (upid) {
-          const start = Date.now();
+          // Poll task until it completes (no timeout - rely on actual Proxmox state)
           for (;;) {
-            if (Date.now() - start > TASK_POLL_TIMEOUT_MS) break;
             await new Promise((r) => setTimeout(r, TASK_POLL_INTERVAL_MS));
             const task = await getVMTaskStatus(recordId, upid).catch(() => null);
-            if (!task || task.status !== "running") break;
+            if (!task) break;
+            if (task.status !== "running") {
+              // If task failed, don't wait for status change
+              if (task.status === "failed" || task.exitstatus !== "OK") {
+                taskFailed = true;
+              }
+              break;
+            }
+          }
+        }
+
+        // Only wait for status change if task succeeded
+        if (!taskFailed) {
+          // Wait for VM status to actually reflect the change before clearing pending
+          // This prevents the loading state from stopping before the VM reaches the desired state
+          const expectedStatus = actionToExpectedStatus(action);
+          for (;;) {
+            await new Promise((r) => setTimeout(r, TASK_POLL_INTERVAL_MS));
+            const currentStatus = await getVMStatusByRecord(recordId).catch(() => null);
+            if (currentStatus?.status === expectedStatus) break;
           }
         }
 
