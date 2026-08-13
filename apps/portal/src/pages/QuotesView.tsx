@@ -600,9 +600,9 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
   const publicIPSub = sheet.publicIP.reduce((a: number, l: PublicIPLine) => a + publicIPExt(l), 0)
   const addonServiceSub = sheet.addonServices.reduce((a: number, l: AddonServiceLine) => a + addonServiceExt(l), 0)
   const subTotal = instanceSub + backupSub + publicIPSub + addonServiceSub
-  const discountAmount = Math.round(subTotal * (sheet.discountPct / 100))
+  const discountAmount = subTotal * (sheet.discountPct / 100)
   const netAmount = subTotal - discountAmount
-  const tax = Math.round(netAmount * (sheet.taxPct / 100))
+  const tax = netAmount * (sheet.taxPct / 100)
   const grand = netAmount + tax
   const backupTotalGB = sheet.backup.reduce((a: number, l: BackupLine) => a + (l.storage || 0), 0)
 

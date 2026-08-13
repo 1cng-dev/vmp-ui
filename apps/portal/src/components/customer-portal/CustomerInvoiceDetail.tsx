@@ -159,7 +159,6 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
         </div>
         <div className="page-actions">
           <button className="btn" onClick={async () => await exportInvoiceToPDF(inv, c)}><Icon name="download" size={12} />PDF</button>
-          <button className="btn" onClick={() => window.print && window.print()}><Icon name="file" size={12} />Print</button>
           {inv.status !== 'Payment Received' && inv.status !== 'Customer Transferred' && inv.status !== 'Cancelled' && (
             <button className="btn accent" onClick={() => setShowPaymentQR(true)}><Icon name="check" size={12} />Pay now</button>
           )}

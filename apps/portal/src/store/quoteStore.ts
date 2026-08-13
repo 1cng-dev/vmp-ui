@@ -62,7 +62,21 @@ export const QuoteProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }, [])
 
   const addQuote = useCallback(async (q: NewQuoteInput) => {
-    const { data, error } = await supabase.from('quotes').insert(q).select().single()
+    // Round all monetary values to 2 decimal places before saving to database
+    const roundTo2Decimals = (num: number) => Math.round(num * 100) / 100
+
+    const quoteWithRoundedValues = {
+      ...q,
+      instance_total: roundTo2Decimals(q.instance_total),
+      public_ip_total: roundTo2Decimals(q.public_ip_total),
+      backup_total: roundTo2Decimals(q.backup_total),
+      discount_amount: roundTo2Decimals(q.discount_amount),
+      tax_amount: roundTo2Decimals(q.tax_amount),
+      net_amount: roundTo2Decimals(q.net_amount),
+      grand_total: roundTo2Decimals(q.grand_total)
+    }
+
+    const { data, error } = await supabase.from('quotes').insert(quoteWithRoundedValues).select().single()
     if (error) throw error
     // Don't call loadQuotes here - let the real-time subscription handle it
     // This prevents showing loading spinner in quotes table when creating a quote

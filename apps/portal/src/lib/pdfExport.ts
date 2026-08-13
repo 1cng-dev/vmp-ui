@@ -71,7 +71,7 @@ export const exportQuoteToPDF = async (quote: any, customer: any) => {
   const year = d.getFullYear().toString().slice(-2)
   return `${day}-${month}-${year}`
 }
-  const formatMMK = (amount: number) => new Intl.NumberFormat('en-MM', { style: 'currency', currency: 'MMK', maximumFractionDigits: 0 }).format(amount)
+  const formatMMK = (amount: number) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)
 
   // Helper: fetch image and convert to data URL
   const toDataUrl = async (path: string): Promise<string | null> => {
@@ -133,23 +133,14 @@ export const exportQuoteToPDF = async (quote: any, customer: any) => {
   const backupItems = lineItems.filter((item: any) => item.kind === 'backup')
   const publicIPItems = lineItems.filter((item: any) => item.kind === 'publicIP')
 
-  // Calculate totals from line items
-  const instanceTotal = instanceItems.reduce((sum: number, item: any) => {
-    const extended = item.extended_price || (item.unit * item.qty * getTermMultiplier(item.term))
-    return sum + extended
-  }, 0)
-  const backupTotal = backupItems.reduce((sum: number, item: any) => {
-    const extended = item.extended_price || (item.unit * getTermMultiplier(item.term))
-    return sum + extended
-  }, 0)
-  const publicIPTotal = publicIPItems.reduce((sum: number, item: any) => {
-    const extended = item.extended_price || (item.unit * getTermMultiplier(item.term))
-    return sum + extended
-  }, 0)
+  // Use raw values from database directly without any rounding
+  const instanceTotal = parseFloat(quote.instance_total) || 0
+  const backupTotal = parseFloat(quote.backup_total) || 0
+  const publicIPTotal = parseFloat(quote.public_ip_total) || 0
   const subtotal = instanceTotal + backupTotal + publicIPTotal
-  const discount = quote.discount_amount || 0
-  const tax = quote.tax_amount || 0
-  const grandTotal = subtotal - discount + tax
+  const discount = parseFloat(quote.discount_amount) || 0
+  const tax = parseFloat(quote.tax_amount) || 0
+  const grandTotal = parseFloat(quote.grand_total) || 0
 
   const html = `
     <html>
@@ -250,15 +241,15 @@ export const exportQuoteToPDF = async (quote: any, customer: any) => {
                   <td>${item.ram_gb || item.ram || '-'}</td>
                   <td>${item.storage_gb || item.storage || '-'}</td>
                   <td>${item.qty || 1}</td>
-                  <td class="num">${formatMMK(item.unit || 0)}</td>
+                  <td class="num">MMK ${formatMMK(item.unit || 0)}</td>
                   <td class="term">${item.term || 'Monthly'}</td>
-                  <td class="num">${formatMMK(extendedPrice)}</td>
+                  <td class="num">MMK ${formatMMK(extendedPrice)}</td>
                 </tr>
               `
   }).join('')}
               <tr class="subtotal-row">
                 <td colspan="7" style="text-align: right;">Instance Cost Total:</td>
-                <td>${formatMMK(instanceTotal)}</td>
+                <td>MMK ${formatMMK(instanceTotal)}</td>
               </tr>
             </tbody>
           </table>
@@ -293,14 +284,14 @@ export const exportQuoteToPDF = async (quote: any, customer: any) => {
                   <td>${item.spec || 'Backup'}</td>
                   <td>${item.storage_gb || item.storage || '-'}</td>
                   <td class="term">${item.term || 'Monthly'}</td>
-                  <td class="num">${formatMMK(item.unit || 0)}</td>
-                  <td class="num">${formatMMK(extendedPrice)}</td>
+                  <td class="num">MMK ${formatMMK(item.unit || 0)}</td>
+                  <td class="num">MMK ${formatMMK(extendedPrice)}</td>
                 </tr>
               `
   }).join('')}
               <tr class="subtotal-row">
                 <td colspan="4" style="text-align: right;">Backup Cost Total:</td>
-                <td>${formatMMK(backupTotal)}</td>
+                <td>MMK ${formatMMK(backupTotal)}</td>
               </tr>
             </tbody>
           </table>
@@ -332,14 +323,14 @@ export const exportQuoteToPDF = async (quote: any, customer: any) => {
                 <tr>
                   <td>${item.spec || 'Public IP'}</td>
                   <td class="term">${item.term || 'Monthly'}</td>
-                  <td class="num">${formatMMK(item.unit || 0)}</td>
-                  <td class="num">${formatMMK(extendedPrice)}</td>
+                  <td class="num">MMK ${formatMMK(item.unit || 0)}</td>
+                  <td class="num">MMK ${formatMMK(extendedPrice)}</td>
                 </tr>
               `
   }).join('')}
               <tr class="subtotal-row">
                 <td colspan="3" style="text-align: right;">Public IP Cost Total:</td>
-                <td>${formatMMK(publicIPTotal)}</td>
+                <td>MMK ${formatMMK(publicIPTotal)}</td>
               </tr>
             </tbody>
           </table>
@@ -350,38 +341,38 @@ export const exportQuoteToPDF = async (quote: any, customer: any) => {
           ${instanceTotal > 0 ? `
             <div class="total-row">
               <span>Instance Cost Total:</span>
-              <span>${formatMMK(instanceTotal)}</span>
+              <span>MMK ${formatMMK(instanceTotal)}</span>
             </div>
           ` : ''}
           ${backupTotal > 0 ? `
             <div class="total-row">
               <span>Backup Cost Total:</span>
-              <span>${formatMMK(backupTotal)}</span>
+              <span>MMK ${formatMMK(backupTotal)}</span>
             </div>
           ` : ''}
           ${publicIPTotal > 0 ? `
             <div class="total-row">
               <span>Public IP Cost Total:</span>
-              <span>${formatMMK(publicIPTotal)}</span>
+              <span>MMK ${formatMMK(publicIPTotal)}</span>
             </div>
           ` : ''}
           <div class="total-row">
             <span>Sub Total:</span>
-            <span>${formatMMK(subtotal)}</span>
+            <span>MMK ${formatMMK(subtotal)}</span>
           </div>
           ${discount > 0 ? `
             <div class="total-row">
               <span>Discount:</span>
-              <span>-${formatMMK(discount)}</span>
+              <span>-MMK ${formatMMK(discount)}</span>
             </div>
           ` : ''}
           <div class="total-row">
             <span>Tax (${quote.tax_pct || 5}%):</span>
-            <span>${formatMMK(tax)}</span>
+            <span>MMK ${formatMMK(tax)}</span>
           </div>
           <div class="total-row grand-total">
             <span>Grand Total:</span>
-            <span>${formatMMK(grandTotal)}</span>
+            <span>MMK ${formatMMK(grandTotal)}</span>
           </div>
         </div>
 
@@ -450,7 +441,7 @@ export const exportInvoiceToPDF = async (invoice: any, customer: any) => {
   const year = d.getFullYear().toString().slice(-2)
   return `${day}-${month}-${year}`
 }
-  const formatMMK = (amount: number) => new Intl.NumberFormat('en-MM', { style: 'currency', currency: 'MMK', maximumFractionDigits: 0 }).format(amount)
+  const formatMMK = (amount: number) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)
 
   // Helper: fetch image and convert to data URL
   const toDataUrl = async (path: string): Promise<string | null> => {
@@ -506,7 +497,13 @@ export const exportInvoiceToPDF = async (invoice: any, customer: any) => {
   const backupItems = lineItems.filter((item: any) => item.kind === 'backup')
   const publicIPItems = lineItems.filter((item: any) => item.kind === 'publicIP')
 
-  // Calculate totals from line items
+  // Use raw values from database directly without any rounding
+  const subtotal = parseFloat(invoice.amount) || 0
+  const discount = parseFloat(invoice.discount) || 0
+  const tax = parseFloat(invoice.vat) || 0
+  const grandTotal = parseFloat(invoice.gross_amount) || 0
+
+  // Calculate component totals from line_items for display only (no rounding)
   const instanceTotal = instanceItems.reduce((sum: number, item: any) => {
     const extended = item.extended_price || (item.unit * item.qty * getTermMultiplier(item.term))
     return sum + extended
@@ -519,10 +516,6 @@ export const exportInvoiceToPDF = async (invoice: any, customer: any) => {
     const extended = item.extended_price || (item.unit * getTermMultiplier(item.term))
     return sum + extended
   }, 0)
-  const subtotal = instanceTotal + backupTotal + publicIPTotal
-  const discount = invoice.discount || 0
-  const tax = invoice.vat || 0
-  const grandTotal = subtotal - discount + tax
 
   const html = `
     <html>
@@ -531,7 +524,8 @@ export const exportInvoiceToPDF = async (invoice: any, customer: any) => {
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
           @page { size: A4; margin: 18mm; }
-          body { font-family: Arial, sans-serif; padding: 40px; color: #333; }
+          body { font-family: Arial, sans-serif; padding: 40px; color: #333; min-height: 100vh; display: flex; flex-direction: column; }
+          .content { flex: 1; }
           .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
           .logo { max-width: 120px; }
           .quote-title { text-align: right; }
@@ -564,6 +558,7 @@ export const exportInvoiceToPDF = async (invoice: any, customer: any) => {
         </style>
       </head>
       <body>
+        <div class="content">
         <div class="header">
           <img src="${logoDataUrl || logoUrl}" alt="One Cloud Logo" class="logo" onerror="this.style.display='none'">
           <div class="quote-title info-section">
@@ -624,15 +619,15 @@ export const exportInvoiceToPDF = async (invoice: any, customer: any) => {
                   <td>${item.ram_gb || item.ram || '-'}</td>
                   <td>${item.storage_gb || item.storage || '-'}</td>
                   <td>${item.qty || 1}</td>
-                  <td class="num">${formatMMK(item.unit || 0)}</td>
+                  <td class="num">MMK ${formatMMK(item.unit || 0)}</td>
                   <td class="term">${item.term || 'Monthly'}</td>
-                  <td class="num">${formatMMK(extendedPrice)}</td>
+                  <td class="num">MMK ${formatMMK(extendedPrice)}</td>
                 </tr>
               `
   }).join('')}
               <tr class="subtotal-row">
                 <td colspan="7" style="text-align: right;">Instance Cost Total:</td>
-                <td>${formatMMK(instanceTotal)}</td>
+                <td>MMK ${formatMMK(instanceTotal)}</td>
               </tr>
             </tbody>
           </table>
@@ -667,14 +662,14 @@ export const exportInvoiceToPDF = async (invoice: any, customer: any) => {
                   <td>${item.spec || 'Backup'}</td>
                   <td>${item.storage_gb || item.storage || '-'}</td>
                   <td class="term">${item.term || 'Monthly'}</td>
-                  <td class="num">${formatMMK(item.unit || 0)}</td>
-                  <td class="num">${formatMMK(extendedPrice)}</td>
+                  <td class="num">MMK ${formatMMK(item.unit || 0)}</td>
+                  <td class="num">MMK ${formatMMK(extendedPrice)}</td>
                 </tr>
               `
   }).join('')}
               <tr class="subtotal-row">
                 <td colspan="4" style="text-align: right;">Backup Cost Total:</td>
-                <td>${formatMMK(backupTotal)}</td>
+                <td>MMK ${formatMMK(backupTotal)}</td>
               </tr>
             </tbody>
           </table>
@@ -706,14 +701,14 @@ export const exportInvoiceToPDF = async (invoice: any, customer: any) => {
                 <tr>
                   <td>${item.spec || 'Public IP'}</td>
                   <td class="term">${item.term || 'Monthly'}</td>
-                  <td class="num">${formatMMK(item.unit || 0)}</td>
-                  <td class="num">${formatMMK(extendedPrice)}</td>
+                  <td class="num">MMK ${formatMMK(item.unit || 0)}</td>
+                  <td class="num">MMK ${formatMMK(extendedPrice)}</td>
                 </tr>
               `
   }).join('')}
               <tr class="subtotal-row">
                 <td colspan="3" style="text-align: right;">Public IP Cost Total:</td>
-                <td>${formatMMK(publicIPTotal)}</td>
+                <td>MMK ${formatMMK(publicIPTotal)}</td>
               </tr>
             </tbody>
           </table>
@@ -724,38 +719,38 @@ export const exportInvoiceToPDF = async (invoice: any, customer: any) => {
           ${instanceTotal > 0 ? `
             <div class="total-row">
               <span>Instance Cost Total:</span>
-              <span>${formatMMK(instanceTotal)}</span>
+              <span>MMK ${formatMMK(instanceTotal)}</span>
             </div>
           ` : ''}
           ${backupTotal > 0 ? `
             <div class="total-row">
               <span>Backup Cost Total:</span>
-              <span>${formatMMK(backupTotal)}</span>
+              <span>MMK ${formatMMK(backupTotal)}</span>
             </div>
           ` : ''}
           ${publicIPTotal > 0 ? `
             <div class="total-row">
               <span>Public IP Cost Total:</span>
-              <span>${formatMMK(publicIPTotal)}</span>
+              <span>MMK ${formatMMK(publicIPTotal)}</span>
             </div>
           ` : ''}
           <div class="total-row">
             <span>Sub Total:</span>
-            <span>${formatMMK(subtotal)}</span>
+            <span>MMK ${formatMMK(subtotal)}</span>
           </div>
           ${discount > 0 ? `
             <div class="total-row">
               <span>Discount:</span>
-              <span>-${formatMMK(discount)}</span>
+              <span>-MMK ${formatMMK(discount)}</span>
             </div>
           ` : ''}
           <div class="total-row">
             <span>Tax (${invoice.tax_pct || 5}%):</span>
-            <span>${formatMMK(tax)}</span>
+            <span>MMK ${formatMMK(tax)}</span>
           </div>
           <div class="total-row grand-total">
             <span>Grand Total:</span>
-            <span>${formatMMK(grandTotal)}</span>
+            <span>MMK ${formatMMK(grandTotal)}</span>
           </div>
         </div>
 
@@ -765,6 +760,14 @@ export const exportInvoiceToPDF = async (invoice: any, customer: any) => {
           <p><strong>Bank Account Number:</strong> 40040679888 (AYA Special)</p>
           <p><strong>Bank Account Number:</strong> 25151325100391501 (KBZ Special)</p>
           <p><strong>Bank Account Number:</strong> 25150325100391501 (KBZ Ordinary)</p>
+        </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #555; font-size: 11px; line-height: 1.6;">
+          <p style="font-weight: bold; font-size: 13px; margin-bottom: 8px;">Thank you for your business!</p>
+          <p>Tower-A, Room No.(304/4FL), Shwe Zabu Deik Condo, Strand Road, Ahlone Township, Yangon.</p>
+          <p>(+95) 9 400 635 977</p>
+          <p>sales@1cloudng.com</p>
         </div>
 
       </body>

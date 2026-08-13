@@ -36,7 +36,7 @@ const StatusPill: React.FC<StatusPillProps> = ({ status, transformStatus, expiry
 
 const formatMMK = (n: number) => {
   if (!n) return '0'
-  return n.toLocaleString('en-US')
+  return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 interface ExpiryCellProps {

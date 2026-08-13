@@ -109,9 +109,20 @@ export const InvoiceProvider: React.FC<{ children: ReactNode }> = ({ children })
         actorId = user.id
       }
     }
-    
-    // Add created_by to the invoice data
-    const invoiceWithCreator = { ...i, created_by: actorName }
+
+    // Round all monetary values to 2 decimal places before saving to database
+    const roundTo2Decimals = (num: number) => Math.round(num * 100) / 100
+
+    // Add created_by to the invoice data with rounded values
+    const invoiceWithCreator = {
+      ...i,
+      created_by: actorName,
+      amount: roundTo2Decimals(i.amount),
+      vat: roundTo2Decimals(i.vat || 0),
+      gross_amount: roundTo2Decimals(i.gross_amount),
+      net_amount: roundTo2Decimals(i.net_amount || i.amount),
+      discount: roundTo2Decimals(i.discount || 0)
+    }
 
     const { data, error } = await supabase.from('invoices').insert(invoiceWithCreator).select().single()
     if (error) throw error

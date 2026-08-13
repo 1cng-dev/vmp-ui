@@ -1346,7 +1346,7 @@ const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({ onClose, presetCustom
   const toggle = (id: string) => set('vm_request_ids', f.vm_request_ids.includes(id) ? f.vm_request_ids.filter((x: string) => x !== id) : [...f.vm_request_ids, id])
 
   const issuedDate = new Date()
-  const dueDate = new Date(issuedDate)
+  const dueDate = new Date(f.invoiceDate)
   dueDate.setDate(dueDate.getDate() + 7)
 
   const submit = async () => {
@@ -1407,13 +1407,15 @@ const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({ onClose, presetCustom
                 </select>
               )}
             </div>
-            <div className="field"><label>Billing period</label>
-              <select value={f.months} onChange={e => set('months', parseInt(e.target.value))}>
-                {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-                  <option key={m} value={m}>{m} month{m === 1 ? '' : 's'}</option>
-                ))}
-              </select>
-            </div>
+            {!presetQuote && (
+              <div className="field"><label>Billing period</label>
+                <select value={f.months} onChange={e => set('months', parseInt(e.target.value))}>
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+                    <option key={m} value={m}>{m} month{m === 1 ? '' : 's'}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="field"><label>VAT Rate (%)</label>
               <input type="number" value={f.vatRate} onChange={e => set('vatRate', parseFloat(e.target.value) || 0)} style={{ padding: '8px' }} />
             </div>
@@ -1473,7 +1475,6 @@ const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({ onClose, presetCustom
                     <div className="flex between"><span className="text-mute">VAT</span><span className="tnum fw-6">MMK {formatMMK(vat)}</span></div>
                     <div className="flex between"><span className="text-mute">Billing Term</span><span className="tnum fw-6">{(presetQuote as any).billing_term || '—'}</span></div>
                     <div className="flex between"><span className="text-mute">Invoice Date</span><input type="date" value={f.invoiceDate} onChange={e => set('invoiceDate', e.target.value)} style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--line)', width: 140 }} /></div>
-                    <div className="flex between"><span className="text-mute">Due Date</span><span className="tnum fw-6">{dueDate.toISOString().slice(0, 10)}</span></div>
                     <div className="divider" />
                     <div className="flex between"><span className="fw-7">Grand Total</span><span className="tnum fw-7" style={{ fontSize: 16 }}>MMK {formatMMK(grossAmount)}</span></div>
                   </div>
@@ -1500,8 +1501,7 @@ const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({ onClose, presetCustom
             )}
             <div className="card" style={{ background: 'var(--surface-2)' }}>
               <div className="card-body">
-                <div className="flex between"><span className="text-mute">Duration</span><span className="tnum fw-6">{String(f.months).match(/\d+\s+(day|days|month|months)/) ? f.months : `${f.months} month${f.months !== 1 ? 's' : ''}`}</span></div>
-                <div className="flex between"><span className="text-mute">Due date</span><span className="tnum fw-6">{new Date().toISOString().slice(0, 10)}</span></div>
+                <div className="flex between"><span className="text-mute">Due date</span><span className="tnum fw-6">{dueDate.toISOString().slice(0, 10)}</span></div>
                 <div className="divider" />
                 <div className="flex between"><span className="text-mute">Subtotal</span><span className="tnum fw-6">MMK {formatMMK(amount)}</span></div>
                 <div className="flex between"><span className="text-mute">VAT ({f.vatRate}%)</span><span className="tnum fw-6">MMK {formatMMK(vat)}</span></div>
