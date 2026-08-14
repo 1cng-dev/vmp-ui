@@ -1,112 +1,131 @@
-import React, { useState, useCallback, createContext, useContext, useEffect, type ReactNode } from 'react'
-import { supabase } from '../lib/supabase'
-import type { Alert } from '../types'
+import React, {
+  useState,
+  useCallback,
+  createContext,
+  useContext,
+  useEffect,
+  type ReactNode,
+} from "react";
+import { supabase } from "../lib/supabase";
+import type { Alert } from "../types";
 
 export interface AlertStoreValue {
-  alerts: Alert[]
-  alertsLoading: boolean
-  loadAlerts: () => Promise<void>
-  markAlertRead: (id: string) => Promise<void>
-  markAllAlertsRead: () => Promise<void>
+  alerts: Alert[];
+  alertsLoading: boolean;
+  loadAlerts: () => Promise<void>;
+  markAlertRead: (id: string) => Promise<void>;
+  markAllAlertsRead: () => Promise<void>;
 }
 
 // ── Global Alert Context Store ─────────────────────────────────────────────
-const AlertContext = createContext<AlertStoreValue | null>(null)
+const AlertContext = createContext<AlertStoreValue | null>(null);
 
-export const AlertProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [alerts, setAlerts] = useState<Alert[]>([])
-  const [alertsLoading, setAlertsLoading] = useState(false)
+export const AlertProvider: React.FC<{ children: ReactNode }> = ({
+  children,
+}) => {
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [alertsLoading, setAlertsLoading] = useState(false);
 
   const loadAlerts = useCallback(async () => {
-    setAlertsLoading(true)
+    setAlertsLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      const userId = user?.id
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const userId = user?.id;
 
       // Don't try to load alerts if userId is not available yet or invalid
-      if (!userId || typeof userId !== 'string' || userId.length < 10 || userId === 'undefined' || userId === 'null') {
-        setAlertsLoading(false)
-        return
+      if (
+        !userId ||
+        typeof userId !== "string" ||
+        userId.length < 10 ||
+        userId === "undefined" ||
+        userId === "null"
+      ) {
+        setAlertsLoading(false);
+        return;
       }
 
       // Get user's role and customer_id
-      let customerId: string | null = null
-      let isCustomer = false
-      let userRole: string | null = null
+      let customerId: string | null = null;
+      let isCustomer = false;
+      let userRole: string | null = null;
 
       try {
         const { data: userData } = await supabase
-          .from('customers')
-          .select('id')
-          .eq('id', userId)
-          .maybeSingle()
+          .from("customers")
+          .select("id")
+          .eq("id", userId)
+          .maybeSingle();
 
-        customerId = userData?.id || null
-        isCustomer = !!customerId
+        customerId = userData?.id || null;
+        isCustomer = !!customerId;
       } catch (customerError) {
         // If user can't query customers table, they're not a customer (they're a team member)
-        isCustomer = false
-        customerId = null
+        isCustomer = false;
+        customerId = null;
       }
 
       // Get user's role from team_members table
       try {
         const { data: teamData } = await supabase
-          .from('team_members')
-          .select('role')
-          .eq('user_id', userId)
-          .maybeSingle()
-        userRole = teamData?.role || null
+          .from("team_members")
+          .select("role")
+          .eq("user_id", userId)
+          .maybeSingle();
+        userRole = teamData?.role || null;
       } catch (teamError) {
-        userRole = null
+        userRole = null;
       }
 
       let query = supabase
-        .from('alerts')
-        .select('*')
-        .order('created_at', { ascending: false })
+        .from("alerts")
+        .select("*")
+        .order("created_at", { ascending: false });
 
       // Filter by customer_id for customer role
       if (isCustomer && customerId) {
-        query = query.eq('customer_id', customerId)
+        query = query.eq("customer_id", customerId);
       }
 
       // Filter out finance and customer-related alerts for Engineer role
-      if (userRole === 'Engineer') {
-        query = query.not('type', 'in', '("finance","kyc")')
+      if (userRole === "Engineer") {
+        query = query.not("type", "in", '("finance","kyc")');
       }
 
       // For Finance role, only show finance-related and expiry warnings (including vm and addon types for backwards compatibility)
-      if (userRole === 'Finance') {
-        query = query.in('type', ['finance', 'expiry', 'vm', 'addon'])
+      if (userRole === "Finance") {
+        query = query.in("type", ["finance", "expiry", "vm", "addon"]);
       }
 
-      const { data, error } = await query
+      query = query.limit(50);
       
-      if (error) throw error
+      const { data, error } = await query;
+
+      if (error) throw error;
 
       // Get alert reads for current user
-      let readAlertIds: Set<string> = new Set()
+      let readAlertIds: Set<string> = new Set();
       if (userId) {
         const { data: readData } = await supabase
-          .from('alert_reads')
-          .select('alert_id')
-          .eq('user_id', userId)
-        readAlertIds = new Set(readData?.map(r => r.alert_id) || [])
+          .from("alert_reads")
+          .select("alert_id")
+          .eq("user_id", userId);
+        readAlertIds = new Set(readData?.map((r) => r.alert_id) || []);
       }
-      
+
       const transformedAlerts = (data || []).map((a: any) => ({
         id: a.id,
         sev: a.sev,
         title: a.title,
         body: a.body,
-        ts: new Date(a.created_at).toLocaleString('en-US', { 
-          month: 'short', 
-          day: 'numeric', 
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit'
+        ts: new Date(a.created_at).toLocaleString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
         }),
         read: readAlertIds.has(a.id),
         type: a.type,
@@ -115,162 +134,183 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         actor_id: a.actor_id,
         actor_name: a.actor_name,
         customer_id: a.customer_id,
-        metadata: a.metadata
-      }))
-      
-      setAlerts(transformedAlerts)
+        metadata: a.metadata,
+      }));
+
+      setAlerts(transformedAlerts);
     } catch (error) {
-      console.error('Error loading alerts:', error)
+      console.error("Error loading alerts:", error);
     } finally {
-      setAlertsLoading(false)
+      setAlertsLoading(false);
     }
-  }, [])
+  }, []);
 
   const markAlertRead = useCallback(async (id: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user?.id) {
-        console.error('No user found')
-        return
+        console.error("No user found");
+        return;
       }
 
       // Insert into alert_reads table for current user
       const { error } = await supabase
-        .from('alert_reads')
-        .insert({ alert_id: id, user_id: user.id })
-      
+        .from("alert_reads")
+        .insert({ alert_id: id, user_id: user.id });
+
       if (error) {
         // Ignore duplicate key errors (already read)
-        if (error.code !== '23505') {
-          throw error
+        if (error.code !== "23505") {
+          throw error;
         }
       }
-      
-      setAlerts(s => s.map(a => a.id === id ? { ...a, read: true } : a))
+
+      setAlerts((s) => s.map((a) => (a.id === id ? { ...a, read: true } : a)));
     } catch (error) {
-      console.error('Error marking alert as read:', error)
+      console.error("Error marking alert as read:", error);
     }
-  }, [])
+  }, []);
 
   const markAllAlertsRead = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user?.id) {
-        console.error('No user found')
-        return
+        console.error("No user found");
+        return;
       }
 
       // Get all unread alerts for current user
-      const readAlertIds = new Set(alerts.filter(a => !a.read).map(a => a.id))
-      
+      const readAlertIds = new Set(
+        alerts.filter((a) => !a.read).map((a) => a.id),
+      );
+
       // Insert all unread alerts into alert_reads for current user
       if (readAlertIds.size > 0) {
-        const inserts = Array.from(readAlertIds).map(alertId => ({
+        const inserts = Array.from(readAlertIds).map((alertId) => ({
           alert_id: alertId,
-          user_id: user.id
-        }))
-        
-        const { error } = await supabase
-          .from('alert_reads')
-          .insert(inserts)
-        
+          user_id: user.id,
+        }));
+
+        const { error } = await supabase.from("alert_reads").insert(inserts);
+
         if (error) {
           // Ignore duplicate key errors (already read)
-          if (error.code !== '23505') {
-            throw error
+          if (error.code !== "23505") {
+            throw error;
           }
         }
       }
-      
-      setAlerts(s => s.map(a => ({ ...a, read: true })))
+
+      setAlerts((s) => s.map((a) => ({ ...a, read: true })));
     } catch (error) {
-      console.error('Error marking all alerts as read:', error)
+      console.error("Error marking all alerts as read:", error);
     }
-  }, [alerts])
+  }, [alerts]);
 
   const subscribeToAlerts = useCallback(() => {
-    const channelName = 'alerts-changes'
-    const channel = supabase.channel(channelName)
-    
+    const channelName = "alerts-changes";
+    const channel = supabase.channel(channelName);
+
     channel
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'alerts' }, async (payload) => {
-        const alert = payload.new as Alert
-        
-        // Apply role-based filtering for INSERT events
-        if (payload.eventType === 'INSERT') {
-          // Get user's role for filtering
-          let userRole: string | null = null
-          let customerId: string | null = null
-          let isCustomer = false
-          
-          try {
-            const { data: { user } } = await supabase.auth.getUser()
-            const userId = user?.id
-            
-            if (userId) {
-              // Check if user is a customer
-              try {
-                const { data: userData } = await supabase
-                  .from('customers')
-                  .select('id')
-                  .eq('id', userId)
-                  .maybeSingle()
-                customerId = userData?.id || null
-                isCustomer = !!customerId
-              } catch (customerError) {
-                isCustomer = false
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "alerts" },
+        async (payload) => {
+          const alert = payload.new as Alert;
+
+          // Apply role-based filtering for INSERT events
+          if (payload.eventType === "INSERT") {
+            // Get user's role for filtering
+            let userRole: string | null = null;
+            let customerId: string | null = null;
+            let isCustomer = false;
+
+            try {
+              const {
+                data: { user },
+              } = await supabase.auth.getUser();
+              const userId = user?.id;
+
+              if (userId) {
+                // Check if user is a customer
+                try {
+                  const { data: userData } = await supabase
+                    .from("customers")
+                    .select("id")
+                    .eq("id", userId)
+                    .maybeSingle();
+                  customerId = userData?.id || null;
+                  isCustomer = !!customerId;
+                } catch (customerError) {
+                  isCustomer = false;
+                }
+
+                // Get user's role from team_members table
+                try {
+                  const { data: teamData } = await supabase
+                    .from("team_members")
+                    .select("role")
+                    .eq("user_id", userId)
+                    .maybeSingle();
+                  userRole = teamData?.role || null;
+                } catch (teamError) {
+                  userRole = null;
+                }
               }
-              
-              // Get user's role from team_members table
-              try {
-                const { data: teamData } = await supabase
-                  .from('team_members')
-                  .select('role')
-                  .eq('user_id', userId)
-                  .maybeSingle()
-                userRole = teamData?.role || null
-              } catch (teamError) {
-                userRole = null
-              }
+            } catch (error) {
+              console.error("Error getting user role for subscription:", error);
             }
-          } catch (error) {
-            console.error('Error getting user role for subscription:', error)
+
+            // Filter by customer_id for customer role
+            if (isCustomer && customerId && alert.customer_id !== customerId) {
+              return;
+            }
+
+            // Filter out finance and kyc alerts for Engineer role
+            if (
+              userRole === "Engineer" &&
+              (alert.type === "finance" || alert.type === "kyc")
+            ) {
+              return;
+            }
+
+            // For Finance role, only show finance-related and expiry warnings
+            if (
+              userRole === "Finance" &&
+              alert.type !== "finance" &&
+              alert.type !== "expiry"
+            ) {
+              return;
+            }
+
+            setAlerts((prev) => [alert, ...prev].slice(0, 50));
+          } else if (payload.eventType === "UPDATE") {
+            setAlerts((prev) =>
+              prev.map((a) =>
+                a.id === payload.new.id ? (payload.new as Alert) : a,
+              ),
+            );
+          } else if (payload.eventType === "DELETE") {
+            setAlerts((prev) => prev.filter((a) => a.id !== payload.old.id));
           }
-          
-          // Filter by customer_id for customer role
-          if (isCustomer && customerId && alert.customer_id !== customerId) {
-            return
-          }
-          
-          // Filter out finance and kyc alerts for Engineer role
-          if (userRole === 'Engineer' && (alert.type === 'finance' || alert.type === 'kyc')) {
-            return
-          }
-          
-          // For Finance role, only show finance-related and expiry warnings
-          if (userRole === 'Finance' && alert.type !== 'finance' && alert.type !== 'expiry') {
-            return
-          }
-          
-          setAlerts(prev => [alert, ...prev])
-        } else if (payload.eventType === 'UPDATE') {
-          setAlerts(prev => prev.map(a => a.id === payload.new.id ? payload.new as Alert : a))
-        } else if (payload.eventType === 'DELETE') {
-          setAlerts(prev => prev.filter(a => a.id !== payload.old.id))
-        }
-      })
-      .subscribe()
+        },
+      )
+      .subscribe();
 
     return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [])
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   useEffect(() => {
-    const unsubscribe = subscribeToAlerts()
-    loadAlerts() // Initial load
-    return unsubscribe
-  }, [subscribeToAlerts])
+    const unsubscribe = subscribeToAlerts();
+    loadAlerts(); // Initial load
+    return unsubscribe;
+  }, [subscribeToAlerts]);
 
   const value: AlertStoreValue = {
     alerts,
@@ -278,15 +318,15 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     loadAlerts,
     markAlertRead,
     markAllAlertsRead,
-  }
+  };
 
-  return React.createElement(AlertContext.Provider, { value }, children as any)
-}
+  return React.createElement(AlertContext.Provider, { value }, children as any);
+};
 
 export const useAlertStore = (): AlertStoreValue => {
-  const ctx = useContext(AlertContext)
-  if (!ctx) throw new Error('useAlertStore must be used within AlertProvider')
-  return ctx
-}
+  const ctx = useContext(AlertContext);
+  if (!ctx) throw new Error("useAlertStore must be used within AlertProvider");
+  return ctx;
+};
 
-export default useAlertStore
+export default useAlertStore;
