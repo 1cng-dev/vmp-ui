@@ -156,32 +156,4 @@ async function createExpiryAlert(vm: any, daysUntilExpiry: number, timeframe: st
   })
 }
 
-/**
- * Manual trigger for testing - checks expiry for a specific VM
- */
-export async function checkSingleVMExpiry(vmId: string): Promise<any> {
-  const { data: vm, error } = await supabase
-    .from('vms')
-    .select('id, hostname, expiry, customer_id, legacy_id, status')
-    .eq('id', vmId)
-    .single()
 
-  if (error || !vm) {
-    throw new Error('VM not found')
-  }
-
-  if (!vm.expiry) {
-    return { message: 'VM has no expiry date set' }
-  }
-
-  const now = new Date()
-  const expiryDate = new Date(vm.expiry)
-  const daysUntilExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-
-  return {
-    vm: vm.hostname,
-    expiry: vm.expiry,
-    days_until_expiry: daysUntilExpiry,
-    status: daysUntilExpiry < 0 ? 'expired' : daysUntilExpiry === 0 ? 'expiring today' : 'active'
-  }
-}
