@@ -167,7 +167,7 @@ async function checkVMExpiry(supabase: any) {
       .select('id')
       .eq('related_entity_id', vm.id)
       .eq('related_entity_type', 'vm')
-      .eq('type', 'vm')
+      .eq('type', 'expiry')
       .gte('created_at', today.toISOString())
       .lt('created_at', tomorrow.toISOString())
       .limit(1)
@@ -207,7 +207,7 @@ async function checkVMExpiry(supabase: any) {
         sev: severity,
         title,
         body: `VM ${vm.hostname} (${vm.legacy_id || vm.id}) is ${daysMessage}. Expiry: ${formattedExpiry}`,
-        type: 'vm',
+        type: 'expiry',
         related_entity_id: vm.id,
         related_entity_type: 'vm',
         actor_id: null,
@@ -262,7 +262,7 @@ async function checkVMExpiry(supabase: any) {
         sev: severity,
         title,
         body: `VM ${vm.hostname} (${vm.legacy_id || vm.id}) is ${daysMessage}. Expiry: ${formattedExpiry}`,
-        type: 'vm',
+        type: 'expiry',
         related_entity_id: vm.id,
         related_entity_type: 'vm',
         actor_id: null,
