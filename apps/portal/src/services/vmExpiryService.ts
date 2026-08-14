@@ -82,7 +82,7 @@ async function checkAlertExists(vmId: string): Promise<boolean> {
     .select('id, body')
     .eq('related_entity_id', vmId)
     .eq('related_entity_type', 'vm')
-    .eq('type', 'vm')
+    .eq('type', 'expiry')
     .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Last 24 hours
     .limit(1)
 
@@ -139,7 +139,7 @@ async function createExpiryAlert(vm: any, daysUntilExpiry: number, timeframe: st
     sev: severity,
     title,
     body,
-    type: 'vm',
+    type: 'expiry',
     related_entity_id: vm.id,
     related_entity_type: 'vm',
     actor_id: 'system',

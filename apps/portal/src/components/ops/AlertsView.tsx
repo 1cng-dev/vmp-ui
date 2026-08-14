@@ -48,7 +48,14 @@ export const AlertsView: React.FC = () => {
 
   const filtered = alerts.filter(a => {
     if (filter === 'Unread' && a.read) return false
-    if (filter !== 'All' && filter !== 'Unread' && a.type !== filter.toLowerCase()) return false
+    if (filter !== 'All' && filter !== 'Unread') {
+      // For Expiry filter, include both 'expiry', 'vm', and 'addon' types
+      if (filter === 'Expiry') {
+        if (!['expiry', 'vm', 'addon'].includes(a.type)) return false
+      } else if (a.type !== filter.toLowerCase()) {
+        return false
+      }
+    }
     if (sev !== 'All' && a.sev !== sev) return false
     if (search && ![a.title, a.body, a.type].join(' ').toLowerCase().includes(search.toLowerCase())) return false
     return true

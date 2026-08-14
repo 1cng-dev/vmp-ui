@@ -76,9 +76,9 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         query = query.not('type', 'in', '("finance","kyc")')
       }
 
-      // For Finance role, only show finance-related and expiry warnings
+      // For Finance role, only show finance-related and expiry warnings (including vm and addon types for backwards compatibility)
       if (userRole === 'Finance') {
-        query = query.in('type', ['finance', 'expiry'])
+        query = query.in('type', ['finance', 'expiry', 'vm', 'addon'])
       }
 
       const { data, error } = await query

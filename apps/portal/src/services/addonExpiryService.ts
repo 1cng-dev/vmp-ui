@@ -82,7 +82,7 @@ async function checkAlertExists(addonId: string): Promise<boolean> {
     .select('id, body')
     .eq('related_entity_id', addonId)
     .eq('related_entity_type', 'addon_service')
-    .eq('type', 'addon')
+    .eq('type', 'expiry')
     .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Last 24 hours
     .limit(1)
 
@@ -155,7 +155,7 @@ async function createExpiryAlert(addon: any, daysUntilExpiry: number, timeframe:
     sev: severity,
     title,
     body,
-    type: 'addon',
+    type: 'expiry',
     related_entity_id: addon.id,
     related_entity_type: 'addon_service',
     actor_id: 'system',
