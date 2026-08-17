@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react'
 import Icon from '../../lib/icons'
 import useTicketStore from '../../store/ticketStore'
 import useUIStore from '../../store/uiStore'
-import { uploadTicketAttachment } from '../../lib/storage'
+import { getTicketAttachmentValidationError, uploadTicketAttachment } from '../../lib/storage'
 import { supabase } from '../../lib/supabase'
 
 interface NewCustomerTicketModalProps {
@@ -23,23 +23,26 @@ const NewCustomerTicketModal: React.FC<NewCustomerTicketModalProps> = ({ me, onC
   const [files, setFiles] = useState<File[]>([])
   const [dragOver, setDragOver] = useState(false)
 
-  const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'application/pdf']
-  const MAX_FILE_SIZE = 10 * 1024 * 1024
+  const validateFiles = (list: File[]) => {
+    const valid: File[] = []
+
+    for (const file of list) {
+      const validationError = getTicketAttachmentValidationError(file)
+
+      if (validationError) {
+        toast(validationError, 'bad')
+        continue
+      }
+
+      valid.push(file)
+    }
+
+    return valid
+  }
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const list = Array.from(e.target.files || [])
-    const valid: File[] = []
-    for (const file of list) {
-      if (!ALLOWED_TYPES.includes(file.type)) {
-        toast(`${file.name} is not allowed. Only PNG, JPG, and PDF files are accepted.`, 'bad')
-        continue
-      }
-      if (file.size > MAX_FILE_SIZE) {
-        toast(`${file.name} is too large. Maximum file size is 10MB.`, 'bad')
-        continue
-      }
-      valid.push(file)
-    }
+    const valid = validateFiles(list)
     setFiles(prev => [...prev, ...valid])
     e.target.value = ''
   }
@@ -49,18 +52,7 @@ const NewCustomerTicketModal: React.FC<NewCustomerTicketModalProps> = ({ me, onC
     e.stopPropagation()
     setDragOver(false)
     const list = Array.from(e.dataTransfer.files || [])
-    const valid: File[] = []
-    for (const file of list) {
-      if (!ALLOWED_TYPES.includes(file.type)) {
-        toast(`${file.name} is not allowed. Only PNG, JPG, and PDF files are accepted.`, 'bad')
-        continue
-      }
-      if (file.size > MAX_FILE_SIZE) {
-        toast(`${file.name} is too large. Maximum file size is 10MB.`, 'bad')
-        continue
-      }
-      valid.push(file)
-    }
+    const valid = validateFiles(list)
     if (valid.length > 0) setFiles(prev => [...prev, ...valid])
   }
 
@@ -81,6 +73,7 @@ const NewCustomerTicketModal: React.FC<NewCustomerTicketModalProps> = ({ me, onC
 
       // Upload files after ticket is created
       const attachmentUrls: string[] = []
+      let attachmentUploadFailed = false
       if (files.length > 0) {
         for (const file of files) {
           try {
@@ -88,7 +81,8 @@ const NewCustomerTicketModal: React.FC<NewCustomerTicketModalProps> = ({ me, onC
             attachmentUrls.push(url)
           } catch (err) {
             console.error('Failed to upload file:', file.name, err)
-            toast(`Failed to upload ${file.name}`, 'bad')
+            attachmentUploadFailed = true
+            toast(err instanceof Error ? err.message : `Failed to upload ${file.name}`, 'bad')
           }
         }
       }
@@ -102,12 +96,13 @@ const NewCustomerTicketModal: React.FC<NewCustomerTicketModalProps> = ({ me, onC
 
         if (error) {
           console.error('Failed to update ticket with attachments:', error)
+          attachmentUploadFailed = true
           toast('Failed to save attachments', 'bad')
         } else {
         }
       }
 
-      toast('Ticket created', 'ok')
+      toast(attachmentUploadFailed ? 'Ticket created, but some attachments could not be uploaded.' : 'Ticket created', attachmentUploadFailed ? 'bad' : 'ok')
       onCreated?.()
       onClose()
     } catch (e) {

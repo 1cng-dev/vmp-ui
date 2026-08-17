@@ -202,7 +202,7 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
       const { data: staff } = await supabase
         .from('team_members')
         .select('name, staff_code')
-        .eq('id', user.id)
+        .eq('user_id', user.id)
         .single()
       if (staff) {
         actorName = `${staff.name} (${staff.staff_code})`

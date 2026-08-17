@@ -142,7 +142,7 @@ const useTeamStore = (): TeamStoreValue => {
       const { data: staff } = await supabase
         .from('team_members')
         .select('name')
-        .eq('id', user.id)
+        .eq('user_id', user.id)
         .single()
       if (staff) {
         actorName = staff.name
@@ -184,7 +184,7 @@ const useTeamStore = (): TeamStoreValue => {
         const { data: staff } = await supabase
           .from('team_members')
           .select('name')
-          .eq('id', user.id)
+          .eq('user_id', user.id)
           .single()
         if (staff) {
           actorName = staff.name
@@ -223,7 +223,7 @@ const useTeamStore = (): TeamStoreValue => {
       const { data: staff } = await supabase
         .from('team_members')
         .select('name')
-        .eq('id', user.id)
+        .eq('user_id', user.id)
         .single()
       if (staff) {
         actorName = staff.name
@@ -262,7 +262,7 @@ const useTeamStore = (): TeamStoreValue => {
       const { data: staff } = await supabase
         .from('team_members')
         .select('name')
-        .eq('id', user.id)
+        .eq('user_id', user.id)
         .single()
       if (staff) {
         actorName = staff.name

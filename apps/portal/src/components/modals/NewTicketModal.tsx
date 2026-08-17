@@ -4,7 +4,7 @@ import useTicketStore from '../../store/ticketStore'
 import useCustomerStore from '../../store/customerStore'
 import useUIStore from '../../store/uiStore'
 import useActivityStore from '../../store/activityStore'
-import { uploadTicketAttachment } from '../../lib/storage'
+import { getTicketAttachmentValidationError, uploadTicketAttachment } from '../../lib/storage'
 import { supabase } from '../../lib/supabase'
 
 interface NewTicketModalProps {
@@ -27,9 +27,28 @@ const NewTicketModal: React.FC<NewTicketModalProps> = ({ onClose, onCreated }) =
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [files, setFiles] = useState<File[]>([])
 
+  const validateFiles = (list: File[]) => {
+    const valid: File[] = []
+
+    for (const file of list) {
+      const validationError = getTicketAttachmentValidationError(file)
+
+      if (validationError) {
+        toast(validationError, 'bad')
+        continue
+      }
+
+      valid.push(file)
+    }
+
+    return valid
+  }
+
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const list = Array.from(e.target.files || [])
-    setFiles(list)
+    const validFiles = validateFiles(list)
+    setFiles(validFiles)
+    e.target.value = ''
   }
 
   const filtered = useMemo(() => {
@@ -63,6 +82,7 @@ const NewTicketModal: React.FC<NewTicketModalProps> = ({ onClose, onCreated }) =
 
       // Upload files after ticket is created
       const attachmentUrls: string[] = []
+      let attachmentUploadFailed = false
       if (files.length > 0) {
         for (const file of files) {
           try {
@@ -70,7 +90,8 @@ const NewTicketModal: React.FC<NewTicketModalProps> = ({ onClose, onCreated }) =
             attachmentUrls.push(url)
           } catch (err) {
             console.error('Failed to upload file:', file.name, err)
-            toast(`Failed to upload ${file.name}`, 'bad')
+            attachmentUploadFailed = true
+            toast(err instanceof Error ? err.message : `Failed to upload ${file.name}`, 'bad')
           }
         }
       }
@@ -84,12 +105,13 @@ const NewTicketModal: React.FC<NewTicketModalProps> = ({ onClose, onCreated }) =
 
         if (error) {
           console.error('Failed to update ticket with attachments:', error)
+          attachmentUploadFailed = true
           toast('Failed to save attachments', 'bad')
         } else {
         }
       }
 
-      toast('Ticket created', 'ok')
+      toast(attachmentUploadFailed ? 'Ticket created, but some attachments could not be uploaded.' : 'Ticket created', attachmentUploadFailed ? 'bad' : 'ok')
       await logActivity(
         `Created ticket: ${subject}`,
         'task',

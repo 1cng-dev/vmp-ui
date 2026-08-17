@@ -4,7 +4,7 @@ import useCustomerStore from '../../store/customerStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { Avatar, StatusPill } from '../ui/ui'
-import { uploadTicketAttachment } from '../../lib/storage'
+import { getTicketAttachmentValidationError, uploadTicketAttachment } from '../../lib/storage'
 
 interface TeamTicketDetailProps {
   ticket: any
@@ -19,6 +19,7 @@ export const TeamTicketDetail: React.FC<TeamTicketDetailProps> = ({ ticket: init
   const ticket = tickets.find((t: any) => t.id === initial.id) || initial
   const [reply, setReply] = useState('')
   const [replyFiles, setReplyFiles] = useState<File[]>([])
+  const [sendingReply, setSendingReply] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
@@ -59,18 +60,12 @@ export const TeamTicketDetail: React.FC<TeamTicketDetailProps> = ({ ticket: init
 
   const customer = customers.find((c: any) => c.id === ticket.customer_id)
 
-  const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'application/pdf']
-  const MAX_FILE_SIZE = 10 * 1024 * 1024
-
   const validateFiles = (files: File[]): File[] => {
     const valid: File[] = []
     for (const file of files) {
-      if (!ALLOWED_TYPES.includes(file.type)) {
-        toast(`${file.name} is not allowed. Only PNG, JPG, and PDF files are accepted.`, 'bad')
-        continue
-      }
-      if (file.size > MAX_FILE_SIZE) {
-        toast(`${file.name} is too large. Maximum file size is 10MB.`, 'bad')
+      const validationError = getTicketAttachmentValidationError(file)
+      if (validationError) {
+        toast(validationError, 'bad')
         continue
       }
       valid.push(file)
@@ -95,10 +90,13 @@ export const TeamTicketDetail: React.FC<TeamTicketDetailProps> = ({ ticket: init
   }
 
   const sendReply = async () => {
+    if (sendingReply) return
     if (!reply.trim() && replyFiles.length === 0) return
+    setSendingReply(true)
     try {
       // Upload files first
       const attachmentUrls: string[] = []
+      let attachmentUploadFailed = false
       if (replyFiles.length > 0) {
         for (const file of replyFiles) {
           try {
@@ -106,17 +104,20 @@ export const TeamTicketDetail: React.FC<TeamTicketDetailProps> = ({ ticket: init
             attachmentUrls.push(url)
           } catch (err) {
             console.error('Failed to upload reply file:', file.name, err)
-            toast(`Failed to upload ${file.name}`, 'bad')
+            attachmentUploadFailed = true
+            toast(err instanceof Error ? err.message : `Failed to upload ${file.name}`, 'bad')
           }
         }
       }
 
       await replyTicket(ticket.id, 'Support Team', reply, attachmentUrls)
-      toast('Reply sent', 'ok')
+      toast(attachmentUploadFailed ? 'Reply sent, but some attachments could not be uploaded.' : 'Reply sent', attachmentUploadFailed ? 'bad' : 'ok')
       setReply('')
       setReplyFiles([])
     } catch (error) {
       toast('Error sending reply', 'bad')
+    } finally {
+      setSendingReply(false)
     }
   }
 
@@ -316,7 +317,7 @@ export const TeamTicketDetail: React.FC<TeamTicketDetailProps> = ({ ticket: init
                     </button>
                     <span className="text-xs text-mute" style={{ alignSelf: 'center' }}>or drag & drop onto the text area (PNG, JPG, PDF — 10MB max)</span>
                   </div>
-                  <button className="btn primary" disabled={!reply.trim()} onClick={sendReply}><Icon name="mail" size={12}/>Send reply</button>
+                  <button className="btn primary" disabled={(!reply.trim() && replyFiles.length === 0) || sendingReply} onClick={sendReply}><Icon name="mail" size={12}/>{sendingReply ? 'Sending...' : 'Send reply'}</button>
                 </div>
               </div>
             )}

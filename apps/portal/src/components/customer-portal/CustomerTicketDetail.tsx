@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
 import useTicketStore from '../../store/ticketStore'
 import useCustomerStore from '../../store/customerStore'
+import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { Avatar, StatusPill } from '../ui/ui'
-import { supabase } from '../../lib/supabase'
+import { getTicketAttachmentValidationError, uploadTicketAttachment } from '../../lib/storage'
 
 interface CustomerTicketDetailProps {
   ticket: any
@@ -14,6 +15,7 @@ interface CustomerTicketDetailProps {
 export const CustomerTicketDetail: React.FC<CustomerTicketDetailProps> = ({ ticket: initial, onClose, openModal }) => {
   const { tickets, deleteTicket, setTicketStatus, replyTicket } = useTicketStore()
   const { customers } = useCustomerStore()
+  const { toast } = useUIStore()
   const ticket = tickets.find((t: any) => t.id === initial.id) || initial
   const [replyBody, setReplyBody] = useState('')
   const [replyAttachments, setReplyAttachments] = useState<string[]>([])
@@ -84,18 +86,12 @@ export const CustomerTicketDetail: React.FC<CustomerTicketDetailProps> = ({ tick
     }
   }
 
-  const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'application/pdf']
-  const MAX_FILE_SIZE = 10 * 1024 * 1024
-
   const validateFiles = (files: File[]): File[] => {
     const valid: File[] = []
     for (const file of files) {
-      if (!ALLOWED_TYPES.includes(file.type)) {
-        alert(`${file.name} is not allowed. Only PNG, JPG, and PDF files are accepted.`)
-        continue
-      }
-      if (file.size > MAX_FILE_SIZE) {
-        alert(`${file.name} is too large. Maximum file size is 10MB.`)
+      const validationError = getTicketAttachmentValidationError(file)
+      if (validationError) {
+        toast(validationError, 'bad')
         continue
       }
       valid.push(file)
@@ -110,20 +106,14 @@ export const CustomerTicketDetail: React.FC<CustomerTicketDetailProps> = ({ tick
     setUploading(true)
     try {
       const uploadPromises = validFiles.map(async (file) => {
-        const fileName = `ticket-reply-${Date.now()}-${file.name}`
-        const { error } = await supabase.storage.from('ticket-attachments').upload(fileName, file)
-        
-        if (error) throw error
-        
-        const { data: { publicUrl } } = supabase.storage.from('ticket-attachments').getPublicUrl(fileName)
-        return publicUrl
+        return uploadTicketAttachment(file)
       })
 
       const uploadedUrls = await Promise.all(uploadPromises)
       setReplyAttachments([...replyAttachments, ...uploadedUrls])
     } catch (error) {
       console.error('Error uploading files:', error)
-      alert('Failed to upload files')
+      toast(error instanceof Error ? error.message : 'Failed to upload files', 'bad')
     } finally {
       setUploading(false)
     }
