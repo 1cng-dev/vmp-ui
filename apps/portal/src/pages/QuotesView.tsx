@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, type FocusEvent } from 'react'
 import Icon from '../lib/icons'
 import { formatMMK, CircularSpinner } from '../components/ui/ui'
 import useQuoteStore from '../store/quoteStore'
@@ -633,6 +633,10 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
     setSheet({ ...sheet, addonServices })
   }
 
+  const handleUnitPriceFocus = (e: FocusEvent<HTMLInputElement>) => {
+    if (e.target.value === '0') e.target.select()
+  }
+
   return (
     <div className="content">
       <div className="page-head">
@@ -713,7 +717,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                       <tr key={i}>
                         <td><input value={l.spec.split('|')[0] || ''} onChange={e => updateInstance(i, { spec: `${e.target.value}|${l.spec.split('|')[1] || ''}` })} /></td>
                         <td><input value={l.spec.split('|')[1] || ''} onChange={e => updateInstance(i, { spec: `${l.spec.split('|')[0] || ''}|${e.target.value}` })} /></td>
-                        <td className="right"><input type="number" value={l.unit} onChange={e => updateInstance(i, { unit: +e.target.value })} style={{ width: 120 }} /></td>
+                        <td className="right"><input type="number" value={l.unit} onChange={e => updateInstance(i, { unit: +e.target.value })} onFocus={handleUnitPriceFocus} style={{ width: 120 }} /></td>
                         <td className="right"><input type="number" value={l.qty} onChange={e => updateInstance(i, { qty: +e.target.value })} style={{ width: 60 }} /></td>
                         <td>
                           {['Monthly', 'Quarterly', 'Half Yearly', 'Yearly'].includes(l.term) ? (
@@ -770,7 +774,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                         <td><input type="number" value={l.vcpu} onChange={e => updateInstance(i, { vcpu: +e.target.value })} style={{ width: 70 }} /></td>
                         <td><input type="number" value={l.ram} onChange={e => updateInstance(i, { ram: +e.target.value })} style={{ width: 70 }} /></td>
                         <td><input type="number" value={l.storage} onChange={e => updateInstance(i, { storage: +e.target.value })} style={{ width: 90 }} /></td>
-                        <td className="right"><input type="number" value={l.unit} onChange={e => updateInstance(i, { unit: +e.target.value })} style={{ width: 120 }} /></td>
+                        <td className="right"><input type="number" value={l.unit} onChange={e => updateInstance(i, { unit: +e.target.value })} onFocus={handleUnitPriceFocus} style={{ width: 120 }} /></td>
                         <td className="right"><input type="number" value={l.qty} onChange={e => updateInstance(i, { qty: +e.target.value })} style={{ width: 60 }} /></td>
                         <td>
                           <input value={l.term} onChange={e => updateInstance(i, { term: e.target.value as InstanceLine['term'] })} style={{ width: 120 }} />
@@ -783,7 +787,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                         <td><input value={l.spec} onChange={e => updateBackup(i, { spec: e.target.value })} /></td>
                         <td><input type="number" value={l.storage} onChange={e => updateBackup(i, { storage: +e.target.value })} style={{ width: 70 }} /></td>
                         <td colSpan={2}></td>
-                        <td className="right"><input type="number" value={l.unit} onChange={e => updateBackup(i, { unit: +e.target.value })} style={{ width: 120 }} /></td>
+                        <td className="right"><input type="number" value={l.unit} onChange={e => updateBackup(i, { unit: +e.target.value })} onFocus={handleUnitPriceFocus} style={{ width: 120 }} /></td>
                         <td className="right"><input type="number" value={1} readOnly style={{ width: 60, background: 'var(--surface-2)' }} /></td>
                         <td>
                           <input value={l.term} onChange={e => updateBackup(i, { term: e.target.value as BackupLine['term'] })} style={{ width: 120 }} />
@@ -820,7 +824,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                         <td><input type="number" value={l.vcpu} onChange={e => updateInstance(i, { vcpu: +e.target.value })} style={{ width: 70 }} /></td>
                         <td><input type="number" value={l.ram} onChange={e => updateInstance(i, { ram: +e.target.value })} style={{ width: 70 }} /></td>
                         <td><input type="number" value={l.storage} onChange={e => updateInstance(i, { storage: +e.target.value })} style={{ width: 90 }} /></td>
-                        <td className="right"><input type="number" value={l.unit} onChange={e => updateInstance(i, { unit: +e.target.value })} style={{ width: 120 }} /></td>
+                        <td className="right"><input type="number" value={l.unit} onChange={e => updateInstance(i, { unit: +e.target.value })} onFocus={handleUnitPriceFocus} style={{ width: 120 }} /></td>
                         <td className="right"><input type="number" value={l.qty} onChange={e => updateInstance(i, { qty: +e.target.value })} style={{ width: 60 }} /></td>
                         <td>
                           {['Monthly', 'Quarterly', 'Half Yearly', 'Yearly'].includes(l.term) ? (
@@ -853,7 +857,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                         <td></td>
                         <td></td>
                         <td></td>
-                        <td className="right"><input type="number" value={l.unit} onChange={e => updatePublicIP(i, { unit: +e.target.value })} style={{ width: 120 }} /></td>
+                        <td className="right"><input type="number" value={l.unit} onChange={e => updatePublicIP(i, { unit: +e.target.value })} onFocus={handleUnitPriceFocus} style={{ width: 120 }} /></td>
                         <td></td>
                         <td>
                           {['Monthly', 'Quarterly', 'Half Yearly', 'Yearly'].includes(l.term) ? (
@@ -886,7 +890,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                         <td></td>
                         <td></td>
                         <td><input type="number" value={l.storage} onChange={e => updateBackup(i, { storage: +e.target.value })} style={{ width: 90 }} /></td>
-                        <td className="right"><input type="number" value={l.unit} onChange={e => updateBackup(i, { unit: +e.target.value })} style={{ width: 120 }} /></td>
+                        <td className="right"><input type="number" value={l.unit} onChange={e => updateBackup(i, { unit: +e.target.value })} onFocus={handleUnitPriceFocus} style={{ width: 120 }} /></td>
                         <td></td>
                         <td>
                           {['Monthly', 'Quarterly', 'Half Yearly', 'Yearly'].includes(l.term) ? (
@@ -919,7 +923,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                         <td></td>
                         <td></td>
                         <td></td>
-                        <td className="right"><input type="number" value={l.unit} onChange={e => updateAddonService(i, { unit: +e.target.value })} style={{ width: 120 }} /></td>
+                        <td className="right"><input type="number" value={l.unit} onChange={e => updateAddonService(i, { unit: +e.target.value })} onFocus={handleUnitPriceFocus} style={{ width: 120 }} /></td>
                         <td></td>
                         <td>
                           {['Monthly', 'Quarterly', 'Half Yearly', 'Yearly'].includes(l.term) ? (
@@ -967,7 +971,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                         <td><input type="number" value={l.vcpu} onChange={e => updateInstance(i, { vcpu: +e.target.value })} style={{ width: 70 }} /></td>
                         <td><input type="number" value={l.ram} onChange={e => updateInstance(i, { ram: +e.target.value })} style={{ width: 70 }} /></td>
                         <td><input type="number" value={l.storage} onChange={e => updateInstance(i, { storage: +e.target.value })} style={{ width: 90 }} /></td>
-                        <td className="right"><input type="number" value={l.unit} onChange={e => updateInstance(i, { unit: +e.target.value })} style={{ width: 120 }} /></td>
+                        <td className="right"><input type="number" value={l.unit} onChange={e => updateInstance(i, { unit: +e.target.value })} onFocus={handleUnitPriceFocus} style={{ width: 120 }} /></td>
                         <td className="right"><input type="number" value={l.qty} onChange={e => updateInstance(i, { qty: +e.target.value })} style={{ width: 60 }} /></td>
                         <td>
                           {['Monthly', 'Quarterly', 'Half Yearly', 'Yearly'].includes(l.term) ? (
@@ -1000,7 +1004,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                         <td></td>
                         <td></td>
                         <td><input type="number" value={l.storage} onChange={e => updateBackup(i, { storage: +e.target.value })} style={{ width: 90 }} /></td>
-                        <td className="right"><input type="number" value={l.unit} onChange={e => updateBackup(i, { unit: +e.target.value })} style={{ width: 120 }} /></td>
+                        <td className="right"><input type="number" value={l.unit} onChange={e => updateBackup(i, { unit: +e.target.value })} onFocus={handleUnitPriceFocus} style={{ width: 120 }} /></td>
                         <td></td>
                         <td>
                           {['Monthly', 'Quarterly', 'Half Yearly', 'Yearly'].includes(l.term) ? (
@@ -1033,7 +1037,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                         <td></td>
                         <td></td>
                         <td></td>
-                        <td className="right"><input type="number" value={l.unit} onChange={e => updatePublicIP(i, { unit: +e.target.value })} style={{ width: 120 }} /></td>
+                        <td className="right"><input type="number" value={l.unit} onChange={e => updatePublicIP(i, { unit: +e.target.value })} onFocus={handleUnitPriceFocus} style={{ width: 120 }} /></td>
                         <td></td>
                         <td>
                           {['Monthly', 'Quarterly', 'Half Yearly', 'Yearly'].includes(l.term) ? (

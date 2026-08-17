@@ -586,7 +586,6 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
                 </div>
               ))}
             </div>
-            <div className="text-xs text-mute mt-2">Up to 3 NICs per VM. Additional NICs require VLAN setup by the network team.</div>
           </div>
         </div>
 
