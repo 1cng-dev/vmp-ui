@@ -136,13 +136,47 @@ export const exportToPDFAuto = async <T extends Record<string, any>>(
 
     // Create PDF
     const pdf = new jsPDF('p', 'mm', 'a4')
-    const imgData = canvas.toDataURL('image/png')
     const pageWidth = pdf.internal.pageSize.getWidth()
+    const pageHeight = pdf.internal.pageSize.getHeight()
     const pageMargin = 10
     const imgWidth = pageWidth - pageMargin * 2
     const imgHeight = (canvas.height * imgWidth) / canvas.width
+    const maxPageHeight = pageHeight - pageMargin * 2
 
-    pdf.addImage(imgData, 'PNG', pageMargin, pageMargin, imgWidth, imgHeight)
+    // Calculate how many pages we need
+    const totalPages = Math.ceil(imgHeight / maxPageHeight)
+
+    // Split content across multiple pages if needed
+    for (let i = 0; i < totalPages; i++) {
+      if (i > 0) {
+        pdf.addPage()
+      }
+      const yOffset = i * maxPageHeight
+      const remainingHeight = Math.min(maxPageHeight, imgHeight - yOffset)
+      
+      // Create a temporary canvas for this page
+      const pageCanvas = document.createElement('canvas')
+      pageCanvas.width = canvas.width
+      pageCanvas.height = (remainingHeight * canvas.width) / imgWidth
+      const ctx = pageCanvas.getContext('2d')
+      if (ctx) {
+        ctx.drawImage(
+          canvas,
+          0,
+          (yOffset * canvas.height) / imgHeight,
+          canvas.width,
+          (remainingHeight * canvas.height) / imgHeight,
+          0,
+          0,
+          pageCanvas.width,
+          pageCanvas.height
+        )
+      }
+      
+      const pageImgData = pageCanvas.toDataURL('image/png')
+      pdf.addImage(pageImgData, 'PNG', pageMargin, pageMargin, imgWidth, remainingHeight)
+    }
+    
     triggerPDFDownload(pdf, `${filename}.pdf`)
   } finally {
     document.body.removeChild(container)
@@ -923,13 +957,47 @@ export const exportQuoteToPDFAuto = async (quote: any, customer: any) => {
 
     // Create PDF
     const pdf = new jsPDF('p', 'mm', 'a4')
-    const imgData = canvas.toDataURL('image/png')
     const pageWidth = pdf.internal.pageSize.getWidth()
+    const pageHeight = pdf.internal.pageSize.getHeight()
     const pageMargin = 10
     const imgWidth = pageWidth - pageMargin * 2
     const imgHeight = (canvas.height * imgWidth) / canvas.width
+    const maxPageHeight = pageHeight - pageMargin * 2
 
-    pdf.addImage(imgData, 'PNG', pageMargin, pageMargin, imgWidth, imgHeight)
+    // Calculate how many pages we need
+    const totalPages = Math.ceil(imgHeight / maxPageHeight)
+
+    // Split content across multiple pages if needed
+    for (let i = 0; i < totalPages; i++) {
+      if (i > 0) {
+        pdf.addPage()
+      }
+      const yOffset = i * maxPageHeight
+      const remainingHeight = Math.min(maxPageHeight, imgHeight - yOffset)
+      
+      // Create a temporary canvas for this page
+      const pageCanvas = document.createElement('canvas')
+      pageCanvas.width = canvas.width
+      pageCanvas.height = (remainingHeight * canvas.width) / imgWidth
+      const ctx = pageCanvas.getContext('2d')
+      if (ctx) {
+        ctx.drawImage(
+          canvas,
+          0,
+          (yOffset * canvas.height) / imgHeight,
+          canvas.width,
+          (remainingHeight * canvas.height) / imgHeight,
+          0,
+          0,
+          pageCanvas.width,
+          pageCanvas.height
+        )
+      }
+      
+      const pageImgData = pageCanvas.toDataURL('image/png')
+      pdf.addImage(pageImgData, 'PNG', pageMargin, pageMargin, imgWidth, remainingHeight)
+    }
+    
     triggerPDFDownload(pdf, `Quote-${quote.legacy_id || quote.id}.pdf`)
   } finally {
     document.body.removeChild(container)
@@ -1712,13 +1780,47 @@ export const exportInvoiceToPDFAuto = async (invoice: any, customer: any) => {
 
     // Create PDF
     const pdf = new jsPDF('p', 'mm', 'a4')
-    const imgData = canvas.toDataURL('image/png')
     const pageWidth = pdf.internal.pageSize.getWidth()
+    const pageHeight = pdf.internal.pageSize.getHeight()
     const pageMargin = 10
     const imgWidth = pageWidth - pageMargin * 2
     const imgHeight = (canvas.height * imgWidth) / canvas.width
+    const maxPageHeight = pageHeight - pageMargin * 2
 
-    pdf.addImage(imgData, 'PNG', pageMargin, pageMargin, imgWidth, imgHeight)
+    // Calculate how many pages we need
+    const totalPages = Math.ceil(imgHeight / maxPageHeight)
+
+    // Split content across multiple pages if needed
+    for (let i = 0; i < totalPages; i++) {
+      if (i > 0) {
+        pdf.addPage()
+      }
+      const yOffset = i * maxPageHeight
+      const remainingHeight = Math.min(maxPageHeight, imgHeight - yOffset)
+      
+      // Create a temporary canvas for this page
+      const pageCanvas = document.createElement('canvas')
+      pageCanvas.width = canvas.width
+      pageCanvas.height = (remainingHeight * canvas.width) / imgWidth
+      const ctx = pageCanvas.getContext('2d')
+      if (ctx) {
+        ctx.drawImage(
+          canvas,
+          0,
+          (yOffset * canvas.height) / imgHeight,
+          canvas.width,
+          (remainingHeight * canvas.height) / imgHeight,
+          0,
+          0,
+          pageCanvas.width,
+          pageCanvas.height
+        )
+      }
+      
+      const pageImgData = pageCanvas.toDataURL('image/png')
+      pdf.addImage(pageImgData, 'PNG', pageMargin, pageMargin, imgWidth, remainingHeight)
+    }
+    
     triggerPDFDownload(pdf, `Invoice-${invoice.legacy_id || invoice.id}.pdf`)
   } finally {
     document.body.removeChild(container)
