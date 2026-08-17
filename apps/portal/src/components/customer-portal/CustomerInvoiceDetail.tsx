@@ -8,7 +8,7 @@ import useReceiptStore from '../../store/receiptStore'
 import { useSystemSettingsStore } from '../../store/systemSettingsStore'
 import Icon from '../../lib/icons'
 import { StatusPill, formatMMK } from '../ui/ui'
-import { exportInvoiceToPDF } from '../../lib/pdfExport'
+import { exportInvoiceToPDFAuto } from '../../lib/pdfExport'
 
 interface CustomerInvoiceDetailProps {
   invoice: any
@@ -29,6 +29,8 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
   const [showPreviewModal, setShowPreviewModal] = useState(false)
   const [showViewProofModal, setShowViewProofModal] = useState(false)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const [showPDFDownloadConfirm, setShowPDFDownloadConfirm] = useState(false)
+  const [isPDFDownloading, setIsPDFDownloading] = useState(false)
   const [receipts, setReceipts] = useState<any[]>([])
   const inv = invoices.find((i: any) => i.id === initial.id) || initial;
   const c = customers.find((c: any) => c.id === inv.customer_id);
@@ -141,6 +143,18 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
     }
   }
 
+  const handlePDFDownload = async () => {
+    if (isPDFDownloading) return
+    try {
+      setIsPDFDownloading(true)
+      await exportInvoiceToPDFAuto(inv, c)
+      setShowPDFDownloadConfirm(false)
+      toast('PDF download started', 'ok')
+    } finally {
+      setIsPDFDownloading(false)
+    }
+  }
+
   return (
     <div className="content" style={{ animation: 'fadeIn 0.3s ease-out' }}>
       <div className="page-head">
@@ -158,7 +172,7 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
           </div>
         </div>
         <div className="page-actions">
-          <button className="btn" onClick={async () => await exportInvoiceToPDF(inv, c)}><Icon name="download" size={12} />PDF</button>
+          <button className="btn" onClick={() => setShowPDFDownloadConfirm(true)}><Icon name="download" size={12} />PDF</button>
           {inv.status !== 'Payment Received' && inv.status !== 'Customer Transferred' && inv.status !== 'Cancelled' && (
             <button className="btn accent" onClick={() => setShowPaymentQR(true)}><Icon name="check" size={12} />Pay now</button>
           )}
@@ -446,6 +460,24 @@ export const CustomerInvoiceDetail: React.FC<CustomerInvoiceDetailProps> = ({ in
             <div className="modal-foot">
               <button className="btn ghost" onClick={() => setShowCancelConfirm(false)}>No, keep it</button>
               <button className="btn" style={{ background: 'var(--bad)', color: 'white' }} onClick={handleCancelInvoice}>Yes, cancel invoice</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPDFDownloadConfirm && (
+        <div className="modal-overlay" onClick={() => !isPDFDownloading && setShowPDFDownloadConfirm(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="modal-head">
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Download PDF</h3>
+              <button className="icon-btn" onClick={() => setShowPDFDownloadConfirm(false)} disabled={isPDFDownloading}><Icon name="x" size={14} /></button>
+            </div>
+            <div className="modal-body">
+              <p style={{ margin: 0, color: 'var(--ink-2)' }}>Do you want to download the invoice as PDF?</p>
+            </div>
+            <div className="modal-foot">
+              <button className="btn ghost" onClick={() => setShowPDFDownloadConfirm(false)} disabled={isPDFDownloading}>Cancel</button>
+              <button className="btn accent" onClick={handlePDFDownload} disabled={isPDFDownloading}>{isPDFDownloading ? 'Downloading...' : 'Yes, download'}</button>
             </div>
           </div>
         </div>

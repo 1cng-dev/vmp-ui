@@ -12,7 +12,7 @@ import { formatMMK, StatusPill, CircularSpinner } from '../components/ui/ui'
 import { InvoiceDrawer } from '../components/finance/InvoiceDrawer'
 import { ReportsView } from '../components/finance/ReportsView'
 import { exportToCSV } from '@/lib/csvExport'
-import { exportToPDF } from '@/lib/pdfExport'
+import { exportToPDFAuto } from '@/lib/pdfExport'
 
 interface FinanceViewProps {
   openCust: (id: string) => void
@@ -290,7 +290,7 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal, userRole
                             const opt = exportColumnOptions.find(o => o.key === key)
                             return { key, label: opt?.label || key }
                           })
-                          exportToPDF(
+                          exportToPDFAuto(
                             pdfData,
                             `invoices-${new Date().toISOString().slice(0, 10)}`,
                             'Invoice Report',

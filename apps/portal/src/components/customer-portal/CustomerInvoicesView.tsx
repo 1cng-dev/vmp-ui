@@ -7,7 +7,7 @@ import useQuoteStore from '../../store/quoteStore'
 import useVMStore from '../../store/vmStore'
 import useCustomerStore from '../../store/customerStore'
 import useInvoiceStore from '../../store/invoiceStore'
-import { exportInvoiceToPDF } from '../../lib/pdfExport'
+import { exportInvoiceToPDFAuto } from '../../lib/pdfExport'
 
 interface CustomerInvoicesViewProps {
   myInvs: any[]
@@ -193,7 +193,7 @@ export const CustomerInvoicesView: React.FC<CustomerInvoicesViewProps> = ({ myIn
                     <td className="right" onClick={e => e.stopPropagation()}>
                       <button className="btn sm" onClick={async () => {
                         const c = customers.find(cust => cust.id === i.customer_id || cust.id === i.customer)
-                        if (c) await exportInvoiceToPDF(i, c)
+                        if (c) await exportInvoiceToPDFAuto(i, c)
                       }}><Icon name="download" size={11}/>PDF</button>
                     </td>
                   </tr>

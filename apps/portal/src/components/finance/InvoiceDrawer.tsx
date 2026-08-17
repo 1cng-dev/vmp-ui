@@ -7,7 +7,7 @@ import { useSystemSettingsStore } from '../../store/systemSettingsStore'
 import { sendReceiptEmail } from '../../services/emailService'
 import Icon from '../../lib/icons'
 import { StatusPill, formatMMK } from '../ui/ui'
-import { exportInvoiceToPDF } from '../../lib/pdfExport'
+import { exportInvoiceToPDFAuto } from '../../lib/pdfExport'
 
 interface InvoiceDrawerProps {
   invoice: any
@@ -25,6 +25,8 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
   const [showConfirm, setShowConfirm] = useState(false)
   const [showPreviewModal, setShowPreviewModal] = useState(false)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const [showPDFDownloadConfirm, setShowPDFDownloadConfirm] = useState(false)
+  const [isPDFDownloading, setIsPDFDownloading] = useState(false)
   const c = customers.find(c => c.id === invoice.customer_id)
   if (!c) return null
   const live = invoices.find(i => i.id === invoice.id) || invoice
@@ -53,6 +55,18 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
     }
   }
 
+  const handlePDFDownload = async () => {
+    if (isPDFDownloading) return
+    try {
+      setIsPDFDownloading(true)
+      await exportInvoiceToPDFAuto(live, c)
+      setShowPDFDownloadConfirm(false)
+      toast('PDF download started', 'ok')
+    } finally {
+      setIsPDFDownloading(false)
+    }
+  }
+
 
   useEffect(() => {
     loadInvoices()
@@ -75,7 +89,7 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
           </div>
         </div>
         <div className="page-actions">
-          <button className="btn" onClick={async () => await exportInvoiceToPDF(live, c)}><Icon name="download" size={12} />PDF</button>
+          <button className="btn" onClick={() => setShowPDFDownloadConfirm(true)}><Icon name="download" size={12} />PDF</button>
           {live.status !== 'Payment Received' && role !== 'Sales' && live.status !== 'Cancelled' && <button className="btn accent" onClick={async () => {
             await markPaid(live.id, `RCT-${live.id.slice(0, 8)}`)
             await sendReceiptEmail({
@@ -287,6 +301,24 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
             <div className="modal-foot">
               <button className="btn ghost" onClick={() => setShowCancelConfirm(false)}>No, keep it</button>
               <button className="btn" style={{ background: 'var(--bad)', color: 'white' }} onClick={handleCancelInvoice}>Yes, cancel invoice</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPDFDownloadConfirm && (
+        <div className="modal-overlay" onClick={() => !isPDFDownloading && setShowPDFDownloadConfirm(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="modal-head">
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Download PDF</h3>
+              <button className="icon-btn" onClick={() => setShowPDFDownloadConfirm(false)} disabled={isPDFDownloading}><Icon name="x" size={14} /></button>
+            </div>
+            <div className="modal-body">
+              <p style={{ margin: 0, color: 'var(--ink-2)' }}>Do you want to download the invoice as PDF?</p>
+            </div>
+            <div className="modal-foot">
+              <button className="btn ghost" onClick={() => setShowPDFDownloadConfirm(false)} disabled={isPDFDownloading}>Cancel</button>
+              <button className="btn accent" onClick={handlePDFDownload} disabled={isPDFDownloading}>{isPDFDownloading ? 'Downloading...' : 'Yes, download'}</button>
             </div>
           </div>
         </div>

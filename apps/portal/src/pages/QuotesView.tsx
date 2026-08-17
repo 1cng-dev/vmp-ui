@@ -10,7 +10,7 @@ import useVMStore from '../store/vmStore'
 import useAddonRequestStore from '../store/addonRequestStore'
 import useAddonServiceStore from '../store/addonServiceStore'
 import { supabase } from '../lib/supabase'
-import { exportQuoteToPDF } from '../lib/pdfExport'
+import { exportQuoteToPDFAuto } from '../lib/pdfExport'
 import QuoteDrawer from '../components/quote/QuoteDrawer'
 
 
@@ -31,6 +31,9 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
   const [requestType, setRequestType] = useState<'vm' | 'addon'>('vm')
   const [currentVMData, setCurrentVMData] = useState<any>(null)
   const [selectedQuote, setSelectedQuote] = useState<any>(null)
+  const [showPDFDownloadConfirm, setShowPDFDownloadConfirm] = useState(false)
+  const [isPDFDownloading, setIsPDFDownloading] = useState(false)
+  const [quoteToDownload, setQuoteToDownload] = useState<any>(null)
 
   // Load quotes if not loaded yet
   useEffect(() => {
@@ -1230,9 +1233,10 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                           <td className="right tnum fw-6">MMK {formatMMK(q.grand_total || 0)}</td>
                           <td className="tnum text-sm">{new Date(q.validity_date).toLocaleDateString()}</td>
                           <td><span className={`pill ${q.status === 'Accepted' ? 'ok' : q.status === 'Sent' ? 'accent' : 'subtle'}`}><span className="dot" />{q.status}</span></td>
-                          <td className="right" onClick={e => e.stopPropagation()}><button className="btn sm" onClick={async () => {
+                          <td className="right" onClick={e => e.stopPropagation()}><button className="btn sm" onClick={() => {
                         const cust = customers.find(c => c.id === q.customer_id)
-                        await exportQuoteToPDF(q, cust)
+                        setQuoteToDownload({ quote: q, customer: cust })
+                        setShowPDFDownloadConfirm(true)
                       }}><Icon name="download" size={11} />PDF</button></td>
                         </tr>
                       )
@@ -1243,6 +1247,34 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
         </div>
       </div>
       {selectedQuote && <QuoteDrawer quote={selectedQuote} onClose={() => setSelectedQuote(null)} />}
+      
+      {showPDFDownloadConfirm && quoteToDownload && (
+        <div className="modal-overlay" onClick={() => !isPDFDownloading && setShowPDFDownloadConfirm(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="modal-head">
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Download PDF</h3>
+              <button className="icon-btn" onClick={() => setShowPDFDownloadConfirm(false)} disabled={isPDFDownloading}><Icon name="x" size={14} /></button>
+            </div>
+            <div className="modal-body">
+              <p style={{ margin: 0, color: 'var(--ink-2)' }}>Do you want to download the quote as PDF?</p>
+            </div>
+            <div className="modal-foot">
+              <button className="btn ghost" onClick={() => setShowPDFDownloadConfirm(false)} disabled={isPDFDownloading}>Cancel</button>
+              <button className="btn accent" onClick={async () => {
+                if (isPDFDownloading) return
+                try {
+                  setIsPDFDownloading(true)
+                  await exportQuoteToPDFAuto(quoteToDownload.quote, quoteToDownload.customer)
+                  setShowPDFDownloadConfirm(false)
+                  toast('PDF download started', 'ok')
+                } finally {
+                  setIsPDFDownloading(false)
+                }
+              }} disabled={isPDFDownloading}>{isPDFDownloading ? 'Downloading...' : 'Yes, download'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

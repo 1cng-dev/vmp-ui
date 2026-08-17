@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import Icon from '../../lib/icons'
 import { formatMMK } from '../ui/ui'
 import type { DBQuote } from '../../types'
@@ -9,6 +9,7 @@ import useAddonRequestStore from '../../store/addonRequestStore'
 import useQuoteStore from '../../store/quoteStore'
 import useUIStore from '../../store/uiStore'
 import useAuthStore from '../../store/authStore'
+import { exportQuoteToPDFAuto } from '../../lib/pdfExport'
 
 interface QuoteDrawerProps {
   quote: DBQuote
@@ -23,6 +24,8 @@ const QuoteDrawer = ({ quote, onClose }: QuoteDrawerProps) => {
   const { updateQuote } = useQuoteStore()
   const { toast } = useUIStore()
   const { user, refreshUser } = useAuthStore()
+  const [showPDFDownloadConfirm, setShowPDFDownloadConfirm] = useState(false)
+  const [isPDFDownloading, setIsPDFDownloading] = useState(false)
 
   // Ensure user data is loaded
   React.useEffect(() => {
@@ -59,6 +62,18 @@ const QuoteDrawer = ({ quote, onClose }: QuoteDrawerProps) => {
     onClose()
   }
 
+  const handlePDFDownload = async () => {
+    if (isPDFDownloading) return
+    try {
+      setIsPDFDownloading(true)
+      await exportQuoteToPDFAuto(quote, cust)
+      setShowPDFDownloadConfirm(false)
+      toast('PDF download started', 'ok')
+    } finally {
+      setIsPDFDownloading(false)
+    }
+  }
+
   // Check if user is sales role - hide buttons for sales
   const isSales = user?.role === 'Sales'
 
@@ -68,7 +83,10 @@ const QuoteDrawer = ({ quote, onClose }: QuoteDrawerProps) => {
         <div style={{ padding: '20px 22px 16px', borderBottom: '1px solid var(--line)' }}>
           <div className="flex center between mb-2">
             <span className="mono text-sm text-mute">{quote.legacy_id || quote.id.slice(0, 8)}</span>
-            <button className="icon-btn" onClick={onClose}><Icon name="x" size={14} /></button>
+            <div className="flex gap-2">
+              <button className="btn sm" onClick={() => setShowPDFDownloadConfirm(true)}><Icon name="download" size={11} />PDF</button>
+              <button className="icon-btn" onClick={onClose}><Icon name="x" size={14} /></button>
+            </div>
           </div>
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em' }}>Quote Details</h2>
         </div>
@@ -201,6 +219,24 @@ const QuoteDrawer = ({ quote, onClose }: QuoteDrawerProps) => {
               <button className="btn danger" onClick={handleReject}>
                 <Icon name="x" size={12} /> Reject
               </button>
+            </div>
+          )}
+
+          {showPDFDownloadConfirm && (
+            <div className="modal-overlay" onClick={() => !isPDFDownloading && setShowPDFDownloadConfirm(false)}>
+              <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+                <div className="modal-head">
+                  <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Download PDF</h3>
+                  <button className="icon-btn" onClick={() => setShowPDFDownloadConfirm(false)} disabled={isPDFDownloading}><Icon name="x" size={14} /></button>
+                </div>
+                <div className="modal-body">
+                  <p style={{ margin: 0, color: 'var(--ink-2)' }}>Do you want to download the quote as PDF?</p>
+                </div>
+                <div className="modal-foot">
+                  <button className="btn ghost" onClick={() => setShowPDFDownloadConfirm(false)} disabled={isPDFDownloading}>Cancel</button>
+                  <button className="btn accent" onClick={handlePDFDownload} disabled={isPDFDownloading}>{isPDFDownloading ? 'Downloading...' : 'Yes, download'}</button>
+                </div>
+              </div>
             </div>
           )}
         </div>
