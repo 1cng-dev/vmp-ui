@@ -7,6 +7,7 @@ import useQuoteStore from '../../store/quoteStore'
 import useVMStore from '../../store/vmStore'
 import useCustomerStore from '../../store/customerStore'
 import useInvoiceStore from '../../store/invoiceStore'
+import useUIStore from '../../store/uiStore'
 import { exportInvoiceToPDFAuto } from '../../lib/pdfExport'
 
 interface CustomerInvoicesViewProps {
@@ -20,12 +21,16 @@ export const CustomerInvoicesView: React.FC<CustomerInvoicesViewProps> = ({ myIn
   const [showDateFilter, setShowDateFilter] = useState(false)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const [showPDFDownloadConfirm, setShowPDFDownloadConfirm] = useState(false)
+  const [isPDFDownloading, setIsPDFDownloading] = useState(false)
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
   const { vmRequests } = useVMRequestStore()
   const { addonRequests, loadAddonRequests } = useAddonRequestStore()
   const { quotes, loadQuotes } = useQuoteStore()
   const { vms, loadVMs } = useVMStore()
   const { customers } = useCustomerStore()
   const { invoicesLoading } = useInvoiceStore()
+  const { toast } = useUIStore()
   
   const transformStatus = (status: string) => {
     if (status === 'Pending') return 'Under Review'
@@ -48,6 +53,22 @@ export const CustomerInvoicesView: React.FC<CustomerInvoicesViewProps> = ({ myIn
     loadQuotes()
     loadVMs()
   }, [loadAddonRequests, loadQuotes, loadVMs])
+
+  const handlePDFDownload = async () => {
+    if (isPDFDownloading || !selectedInvoice) return
+    try {
+      setIsPDFDownloading(true)
+      const c = customers.find(cust => cust.id === selectedInvoice.customer_id || cust.id === selectedInvoice.customer)
+      if (c) {
+        await exportInvoiceToPDFAuto(selectedInvoice, c)
+        toast('PDF download started', 'ok')
+      }
+      setShowPDFDownloadConfirm(false)
+      setSelectedInvoice(null)
+    } finally {
+      setIsPDFDownloading(false)
+    }
+  }
 
   const filters = [
     { id: 'all', label: 'All', count: myInvs.length },
@@ -191,9 +212,9 @@ export const CustomerInvoicesView: React.FC<CustomerInvoicesViewProps> = ({ myIn
                     <td className="right tnum fw-6 text-sm">MMK {formatMMK(i.gross_amount || i.amount)}</td>
                     <td className="tnum text-sm">{i.paid_date ? new Date(i.paid_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).replace(',', '') : '—'}</td>
                     <td className="right" onClick={e => e.stopPropagation()}>
-                      <button className="btn sm" onClick={async () => {
-                        const c = customers.find(cust => cust.id === i.customer_id || cust.id === i.customer)
-                        if (c) await exportInvoiceToPDFAuto(i, c)
+                      <button className="btn sm" onClick={() => {
+                        setSelectedInvoice(i)
+                        setShowPDFDownloadConfirm(true)
                       }}><Icon name="download" size={11}/>PDF</button>
                     </td>
                   </tr>
@@ -205,6 +226,24 @@ export const CustomerInvoicesView: React.FC<CustomerInvoicesViewProps> = ({ myIn
           </table>
         </div>
       </div>
+
+      {showPDFDownloadConfirm && (
+        <div className="modal-overlay" onClick={() => !isPDFDownloading && setShowPDFDownloadConfirm(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="modal-head">
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Download PDF</h3>
+              <button className="icon-btn" onClick={() => setShowPDFDownloadConfirm(false)} disabled={isPDFDownloading}><Icon name="x" size={14} /></button>
+            </div>
+            <div className="modal-body">
+              <p style={{ margin: 0, color: 'var(--ink-2)' }}>Do you want to download the invoice as PDF?</p>
+            </div>
+            <div className="modal-foot">
+              <button className="btn ghost" onClick={() => setShowPDFDownloadConfirm(false)} disabled={isPDFDownloading}>Cancel</button>
+              <button className="btn accent" onClick={handlePDFDownload} disabled={isPDFDownloading}>{isPDFDownloading ? 'Downloading...' : 'Yes, download'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
