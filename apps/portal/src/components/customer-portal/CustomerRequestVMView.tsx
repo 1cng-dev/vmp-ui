@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
 import useTaskStore from '../../store/taskStore'
 import useUIStore from '../../store/uiStore'
-import { useVMRequestStore } from '../../store/vmRequestStore'
+import { sendVMRequestEmail } from '../../services/emailService'
+import { supabase } from '../../lib/supabase'
 import Icon from '../../lib/icons'
 import { IaaSCard } from './VMHelperComponents'
 
@@ -13,7 +14,6 @@ interface CustomerRequestVMViewProps {
 export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me, setView }) => {
   const { toast } = useUIStore()
   const { addTask } = useTaskStore()
-  const { addVMRequest } = useVMRequestStore()
   const [showSummary, setShowSummary] = useState(false)
   const [customDuration, setCustomDuration] = useState('')
   const [isCustomDuration, setIsCustomDuration] = useState(false)
@@ -151,8 +151,9 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
     }
     setIsSubmitting(true)
     try {
-      await addVMRequest({
+      const { data: insertedData } = await supabase.from('vm_requests').insert({
         customer_id: me.id,
+        task_type: 'New',
         request_type: f.requestType,
         hostname: f.hostname,
         purpose: f.purpose,
@@ -176,6 +177,16 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
         backup_enabled: f.backupEnabled,
         backup_type: f.backupType,
         notes: f.additionalNotes,
+      }).select().single()
+
+      // Send email to customer about VM request
+      await sendVMRequestEmail({
+        to: me.email,
+        customerName: me.name,
+        requestId: insertedData.legacy_id || insertedData.id,
+        requestType: f.requestType === 'trial' ? 'Trial' : 'Paid',
+        hostname: f.hostname,
+        details: `Your ${f.requestType === 'trial' ? 'trial' : 'paid'} VM request for ${f.hostname} has been received and is being processed.`
       })
 
       addTask({

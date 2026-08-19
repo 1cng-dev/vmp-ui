@@ -43,14 +43,18 @@ async function callResendAPI(params: {
   html: string
   attachments?: any[]
 }) {
-  const response = await fetch('/api/send-email', {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+  const response = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${supabaseAnonKey}`
     },
     body: JSON.stringify({
       ...params,
-      from: '1CNG <onboarding@resend.dev>'
+      from: 'One Cloud Net-Gen <notification@mail.1cloudng.com>'
     })
   })
 
@@ -60,13 +64,14 @@ async function callResendAPI(params: {
     return { success: false, error }
   }
 
-  return { success: true }
+  const result = await response.json()
+  return result
 }
 
 // VM Request Email
 export async function sendVMRequestEmail(params: VMRequestEmailParams) {
   const html = buildVMRequestEmailTemplate(params)
-  
+
   return await callResendAPI({
     to: params.to,
     subject: `VM Request Received - ${params.requestType}`,
@@ -81,34 +86,30 @@ function buildVMRequestEmailTemplate(params: VMRequestEmailParams): string {
     <head>
       <meta charset="utf-8">
       <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: #3b82f6; color: white; padding: 20px; text-align: center; }
-        .content { padding: 20px; background: #f9f9f9; }
-        .footer { padding: 20px; text-align: center; font-size: 12px; color: #666; }
-        .info-box { border-left: 4px solid #3b82f6; padding: 15px; background: white; margin: 20px 0; }
-        .button { display: inline-block; padding: 12px 24px; background: #3b82f6; color: white; text-decoration: none; border-radius: 4px; }
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; text-align: left; }
+        .container { max-width: 600px; margin: 0; padding: 20px; text-align: left; }
+        .content { padding: 20px; text-align: left; }
+        .footer { padding: 20px; text-align: left; font-size: 12px; color: #666; }
+        .info-box { margin: 20px 0; text-align: left; }
       </style>
     </head>
     <body>
       <div class="container">
-        <div class="header">
-          <h1>VM Request Received</h1>
-        </div>
         <div class="content">
-          <p>Dear ${params.customerName},</p>
+          <p>Dear Valued Customer,</p>
           <div class="info-box">
             <p><strong>Request Type:</strong> ${params.requestType}</p>
             <p><strong>Request ID:</strong> ${params.requestId}</p>
             <p><strong>VM Hostname:</strong> ${params.hostname}</p>
           </div>
           <p>${params.details}</p>
-          <p style="text-align: center; margin: 30px 0;">
-            <a href="${window.location.origin}/customer-portal" class="button">View in Portal</a>
-          </p>
+          <p>Our Portal: <a href="https://vmp.1cloudng.com">https://vmp.1cloudng.com</a></p>
         </div>
         <div class="footer">
-          <p>This is an automated message. Please do not reply to this email.</p>
+          <p>Best Regards,<br>
+          One Cloud Next-Gen Co., Ltd<br>
+          support@system.1cloudng.com<br>
+          <img src="https://i.ibb.co/3mxXtQ8d/logo.png" alt="Company Logo" style="width: 150px; height: auto; margin-top: 10px;"></p>
         </div>
       </div>
     </body>
@@ -119,7 +120,7 @@ function buildVMRequestEmailTemplate(params: VMRequestEmailParams): string {
 // Invoice Email
 export async function sendInvoiceEmail(params: InvoiceEmailParams) {
   const html = buildInvoiceEmailTemplate(params)
-  
+
   return await callResendAPI({
     to: params.to,
     subject: `Invoice ${params.invoiceId}`,
@@ -143,34 +144,30 @@ function buildInvoiceEmailTemplate(params: InvoiceEmailParams): string {
     <head>
       <meta charset="utf-8">
       <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: #f59e0b; color: white; padding: 20px; text-align: center; }
-        .content { padding: 20px; background: #f9f9f9; }
-        .footer { padding: 20px; text-align: center; font-size: 12px; color: #666; }
-        .info-box { border-left: 4px solid #f59e0b; padding: 15px; background: white; margin: 20px 0; }
-        .button { display: inline-block; padding: 12px 24px; background: #f59e0b; color: white; text-decoration: none; border-radius: 4px; }
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; text-align: left; }
+        .container { max-width: 600px; margin: 0; padding: 20px; text-align: left; }
+        .content { padding: 20px; text-align: left; }
+        .footer { padding: 20px; text-align: left; font-size: 12px; color: #666; }
+        .info-box { margin: 20px 0; text-align: left; }
       </style>
     </head>
     <body>
       <div class="container">
-        <div class="header">
-          <h1>Invoice Available</h1>
-        </div>
         <div class="content">
-          <p>Dear ${params.customerName},</p>
+          <p>Dear Valued Customer,</p>
           <div class="info-box">
             <p><strong>Invoice ID:</strong> ${params.invoiceId}</p>
             <p><strong>Amount:</strong> ${formattedAmount}</p>
             <p><strong>Due Date:</strong> ${new Date(params.dueDate).toLocaleDateString()}</p>
           </div>
           <p>Your invoice is now available. Please find the PDF attached to this email.</p>
-          <p style="text-align: center; margin: 30px 0;">
-            <a href="${window.location.origin}/customer-portal/invoices" class="button">View in Portal</a>
-          </p>
+          <p>Our Portal: <a href="https://vmp.1cloudng.com">https://vmp.1cloudng.com</a></p>
         </div>
         <div class="footer">
-          <p>This is an automated message. Please do not reply to this email.</p>
+          <p>Best Regards,<br>
+          One Cloud Next-Gen Co., Ltd<br>
+          support@system.1cloudng.com<br>
+          <img src="https://i.ibb.co/3mxXtQ8d/logo.png" alt="Company Logo" style="width: 150px; height: auto; margin-top: 10px;"></p>
         </div>
       </div>
     </body>
@@ -181,7 +178,7 @@ function buildInvoiceEmailTemplate(params: InvoiceEmailParams): string {
 // Receipt Email
 export async function sendReceiptEmail(params: ReceiptEmailParams) {
   const html = buildReceiptEmailTemplate(params)
-  
+
   return await callResendAPI({
     to: params.to,
     subject: `Payment Receipt - ${params.receiptNumber}`,
@@ -201,35 +198,29 @@ function buildReceiptEmailTemplate(params: ReceiptEmailParams): string {
     <head>
       <meta charset="utf-8">
       <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: #10b981; color: white; padding: 20px; text-align: center; }
-        .content { padding: 20px; background: #f9f9f9; }
-        .footer { padding: 20px; text-align: center; font-size: 12px; color: #666; }
-        .info-box { border-left: 4px solid #10b981; padding: 15px; background: white; margin: 20px 0; }
-        .button { display: inline-block; padding: 12px 24px; background: #10b981; color: white; text-decoration: none; border-radius: 4px; }
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; text-align: left; }
+        .container { max-width: 600px; margin: 0; padding: 20px; text-align: left; }
+        .content { padding: 20px; text-align: left; }
+        .footer { padding: 20px; text-align: left; font-size: 12px; color: #666; }
+        .info-box { margin: 0; text-align: left; }
       </style>
     </head>
     <body>
       <div class="container">
-        <div class="header">
-          <h1>Payment Received</h1>
-        </div>
         <div class="content">
-          <p>Dear ${params.customerName},</p>
+          <p>Dear Valued Customer,</p>
+          <p>This is to notify you that your Payment has been successfully processed. Please find the transaction details below for your reference.</p>
           <div class="info-box">
-            <p><strong>Receipt Number:</strong> ${params.receiptNumber}</p>
-            <p><strong>Invoice ID:</strong> ${params.invoiceId}</p>
-            <p><strong>Amount Paid:</strong> ${formattedAmount}</p>
-            <p><strong>Payment Date:</strong> ${params.paidDate}</p>
+            <p><strong>Amount:</strong> ${formattedAmount}</p>
+            <p><strong>Invoice Number:</strong> ${params.invoiceId}</p>
           </div>
-          <p>Thank you for your payment. Your transaction has been successfully processed.</p>
-          <p style="text-align: center; margin: 30px 0;">
-            <a href="${window.location.origin}/customer-portal/invoices" class="button">View in Portal</a>
-          </p>
+          <p>If you have any questions, please don't hesitate to contact us at finance@1cloudng.com</p>
         </div>
         <div class="footer">
-          <p>This is an automated message. Please do not reply to this email.</p>
+          <p>Best Regards,<br>
+          One Cloud Next-Gen Co., Ltd<br>
+          support@system.1cloudng.com<br>
+          <img src="https://i.ibb.co/3mxXtQ8d/logo.png" alt="Company Logo" style="width: 150px; height: auto; margin-top: 10px;"></p>
         </div>
       </div>
     </body>
@@ -240,7 +231,7 @@ function buildReceiptEmailTemplate(params: ReceiptEmailParams): string {
 // Announcement Email
 export async function sendAnnouncementEmail(params: AnnouncementEmailParams) {
   const html = buildAnnouncementEmailTemplate(params)
-  
+
   return await callResendAPI({
     to: params.to,
     subject: params.title,
@@ -255,32 +246,28 @@ function buildAnnouncementEmailTemplate(params: AnnouncementEmailParams): string
     <head>
       <meta charset="utf-8">
       <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: #8b5cf6; color: white; padding: 20px; text-align: center; }
-        .content { padding: 20px; background: #f9f9f9; }
-        .footer { padding: 20px; text-align: center; font-size: 12px; color: #666; }
-        .announcement-box { border-left: 4px solid #8b5cf6; padding: 15px; background: white; margin: 20px 0; }
-        .button { display: inline-block; padding: 12px 24px; background: #8b5cf6; color: white; text-decoration: none; border-radius: 4px; }
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; text-align: left; }
+        .container { max-width: 600px; margin: 0; padding: 20px; text-align: left; }
+        .content { padding: 20px; text-align: left; }
+        .footer { padding: 20px; text-align: left; font-size: 12px; color: #666; }
+        .announcement-box { margin: 20px 0; text-align: left; }
       </style>
     </head>
     <body>
       <div class="container">
-        <div class="header">
-          <h1>📢 Announcement</h1>
-        </div>
         <div class="content">
-          <p>Dear ${params.customerName},</p>
+          <p>Dear Valued Customer,</p>
           <div class="announcement-box">
             <h2 style="margin-top: 0;">${params.title}</h2>
             <p>${params.body}</p>
           </div>
-          <p style="text-align: center; margin: 30px 0;">
-            <a href="${window.location.origin}/customer-portal" class="button">View in Portal</a>
-          </p>
+          <p>Our Portal: <a href="https://vmp.1cloudng.com">https://vmp.1cloudng.com</a></p>
         </div>
         <div class="footer">
-          <p>This is an automated message. Please do not reply to this email.</p>
+          <p>Best Regards,<br>
+          One Cloud Next-Gen Co., Ltd<br>
+          support@system.1cloudng.com<br>
+          <img src="https://i.ibb.co/3mxXtQ8d/logo.png" alt="Company Logo" style="width: 150px; height: auto; margin-top: 10px;"></p>
         </div>
       </div>
     </body>

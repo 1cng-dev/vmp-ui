@@ -90,16 +90,19 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
         </div>
         <div className="page-actions">
           <button className="btn" onClick={() => setShowPDFDownloadConfirm(true)}><Icon name="download" size={12} />PDF</button>
-          {live.status !== 'Payment Received' && role !== 'Sales' && live.status !== 'Cancelled' && <button className="btn accent" onClick={async () => {
-            await markPaid(live.id, `RCT-${live.id.slice(0, 8)}`)
+          {live.status === 'Payment Received' && role !== 'Sales' && <button className="btn" onClick={async () => {
             await sendReceiptEmail({
               to: c.email,
               customerName: c.name,
               invoiceId: live.legacy_id || live.id,
-              receiptNumber: `RCT-${live.id.slice(0, 8)}`,
+              receiptNumber: live.receipt || `RCT-${live.id.slice(0, 8)}`,
               amount: live.gross_amount,
-              paidDate: new Date().toLocaleDateString()
+              paidDate: live.paid_date ? new Date(live.paid_date).toLocaleDateString() : new Date().toLocaleDateString()
             })
+            toast('Receipt email sent successfully', 'ok')
+          }}><Icon name="mail" size={12} />Send Receipt</button>}
+          {live.status !== 'Payment Received' && role !== 'Sales' && live.status !== 'Cancelled' && <button className="btn accent" onClick={async () => {
+            await markPaid(live.id, `RCT-${live.id.slice(0, 8)}`)
           }}><Icon name="check" size={12} />Mark paid</button>}
           {live.status !== 'Payment Received' && live.status !== 'Customer Transferred' && live.status !== 'Cancelled' && role !== 'Sales' && (
             <button className="btn" style={{ background: 'var(--bad)', color: 'white' }} onClick={() => setShowCancelConfirm(true)}><Icon name="x" size={12} />Cancel Invoice</button>
@@ -222,14 +225,6 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
                   style={{ width: '100%', marginTop: 16 }}
                   onClick={async () => {
                     await markPaid(live.id, `RCT-${live.id.slice(0, 8)}`)
-                    await sendReceiptEmail({
-                      to: c.email,
-                      customerName: c.name,
-                      invoiceId: live.legacy_id || live.id,
-                      receiptNumber: `RCT-${live.id.slice(0, 8)}`,
-                      amount: live.gross_amount,
-                      paidDate: new Date().toLocaleDateString()
-                    })
                   }}
                 >
                   <Icon name="check" size={12} />Mark as Payment Received

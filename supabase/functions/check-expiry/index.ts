@@ -35,6 +35,7 @@ async function sendExpiryEmail(params: {
 }) {
   const resendApiKey = Deno.env.get('RESEND_API_KEY')
   const fromEmail = Deno.env.get('RESEND_FROM_EMAIL')
+  const fromName = 'One Cloud Net-Gen'
 
   const subject = params.daysUntilExpiry < 0
     ? `URGENT: ${params.type === 'vm' ? 'VM' : 'Add-on'} Expired - ${params.entityName}`
@@ -52,7 +53,7 @@ async function sendExpiryEmail(params: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: fromEmail,
+        from: `${fromName} <${fromEmail}>`,
         to: params.to,
         subject: subject,
         html: html
@@ -80,12 +81,6 @@ function buildEmailTemplate(params: {
   daysUntilExpiry: number
   entityId: string
 }): string {
-  const urgencyColor = params.daysUntilExpiry <= 1 || params.daysUntilExpiry < 0
-    ? '#dc2626' // red
-    : params.daysUntilExpiry <= 7
-      ? '#f59e0b' // orange
-      : '#3b82f6' // blue
-
   const urgencyText = params.daysUntilExpiry < 0
     ? `EXPIRED ${Math.abs(params.daysUntilExpiry)} days ago`
     : params.daysUntilExpiry === 0
@@ -98,23 +93,18 @@ function buildEmailTemplate(params: {
     <head>
       <meta charset="utf-8">
       <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: ${urgencyColor}; color: white; padding: 20px; text-align: center; }
-        .content { padding: 20px; background: #f9f9f9; }
-        .footer { padding: 20px; text-align: center; font-size: 12px; color: #666; }
-        .alert-box { border-left: 4px solid ${urgencyColor}; padding: 15px; background: white; margin: 20px 0; }
-        .button { display: inline-block; padding: 12px 24px; background: ${urgencyColor}; color: white; text-decoration: none; border-radius: 4px; }
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; text-align: left; }
+        .container { max-width: 600px; margin: 0; padding: 20px; text-align: left; }
+        .content { padding: 20px; text-align: left; }
+        .footer { padding: 20px; text-align: left; font-size: 12px; color: #666; }
+        .info-box { margin: 20px 0; text-align: left; }
       </style>
     </head>
     <body>
       <div class="container">
-        <div class="header">
-          <h1>${urgencyText}</h1>
-        </div>
         <div class="content">
-          <p>Dear ${params.customerName},</p>
-          <div class="alert-box">
+          <p>Dear Valued Customer,</p>
+          <div class="info-box">
             <p><strong>${params.type === 'vm' ? 'VM' : 'Add-on Service'}:</strong> ${params.entityName}</p>
             <p><strong>ID:</strong> ${params.entityId}</p>
             <p><strong>Expiry Date:</strong> ${params.expiryDate}</p>
@@ -125,12 +115,13 @@ function buildEmailTemplate(params: {
       : params.daysUntilExpiry === 0
         ? 'Your service expires today. Please renew immediately to avoid service interruption.'
         : 'Your service will expire soon. Please renew to avoid service interruption.'}</p>
-          <p style="text-align: center; margin: 30px 0;">
-            <a href="${Deno.env.get('APP_URL')}/customer-portal" class="button">View in Portal</a>
-          </p>
+          <p>Our Portal: <a href="https://vmp.1cloudng.com">https://vmp.1cloudng.com</a></p>
         </div>
         <div class="footer">
-          <p>This is an automated message. Please do not reply to this email.</p>
+          <p>Best Regards,<br>
+          One Cloud Next-Gen Co., Ltd<br>
+          support@system.1cloudng.com<br>
+          <img src="https://i.ibb.co/3mxXtQ8d/logo.png" alt="Company Logo" style="width: 150px; height: auto; margin-top: 10px;"></p>
         </div>
       </div>
     </body>

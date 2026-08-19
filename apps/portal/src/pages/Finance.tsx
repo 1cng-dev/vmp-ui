@@ -7,6 +7,7 @@ import useQuoteStore from '../store/quoteStore'
 import useVMStore from '../store/vmStore'
 import useUIStore from '../store/uiStore'
 import useReceiptStore from '../store/receiptStore'
+import { sendReceiptEmail } from '../services/emailService'
 import Icon from '../lib/icons'
 import { formatMMK, StatusPill, CircularSpinner } from '../components/ui/ui'
 import { InvoiceDrawer } from '../components/finance/InvoiceDrawer'
@@ -441,10 +442,18 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal, userRole
                               const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
                               const receiptNumber = `RCT-${timestamp}-${random}`
                               const legacyId = `RCT-${Math.floor(1000 + Math.random() * 9000)}`
-                              const message = `Thank you for your payment. Your receipt ${legacyId} for invoice ${i.legacy_id || i.id} has been sent.`
                               
-                              // Open modal immediately
-                              openModal('email', { to: c?.email, template: 'receipt', invoiceId: i.id })
+                              // Send receipt email
+                              await sendReceiptEmail({
+                                to: c?.email || '',
+                                customerName: c?.name || 'Customer',
+                                invoiceId: i.legacy_id || i.id,
+                                receiptNumber: i.receipt || legacyId,
+                                amount: i.gross_amount,
+                                paidDate: i.paid_date ? new Date(i.paid_date).toLocaleDateString() : new Date().toLocaleDateString()
+                              })
+                              
+                              toast('Receipt email sent successfully', 'ok')
                               
                               // Add receipt in background
                               await addReceipt({
@@ -452,7 +461,7 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal, userRole
                                 customer_id: i.customer_id,
                                 legacy_id: legacyId,
                                 receipt_number: receiptNumber,
-                                message: message,
+                                message: `Thank you for your payment. Your receipt ${legacyId} for invoice ${i.legacy_id || i.id} has been sent.`,
                                 sent_by: user?.id,
                                 status: 'sent'
                               })
