@@ -875,13 +875,14 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                       .maybeSingle()
 
                                     if (existingService) {
-                                      // Update existing addon service
+                                      // Update existing addon service - only update services, preserve existing dates
                                       await supabase
                                         .from('addon_services')
                                         .update({
-                                          duration: durationString,
-                                          end_date: newExpiry.toISOString(),
-                                          expiry: newExpiry.toISOString()
+                                          cpfs_enabled: (request as any).cpfs_enabled || existingService.cpfs_enabled,
+                                          cpfs_package: (request as any).cpfs_enabled ? (request as any).cpfs_package : existingService.cpfs_package,
+                                          ccis_enabled: (request as any).ccis_enabled || existingService.ccis_enabled,
+                                          ccis_package: (request as any).ccis_enabled ? (request as any).ccis_package : existingService.ccis_package,
                                         })
                                         .eq('id', existingService.id)
                                     } else {

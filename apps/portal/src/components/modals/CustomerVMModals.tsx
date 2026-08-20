@@ -482,11 +482,6 @@ const CustUpgradeModal: React.FC<CustUpgradeModalProps> = ({ vm, onClose, me }) 
         originalRequest = data
       }
 
-      if (!originalRequest) {
-        toast('Could not find original VM request data', 'error')
-        return
-      }
-
       // Use current VM's actual hostname (e.g., my-web-app-2) instead of original base hostname
       const currentHostname = (vm as any).hostname || vm.name
 
@@ -507,11 +502,32 @@ const CustUpgradeModal: React.FC<CustUpgradeModalProps> = ({ vm, onClose, me }) 
         purpose = `Backup service ${backupEnabled ? 'enable' : 'disable'} for ${currentHostname}`
       }
 
+      // If no original request found (admin-created VM), use VM's current data as fallback
+      const fallbackRequest = {
+        request_type: (vm as any).request_type || 'paid',
+        duration: (vm as any).duration || '12 months',
+        sizing: (vm as any).sizing || 'Standard',
+        storage_partitions: (vm as any).storage_partitions || '',
+        os_name: (vm as any).os_name || 'Linux',
+        os_version: (vm as any).os_version || '',
+        custom_os_name: (vm as any).custom_os_name || null,
+        custom_os_version: (vm as any).custom_os_version || null,
+        zone: (vm as any).zone || 'yangon-dc1',
+        nics: (vm as any).nics || [],
+        public_ip_required: (vm as any).public_ip_required !== undefined ? (vm as any).public_ip_required : true,
+        firewall_ports: (vm as any).firewall_ports || [],
+        firewall_outbound_allow_all: (vm as any).firewall_outbound_allow_all !== undefined ? (vm as any).firewall_outbound_allow_all : true,
+        firewall_outbound_custom_ports: (vm as any).firewall_outbound_custom_ports || [],
+        notes: (vm as any).notes || '',
+      }
+
+      const requestSource = originalRequest || fallbackRequest
+
       // Create VM request with task_type='change-plan' using all original data, only changing upgrade fields
       const requestData: any = {
         customer_id: me.id,
         task_type: 'change-plan',
-        request_type: originalRequest.request_type || 'paid',
+        request_type: requestSource.request_type,
         vm_id: vm.id,
         hostname: currentHostname,
         purpose: purpose,
@@ -519,24 +535,24 @@ const CustUpgradeModal: React.FC<CustUpgradeModalProps> = ({ vm, onClose, me }) 
         ram_gb: spec.ram,
         storage: spec.storage,
         qty: 1, // Upgrade is always for a single VM
-        duration: originalRequest.duration || '12 months',
-        sizing: originalRequest.sizing || 'Standard',
-        storage_partitions: originalRequest.storage_partitions || '',
-        os_name: originalRequest.os_name || 'Linux',
-        os_version: originalRequest.os_version || '',
+        duration: requestSource.duration,
+        sizing: requestSource.sizing,
+        storage_partitions: requestSource.storage_partitions,
+        os_name: requestSource.os_name,
+        os_version: requestSource.os_version,
         spec_changed: specChanged,
         backup_changed: backupChanged,
-        custom_os_name: originalRequest.custom_os_name || null,
-        custom_os_version: originalRequest.custom_os_version || null,
-        zone: originalRequest.zone || 'yangon-dc1',
-        nics: originalRequest.nics || [],
-        public_ip_required: originalRequest.public_ip_required !== undefined ? originalRequest.public_ip_required : true,
-        firewall_ports: originalRequest.firewall_ports || [],
-        firewall_outbound_allow_all: originalRequest.firewall_outbound_allow_all !== undefined ? originalRequest.firewall_outbound_allow_all : true,
-        firewall_outbound_custom_ports: originalRequest.firewall_outbound_custom_ports || [],
+        custom_os_name: requestSource.custom_os_name,
+        custom_os_version: requestSource.custom_os_version,
+        zone: requestSource.zone,
+        nics: requestSource.nics,
+        public_ip_required: requestSource.public_ip_required,
+        firewall_ports: requestSource.firewall_ports,
+        firewall_outbound_allow_all: requestSource.firewall_outbound_allow_all,
+        firewall_outbound_custom_ports: requestSource.firewall_outbound_custom_ports,
         backup_enabled: backupEnabled,
         backup_type: backupType,
-        notes: `${originalRequest.notes || ''}\n\n${specChanged && backupChanged
+        notes: `${requestSource.notes}\n\n${specChanged && backupChanged
           ? `Change Plan from: ${vm.vcpu} vCPU · ${(vm as any).ram_gb || vm.ram} GB RAM · ${(vm as any).storage_gb || vm.storage} GB storage\nTo: ${spec.vcpu} vCPU · ${spec.ram} GB RAM · ${spec.storage} GB storage\nBackup: ${backupEnabled ? `${backupType === 'daily' ? 'Daily' : 'Weekly'}` : 'No'}`
           : specChanged
             ? `Change Plan from: ${vm.vcpu} vCPU · ${(vm as any).ram_gb || vm.ram} GB RAM · ${(vm as any).storage_gb || vm.storage} GB storage\nTo: ${spec.vcpu} vCPU · ${spec.ram} GB RAM · ${spec.storage} GB storage`

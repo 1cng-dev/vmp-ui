@@ -39,7 +39,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ me, myVMs,
     })
     .reduce((a: number, i: any) => a + (parseFloat(i.gross_amount) || parseFloat(i.amount) || 0), 0)
   const openTickets = myTickets.filter((t: any) => t.status === 'Open' || t.status === 'In Progress')
-  const pendingInv = myInvs.filter((i: any) => i.status !== 'Payment Received')
+  const pendingInv = myInvs.filter((i: any) => i.status === 'Pending')
   const pendingReq = myRequests.filter((r: any) => r.status === 'Pending' || r.status === 'In Progress')
   
   const transformStatus = (status: string) => {

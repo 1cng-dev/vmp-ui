@@ -36,6 +36,15 @@ interface AnnouncementEmailParams {
   announcementId: string
 }
 
+interface AddonRequestEmailParams {
+  to: string
+  customerName: string
+  requestId: string
+  vmHostname: string
+  services: string
+  duration: string
+}
+
 // Helper function to call Resend API
 async function callResendAPI(params: {
   to: string
@@ -215,6 +224,56 @@ function buildReceiptEmailTemplate(params: ReceiptEmailParams): string {
             <p><strong>Invoice Number:</strong> ${params.invoiceId}</p>
           </div>
           <p>If you have any questions, please don't hesitate to contact us at finance@1cloudng.com</p>
+        </div>
+        <div class="footer">
+          <p>Best Regards,<br>
+          One Cloud Next-Gen Co., Ltd<br>
+          support@system.1cloudng.com<br>
+          <img src="https://i.ibb.co/3mxXtQ8d/logo.png" alt="Company Logo" style="width: 150px; height: auto; margin-top: 10px;"></p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `
+}
+
+// Addon Request Email
+export async function sendAddonRequestEmail(params: AddonRequestEmailParams) {
+  const html = buildAddonRequestEmailTemplate(params)
+
+  return await callResendAPI({
+    to: params.to,
+    subject: `Add-on Service Request Received - ${params.requestId}`,
+    html
+  })
+}
+
+function buildAddonRequestEmailTemplate(params: AddonRequestEmailParams): string {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; text-align: left; }
+        .container { max-width: 600px; margin: 0; padding: 20px; text-align: left; }
+        .content { padding: 20px; text-align: left; }
+        .footer { padding: 20px; text-align: left; font-size: 12px; color: #666; }
+        .info-box { margin: 20px 0; text-align: left; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="content">
+          <p>Dear Valued Customer,</p>
+          <div class="info-box">
+            <p><strong>Request ID:</strong> ${params.requestId}</p>
+            <p><strong>VM Hostname:</strong> ${params.vmHostname}</p>
+            <p><strong>Services:</strong> ${params.services}</p>
+            <p><strong>Duration:</strong> ${params.duration}</p>
+          </div>
+          <p>Your add-on service request has been received and is under review. We will notify you once it has been processed.</p>
+          <p>Our Portal: <a href="https://vmp.1cloudng.com">https://vmp.1cloudng.com</a></p>
         </div>
         <div class="footer">
           <p>Best Regards,<br>

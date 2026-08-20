@@ -190,7 +190,29 @@ export const AddonRequestProvider: React.FC<{ children: React.ReactNode }> = ({ 
             .maybeSingle()
 
           // Calculate dates based on duration
-          const startDate = new Date()
+          // First, try to align with existing addon service expiry or VM expiry
+          let startDate = new Date()
+          
+          // Check if VM has existing addon service to align expiry
+          if (existingService && existingService.expiry) {
+            const existingExpiry = new Date(existingService.expiry)
+            // Use existing expiry as start date for new calculation
+            startDate = existingExpiry
+          } else {
+            // If no existing addon, try to align with VM expiry
+            const { data: vm } = await supabase
+              .from('vms')
+              .select('expiry')
+              .eq('id', previousRequest.vm_id)
+              .maybeSingle()
+            
+            if (vm?.expiry) {
+              const vmExpiry = new Date(vm.expiry)
+              // Use VM expiry as start date
+              startDate = vmExpiry
+            }
+          }
+          
           const endDate = new Date(startDate)
           const expiryDate = new Date(startDate)
 
@@ -246,12 +268,10 @@ const str = String(durationStr);
 
           if (existingService) {
             // MERGE new services with existing services (don't overwrite existing ones)
+            // Only update services (CPFS/CCIS flags and packages), preserve all existing date fields
             await supabase
               .from('addon_services')
               .update({
-                duration: previousRequest.duration,
-                end_date: endDate.toISOString(),
-                expiry: expiryDate.toISOString(),
                 cpfs_enabled: previousRequest.cpfs_enabled || existingService.cpfs_enabled,
                 cpfs_package: previousRequest.cpfs_enabled ? previousRequest.cpfs_package : existingService.cpfs_package,
                 ccis_enabled: previousRequest.ccis_enabled || existingService.ccis_enabled,
@@ -260,7 +280,7 @@ const str = String(durationStr);
               .eq('id', existingService.id)
 
             await logActivity(
-              `Updated addon service for VM ${previousRequest.vm_id} with new duration and expiry`,
+              `Added addon services to VM ${previousRequest.vm_id}`,
               'vm',
               actorName,
               { vmId: previousRequest.vm_id, addonRequestId: id, services: previousRequest }

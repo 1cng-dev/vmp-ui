@@ -1,3 +1,5 @@
 [cron]
 # Run daily at 9 AM Myanmar time (2:30 AM UTC) - checks VM and add-on expiry
 check-expiry = "30 2 * * *"
+# Run daily at 3 AM Myanmar time (8:30 PM UTC) - checks invoice overdue status
+check-invoice-overdue = "30 20 * * *"
