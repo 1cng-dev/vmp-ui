@@ -10,7 +10,7 @@ interface StatusPillProps {
   expiry?: string
 }
 
-const StatusPill: React.FC<StatusPillProps> = ({ status, transformStatus, expiry }) => {
+const StatusPill: React.FC<StatusPillProps> = ({ status, transformStatus }) => {
   let displayStatus = transformStatus ? transformStatus(status) : status
 
   // Note: expiry-based status override removed to show direct DB status.

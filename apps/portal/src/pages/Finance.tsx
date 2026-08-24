@@ -21,7 +21,7 @@ interface FinanceViewProps {
   userRole?: string
 }
 
-const FinanceView: React.FC<FinanceViewProps> = ({ openCust, openModal, userRole }) => {
+const FinanceView: React.FC<FinanceViewProps> = ({ openCust, userRole }) => {
   const { invoices, invoicesLoading, markPaid, loadInvoices } = useInvoiceStore()
   const { customers } = useCustomerStore()
   const { vmRequests } = useVMRequestStore()

@@ -522,7 +522,7 @@ function buildSignupEmailTemplate(params: SignupEmailParams): string {
     <body>
       <div class="container">
         <div class="content">
-          <p style="margin-bottom: 24px;">Dear Valued Customer,</p>
+          <p style="margin-bottom: 24px;">Dear ${params.customerName || 'Valued Customer'},</p>
           <p style="margin-bottom: 24px;">Thank you for signing up with our portal.</p>
           <p style="margin: 0;">We have successfully received your registration. Your account is now ready, and you can proceed with using our services.</p>
           <p style="margin: 0;">If you have any questions or need assistance, please contact our support team.</p>
