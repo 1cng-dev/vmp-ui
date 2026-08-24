@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import type { AddonRequest } from '../types'
 import useActivityStore from './activityStore'
 import { createAlert } from '../services/notificationService'
+import { sendProvisioningCompletedEmail } from '../services/emailService'
 import useAddonServiceStore from './addonServiceStore'
 
 export interface AddonRequestStoreValue {
@@ -160,58 +161,113 @@ export const AddonRequestProvider: React.FC<{ children: React.ReactNode }> = ({ 
         { addonRequestId: id, vmId: previousRequest.vm_id, previousStatus: previousRequest.status, newStatus: patch.status }
       )
 
-      // Create alert for customer (customer_id set so customer sees it)
-      await createAlert({
-        sev: 'info',
-        title: 'Add-on Request Status Changed',
-        body: `Add-on request for VM ${previousRequest.vm_id} status changed from ${previousRequest.status} to ${patch.status}`,
-        type: 'vm',
-        related_entity_id: id,
-        related_entity_type: 'addon_request',
-        actor_id: actorId,
-        actor_name: actorName,
-        customer_id: previousRequest.customer_id,
-        metadata: {
-          vm_id: previousRequest.vm_id,
-          previous_status: previousRequest.status,
-          new_status: patch.status,
-          customer_id: previousRequest.customer_id
+      // Send email only for Completed status, dashboard notification for other statuses
+      if (patch.status === 'Completed') {
+        // Get customer email
+        const { data: customer } = await supabase
+          .from('customers')
+          .select('email, name')
+          .eq('id', previousRequest.customer_id)
+          .single()
+
+        // Get VM details from vms table using vm_id from addon_request
+        let vmData: { hostname: string; legacy_id?: string } | null = null
+        try {
+          const { data: vm, error: vmError } = await supabase
+            .from('vms')
+            .select('hostname, legacy_id')
+            .eq('id', previousRequest.vm_id)
+            .maybeSingle()
+
+          if (vmError) {
+            console.error('Error fetching VM data:', vmError)
+          } else {
+            vmData = vm
+          }
+        } catch (vmError) {
+          console.error('Failed to fetch VM data for addon completion email:', vmError)
         }
-      })
+
+        if (customer) {
+          const services = []
+          if (previousRequest.cpfs_enabled) services.push(`CPFS (${previousRequest.cpfs_package})`)
+          if (previousRequest.ccis_enabled) services.push(`CCIS (${previousRequest.ccis_package})`)
+
+          // Use VM hostname if available, otherwise use a placeholder
+          const hostname = vmData?.hostname || `VM (${previousRequest.vm_id})`
+
+          try {
+            await sendProvisioningCompletedEmail({
+              to: customer.email,
+              customerName: customer.name,
+              requestType: 'Add-on Service',
+              hostname: hostname,
+              requestId: previousRequest.legacy_id || previousRequest.id,
+              completionDate: new Date().toISOString(),
+              details: `Services: ${services.join(', ')}`,
+              vmLegacyId: vmData?.legacy_id
+            })
+          } catch (emailError) {
+            console.error('Failed to send addon provisioning completion email:', emailError)
+            // Don't throw error - email failure shouldn't block the status update
+          }
+        }
+
+        // Also create dashboard notification for Completed status
+        await createAlert({
+          sev: 'info',
+          title: 'Add-on Request Status Changed',
+          body: `Add-on request for VM ${previousRequest.vm_id} status changed from ${previousRequest.status} to ${patch.status}`,
+          type: 'vm',
+          related_entity_id: id,
+          related_entity_type: 'addon_request',
+          actor_id: actorId,
+          actor_name: actorName,
+          customer_id: previousRequest.customer_id,
+          metadata: {
+            vm_id: previousRequest.vm_id,
+            previous_status: previousRequest.status,
+            new_status: patch.status,
+            customer_id: previousRequest.customer_id
+          }
+        })
+      } else {
+        // For non-Completed statuses, only send dashboard notification
+        await createAlert({
+          sev: 'info',
+          title: 'Add-on Request Status Changed',
+          body: `Add-on request for VM ${previousRequest.vm_id} status changed from ${previousRequest.status} to ${patch.status}`,
+          type: 'vm',
+          related_entity_id: id,
+          related_entity_type: 'addon_request',
+          actor_id: actorId,
+          actor_name: actorName,
+          customer_id: previousRequest.customer_id,
+          metadata: {
+            vm_id: previousRequest.vm_id,
+            previous_status: previousRequest.status,
+            new_status: patch.status,
+            customer_id: previousRequest.customer_id
+          }
+        })
+      }
 
       // When status changes to "Completed", create or update addon_services table
       if (patch.status === 'Completed' && previousRequest) {
         try {
-          // Check if addon service already exists for this request
+          // Check if addon service already exists for this request (exclude terminated services)
           const { data: existingService } = await supabase
             .from('addon_services')
             .select('*')
             .eq('vm_id', previousRequest.vm_id)
+            .neq('operational_status', 'Terminated')
+            .order('created_at', { ascending: false })
+            .limit(1)
             .maybeSingle()
 
           // Calculate dates based on duration
-          // First, try to align with existing addon service expiry or VM expiry
-          let startDate = new Date()
-          
-          // Check if VM has existing addon service to align expiry
-          if (existingService && existingService.expiry) {
-            const existingExpiry = new Date(existingService.expiry)
-            // Use existing expiry as start date for new calculation
-            startDate = existingExpiry
-          } else {
-            // If no existing addon, try to align with VM expiry
-            const { data: vm } = await supabase
-              .from('vms')
-              .select('expiry')
-              .eq('id', previousRequest.vm_id)
-              .maybeSingle()
-            
-            if (vm?.expiry) {
-              const vmExpiry = new Date(vm.expiry)
-              // Use VM expiry as start date
-              startDate = vmExpiry
-            }
-          }
+          // For new service, start from the request start date; for existing service, keep for reference
+          let startDate = previousRequest.start_date ? new Date(previousRequest.start_date) : new Date()
           
           const endDate = new Date(startDate)
           const expiryDate = new Date(startDate)

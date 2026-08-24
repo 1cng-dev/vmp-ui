@@ -571,7 +571,10 @@ const CustUpgradeModal: React.FC<CustUpgradeModalProps> = ({ vm, onClose, me }) 
         requestId: insertedData.legacy_id || insertedData.id,
         requestType: 'Change Plan',
         hostname: currentHostname,
-        details: `Your change plan request for ${currentHostname} has been received and is being processed.`
+        details: `Your change plan request for ${currentHostname} has been received and is being processed.`,
+        vmLegacyId: (vm as any).legacy_id || vm.id,
+        currentPlan: `CPU ${vm.vcpu} cores · RAM ${(vm as any).ram_gb || vm.ram} GB · Storage ${(vm as any).storage_gb || vm.storage} GB · Backup: ${(vm as any).backup_enabled ? ((vm as any).backup_type === 'daily' ? 'Daily' : 'Weekly') : 'No'}`,
+        requestedPlan: `CPU ${spec.vcpu} cores · RAM ${spec.ram} GB · Storage ${spec.storage} GB · Backup: ${backupEnabled ? (backupType === 'daily' ? 'Daily' : 'Weekly') : 'No'}`
       })
 
       // Create alert for team roles (customer_id = NULL so customer doesn't see it)
@@ -929,6 +932,22 @@ const CustConvertToPaidModal: React.FC<CustConvertToPaidModalProps> = ({ vm, onC
       }).select().single()
 
       if (error) throw error
+
+      // Send email to customer for convert to paid request
+      try {
+        await sendVMRequestEmail({
+          to: me.email,
+          customerName: me.name,
+          requestId: insertedData.legacy_id,
+          requestType: 'Trial to Paid Conversion',
+          hostname: (vm as any).hostname || vm.name,
+          vmLegacyId: (vm as any).legacy_id,
+          details: `Your trial to paid conversion request for ${(vm as any).hostname || vm.name} has been received. Duration: ${getDurationLabel(duration)}. We will notify you once the conversion is completed.`
+        })
+      } catch (emailError) {
+        console.error('Failed to send convert to paid request email:', emailError)
+        // Don't throw error - email failure shouldn't block the request
+      }
 
       // Create alert for team roles (customer_id = NULL so customer doesn't see it)
       await createAlert({

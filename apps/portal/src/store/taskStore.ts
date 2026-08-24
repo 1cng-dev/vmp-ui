@@ -463,6 +463,9 @@ const useTaskStore = (): TaskStoreValue => {
             .from("addon_services")
             .select("*")
             .eq("vm_id", vmId)
+            .neq("operational_status", "Terminated")
+            .order("created_at", { ascending: false })
+            .limit(1)
             .maybeSingle()
 
           if (existingService) {

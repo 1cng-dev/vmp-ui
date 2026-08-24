@@ -9,6 +9,7 @@ import Icon from '../lib/icons'
 import { Avatar, StatusPill, CircularSpinner } from '../components/ui/ui'
 import { useAuth } from '../components/auth/Auth'
 import { createAlert } from '../services/notificationService'
+import { sendKYCApprovalEmail, sendKYCRejectionEmail, sendKYCReopenEmail } from '../services/emailService'
 
 interface Doc {
   name: string
@@ -102,14 +103,14 @@ export const KYCReviewView: React.FC = () => {
   const decide = async (id: string, decision: 'Pending' | 'Approved' | 'Rejected') => {
     const customer = customers.find((c: any) => c.id === id)
     const previousStatus = customer?.kyc_status || 'Pending'
-    
+
     await updateCustomer(id, {
       kyc_status: decision,
       kyc_reviewer_note: note,
       kyc_reviewed_by: decision !== 'Pending' ? reviewerName : undefined,
       kyc_reviewed_at: decision !== 'Pending' ? new Date().toISOString() : undefined
     })
-    
+
     // Create notification and activity log for approval/rejection
     if (decision === 'Approved' || decision === 'Rejected') {
       // Get staff member from team_members table
@@ -132,14 +133,14 @@ export const KYCReviewView: React.FC = () => {
           actorId = user.id
         }
       }
-      
+
       await logActivity(
         `${decision} KYC for customer ${customer?.name || customer?.org_name}`,
         'customer',
         actorName,
         { customerId: id, customerName: customer?.name || customer?.org_name, kycStatus: decision, previousStatus, reviewerNote: note }
       )
-      
+
       await createAlert({
         sev: decision === 'Approved' ? 'info' : 'warn',
         title: `KYC ${decision}`,
@@ -149,15 +150,30 @@ export const KYCReviewView: React.FC = () => {
         related_entity_type: 'customer',
         actor_id: actorId,
         actor_name: actorName,
-        metadata: { 
-          kyc_status: decision, 
+        metadata: {
+          kyc_status: decision,
           previous_status: previousStatus,
           customer_name: customer?.name || customer?.org_name,
           reviewer_note: note
         }
       })
     }
-    
+
+    // Send email notification to customer
+    if (decision === 'Approved') {
+      await sendKYCApprovalEmail({
+        to: customer?.email || '',
+        customerName: customer?.name || customer?.org_name || '',
+        approvalDate: new Date().toLocaleDateString()
+      })
+    } else if (decision === 'Rejected') {
+      await sendKYCRejectionEmail({
+        to: customer?.email || '',
+        customerName: customer?.name || customer?.org_name || '',
+        rejectionReason: note || undefined
+      })
+    }
+
     setNote('')
     toast(`KYC ${decision.toLowerCase()}`, decision === 'Approved' ? 'ok' : 'warn')
   }
@@ -183,35 +199,35 @@ export const KYCReviewView: React.FC = () => {
       </div>
 
       {/* Stats */}
-        <div className="grid-4 mb-4">
-          {[
-            { label: 'Awaiting review', value: pending.length, color: 'oklch(0.55 0.16 75)', icon: 'clock' }, { label: 'Approved', value: approved.length, color: 'var(--ok)', icon: 'check' },
-            { label: 'Rejected', value: rejected.length, color: 'var(--bad)', icon: 'x' },
-            { label: 'Total customers', value: customers.length, color: 'var(--accent)', icon: 'users' },
-          ].map(s => (
-            <div key={s.label} className="metric">
-              <div className="label flex center gap-2">
-                <span style={{ width: 24, height: 24, borderRadius: 7, background: `${s.color}1a`, color: s.color, display: 'grid', placeItems: 'center' }}><Icon name={s.icon} size={13} /></span>
-                {s.label}
-              </div>
-              <div className="value tnum" style={{ color: s.color }}>{s.value}</div>
+      <div className="grid-4 mb-4">
+        {[
+          { label: 'Awaiting review', value: pending.length, color: 'oklch(0.55 0.16 75)', icon: 'clock' }, { label: 'Approved', value: approved.length, color: 'var(--ok)', icon: 'check' },
+          { label: 'Rejected', value: rejected.length, color: 'var(--bad)', icon: 'x' },
+          { label: 'Total customers', value: customers.length, color: 'var(--accent)', icon: 'users' },
+        ].map(s => (
+          <div key={s.label} className="metric">
+            <div className="label flex center gap-2">
+              <span style={{ width: 24, height: 24, borderRadius: 7, background: `${s.color}1a`, color: s.color, display: 'grid', placeItems: 'center' }}><Icon name={s.icon} size={13} /></span>
+              {s.label}
             </div>
-          ))}
-        </div>
+            <div className="value tnum" style={{ color: s.color }}>{s.value}</div>
+          </div>
+        ))}
+      </div>
 
       <div className="grid-asym" style={{ alignItems: 'flex-start' }}>
         {/* Master list */}
-          <div className="card">
-            <div className="tabs">
-              {['Pending', 'Approved', 'Rejected'].map(t => (
-                <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
-                  {t}<span className="count">{t === 'Pending' ? pending.length : t === 'Approved' ? approved.length : rejected.length}</span>
-                </button>
-              ))}
-            </div>
-            <div className="card-body" style={{ padding: 0 }}>
-                <>
-                  {list.map((c: any) => (
+        <div className="card">
+          <div className="tabs">
+            {['Pending', 'Approved', 'Rejected'].map(t => (
+              <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
+                {t}<span className="count">{t === 'Pending' ? pending.length : t === 'Approved' ? approved.length : rejected.length}</span>
+              </button>
+            ))}
+          </div>
+          <div className="card-body" style={{ padding: 0 }}>
+            <>
+              {list.map((c: any) => (
                 <div key={c.id} onClick={() => setSelected(c)} style={{
                   padding: '14px 18px', borderBottom: '1px solid var(--line)',
                   display: 'flex', gap: 12, alignItems: 'center', cursor: 'pointer',
@@ -229,12 +245,12 @@ export const KYCReviewView: React.FC = () => {
               {customersLoading ? (
                 <div className="empty" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><CircularSpinner /></div>
               ) : list.length === 0 && <div className="empty"><div className="title">All caught up</div><div className="sub">No {tab.toLowerCase()} submissions.</div></div>}
-                </>
-            </div>
+            </>
           </div>
+        </div>
 
         {/* Detail / review panel */}
-          <div className="card" style={{ position: 'sticky', top: 16 }}>
+        <div className="card" style={{ position: 'sticky', top: 16 }}>
           {sel ? (
             <>
               <div className="card-head">
@@ -349,8 +365,13 @@ export const KYCReviewView: React.FC = () => {
             </div>
             <div className="modal-foot">
               <button className="btn ghost" onClick={() => setShowReopenConfirm(false)}>Cancel</button>
-              <button className="btn accent" onClick={() => {
-                decide(sel.id, 'Pending')
+              <button className="btn accent" onClick={async () => {
+                await decide(sel.id, 'Pending')
+                await sendKYCReopenEmail({
+                  to: sel.email || '',
+                  customerName: sel.name || sel.org_name || '',
+                  reopenDate: new Date().toLocaleDateString()
+                })
                 setShowReopenConfirm(false)
               }}>Confirm</button>
             </div>

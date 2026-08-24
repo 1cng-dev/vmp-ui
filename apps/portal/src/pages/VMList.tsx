@@ -24,7 +24,7 @@ const AdminVMRow: React.FC<{ vm: any; customer: any; openVM: (id: string) => voi
 
   const handleActivate = async () => {
     const addonServices = getAllAddonServicesForVM(vm.id)
-    updateVM(vm.id, { status: 'Active' as any, power_state: 'Running' as any })
+    await updateVM(vm.id, { status: 'Active' as any, power_state: 'Running' as any })
 
     // Reactivate associated addon services (including terminated ones)
     for (const addon of addonServices) {
@@ -38,6 +38,22 @@ const AdminVMRow: React.FC<{ vm: any; customer: any; openVM: (id: string) => voi
       ? `VM ${vm.hostname} activated with ${addonCount} active add-on service(s)`
       : `VM ${vm.hostname} activated`
     toast(message, 'ok')
+
+    // Send email notification to customer
+    try {
+      if (customer?.email) {
+        const { sendVMActivatedEmail } = await import('../services/emailService')
+        await sendVMActivatedEmail({
+          to: customer.email,
+          customerName: customer.name || customer.org_name || 'Customer',
+          hostname: vm.hostname,
+          vmId: vm.legacy_id || vm.id,
+          activationDate: new Date().toISOString()
+        })
+      }
+    } catch (emailError) {
+      console.error('Failed to send activation email:', emailError)
+    }
   }
 
   const proxmoxStatus = liveStatus?.status
@@ -122,7 +138,6 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal, setView, userRole })
   const filters = [
     { id: 'all', label: 'All', count: vms.length },
     { id: 'Active', label: 'Active', count: vms.filter(v => v.status === 'Active').length },
-    { id: 'Suspended', label: 'Suspended', count: vms.filter(v => v.status === 'Suspended').length },
     { id: 'Terminated', label: 'Terminated', count: vms.filter(v => v.status === 'Terminated').length },
     { id: 'new', label: 'New', count: vms.filter(v => v.task_type === 'new').length },
     { id: 'change-plan', label: 'Change Plan', count: vms.filter(v => v.task_type === 'change-plan').length },
@@ -132,7 +147,6 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal, setView, userRole })
     if (filter.has('all')) return true
     const matches = []
     if (filter.has('Active')) matches.push(v.status === 'Active')
-    if (filter.has('Suspended')) matches.push(v.status === 'Suspended')
     if (filter.has('Terminated')) matches.push(v.status === 'Terminated')
     if (filter.has('new')) matches.push(v.task_type === 'new')
     if (filter.has('change-plan')) matches.push(v.task_type === 'change-plan')

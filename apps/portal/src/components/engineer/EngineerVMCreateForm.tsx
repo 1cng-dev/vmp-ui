@@ -104,8 +104,8 @@ const EngineerVMCreateForm = ({
       toast("Please fill in username and password", "error");
       return;
     }
-    if (publicIps.some((ip) => !ip) || privateIps.some((ip) => !ip)) {
-      toast("Please fill in all IP fields", "error");
+    if (privateIps.some((ip) => !ip)) {
+      toast("Please fill in all Private IP fields", "error");
       return;
     }
     if (assigned_vmids.some((id) => id === 0)) {
@@ -160,7 +160,7 @@ const EngineerVMCreateForm = ({
           <div className="grid-3" style={{ gap: 12 }}>
             <div className="field">
               <label>
-                Public IP <span style={{ color: "var(--bad)" }}>*</span>
+                Public IP
               </label>
               <input
                 type="text"

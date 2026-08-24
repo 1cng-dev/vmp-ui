@@ -53,7 +53,7 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
     backupType: 'daily',
     zone: 'yangon-dc1',
     nics: [{ id: 1, label: 'NIC 1', description: '' }],
-    firewallPorts: ['22', '80', '443'],
+    firewallPorts: ['80', '443'],
     firewallOutboundAllowAll: true,
     firewallOutboundCustomPorts: [] as string[],
     additionalNotes: '',
@@ -75,19 +75,16 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
   ]
 
   const commonPorts = [
-    { port: '22', label: 'SSH', desc: 'Secure Shell' },
     { port: '80', label: 'HTTP', desc: 'Web traffic' },
     { port: '443', label: 'HTTPS', desc: 'Secure web' },
-    { port: '3389', label: 'RDP', desc: 'Remote Desktop' },
     { port: '21', label: 'FTP', desc: 'File Transfer' },
-    { port: '25', label: 'SMTP', desc: 'Email' },
     { port: '587', label: 'SMTP-TLS', desc: 'Email (TLS)' },
-    { port: '3306', label: 'MySQL', desc: 'MySQL database' },
-    { port: '5432', label: 'PostgreSQL', desc: 'PostgreSQL' },
     { port: '27017', label: 'MongoDB', desc: 'MongoDB' },
     { port: '6379', label: 'Redis', desc: 'Redis cache' },
     { port: '8080', label: 'HTTP-Alt', desc: 'Alternate HTTP' },
   ]
+
+  const blockedCustomPorts = ['25', '135', '136', '137', '138', '139', '445', '1433', '3306', '5432', '22', '3389']
 
   const selectedOS = f.os === 'custom' ? { name: f.customOsName || 'Other OS', accent: 'var(--accent)', versions: [f.customOsVersion || 'Custom version'] } : osCatalog.find(o => o.id === f.os) || osCatalog[0]
   const selectedZone = zones.find(z => z.id === f.zone) || zones[0]
@@ -100,10 +97,16 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
     set('firewallPorts', ports.includes(port) ? ports.filter((p: string) => p !== port) : [...ports, port])
   }
   const [customPort, setCustomPort] = useState('')
+  const [customPortError, setCustomPortError] = useState('')
   const [customOutboundPort, setCustomOutboundPort] = useState('')
+  const [customOutboundPortError, setCustomOutboundPortError] = useState('')
   const addCustomPort = () => {
     const p = customPort.trim()
     if (!p || f.firewallPorts.includes(p)) return
+    if (blockedCustomPorts.includes(p)) {
+      toast(`Port ${p} is not allowed for customer firewall rules`, 'error')
+      return
+    }
     set('firewallPorts', [...f.firewallPorts, p])
     setCustomPort('')
   }
@@ -116,6 +119,10 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
   const addCustomOutboundPort = () => {
     const p = customOutboundPort.trim()
     if (!p || f.firewallOutboundCustomPorts.includes(p)) return
+    if (blockedCustomPorts.includes(p)) {
+      toast(`Port ${p} is not allowed for customer firewall rules`, 'error')
+      return
+    }
     set('firewallOutboundCustomPorts', [...f.firewallOutboundCustomPorts, p])
     setCustomOutboundPort('')
   }
@@ -146,6 +153,12 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
     // Validate billing term for paid requests
     if (f.requestType === 'paid' && !f.duration) {
       toast('Please select a billing term', 'error')
+      setIsSubmitting(false)
+      return
+    }
+    const blockedPort = [...f.firewallPorts, ...f.firewallOutboundCustomPorts].find(p => blockedCustomPorts.includes(p))
+    if (blockedPort) {
+      toast(`Port ${blockedPort} is not allowed for customer firewall rules`, 'error')
       setIsSubmitting(false)
       return
     }
@@ -180,13 +193,18 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
       }).select().single()
 
       // Send email to customer about VM request
+      const osNameDisplay = f.os === 'custom' ? `${f.customOsName || ''} ${f.customOsVersion || ''}`.trim() : `${selectedOS?.name || ''} ${f.osVersion || ''}`.trim()
       await sendVMRequestEmail({
         to: me.email,
         customerName: me.name,
         requestId: insertedData.legacy_id || insertedData.id,
         requestType: f.requestType === 'trial' ? 'Trial' : 'Paid',
         hostname: f.hostname,
-        details: `Your ${f.requestType === 'trial' ? 'trial' : 'paid'} VM request for ${f.hostname} has been received and is being processed.`
+        details: `Your ${f.requestType === 'trial' ? 'trial' : 'paid'} VM request for ${f.hostname} has been received and is being processed.`,
+        vcpu: f.vcpu,
+        ram: f.ram,
+        storage: f.storage,
+        osName: osNameDisplay
       })
 
       addTask({
@@ -411,7 +429,7 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
                 <input
                   type="number"
                   value={f.qty}
-                  onChange={e => set('qty', parseInt(e.target.value) || 1)}
+                  disabled
                   placeholder="e.g. 1"
                   min="1"
                 />
@@ -633,13 +651,25 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
 
             <div className="text-xs text-mute fw-6 mt-4 mb-2" style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>Custom port</div>
             <div className="flex gap-2">
-              <input value={customPort} onChange={e => setCustomPort(e.target.value.replace(/[^0-9]/g, ''))}
-                onKeyDown={e => e.key === 'Enter' && addCustomPort()}
+              <input value={customPort} onChange={e => {
+                let v = e.target.value.replace(/[^0-9]/g, '')
+                if (v && blockedCustomPorts.includes(v)) {
+                  while (v && blockedCustomPorts.includes(v)) {
+                    v = v.slice(0, -1)
+                  }
+                  setCustomPortError(`Port ${e.target.value.replace(/[^0-9]/g, '')} is not allowed for customer firewall rules`)
+                } else {
+                  setCustomPortError('')
+                }
+                setCustomPort(v)
+              }}
+                onKeyDown={e => e.key === 'Enter' && !customPortError && addCustomPort()}
                 placeholder="e.g. 8443"
-                style={{ width: 120, padding: '7px 10px', border: '1px solid var(--line)', borderRadius: 6, fontSize: 12.5, fontFamily: 'var(--mono)' }}
+                style={{ width: 120, padding: '7px 10px', border: '1px solid ' + (customPortError ? '#ef4444' : 'var(--line)'), borderRadius: 6, fontSize: 12.5, fontFamily: 'var(--mono)' }}
               />
-              <button className="btn" onClick={addCustomPort}><Icon name="plus" size={12} />Add port</button>
+              <button className="btn" onClick={addCustomPort} disabled={!customPort.trim() || !!customPortError}><Icon name="plus" size={12} />Add port</button>
             </div>
+            {customPortError && <div className="text-xs" style={{ color: '#ef4444', marginTop: 4 }}>{customPortError}</div>}
 
             {f.firewallPorts.length > 0 && (
               <div style={{ marginTop: 16, padding: 12, background: 'var(--surface-2)', borderRadius: 8 }}>
@@ -713,19 +743,31 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
                   <input
                     type="text"
                     value={customOutboundPort}
-                    onChange={(e) => setCustomOutboundPort(e.target.value.replace(/[^0-9]/g, ''))}
-                    onKeyDown={e => e.key === 'Enter' && addCustomOutboundPort()}
+                    onChange={(e) => {
+                      let v = e.target.value.replace(/[^0-9]/g, '')
+                      if (v && blockedCustomPorts.includes(v)) {
+                        while (v && blockedCustomPorts.includes(v)) {
+                          v = v.slice(0, -1)
+                        }
+                        setCustomOutboundPortError(`Port ${e.target.value.replace(/[^0-9]/g, '')} is not allowed for customer firewall rules`)
+                      } else {
+                        setCustomOutboundPortError('')
+                      }
+                      setCustomOutboundPort(v)
+                    }}
+                    onKeyDown={e => e.key === 'Enter' && !customOutboundPortError && addCustomOutboundPort()}
                     placeholder="Add custom port (e.g., 8080)"
-                    style={{ flex: 1, padding: '8px 12px', border: '1px solid var(--line)', borderRadius: 6, fontFamily: 'var(--mono)' }}
+                    style={{ flex: 1, padding: '8px 12px', border: '1px solid ' + (customOutboundPortError ? '#ef4444' : 'var(--line)'), borderRadius: 6, fontFamily: 'var(--mono)' }}
                   />
                   <button
                     className="btn sm"
                     onClick={addCustomOutboundPort}
-                    disabled={!customOutboundPort.trim()}
+                    disabled={!customOutboundPort.trim() || !!customOutboundPortError}
                   >
                     Add
                   </button>
                 </div>
+                {customOutboundPortError && <div className="text-xs" style={{ color: '#ef4444', marginTop: 4 }}>{customOutboundPortError}</div>}
 
                 {f.firewallOutboundCustomPorts.length > 0 && (
                   <div style={{ marginTop: 16, padding: 12, background: 'var(--surface-2)', borderRadius: 8 }}>

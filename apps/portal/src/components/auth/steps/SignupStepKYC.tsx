@@ -1,5 +1,6 @@
-import React from 'react'
+import React, { useState } from 'react'
 import Icon from '../../../lib/icons'
+import { getKYCDocumentValidationError } from '../../../lib/storage'
 
 interface SignupStepKYCProps {
   f: any
@@ -7,13 +8,21 @@ interface SignupStepKYCProps {
 }
 
 const SignupStepKYC: React.FC<SignupStepKYCProps> = ({ f, set }) => {
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   const uploadField = (key: string, label: string, hint: string) => {
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0]
       if (!file) return
 
-      // Store the File object, don't upload yet
+      const validationError = getKYCDocumentValidationError(file)
+      if (validationError) {
+        setErrors(prev => ({ ...prev, [key]: validationError }))
+        set(key, null)
+        return
+      }
+
+      setErrors(prev => ({ ...prev, [key]: '' }))
       set(key, file)
     }
 
@@ -31,22 +40,27 @@ const SignupStepKYC: React.FC<SignupStepKYCProps> = ({ f, set }) => {
           onClick={() => document.getElementById(`upload-${key}`)?.click()}
           style={{
             padding: '14px 16px',
-            border: `1.5px dashed ${f[key] ? 'var(--ok)' : 'var(--line-strong)'}`,
-            background: f[key] ? 'var(--ok-soft)' : 'var(--surface-2)',
+            border: `1.5px dashed ${errors[key] ? 'var(--bad)' : f[key] ? 'var(--ok)' : 'var(--line-strong)'}`,
+            background: errors[key] ? 'var(--bad-soft)' : f[key] ? 'var(--ok-soft)' : 'var(--surface-2)',
             borderRadius: 8,
             display: 'flex', alignItems: 'center', gap: 12,
             cursor: 'pointer', width: '100%',
             textAlign: 'left',
           }}
         >
-          <div style={{ width: 36, height: 36, borderRadius: 8, background: f[key] ? 'var(--ok)' : 'var(--surface-3)', color: f[key] ? 'white' : 'var(--ink-3)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-            <Icon name={f[key] ? 'check' : 'attach'} size={14} />
+          <div style={{ width: 36, height: 36, borderRadius: 8, background: errors[key] ? 'var(--bad)' : f[key] ? 'var(--ok)' : 'var(--surface-3)', color: errors[key] || f[key] ? 'white' : 'var(--ink-3)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+            <Icon name={errors[key] ? 'alert' : f[key] ? 'check' : 'attach'} size={14} />
           </div>
           <div style={{ flex: 1 }}>
-            <div className="fw-6 text-sm" style={{ color: f[key] ? 'var(--ok)' : 'var(--ink)' }}>{f[key] ? 'Uploaded ✓' : label}</div>
+            <div className="fw-6 text-sm" style={{ color: errors[key] ? 'var(--bad)' : f[key] ? 'var(--ok)' : 'var(--ink)' }}>{f[key] ? 'Uploaded ✓' : label}</div>
             <div className="text-xs text-mute">{hint}</div>
           </div>
         </button>
+        {errors[key] && (
+          <div className="text-xs" style={{ color: 'var(--bad)', marginTop: 4 }}>
+            {errors[key]}
+          </div>
+        )}
       </div>
     )
   }

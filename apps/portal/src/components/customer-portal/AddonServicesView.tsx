@@ -116,6 +116,16 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs, myA
     return { months: totalMonths, days }
   }
 
+  // Format remaining duration for display, hiding "0 months" when months is 0
+  const formatDurationText = (months: number, days: number) => {
+    const monthText = months > 0 ? `${months} month${months > 1 ? 's' : ''}` : ''
+    const dayText = days > 0 ? `${days} day${days > 1 ? 's' : ''}` : ''
+    if (monthText && dayText) return `${monthText} ${dayText}`
+    if (monthText) return monthText
+    if (dayText) return dayText
+    return '0 days'
+  }
+
   // When VM is selected, calculate remaining duration and pre-populate form
   React.useEffect(() => {
     if (selectedVM) {
@@ -232,9 +242,7 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs, myA
             {selectedVM && remainingDuration ? (
               <div style={{ padding: 12, background: 'var(--accent-soft)', borderRadius: 6, border: '1px solid var(--accent)' }}>
                 <div className="text-sm fw-6" style={{ color: 'var(--accent-strong)' }}>
-                  {remainingDuration.days > 0 
-                    ? `${remainingDuration.months} months ${remainingDuration.days} days` 
-                    : `${remainingDuration.months} months`}
+                  {formatDurationText(remainingDuration.months, remainingDuration.days)}
                 </div>
                 <div className="text-xs text-mute mt-1">
                   {existingAddons.length > 0 
@@ -396,33 +404,18 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs, myA
             // Format duration as text with months and days
             let durationText = ''
             if (remainingDuration) {
-              durationText = remainingDuration.days > 0 
-                ? `${remainingDuration.months} months ${remainingDuration.days} days` 
-                : `${remainingDuration.months} months`
+              durationText = formatDurationText(remainingDuration.months, remainingDuration.days)
             } else {
-              durationText = `${duration} months`
-            }
-            
-            // Calculate start_date, end_date, and expiry for addon request
-            // Use existing addon expiry or VM expiry as start date to align expiry dates
-            let baseDate = new Date()
-            
-            // Check if VM has existing addon service to align expiry
-            if (existingAddons.length > 0 && existingAddons[0].expiry) {
-              baseDate = new Date(existingAddons[0].expiry)
-            } else if (vm?.expiry) {
-              // If no existing addon, use VM expiry
-              baseDate = new Date(vm.expiry)
-            } else if (vm?.start_date) {
-              // Fallback to VM start date if no expiry
-              baseDate = new Date(vm.start_date)
+              durationText = formatDurationText(parseInt(duration), 0)
             }
 
-            // Parse duration to get months and days
+            // Calculate start_date, end_date, and expiry for addon request
+            // Start from today, add the selected/remaining duration plus 1 day for inclusive expiry
+            const startDate = new Date()
             const durationMonths = remainingDuration ? remainingDuration.months : parseInt(duration)
             const durationDays = remainingDuration ? remainingDuration.days : 0
 
-            const expiryDate = new Date(baseDate)
+            const expiryDate = new Date(startDate)
             expiryDate.setMonth(expiryDate.getMonth() + durationMonths)
             expiryDate.setDate(expiryDate.getDate() + durationDays + 1) // Add 1 day to expiry
             
@@ -440,7 +433,7 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs, myA
               ccis_enabled: ccisEnabled && !existingCcis, // Only if NEW
               ccis_package: (ccisEnabled && !existingCcis) ? ccisPlan : undefined,
               duration: durationText,
-              start_date: vm?.start_date || new Date().toISOString(),
+              start_date: startDate.toISOString(),
               end_date: expiryDate.toISOString(),
               expiry: expiryDate.toISOString(),
               status: 'Pending' as 'Pending',
@@ -448,10 +441,6 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs, myA
             const requestId = await createAddonRequest(addonRequest)
             
             // Send email notification to customer
-            const services = []
-            if (cpfsEnabled && !existingCpfs) services.push(`CPFS (${cpfsPackage})`)
-            if (ccisEnabled && !existingCcis) services.push(`CCIS (${ccisPlan})`)
-            
             const { data: { user } } = await supabase.auth.getUser()
             const { data: customer } = await supabase.from('customers').select('name').eq('id', vm?.customer_id).maybeSingle()
             
@@ -459,13 +448,28 @@ export const AddonServicesView: React.FC<AddonServicesViewProps> = ({ myVMs, myA
             const { data: createdRequest } = await supabase.from('addon_requests').select('legacy_id').eq('id', requestId).single()
             const displayRequestId = createdRequest?.legacy_id || requestId
             
+            // Build service names and specification separately
+            const serviceNames = []
+            const specDetails = []
+            if (cpfsEnabled && !existingCpfs) {
+              serviceNames.push('CPFS')
+              specDetails.push(`CPFS: ${cpfsPackage}`)
+            }
+            if (ccisEnabled && !existingCcis) {
+              serviceNames.push('CCIS')
+              specDetails.push(`CCIS: ${ccisPlan}`)
+            }
+
             await sendAddonRequestEmail({
               to: user?.email || '',
               customerName: customer?.name || 'Customer',
               requestId: displayRequestId,
               vmHostname: vm?.hostname || vm?.name || 'Unknown',
-              services: services.join(', '),
-              duration: durationText
+              services: serviceNames.join(', '),
+              duration: durationText,
+              vmLegacyId: vm?.legacy_id || vm?.id || '',
+              startDate: startDate.toLocaleDateString(),
+              specification: specDetails.join(', ')
             })
             
             toast('Add-on request submitted successfully', 'ok')

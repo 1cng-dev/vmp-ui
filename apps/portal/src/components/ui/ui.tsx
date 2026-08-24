@@ -12,18 +12,10 @@ interface StatusPillProps {
 
 const StatusPill: React.FC<StatusPillProps> = ({ status, transformStatus, expiry }) => {
   let displayStatus = transformStatus ? transformStatus(status) : status
-  
-  // For VMs: if expiry date has passed and status is not Terminated, show as Expired
-  if (expiry && expiry !== '—') {
-    const expiryDate = new Date(expiry)
-    const now = new Date()
-    const isExpired = expiryDate < now
-    
-    if (isExpired && status !== 'Terminated') {
-      displayStatus = 'Expired'
-    }
-  }
-  
+
+  // Note: expiry-based status override removed to show direct DB status.
+  // Expired status will be updated in the database directly by a scheduled job.
+
   const map: Record<string, string> = {
     'Active': 'ok', 'Running': 'ok', 'Approved': 'ok', 'Done': 'ok', 'Payment Received': 'ok',
     'Pending': 'warn', 'In Progress': 'warn', 'Customer Transferred': 'warn',

@@ -3,6 +3,21 @@ import { supabase } from './supabase'
 export const TICKET_ATTACHMENT_ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'application/pdf']
 export const TICKET_ATTACHMENT_MAX_FILE_SIZE = 10_000_000
 
+export const KYC_DOCUMENT_ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'application/pdf']
+export const KYC_DOCUMENT_MAX_FILE_SIZE = 5_000_000
+
+export const getKYCDocumentValidationError = (file: File) => {
+  if (!KYC_DOCUMENT_ALLOWED_TYPES.includes(file.type)) {
+    return `${file.name} is not allowed. Only PNG, JPG, and PDF files are accepted.`
+  }
+
+  if (file.size > KYC_DOCUMENT_MAX_FILE_SIZE) {
+    return `${file.name} is too large. Maximum file size is 5MB.`
+  }
+
+  return null
+}
+
 export const getTicketAttachmentValidationError = (file: File) => {
   if (!TICKET_ATTACHMENT_ALLOWED_TYPES.includes(file.type)) {
     return `${file.name} is not allowed. Only PNG, JPG, and PDF files are accepted.`
@@ -25,7 +40,7 @@ export const uploadKYCDocument = async (
   
   const { error } = await supabase.storage
     .from('kyc-documents')
-    .upload(fileName, file)
+    .upload(fileName, file, { upsert: true })
 
   if (error) {
     throw error

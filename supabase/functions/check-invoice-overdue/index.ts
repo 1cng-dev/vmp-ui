@@ -45,9 +45,26 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Update status to 'Overdue'
+    // Update status to 'Overdue' and send notifications
     let updatedCount = 0
     for (const invoice of overdueInvoices) {
+      // Deduplication: check if alert already created today for this invoice
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const tomorrow = new Date(today)
+      tomorrow.setDate(tomorrow.getDate() + 1)
+
+      const { data: existingAlerts } = await supabase
+        .from('alerts')
+        .select('id')
+        .eq('related_entity_id', invoice.id)
+        .eq('related_entity_type', 'invoice')
+        .eq('type', 'finance')
+        .gte('created_at', today.toISOString())
+        .lt('created_at', tomorrow.toISOString())
+        .limit(1)
+
+      // Update status to Overdue
       const { error: updateError } = await supabase
         .from('invoices')
         .update({ status: 'Overdue' })
@@ -55,8 +72,54 @@ Deno.serve(async (req) => {
 
       if (updateError) {
         console.error(`Error updating invoice ${invoice.id}:`, updateError)
-      } else {
-        updatedCount++
+        continue
+      }
+
+      updatedCount++
+
+      // Skip alert + email if already sent today
+      if (existingAlerts && existingAlerts.length > 0) continue
+
+      // Get customer email
+      const { data: customer } = await supabase
+        .from('customers')
+        .select('email, name')
+        .eq('id', invoice.customer_id)
+        .single()
+
+      // Create alert
+      const formattedDue = new Date(invoice.due).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      })
+
+      const { error: alertError } = await supabase.from('alerts').insert({
+        sev: 'urgent',
+        title: `Invoice Overdue`,
+        body: `Invoice ${invoice.legacy_id || invoice.id} is overdue. Due date: ${formattedDue}`,
+        type: 'finance',
+        related_entity_id: invoice.id,
+        related_entity_type: 'invoice',
+        actor_id: null,
+        actor_name: 'System',
+        customer_id: invoice.customer_id,
+        metadata: { invoice_id: invoice.legacy_id || invoice.id, due_date: invoice.due, status: 'Overdue' }
+      })
+
+      if (alertError) {
+        console.error('Error inserting overdue alert:', alertError)
+      }
+
+      // Send email to customer
+      if (customer?.email) {
+        await sendOverdueEmail({
+          to: customer.email,
+          customerName: customer.name,
+          invoiceId: invoice.legacy_id || invoice.id,
+          amount: invoice.gross_amount,
+          dueDate: invoice.due
+        })
       }
     }
 
@@ -76,3 +139,93 @@ Deno.serve(async (req) => {
     )
   }
 })
+
+async function sendOverdueEmail(params: {
+  to: string
+  customerName: string
+  invoiceId: string
+  amount: number
+  dueDate: string
+}) {
+  const resendApiKey = Deno.env.get('RESEND_API_KEY')
+  const fromEmail = Deno.env.get('RESEND_FROM_EMAIL')
+  const fromName = 'One Cloud Net-Gen'
+
+  const html = buildOverdueEmailTemplate(params)
+
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${resendApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from: `${fromName} <${fromEmail}>`,
+        to: params.to,
+        subject: `Invoice Overdue - ${params.invoiceId}`,
+        html: html
+      })
+    })
+
+    if (!response.ok) {
+      const error = await response.text()
+      console.error('Resend API error:', error)
+      return { success: false, error }
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error sending email:', error)
+    return { success: false, error }
+  }
+}
+
+function buildOverdueEmailTemplate(params: {
+  customerName: string
+  invoiceId: string
+  amount: number
+  dueDate: string
+}): string {
+  const formattedAmount = new Intl.NumberFormat('en-MM', {
+    style: 'currency',
+    currency: 'MMK'
+  }).format(params.amount)
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; text-align: left; }
+        .container { max-width: 600px; margin: 0; padding: 20px; text-align: left; }
+        .content { padding: 20px; text-align: left; }
+        .footer { padding: 20px; text-align: left; font-size: 12px; color: #666; }
+        .info-box { margin: 20px 0; text-align: left; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="content">
+          <p>Dear Valued Customer,</p>
+          <div class="info-box">
+            <p><strong>Invoice ID:</strong> ${params.invoiceId}</p>
+            <p><strong>Amount:</strong> ${formattedAmount}</p>
+            <p><strong>Due Date:</strong> ${new Date(params.dueDate).toLocaleDateString()}</p>
+            <p><strong>Status:</strong> OVERDUE</p>
+          </div>
+          <p>Your invoice is now overdue. Please make the payment as soon as possible to avoid service interruption.</p>
+          <p>Our Portal: <a href="https://vmp.1cloudng.com">https://vmp.1cloudng.com</a></p>
+        </div>
+        <div class="footer">
+          <p>Best Regards,<br>
+          One Cloud Next-Gen Co., Ltd<br>
+          support@system.1cloudng.com<br>
+          <img src="https://i.ibb.co/3mxXtQ8d/logo.png" alt="Company Logo" style="width: 150px; height: auto; margin-top: 10px;"></p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `
+}

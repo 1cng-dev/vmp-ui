@@ -32,6 +32,8 @@ async function sendExpiryEmail(params: {
   expiryDate: string
   daysUntilExpiry: number
   entityId: string
+  vmId?: string
+  vmName?: string
 }) {
   const resendApiKey = Deno.env.get('RESEND_API_KEY')
   const fromEmail = Deno.env.get('RESEND_FROM_EMAIL')
@@ -80,12 +82,41 @@ function buildEmailTemplate(params: {
   expiryDate: string
   daysUntilExpiry: number
   entityId: string
+  vmId?: string
+  vmName?: string
 }): string {
-  const urgencyText = params.daysUntilExpiry < 0
-    ? `EXPIRED ${Math.abs(params.daysUntilExpiry)} days ago`
-    : params.daysUntilExpiry === 0
-      ? 'EXPIRING TODAY'
-      : `Expiring in ${params.daysUntilExpiry} days`
+  const vmContent = `
+          <p style="margin-bottom: 24px;">Dear Valued Customer,</p>
+          <p style="margin-bottom: 24px;">${params.daysUntilExpiry < 0
+      ? `This is a kindly reminder that your VPS service has expired ${Math.abs(params.daysUntilExpiry)} day${Math.abs(params.daysUntilExpiry) > 1 ? 's' : ''} ago.`
+      : params.daysUntilExpiry === 0
+        ? 'This is a kindly reminder that your VPS service expires today.'
+        : `This is a kindly reminder that your VPS service will expire in ${params.daysUntilExpiry} day${params.daysUntilExpiry > 1 ? 's' : ''}.`}</p>
+          <p style="margin-bottom: 24px;">VM Details:</p>
+          <div class="info-box">
+            <p><strong>VM ID:</strong> ${params.entityId}</p>
+            <p><strong>Current Expiry Date:</strong> ${params.expiryDate}</p>
+          </div>
+          <p style="margin-bottom: 24px;">To avoid service interruption, kindly arrange for the renewal of your VPS before the expiry date.</p>
+          <p style="margin: 0;">If you would like to renew your service or require assistance with the renewal process, please contact our support team.</p>
+  `
+
+  const addonContent = `
+          <p style="margin-bottom: 24px;">Dear Valued Customer,</p>
+          <p style="margin-bottom: 24px;">${params.daysUntilExpiry < 0
+      ? `This is a kindly reminder that your VPS Add-on service has expired ${Math.abs(params.daysUntilExpiry)} day${Math.abs(params.daysUntilExpiry) > 1 ? 's' : ''} ago.`
+      : params.daysUntilExpiry === 0
+        ? 'This is a kindly reminder that your VPS Add-on service expires today.'
+        : `This is a kindly reminder that your VPS Add-on service will expire in ${params.daysUntilExpiry} day${params.daysUntilExpiry > 1 ? 's' : ''}.`}</p>
+          <p style="margin-bottom: 24px;">VM Details:</p>
+          <div class="info-box">
+            <p><strong>VM ID:</strong> ${params.vmId || params.entityId}</p>
+            <p><strong>Service Name:</strong> ${params.vmName || params.entityName}</p>
+            <p><strong>Current Expiry Date:</strong> ${params.expiryDate}</p>
+          </div>
+          <p style="margin-bottom: 24px;">To avoid service interruption, kindly arrange for the renewal of your service before the expiry date.</p>
+          <p style="margin: 0;">If you would like to renew your service or require assistance with the renewal process, please contact our support team.</p>
+  `
 
   return `
     <!DOCTYPE html>
@@ -98,24 +129,13 @@ function buildEmailTemplate(params: {
         .content { padding: 20px; text-align: left; }
         .footer { padding: 20px; text-align: left; font-size: 12px; color: #666; }
         .info-box { margin: 20px 0; text-align: left; }
+        .info-box p { margin: 0; }
       </style>
     </head>
     <body>
       <div class="container">
         <div class="content">
-          <p>Dear Valued Customer,</p>
-          <div class="info-box">
-            <p><strong>${params.type === 'vm' ? 'VM' : 'Add-on Service'}:</strong> ${params.entityName}</p>
-            <p><strong>ID:</strong> ${params.entityId}</p>
-            <p><strong>Expiry Date:</strong> ${params.expiryDate}</p>
-            <p><strong>Status:</strong> ${urgencyText}</p>
-          </div>
-          <p>${params.daysUntilExpiry < 0
-      ? 'Your service has expired. Please renew as soon as possible to avoid service interruption.'
-      : params.daysUntilExpiry === 0
-        ? 'Your service expires today. Please renew immediately to avoid service interruption.'
-        : 'Your service will expire soon. Please renew to avoid service interruption.'}</p>
-          <p>Our Portal: <a href="https://vmp.1cloudng.com">https://vmp.1cloudng.com</a></p>
+          ${params.type === 'vm' ? vmContent : addonContent}
         </div>
         <div class="footer">
           <p>Best Regards,<br>
@@ -370,6 +390,13 @@ async function checkAddonExpiry(supabase: any) {
         continue
       }
 
+      // Get VM info for email
+      const { data: vm } = await supabase
+        .from('vms')
+        .select('hostname, legacy_id')
+        .eq('id', addon.vm_id)
+        .single()
+
       // Send email to customer
       if (customer?.email) {
         await sendExpiryEmail({
@@ -379,7 +406,9 @@ async function checkAddonExpiry(supabase: any) {
           entityName: `Add-on ${addon.legacy_id || addon.id}`,
           expiryDate: formattedExpiry,
           daysUntilExpiry,
-          entityId: addon.legacy_id || addon.id
+          entityId: addon.legacy_id || addon.id,
+          vmId: vm?.legacy_id || addon.vm_id,
+          vmName: vm?.hostname || 'Unknown VM'
         })
       }
 
@@ -425,6 +454,13 @@ async function checkAddonExpiry(supabase: any) {
         continue
       }
 
+      // Get VM info for email
+      const { data: vm } = await supabase
+        .from('vms')
+        .select('hostname, legacy_id')
+        .eq('id', addon.vm_id)
+        .single()
+
       // Send email to customer
       if (customer?.email) {
         await sendExpiryEmail({
@@ -434,7 +470,9 @@ async function checkAddonExpiry(supabase: any) {
           entityName: `Add-on ${addon.legacy_id || addon.id}`,
           expiryDate: formattedExpiry,
           daysUntilExpiry,
-          entityId: addon.legacy_id || addon.id
+          entityId: addon.legacy_id || addon.id,
+          vmId: vm?.legacy_id || addon.vm_id,
+          vmName: vm?.hostname || 'Unknown VM'
         })
       }
 

@@ -67,7 +67,7 @@ const formatDuration = (duration: string | number | undefined | null): string =>
 
 export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialVm, onClose, onRenew, me }) => {
   const { vms, getVMRequest } = useVMStore()
-  const { getAddonServicesForVM } = useAddonServiceStore()
+  const { getAllAddonServicesForVM } = useAddonServiceStore()
   const { toast } = useUIStore()
   const vm = vms.find((v: any) => v.id === initialVm.id) || initialVm
   const [tab, setTab] = useState('overview')
@@ -78,7 +78,7 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
 
   // Get data from store instead of fetching directly
   const vmRequest = vm.vm_request_id ? getVMRequest(vm.vm_request_id) : null
-  const addonServices = getAddonServicesForVM(vm.id)
+  const addonServices = getAllAddonServicesForVM(vm.id)
 
   // Live usage from proxmox-proxcy (never Proxmox directly). recordId is the
   // opaque vm_ownership.id from vms_customer_safe — the real Proxmox vmid
@@ -485,7 +485,8 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
                 ['Power state', displayPowerState],
                 ['Request ID', vmRequest?.legacy_id || vm.vm_request_id],
                 ['Request Type', vmRequest?.request_type || 'paid'],
-                ['Status', vmRequest?.status || '—'],
+                ['Request Status', vmRequest?.status || '—'],
+                ['Status', vm.status || '—'],
                 ['Duration', (vm as any).duration || '—'],
                 ['Start Date', (vm as any).start_date ? new Date((vm as any).start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'],
                 ['End Date', (vm as any).end_date ? new Date((vm as any).end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'],
@@ -533,12 +534,12 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
             {addonServices.length === 0 ? (
               <div className="empty">
                 <div className="title">No add-on services</div>
-                <div className="sub">No active add-on services for this VM. Contact your account manager to add services.</div>
+                <div className="sub">No add-on services for this VM. Contact your account manager to add services.</div>
               </div>
             ) : (
               <div className="grid-2" style={{ gap: 14 }}>
                 {addonServices.map((as: any) => (
-                  <div key={as.id}>
+                  <div key={as.id} style={{ opacity: as.operational_status === 'Terminated' ? 0.65 : 1 }}>
                     <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>{as.legacy_id || as.id}</div>
                     <dl className="dl">
                       <dt>Services</dt>
@@ -556,7 +557,7 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
                       {as.start_date && <><dt>Start Date</dt><dd className="tnum">{new Date(as.start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
                       {as.end_date && <><dt>End Date</dt><dd className="tnum">{new Date(as.end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
                       {as.expiry && <><dt>Expiry</dt><dd><ExpiryCell date={as.expiry || ''} /></dd></>}
-                      <dt>Status</dt><dd><StatusPill status={as.status}/></dd>
+                      <dt>Status</dt><dd><StatusPill status={as.operational_status || as.status}/></dd>
                     </dl>
                   </div>
                 ))}

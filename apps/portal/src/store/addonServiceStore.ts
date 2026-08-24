@@ -28,6 +28,7 @@ export interface AddonServiceStoreValue {
   loadAddonServices: () => Promise<void>
   addAddonService: (service: Omit<AddonService, 'id' | 'legacy_id' | 'created_at' | 'updated_at'>) => Promise<string>
   updateAddonService: (id: string, patch: Partial<AddonService>) => Promise<void>
+  deleteAddonService: (id: string) => Promise<void>
   getAddonServicesForVM: (vmId: string) => AddonService[]
   getAllAddonServicesForVM: (vmId: string) => AddonService[]
 }
@@ -190,6 +191,44 @@ export const AddonServiceProvider: React.FC<{ children: React.ReactNode }> = ({ 
     // Real-time subscription will handle data update
   }, [addonServices, logActivity])
 
+  const deleteAddonService = useCallback(async (id: string) => {
+    const previousService = addonServices.find(s => s.id === id)
+    const { error } = await supabase.from('addon_services').delete().eq('id', id)
+    if (error) throw error
+
+    // Log activity for addon service deletion
+    const { data: { user } } = await supabase.auth.getUser()
+    let actorName = 'System'
+    if (user) {
+      const { data: staff } = await supabase
+        .from('team_members')
+        .select('name, staff_code')
+        .eq('user_id', user.id)
+        .single()
+      if (staff) {
+        actorName = `${staff.name} (${staff.staff_code})`
+      } else {
+        actorName = user.user_metadata?.name || user.email || 'System'
+      }
+    }
+
+    if (previousService) {
+      const serviceId = previousService.legacy_id || previousService.id
+      const services = []
+      if (previousService.cpfs_enabled) services.push(`CPFS (${previousService.cpfs_package})`)
+      if (previousService.ccis_enabled) services.push(`CCIS (${previousService.ccis_package})`)
+
+      await logActivity(
+        `Deleted addon service ${serviceId} for VM ${previousService.vm_id}: ${services.join(', ')}`,
+        'addon',
+        actorName,
+        { addonServiceId: serviceId, vmId: previousService.vm_id, customerId: previousService.customer_id, services }
+      )
+    }
+
+    // Real-time subscription will handle data update
+  }, [addonServices, logActivity])
+
   const getAddonServicesForVM = useCallback((vmId: string): AddonService[] => {
     return addonServices.filter(
       (service) =>
@@ -232,7 +271,7 @@ export const AddonServiceProvider: React.FC<{ children: React.ReactNode }> = ({ 
     loadAddonServices()
   }, [loadAddonServices])
 
-  const value = { addonServices, addonServicesLoading, loadAddonServices, addAddonService, updateAddonService, getAddonServicesForVM, getAllAddonServicesForVM }
+  const value = { addonServices, addonServicesLoading, loadAddonServices, addAddonService, updateAddonService, deleteAddonService, getAddonServicesForVM, getAllAddonServicesForVM }
   return React.createElement(AddonServiceContext.Provider, { value }, children as any)
 }
 

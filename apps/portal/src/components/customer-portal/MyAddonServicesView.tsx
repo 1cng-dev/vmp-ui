@@ -11,16 +11,13 @@ export const MyAddonServicesView: React.FC<MyAddonServicesViewProps> = ({ myVMs,
   const [filter, setFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
 
-  // Filter active addon services
-  const activeAddons = myAddonServices.filter(a =>
-    a.status === 'Active' &&
-    a.operational_status !== 'Terminated'
-  )
+  // Show all addon services (active and terminated)
+  const activeAddons = myAddonServices.filter(a => a.status === 'Active')
 
   const filters = [
     { id: 'all', label: 'All', count: activeAddons.length },
     { id: 'Active', label: 'Active', count: activeAddons.filter(a => a.operational_status === 'Active').length },
-    { id: 'Suspended', label: 'Suspended', count: activeAddons.filter(a => a.operational_status === 'Suspended').length },
+    { id: 'Terminated', label: 'Terminated', count: activeAddons.filter(a => a.operational_status === 'Terminated').length },
   ]
 
   const filtered = activeAddons.filter(addon => {
@@ -75,7 +72,7 @@ export const MyAddonServicesView: React.FC<MyAddonServicesViewProps> = ({ myVMs,
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td colSpan={7}><div className="empty"><div className="title">No active add-on services</div><div className="sub">Go to "Add-on Services" to request one.</div></div></td></tr>
+              <tr><td colSpan={7}><div className="empty"><div className="title">No add-on services</div><div className="sub">Go to "Add-on Services" to request one.</div></div></td></tr>
             ) : (
               filtered.map((addon) => {
                 const vm = myVMs.find((v: any) => v.id === addon.vm_id)

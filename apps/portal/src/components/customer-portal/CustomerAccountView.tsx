@@ -464,40 +464,61 @@ export const CustomerAccountView: React.FC<CustomerAccountViewProps> = ({ me }) 
                         </div>
                       </div>
                       {me.account_type === 'Organization' && (
-                        <div className="grid-2" style={{ gap: 10, marginTop: 10 }}>
-                          <div>
-                            <input type="file" accept="image/*,.pdf" onChange={(e) => handleFileUpload('orgCertFile', e.target.files?.[0] || null)} style={{ display: 'none' }} id="modal-upload-org-cert" />
-                            <button type="button" onClick={() => document.getElementById('modal-upload-org-cert')?.click()} style={{
-                              padding: '14px 16px', border: `1.5px dashed ${kycUpdateForm.orgCertFile ? 'var(--ok)' : 'var(--line-strong)'}`,
-                              background: kycUpdateForm.orgCertFile ? 'var(--ok-soft)' : 'var(--surface-2)', borderRadius: 8,
-                              display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', width: '100%', textAlign: 'left',
-                            }}>
-                              <div style={{ width: 36, height: 36, borderRadius: 8, background: kycUpdateForm.orgCertFile ? 'var(--ok)' : 'var(--surface-3)', color: kycUpdateForm.orgCertFile ? 'white' : 'var(--ink-3)', display: 'grid', placeItems: 'center' }}>
-                                <Icon name={kycUpdateForm.orgCertFile ? 'check' : 'attach'} size={14} />
-                              </div>
-                              <div>
-                                <div className="fw-6 text-sm" style={{ color: kycUpdateForm.orgCertFile ? 'var(--ok)' : 'var(--ink)' }}>{kycUpdateForm.orgCertFile ? kycUpdateForm.orgCertFile.name : 'Company Registration'}</div>
-                                <div className="text-xs text-mute">{me.org_cert_url ? 'Current: Uploaded' : 'Not uploaded'}</div>
-                              </div>
-                            </button>
+                        <>
+                          <div className="grid-2" style={{ gap: 10, marginTop: 10 }}>
+                            <div>
+                              <input type="file" accept="image/*,.pdf" onChange={(e) => handleFileUpload('orgCertFile', e.target.files?.[0] || null)} style={{ display: 'none' }} id="modal-upload-org-cert" />
+                              <button type="button" onClick={() => document.getElementById('modal-upload-org-cert')?.click()} style={{
+                                padding: '14px 16px', border: `1.5px dashed ${kycUpdateForm.orgCertFile ? 'var(--ok)' : 'var(--line-strong)'}`,
+                                background: kycUpdateForm.orgCertFile ? 'var(--ok-soft)' : 'var(--surface-2)', borderRadius: 8,
+                                display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', width: '100%', textAlign: 'left',
+                              }}>
+                                <div style={{ width: 36, height: 36, borderRadius: 8, background: kycUpdateForm.orgCertFile ? 'var(--ok)' : 'var(--surface-3)', color: kycUpdateForm.orgCertFile ? 'white' : 'var(--ink-3)', display: 'grid', placeItems: 'center' }}>
+                                  <Icon name={kycUpdateForm.orgCertFile ? 'check' : 'attach'} size={14} />
+                                </div>
+                                <div>
+                                  <div className="fw-6 text-sm" style={{ color: kycUpdateForm.orgCertFile ? 'var(--ok)' : 'var(--ink)' }}>{kycUpdateForm.orgCertFile ? kycUpdateForm.orgCertFile.name : 'Company Registration'}</div>
+                                  <div className="text-xs text-mute">{me.org_cert_url ? 'Current: Uploaded' : 'Not uploaded'}</div>
+                                </div>
+                              </button>
+                            </div>
+                            <div>
+                              <input type="file" accept="image/*,.pdf" onChange={(e) => handleFileUpload('orgTaxIdFile', e.target.files?.[0] || null)} style={{ display: 'none' }} id="modal-upload-org-tax-id" />
+                              <button type="button" onClick={() => document.getElementById('modal-upload-org-tax-id')?.click()} style={{
+                                padding: '14px 16px', border: `1.5px dashed ${kycUpdateForm.orgTaxIdFile ? 'var(--ok)' : 'var(--line-strong)'}`,
+                                background: kycUpdateForm.orgTaxIdFile ? 'var(--ok-soft)' : 'var(--surface-2)', borderRadius: 8,
+                                display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', width: '100%', textAlign: 'left',
+                              }}>
+                                <div style={{ width: 36, height: 36, borderRadius: 8, background: kycUpdateForm.orgTaxIdFile ? 'var(--ok)' : 'var(--surface-3)', color: kycUpdateForm.orgTaxIdFile ? 'white' : 'var(--ink-3)', display: 'grid', placeItems: 'center' }}>
+                                  <Icon name={kycUpdateForm.orgTaxIdFile ? 'check' : 'attach'} size={14} />
+                                </div>
+                                <div>
+                                  <div className="fw-6 text-sm" style={{ color: kycUpdateForm.orgTaxIdFile ? 'var(--ok)' : 'var(--ink)' }}>{kycUpdateForm.orgTaxIdFile ? kycUpdateForm.orgTaxIdFile.name : 'Tax Registration'}</div>
+                                  <div className="text-xs text-mute">{me.org_tax_id_url ? 'Current: Uploaded' : 'Not uploaded'}</div>
+                                </div>
+                              </button>
+                            </div>
                           </div>
-                          <div>
-                            <input type="file" accept="image/*,.pdf" onChange={(e) => handleFileUpload('orgTaxIdFile', e.target.files?.[0] || null)} style={{ display: 'none' }} id="modal-upload-org-tax-id" />
-                            <button type="button" onClick={() => document.getElementById('modal-upload-org-tax-id')?.click()} style={{
-                              padding: '14px 16px', border: `1.5px dashed ${kycUpdateForm.orgTaxIdFile ? 'var(--ok)' : 'var(--line-strong)'}`,
-                              background: kycUpdateForm.orgTaxIdFile ? 'var(--ok-soft)' : 'var(--surface-2)', borderRadius: 8,
-                              display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', width: '100%', textAlign: 'left',
-                            }}>
-                              <div style={{ width: 36, height: 36, borderRadius: 8, background: kycUpdateForm.orgTaxIdFile ? 'var(--ok)' : 'var(--surface-3)', color: kycUpdateForm.orgTaxIdFile ? 'white' : 'var(--ink-3)', display: 'grid', placeItems: 'center' }}>
-                                <Icon name={kycUpdateForm.orgTaxIdFile ? 'check' : 'attach'} size={14} />
-                              </div>
-                              <div>
-                                <div className="fw-6 text-sm" style={{ color: kycUpdateForm.orgTaxIdFile ? 'var(--ok)' : 'var(--ink)' }}>{kycUpdateForm.orgTaxIdFile ? kycUpdateForm.orgTaxIdFile.name : 'Tax Registration'}</div>
-                                <div className="text-xs text-mute">{me.org_tax_id_url ? 'Current: Uploaded' : 'Not uploaded'}</div>
-                              </div>
-                            </button>
+                          <div className="grid-2" style={{ gap: 10, marginTop: 10 }}>
+                            <div>
+                              <input type="file" accept="image/*,.pdf" onChange={(e) => handleFileUpload('dirIdFile', e.target.files?.[0] || null)} style={{ display: 'none' }} id="modal-upload-dir-id" />
+                              <button type="button" onClick={() => document.getElementById('modal-upload-dir-id')?.click()} style={{
+                                padding: '14px 16px', border: `1.5px dashed ${kycUpdateForm.dirIdFile ? 'var(--ok)' : 'var(--line-strong)'}`,
+                                background: kycUpdateForm.dirIdFile ? 'var(--ok-soft)' : 'var(--surface-2)', borderRadius: 8,
+                                display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', width: '100%', textAlign: 'left',
+                              }}>
+                                <div style={{ width: 36, height: 36, borderRadius: 8, background: kycUpdateForm.dirIdFile ? 'var(--ok)' : 'var(--surface-3)', color: kycUpdateForm.dirIdFile ? 'white' : 'var(--ink-3)', display: 'grid', placeItems: 'center' }}>
+                                  <Icon name={kycUpdateForm.dirIdFile ? 'check' : 'attach'} size={14} />
+                                </div>
+                                <div>
+                                  <div className="fw-6 text-sm" style={{ color: kycUpdateForm.dirIdFile ? 'var(--ok)' : 'var(--ink)' }}>{kycUpdateForm.dirIdFile ? kycUpdateForm.dirIdFile.name : 'Director\'s ID'}</div>
+                                  <div className="text-xs text-mute">{me.director_id_url ? 'Current: Uploaded' : 'Not uploaded'}</div>
+                                </div>
+                              </button>
+                            </div>
+                            <div />
                           </div>
-                        </div>
+                        </>
                       )}
                     </div>
 

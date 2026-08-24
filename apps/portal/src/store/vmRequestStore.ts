@@ -1,6 +1,7 @@
 import React, { useState, useCallback, createContext, useContext, type ReactNode, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { createAlert } from '../services/notificationService'
+import { sendProvisioningCompletedEmail } from '../services/emailService'
 import useActivityStore from './activityStore'
 
 export interface VMRequest {
@@ -8,7 +9,7 @@ export interface VMRequest {
   customer_id: string
   request_type: 'trial' | 'paid'
   hostname: string
-  purpose: string
+  purpose?: string
   vcpu: number
   ram_gb: number
   storage: number
@@ -28,7 +29,7 @@ export interface VMRequest {
   firewall_outbound_custom_ports: string[]
   backup_enabled: boolean
   backup_type: string
-  notes: string
+  notes?: string
   task_type: 'New' | 'Upgrade' | 'Renewal' | 'Terminate' | 'change-plan'
   status: string
   created_at: string
@@ -37,6 +38,7 @@ export interface VMRequest {
   assigned_to: string | null
   spec_changed?: boolean
   backup_changed?: boolean
+  vm_id?: string
 }
 
 export interface VMRequestStoreValue {
@@ -199,31 +201,114 @@ export const VMRequestProvider: React.FC<{ children: ReactNode }> = ({ children 
             actorId = user.id
           }
         }
-        
+
         await logActivity(
           `Changed VM request ${previousRequest.hostname} status from ${previousRequest.status} to ${patch.status}`,
           'task',
           actorName,
           { vmRequestId: id, hostname: previousRequest.hostname, previousStatus: previousRequest.status, newStatus: patch.status, customerId: previousRequest.customer_id }
         )
-        
-        await createAlert({
-          sev: 'info',
-          title: 'VM Request Status Changed',
-          body: `VM request for ${previousRequest.hostname} status changed from ${previousRequest.status} to ${patch.status}`,
-          type: 'vm',
-          related_entity_id: id,
-          related_entity_type: 'vm_request',
-          actor_id: actorId,
-          actor_name: actorName,
-          customer_id: previousRequest.customer_id,
-          metadata: {
-            hostname: previousRequest.hostname,
-            previous_status: previousRequest.status,
-            new_status: patch.status,
-            customer_id: previousRequest.customer_id
+
+        // Send email only for Completed status, dashboard notification for other statuses
+        if (patch.status === 'Completed') {
+          // Get customer email
+          const { data: customer } = await supabase
+            .from('customers')
+            .select('email, name')
+            .eq('id', previousRequest.customer_id)
+            .single()
+
+          if (customer) {
+            // Check if this is a trial to paid conversion
+            const isTrialToPaid = previousRequest.purpose?.includes('Convert trial to paid') || 
+                                 previousRequest.notes?.includes('Trial to paid conversion')
+
+            let requestType: string
+            if (isTrialToPaid) {
+              requestType = 'Trial to Paid Conversion'
+            } else {
+              requestType = previousRequest.task_type === 'change-plan' ? 'Change Plan' :
+                            previousRequest.task_type === 'Renewal' ? 'Renewal' :
+                            previousRequest.task_type === 'Upgrade' ? 'Upgrade' : 'New VM'
+            }
+
+            // Get VM data for all request types
+            let vmLegacyId: string | undefined
+            let vmPublicIp: string | undefined
+            if (isTrialToPaid && previousRequest.notes) {
+              // Extract VM legacy_id from notes for trial to paid conversion
+              const match = previousRequest.notes.match(/VM:\s*([A-Z0-9-]+)/)
+              vmLegacyId = match ? match[1] : undefined
+            }
+            if (previousRequest.vm_id) {
+              const { data: vm } = await supabase
+                .from('vms')
+                .select('legacy_id, public_ip')
+                .eq('id', previousRequest.vm_id)
+                .maybeSingle()
+              if (vm) {
+                if (!vmLegacyId) vmLegacyId = vm.legacy_id
+                vmPublicIp = vm.public_ip || undefined
+              }
+            }
+
+            try {
+              await sendProvisioningCompletedEmail({
+                to: customer.email,
+                customerName: customer.name,
+                requestType: requestType,
+                hostname: previousRequest.hostname,
+                requestId: previousRequest.legacy_id,
+                completionDate: new Date().toISOString(),
+                vmLegacyId: vmLegacyId,
+                vmName: previousRequest.hostname,
+                serviceId: vmLegacyId,
+                ipAddress: vmPublicIp
+              })
+            } catch (emailError) {
+              console.error('Failed to send provisioning completion email:', emailError)
+              // Don't throw error - email failure shouldn't block the status update
+            }
           }
-        })
+
+          // Also create dashboard notification for Completed status
+          await createAlert({
+            sev: 'info',
+            title: 'VM Request Status Changed',
+            body: `VM request for ${previousRequest.hostname} status changed from ${previousRequest.status} to ${patch.status}`,
+            type: 'vm',
+            related_entity_id: id,
+            related_entity_type: 'vm_request',
+            actor_id: actorId,
+            actor_name: actorName,
+            customer_id: previousRequest.customer_id,
+            metadata: {
+              hostname: previousRequest.hostname,
+              previous_status: previousRequest.status,
+              new_status: patch.status,
+              customer_id: previousRequest.customer_id
+            }
+          })
+        } else {
+          // For non-Completed statuses, only send dashboard notification
+          await createAlert({
+            sev: 'info',
+            title: 'VM Request Status Changed',
+            body: `VM request for ${previousRequest.hostname} status changed from ${previousRequest.status} to ${patch.status}`,
+            type: 'vm',
+            related_entity_id: id,
+            related_entity_type: 'vm_request',
+            actor_id: actorId,
+            actor_name: actorName,
+            customer_id: previousRequest.customer_id,
+            metadata: {
+              hostname: previousRequest.hostname,
+              previous_status: previousRequest.status,
+              new_status: patch.status,
+              customer_id: previousRequest.customer_id
+            }
+          })
+        }
       }
     } else {
       console.error('Error updating vm_request:', error)

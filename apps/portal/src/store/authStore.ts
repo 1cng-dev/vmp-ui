@@ -4,6 +4,7 @@ import { uploadKYCDocument } from '../lib/storage'
 import type { Customer } from '../types'
 import { createAlert } from '../services/notificationService'
 import useActivityStore from './activityStore'
+import { sendSignupEmail } from '../services/emailService'
 
 export interface AuthUser {
   id: string
@@ -184,6 +185,13 @@ const useAuthStore = (): AuthStoreValue => {
           { customerId: customerData.id, customerName: data.name, email: data.email, accountType: data.type, kycStatus: 'Pending' }
         )
 
+        // Send signup success email to customer
+        await sendSignupEmail({
+          to: data.email,
+          customerName: data.name,
+          accountType: data.type,
+          email: data.email
+        })
         return { success: true, customerId: customerData.legacy_id || customerData.id }
       }
 

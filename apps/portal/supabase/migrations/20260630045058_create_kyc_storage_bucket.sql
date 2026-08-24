@@ -8,7 +8,20 @@ create policy "Users can upload their own KYC documents"
 on storage.objects for insert
 to authenticated
 with check (
-  bucket_id = 'kyc-documents' 
+  bucket_id = 'kyc-documents'
+  and auth.uid()::text = (storage.foldername(name))[1]
+);
+
+-- Allow authenticated users to update their own KYC documents
+create policy "Users can update their own KYC documents"
+on storage.objects for update
+to authenticated
+using (
+  bucket_id = 'kyc-documents'
+  and auth.uid()::text = (storage.foldername(name))[1]
+)
+with check (
+  bucket_id = 'kyc-documents'
   and auth.uid()::text = (storage.foldername(name))[1]
 );
 

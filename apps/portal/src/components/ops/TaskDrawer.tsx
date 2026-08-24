@@ -860,11 +860,17 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                     newExpiry.setDate(newExpiry.getDate() + 1) // Add 1 day to expiry
 
                                     // Build duration string
+                                    const monthText = durationMonths > 0 ? `${durationMonths} month${durationMonths > 1 ? 's' : ''}` : ''
+                                    const dayText = durationDays > 0 ? `${durationDays} day${durationDays > 1 ? 's' : ''}` : ''
                                     let durationString: string
-                                    if (durationDays > 0) {
-                                      durationString = `${durationMonths} months ${durationDays} days`
+                                    if (monthText && dayText) {
+                                      durationString = `${monthText} ${dayText}`
+                                    } else if (monthText) {
+                                      durationString = monthText
+                                    } else if (dayText) {
+                                      durationString = dayText
                                     } else {
-                                      durationString = `${durationMonths} months`
+                                      durationString = '0 days'
                                     }
 
                                     // Check if addon service exists
@@ -872,6 +878,9 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                       .from('addon_services')
                                       .select('*')
                                       .eq('vm_id', vmId)
+                                      .neq('operational_status', 'Terminated')
+                                      .order('created_at', { ascending: false })
+                                      .limit(1)
                                       .maybeSingle()
 
                                     if (existingService) {

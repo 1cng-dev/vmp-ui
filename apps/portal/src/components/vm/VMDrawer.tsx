@@ -68,7 +68,7 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
 
   const handleActivate = async () => {
     // Activate the VM and set power state to Running
-    updateVM(v.id, { status: 'Active' as any, power_state: 'Running' as any })
+    await updateVM(v.id, { status: 'Active' as any, power_state: 'Running' as any })
 
     // Reactivate associated addon services (including terminated ones)
     for (const addon of allAddonServices) {
@@ -83,6 +83,22 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
       : `VM ${v.hostname} activated`
 
     toast(message, 'ok')
+
+    // Send email notification to customer
+    try {
+      if (c?.email) {
+        const { sendVMActivatedEmail } = await import('../../services/emailService')
+        await sendVMActivatedEmail({
+          to: c.email,
+          customerName: c.name || c.org_name || 'Customer',
+          hostname: v.hostname,
+          vmId: v.legacy_id || v.id,
+          activationDate: new Date().toISOString()
+        })
+      }
+    } catch (emailError) {
+      console.error('Failed to send activation email:', emailError)
+    }
   }
 
   return (

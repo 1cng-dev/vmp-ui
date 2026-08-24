@@ -11,24 +11,136 @@ interface AddonServicesListProps {
 }
 
 const AddonServicesList: React.FC<AddonServicesListProps> = ({ userRole }) => {
-  const { addonServices, addonServicesLoading, loadAddonServices, updateAddonService } = useAddonServiceStore()
+  const { addonServices, addonServicesLoading, loadAddonServices, updateAddonService, deleteAddonService } = useAddonServiceStore()
   const { vms } = useVMStore()
   const { customers } = useCustomerStore()
   const { toast } = useUIStore()
   const [filter, setFilter] = useState<Set<string>>(new Set(['all']))
   const [search, setSearch] = useState('')
   const [menu, setMenu] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<{ show: boolean, addon: any } | null>(null)
+  const [confirmTerminate, setConfirmTerminate] = useState<{ show: boolean, addon: any } | null>(null)
+  const [deleteInput, setDeleteInput] = useState('')
+  const [terminateInput, setTerminateInput] = useState('')
 
-  const handleTerminate = async (addon: any) => {
-    await updateAddonService(addon.id, { operational_status: 'Terminated' })
-    toast(`Add-on service ${addon.legacy_id || addon.id} terminated`, 'warn')
+  const getCustomerForAddon = (addon: any) => {
+    const vm = vms.find(v => v.id === addon.vm_id)
+    return vm ? customers.find(c => c.id === vm.customer_id) : null
+  }
+
+  const getServicesText = (addon: any) => {
+    const services: string[] = []
+    if (addon.cpfs_enabled) services.push(`CPFS (${addon.cpfs_package})`)
+    if (addon.ccis_enabled) services.push(`CCIS (${addon.ccis_package})`)
+    return services.join(', ') || '—'
+  }
+
+  const handleTerminate = (addon: any) => {
     setMenu(null)
+    setTerminateInput('')
+    setConfirmTerminate({ show: true, addon })
+  }
+
+  const submitTerminate = async () => {
+    if (!confirmTerminate?.addon) return
+    const addon = confirmTerminate.addon
+    const confirmId = addon.legacy_id || addon.id
+    if (terminateInput !== confirmId) return
+
+    try {
+      await updateAddonService(addon.id, { operational_status: 'Terminated' })
+      toast(`Add-on service ${confirmId} terminated`, 'warn')
+      setConfirmTerminate(null)
+    } catch (error: any) {
+      toast(error?.message || 'Failed to terminate add-on service', 'error')
+      return
+    }
+
+    const customer = getCustomerForAddon(addon)
+    try {
+      if (customer?.email) {
+        const { sendAddonServiceTerminatedEmail } = await import('../services/emailService')
+        const vm = vms.find(v => v.id === addon.vm_id)
+        await sendAddonServiceTerminatedEmail({
+          to: customer.email,
+          customerName: customer.name || customer.org_name || 'Customer',
+          serviceId: addon.legacy_id || addon.id,
+          vmId: vm?.legacy_id || vm?.id || 'Unknown',
+          vmHostname: vm?.hostname || 'Unknown VM',
+          services: getServicesText(addon),
+          terminationDate: new Date().toISOString()
+        })
+      }
+    } catch (emailError) {
+      console.error('Failed to send add-on termination email:', emailError)
+    }
   }
 
   const handleActivate = async (addon: any) => {
-    await updateAddonService(addon.id, { operational_status: 'Active' })
-    toast(`Add-on service ${addon.legacy_id || addon.id} activated`, 'ok')
+    try {
+      await updateAddonService(addon.id, { operational_status: 'Active' })
+      toast(`Add-on service ${addon.legacy_id || addon.id} activated`, 'ok')
+      setMenu(null)
+    } catch (error: any) {
+      toast(error?.message || 'Failed to activate add-on service', 'error')
+      return
+    }
+
+    const customer = getCustomerForAddon(addon)
+    try {
+      if (customer?.email) {
+        const { sendAddonServiceActivatedEmail } = await import('../services/emailService')
+        await sendAddonServiceActivatedEmail({
+          to: customer.email,
+          customerName: customer.name || customer.org_name || 'Customer',
+          serviceId: addon.legacy_id || addon.id,
+          vmHostname: vms.find(v => v.id === addon.vm_id)?.hostname || 'Unknown VM',
+          services: getServicesText(addon),
+          activationDate: new Date().toISOString()
+        })
+      }
+    } catch (emailError) {
+      console.error('Failed to send add-on activation email:', emailError)
+    }
+  }
+
+  const handleDelete = (addon: any) => {
     setMenu(null)
+    setDeleteInput('')
+    setConfirmDelete({ show: true, addon })
+  }
+
+  const submitDelete = async () => {
+    if (!confirmDelete?.addon) return
+    const addon = confirmDelete.addon
+    const confirmId = addon.legacy_id || addon.id
+    if (deleteInput !== confirmId) return
+
+    try {
+      await deleteAddonService(addon.id)
+      toast(`Add-on service ${confirmId} permanently deleted`, 'bad')
+      setConfirmDelete(null)
+    } catch (error: any) {
+      toast(error?.message || 'Failed to delete add-on service', 'error')
+      return
+    }
+
+    const customer = getCustomerForAddon(addon)
+    try {
+      if (customer?.email) {
+        const { sendAddonServiceDeletedEmail } = await import('../services/emailService')
+        await sendAddonServiceDeletedEmail({
+          to: customer.email,
+          customerName: customer.name || customer.org_name || 'Customer',
+          serviceId: addon.legacy_id || addon.id,
+          vmHostname: vms.find(v => v.id === addon.vm_id)?.hostname || 'Unknown VM',
+          services: getServicesText(addon),
+          deletionDate: new Date().toISOString()
+        })
+      }
+    } catch (emailError) {
+      console.error('Failed to send add-on deletion email:', emailError)
+    }
   }
 
   // Ensure addon services are loaded when this page is opened
@@ -42,7 +154,6 @@ const AddonServicesList: React.FC<AddonServicesListProps> = ({ userRole }) => {
     { id: 'all', label: 'All', count: addonServices.length },
     { id: 'Active', label: 'Active', count: addonServices.filter(a => a.operational_status === 'Active').length },
     { id: 'Terminated', label: 'Terminated', count: addonServices.filter(a => a.operational_status === 'Terminated').length },
-    { id: 'Expired', label: 'Expired', count: addonServices.filter(a => a.operational_status === 'Expired').length },
   ]
 
   const filtered = addonServices.filter(a => {
@@ -50,7 +161,6 @@ const AddonServicesList: React.FC<AddonServicesListProps> = ({ userRole }) => {
     const matches = []
     if (filter.has('Active')) matches.push(a.operational_status === 'Active')
     if (filter.has('Terminated')) matches.push(a.operational_status === 'Terminated')
-    if (filter.has('Expired')) matches.push(a.operational_status === 'Expired')
     return matches.length > 0 && matches.every(m => m === true)
   }).filter(a => {
     if (!search) return true
@@ -234,7 +344,10 @@ const AddonServicesList: React.FC<AddonServicesListProps> = ({ userRole }) => {
                         {a.operational_status === 'Active' && userRole !== 'Sales' ? (
                           <button className="nav-item" onClick={() => { handleTerminate(a); }}><Icon name="trash" size={13} />Terminate</button>
                         ) : (
-                          a.operational_status !== 'Active' && <button className="nav-item" onClick={() => { handleActivate(a); }}><Icon name="play" size={13} />Activate</button>
+                          <>
+                            {a.operational_status !== 'Active' && <button className="nav-item" onClick={() => { handleActivate(a); }}><Icon name="play" size={13} />Activate</button>}
+                            {a.operational_status === 'Terminated' && userRole !== 'Sales' && <button className="nav-item" onClick={() => { handleDelete(a); }}><Icon name="trash" size={13} />Delete</button>}
+                          </>
                         )}
                       </div>
                     )}
@@ -246,6 +359,69 @@ const AddonServicesList: React.FC<AddonServicesListProps> = ({ userRole }) => {
           </tbody>
         </table>
       </div>
+      {confirmTerminate?.show && (
+        <div className="modal-overlay" onClick={() => setConfirmTerminate(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+            <div className="modal-head">
+              <h3 style={{ margin: 0, fontSize: 16, color: 'var(--bad)' }}>Terminate {confirmTerminate.addon.legacy_id || confirmTerminate.addon.id}</h3>
+              <button className="icon-btn" onClick={() => setConfirmTerminate(null)}><Icon name="x" size={14} /></button>
+            </div>
+            <div className="modal-body">
+              <div style={{ padding: 14, background: 'var(--warn-soft)', borderRadius: 8, marginBottom: 16 }}>
+                <div className="flex gap-2">
+                  <Icon name="alert" size={18} style={{ color: 'var(--bad)' }} />
+                  <div>
+                    <div className="fw-7 text-sm" style={{ color: 'var(--bad)' }}>Add-on service will be terminated</div>
+                    <div className="text-xs text-mute mt-1">Service status will be changed to Terminated. The record will be retained.</div>
+                  </div>
+                </div>
+              </div>
+              <div className="field">
+                <label>Type the add-on service ID to confirm</label>
+                <input value={terminateInput} onChange={e => setTerminateInput(e.target.value)} placeholder={confirmTerminate.addon.legacy_id || confirmTerminate.addon.id} />
+              </div>
+            </div>
+            <div className="modal-foot">
+              <button className="btn ghost" onClick={() => setConfirmTerminate(null)}>Cancel</button>
+              <button className="btn" disabled={terminateInput !== (confirmTerminate.addon.legacy_id || confirmTerminate.addon.id)} onClick={submitTerminate}>
+                <Icon name="trash" size={12} />Terminate Add-on Service
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDelete?.show && (
+        <div className="modal-overlay" onClick={() => setConfirmDelete(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+            <div className="modal-head">
+              <h3 style={{ margin: 0, fontSize: 16, color: 'var(--bad)' }}>Delete {confirmDelete.addon.legacy_id || confirmDelete.addon.id}</h3>
+              <button className="icon-btn" onClick={() => setConfirmDelete(null)}><Icon name="x" size={14} /></button>
+            </div>
+            <div className="modal-body">
+              <div style={{ padding: 14, background: 'var(--bad-soft)', borderRadius: 8, marginBottom: 16 }}>
+                <div className="flex gap-2">
+                  <Icon name="alert" size={18} style={{ color: 'var(--bad)' }} />
+                  <div>
+                    <div className="fw-7 text-sm" style={{ color: 'var(--bad)' }}>This action cannot be undone</div>
+                    <div className="text-xs text-mute mt-1">Add-on service will be permanently deleted from the database.</div>
+                  </div>
+                </div>
+              </div>
+              <div className="field">
+                <label>Type the add-on service ID to confirm</label>
+                <input value={deleteInput} onChange={e => setDeleteInput(e.target.value)} placeholder={confirmDelete.addon.legacy_id || confirmDelete.addon.id} />
+              </div>
+            </div>
+            <div className="modal-foot">
+              <button className="btn ghost" onClick={() => setConfirmDelete(null)}>Cancel</button>
+              <button className="btn danger" disabled={deleteInput !== (confirmDelete.addon.legacy_id || confirmDelete.addon.id)} onClick={submitDelete}>
+                <Icon name="x" size={12} />Delete Add-on Service
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

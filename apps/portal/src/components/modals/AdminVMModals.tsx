@@ -634,6 +634,7 @@ interface TerminateModalProps {
 const TerminateModal: React.FC<TerminateModalProps> = ({ vm, onClose }) => {
   const { updateVM } = useVMStore()
   const { getAddonServicesForVM, updateAddonService } = useAddonServiceStore()
+  const { customers } = useCustomerStore()
   const { toast } = useUIStore()
   const [inputValue, setInputValue] = useState('')
 
@@ -645,21 +646,45 @@ const TerminateModal: React.FC<TerminateModalProps> = ({ vm, onClose }) => {
 
     const addonServices = getAddonServicesForVM(vm.id)
 
-    // Terminate the VM
-    updateVM(vm.id, { status: 'Terminated' as any, power_state: 'Stopped' as any })
+    try {
+      // Terminate the VM
+      await updateVM(vm.id, { status: 'Terminated' as any, power_state: 'Stopped' as any })
 
-    // Terminate associated addon services
-    for (const addon of addonServices) {
-      await updateAddonService(addon.id, { operational_status: 'Terminated' })
+      // Terminate associated addon services
+      for (const addon of addonServices) {
+        await updateAddonService(addon.id, { operational_status: 'Terminated' })
+      }
+
+      const addonCount = addonServices.length
+      const message = addonCount > 0
+        ? `VM ${vmName} terminated with ${addonCount} associated add-on service(s)`
+        : `VM ${vmName} terminated`
+
+      toast(message, 'warn')
+
+      // Send email notification to customer
+      try {
+        const customer = customers.find((c: any) => c.id === (vm as any).customer_id)
+        if (customer?.email) {
+          const { sendVMTerminatedEmail } = await import('../../services/emailService')
+          await sendVMTerminatedEmail({
+            to: customer.email,
+            customerName: customer.name || customer.org_name || 'Customer',
+            hostname: vmName,
+            vmId: (vm as any).legacy_id || vm.id,
+            terminationDate: new Date().toISOString(),
+            serviceType: (vm as any).request_type === 'trial' ? 'Trial' : 'Paid'
+          })
+        }
+      } catch (emailError) {
+        console.error('Failed to send termination email:', emailError)
+      }
+
+      onClose()
+    } catch (error) {
+      console.error('Error during termination process:', error)
+      toast('Failed to terminate VM', 'error')
     }
-
-    const addonCount = addonServices.length
-    const message = addonCount > 0
-      ? `VM ${vmName} terminated with ${addonCount} associated add-on service(s)`
-      : `VM ${vmName} terminated`
-
-    toast(message, 'warn')
-    onClose()
   }
 
   return (
@@ -703,6 +728,7 @@ interface DeleteModalProps {
 
 const DeleteModal: React.FC<DeleteModalProps> = ({ vm, onClose }) => {
   const { deleteVM } = useVMStore()
+  const { customers } = useCustomerStore()
   const { toast } = useUIStore()
   const navigate = useNavigate()
   const [inputValue, setInputValue] = useState('')
@@ -716,6 +742,24 @@ const DeleteModal: React.FC<DeleteModalProps> = ({ vm, onClose }) => {
     try {
       await deleteVM(vm.id)
       toast(`VM ${vmName} permanently deleted`, 'bad')
+
+      // Send email notification to customer
+      try {
+        const customer = customers.find((c: any) => c.id === (vm as any).customer_id)
+        if (customer?.email) {
+          const { sendVMDeletedEmail } = await import('../../services/emailService')
+          await sendVMDeletedEmail({
+            to: customer.email,
+            customerName: customer.name || customer.org_name || 'Customer',
+            hostname: vmName,
+            vmId: (vm as any).legacy_id || vm.id,
+            deletionDate: new Date().toISOString()
+          })
+        }
+      } catch (emailError) {
+        console.error('Failed to send deletion email:', emailError)
+      }
+
       onClose()
       navigate('/admin/vms', { replace: true })
     } catch (error: any) {
