@@ -444,13 +444,15 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, userRole }) => {
                               const legacyId = `RCT-${Math.floor(1000 + Math.random() * 9000)}`
                               
                               // Send receipt email
+                              const pdfAttachmentBase64 = i.pdf_path ? await (await import('../lib/storage')).fetchPDFAsBase64(i.pdf_path) : undefined
                               await sendReceiptEmail({
                                 to: c?.email || '',
                                 customerName: c?.name || 'Customer',
                                 invoiceId: i.legacy_id || i.id,
                                 receiptNumber: i.receipt || legacyId,
                                 amount: i.gross_amount,
-                                paidDate: i.paid_date ? new Date(i.paid_date).toLocaleDateString() : new Date().toLocaleDateString()
+                                paidDate: i.paid_date ? new Date(i.paid_date).toLocaleDateString() : new Date().toLocaleDateString(),
+                                pdfAttachmentBase64
                               })
                               
                               toast('Receipt email sent successfully', 'ok')

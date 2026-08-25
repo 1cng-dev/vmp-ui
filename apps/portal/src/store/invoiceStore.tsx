@@ -4,6 +4,7 @@ import type { DBInvoice, NewInvoiceInput } from '../types'
 import { createAlert } from '../services/notificationService'
 import { sendInvoiceEmail } from '../services/emailService'
 import { generateInvoicePDFBase64 } from '../lib/pdfExport'
+import { uploadInvoicePDF } from '../lib/storage'
 import useActivityStore from './activityStore'
 import useAddonRequestStore from './addonRequestStore'
 
@@ -153,13 +154,40 @@ export const InvoiceProvider: React.FC<{ children: ReactNode }> = ({ children })
       ? `${customer.name} (${customer.org_name})`
       : (customer?.name || 'Unknown')
 
-    // Send invoice email to customer with PDF attachment
-    if (customer?.email) {
-      let pdfAttachmentBase64: string | undefined
+    // Generate and upload PDF to storage
+    let pdfPublicUrl: string | undefined
+    let pdfAttachmentBase64: string | undefined
+    try {
+      pdfAttachmentBase64 = await generateInvoicePDFBase64(invoice, customer)
+      if (pdfAttachmentBase64) {
+        pdfPublicUrl = await uploadInvoicePDF(pdfAttachmentBase64, invoice.legacy_id || invoice.id)
+        // Update invoice with pdf_path
+        await supabase.from('invoices').update({ pdf_path: pdfPublicUrl }).eq('id', invoice.id)
+      }
+    } catch (err) {
+      console.error('Failed to generate or upload invoice PDF:', err)
+    }
+
+    // Send invoice email to customer with PDF attachment from storage
+    if (customer?.email && pdfPublicUrl) {
+      // Fetch PDF from storage and convert to base64 for email attachment
       try {
-        pdfAttachmentBase64 = await generateInvoicePDFBase64(invoice, customer)
+        const pdfResponse = await fetch(pdfPublicUrl)
+        if (pdfResponse.ok) {
+          const pdfBlob = await pdfResponse.blob()
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onloadend = () => {
+              const dataUrl = reader.result as string
+              resolve(dataUrl.replace(/^data:application\/pdf;base64,/, ''))
+            }
+            reader.onerror = reject
+            reader.readAsDataURL(pdfBlob)
+          })
+          pdfAttachmentBase64 = base64
+        }
       } catch (err) {
-        console.error('Failed to generate invoice PDF for email attachment:', err)
+        console.error('Failed to fetch PDF from storage for email:', err)
       }
 
       await sendInvoiceEmail({

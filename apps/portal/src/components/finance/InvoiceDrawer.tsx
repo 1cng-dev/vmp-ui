@@ -5,6 +5,7 @@ import useUIStore from '../../store/uiStore'
 import useActivityStore from '../../store/activityStore'
 import { useSystemSettingsStore } from '../../store/systemSettingsStore'
 import { sendReceiptEmail } from '../../services/emailService'
+import { fetchPDFAsBase64 } from '../../lib/storage'
 import Icon from '../../lib/icons'
 import { StatusPill, formatMMK } from '../ui/ui'
 import { exportInvoiceToPDFAuto } from '../../lib/pdfExport'
@@ -91,13 +92,15 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
         <div className="page-actions">
           <button className="btn" onClick={() => setShowPDFDownloadConfirm(true)}><Icon name="download" size={12} />PDF</button>
           {live.status === 'Payment Received' && role !== 'Sales' && <button className="btn" onClick={async () => {
+            const pdfAttachmentBase64 = live.pdf_path ? await fetchPDFAsBase64(live.pdf_path) : undefined
             await sendReceiptEmail({
               to: c.email,
               customerName: c.name,
               invoiceId: live.legacy_id || live.id,
               receiptNumber: live.receipt || `RCT-${live.id.slice(0, 8)}`,
               amount: live.gross_amount,
-              paidDate: live.paid_date ? new Date(live.paid_date).toLocaleDateString() : new Date().toLocaleDateString()
+              paidDate: live.paid_date ? new Date(live.paid_date).toLocaleDateString() : new Date().toLocaleDateString(),
+              pdfAttachmentBase64
             })
             toast('Receipt email sent successfully', 'ok')
           }}><Icon name="mail" size={12} />Send Receipt</button>}

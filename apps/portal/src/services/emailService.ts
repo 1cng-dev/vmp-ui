@@ -34,6 +34,7 @@ interface ReceiptEmailParams {
   receiptNumber: string
   amount: number
   paidDate: string
+  pdfAttachmentBase64?: string
 }
 
 interface AnnouncementEmailParams {
@@ -331,7 +332,12 @@ export async function sendReceiptEmail(params: ReceiptEmailParams) {
   return await callResendAPI({
     to: params.to,
     subject: `Payment Receipt - ${params.receiptNumber}`,
-    html
+    html,
+    attachments: params.pdfAttachmentBase64 ? [{
+      filename: `invoice-${params.invoiceId}.pdf`,
+      content: params.pdfAttachmentBase64,
+      contentDisposition: 'attachment'
+    }] : undefined
   })
 }
 
@@ -348,10 +354,8 @@ function buildReceiptEmailTemplate(params: ReceiptEmailParams): string {
       <meta charset="utf-8">
       <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; text-align: left; }
-        .container { max-width: 600px; margin: 0; padding: 20px; text-align: left; }
+        .container { margin: 0; padding: 20px; text-align: left; }
         .content { padding: 20px; text-align: left; }
-        .footer { padding: 20px; text-align: left; font-size: 12px; color: #666; }
-        .info-box { margin: 0; text-align: left; }
       </style>
     </head>
     <body>
@@ -359,17 +363,12 @@ function buildReceiptEmailTemplate(params: ReceiptEmailParams): string {
         <div class="content">
           <p>Dear Valued Customer,</p>
           <p>This is to notify you that your Payment has been successfully processed. Please find the transaction details below for your reference.</p>
-          <div class="info-box">
-            <p><strong>Amount:</strong> ${formattedAmount}</p>
-            <p><strong>Invoice Number:</strong> ${params.invoiceId}</p>
-          </div>
+          <p><strong>Amount:</strong> ${formattedAmount}</p>
+          <p><strong>Invoice Number:</strong> ${params.invoiceId}</p>
           <p>If you have any questions, please don't hesitate to contact us at finance@1cloudng.com</p>
-        </div>
-        <div class="footer">
-          <p>Best Regards,<br>
-          One Cloud Next-Gen Co., Ltd<br>
-          support@system.1cloudng.com<br>
-          <img src="https://i.ibb.co/3mxXtQ8d/logo.png" alt="Company Logo" style="width: 150px; height: auto; margin-top: 10px;"></p>
+          <p>Thanks,</p>
+          <p>One Cloud Next-Gen</p>
+          <img src="https://i.ibb.co/3mxXtQ8d/logo.png" alt="Company Logo" style="width: 150px; height: auto; margin-top: 10px;">
         </div>
       </div>
     </body>

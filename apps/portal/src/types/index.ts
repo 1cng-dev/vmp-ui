@@ -360,6 +360,7 @@ export interface DBInvoice {
   billing_term: string | null;
   line_items: any[];
   payment_proof?: string;
+  pdf_path?: string;
   created_at: string;
   updated_at: string;
 }

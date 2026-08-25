@@ -1,5 +1,16 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer)
+  const chunkSize = 32766 // multiple of 3 to avoid base64 padding in middle
+  let base64 = ''
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize)
+    base64 += btoa(String.fromCharCode(...chunk))
+  }
+  return base64
+}
+
 Deno.serve(async (req) => {
   try {
     // Create Supabase client
@@ -118,7 +129,8 @@ Deno.serve(async (req) => {
           customerName: customer.name,
           invoiceId: invoice.legacy_id || invoice.id,
           amount: invoice.gross_amount,
-          dueDate: invoice.due
+          dueDate: invoice.due,
+          pdfPath: invoice.pdf_path
         })
       }
     }
@@ -146,6 +158,7 @@ async function sendOverdueEmail(params: {
   invoiceId: string
   amount: number
   dueDate: string
+  pdfPath?: string
 }) {
   const resendApiKey = Deno.env.get('RESEND_API_KEY')
   const fromEmail = Deno.env.get('RESEND_FROM_EMAIL')
@@ -153,19 +166,42 @@ async function sendOverdueEmail(params: {
 
   const html = buildOverdueEmailTemplate(params)
 
+  // Fetch PDF from storage if available
+  let attachment
+  if (params.pdfPath) {
+    try {
+      const pdfResponse = await fetch(params.pdfPath)
+      if (pdfResponse.ok) {
+        const pdfBuffer = await pdfResponse.arrayBuffer()
+        attachment = [{
+          filename: `invoice-${params.invoiceId}.pdf`,
+          content: arrayBufferToBase64(pdfBuffer),
+          contentDisposition: 'attachment'
+        }]
+      }
+    } catch (err) {
+      console.error('Failed to fetch PDF from storage:', err)
+    }
+  }
+
   try {
+    const body: any = {
+      from: `${fromName} <${fromEmail}>`,
+      to: params.to,
+      subject: `Invoice Overdue - ${params.invoiceId}`,
+      html: html
+    }
+    if (attachment) {
+      body.attachments = attachment
+    }
+
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${resendApiKey}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        from: `${fromName} <${fromEmail}>`,
-        to: params.to,
-        subject: `Invoice Overdue - ${params.invoiceId}`,
-        html: html
-      })
+      body: JSON.stringify(body)
     })
 
     if (!response.ok) {
