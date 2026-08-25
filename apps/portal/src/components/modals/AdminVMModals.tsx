@@ -637,12 +637,14 @@ const TerminateModal: React.FC<TerminateModalProps> = ({ vm, onClose }) => {
   const { customers } = useCustomerStore()
   const { toast } = useUIStore()
   const [inputValue, setInputValue] = useState('')
+  const [isTerminating, setIsTerminating] = useState(false)
 
   const vmName = (vm as any).hostname || vm.name
   const isConfirmed = inputValue === vmName
 
   const submit = async () => {
     if (!isConfirmed) return
+    setIsTerminating(true)
 
     const addonServices = getAddonServicesForVM(vm.id)
 
@@ -680,10 +682,12 @@ const TerminateModal: React.FC<TerminateModalProps> = ({ vm, onClose }) => {
         console.error('Failed to send termination email:', emailError)
       }
 
+      setIsTerminating(false)
       onClose()
     } catch (error) {
       console.error('Error during termination process:', error)
       toast('Failed to terminate VM', 'error')
+      setIsTerminating(false)
     }
   }
 
@@ -711,8 +715,8 @@ const TerminateModal: React.FC<TerminateModalProps> = ({ vm, onClose }) => {
         </div>
         <div className="modal-foot">
           <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <button className="btn" disabled={!isConfirmed} onClick={submit}>
-            <Icon name="trash" size={12} />Terminate VM
+          <button className="btn" disabled={!isConfirmed || isTerminating} onClick={submit}>
+            {isTerminating ? 'Terminating…' : <><Icon name="trash" size={12} />Terminate VM</>}
           </button>
         </div>
       </div>
@@ -732,12 +736,14 @@ const DeleteModal: React.FC<DeleteModalProps> = ({ vm, onClose }) => {
   const { toast } = useUIStore()
   const navigate = useNavigate()
   const [inputValue, setInputValue] = useState('')
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const vmName = (vm as any).hostname || vm.name
   const isConfirmed = inputValue === vmName
 
   const submit = async () => {
     if (!isConfirmed) return
+    setIsDeleting(true)
 
     try {
       await deleteVM(vm.id)
@@ -760,10 +766,12 @@ const DeleteModal: React.FC<DeleteModalProps> = ({ vm, onClose }) => {
         console.error('Failed to send deletion email:', emailError)
       }
 
+      setIsDeleting(false)
       onClose()
       navigate('/admin/vms', { replace: true })
     } catch (error: any) {
       toast(error?.message || 'Failed to delete VM', 'error')
+      setIsDeleting(false)
     }
   }
 
@@ -791,8 +799,8 @@ const DeleteModal: React.FC<DeleteModalProps> = ({ vm, onClose }) => {
         </div>
         <div className="modal-foot">
           <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <button className="btn danger" disabled={!isConfirmed} onClick={submit}>
-            <Icon name="x" size={12} />Delete VM
+          <button className="btn danger" disabled={!isConfirmed || isDeleting} onClick={submit}>
+            {isDeleting ? 'Deleting…' : <><Icon name="x" size={12} />Delete VM</>}
           </button>
         </div>
       </div>

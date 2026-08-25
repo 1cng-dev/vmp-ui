@@ -86,6 +86,31 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
 
   const blockedCustomPorts = ['25', '135', '136', '137', '138', '139', '445', '1433', '3306', '5432', '22', '3389']
 
+  const restrictedPorts = [
+    { ports: '25', label: 'SMTP', reason: 'To prevent spam and unauthorized email relaying. Mail relay services may be used if required.' },
+    { ports: '135–139, 445', label: 'SMB/NetBIOS', reason: 'To prevent malware propagation, lateral movement, and data leakage.' },
+    { ports: '1433, 3306, 5432', label: 'Databases', reason: 'To prevent direct internet access to MSSQL, MySQL, and PostgreSQL.' },
+    { ports: '22', label: 'SSH', reason: 'To prevent unauthorized remote access and brute-force attacks.' },
+    { ports: '3389', label: 'RDP', reason: 'To prevent unauthorized remote desktop access and credential-based attacks.' },
+  ]
+
+  const restrictedPortsNotice = (
+    <div className="mb-3" style={{ marginTop: 14, padding: 12, background: 'var(--surface-2)', borderRadius: 8, border: '1px solid var(--line)', borderLeft: '3px solid var(--warn)' }}>
+      <div className="flex center gap-2 mb-2">
+        <Icon name="alert" size={13} style={{ color: 'var(--warn)' }} />
+        <div className="text-xs fw-6" style={{ letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--warn)' }}>Restricted ports</div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+        {restrictedPorts.map(r => (
+          <div key={r.ports} className="flex col gap-1" style={{ padding: '8px 10px', background: 'var(--surface)', borderRadius: 6, border: '1px solid var(--line)' }}>
+            <div className="fw-6 text-xs" style={{ color: 'var(--warn)' }}>TCP {r.ports} ({r.label})</div>
+            <div className="text-xs text-mute" style={{ lineHeight: 1.35 }}>{r.reason}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+
   const selectedOS = f.os === 'custom' ? { name: f.customOsName || 'Other OS', accent: 'var(--accent)', versions: [f.customOsVersion || 'Custom version'] } : osCatalog.find(o => o.id === f.os) || osCatalog[0]
   const selectedZone = zones.find(z => z.id === f.zone) || zones[0]
   const hostValid = /^[a-z0-9][a-z0-9-]{1,30}$/i.test(f.hostname)
@@ -626,6 +651,8 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
           </div>
           <div className="card-body">
             <div className="text-xs text-mute fw-6 mb-3" style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>Common services — select all that apply</div>
+
+            {restrictedPortsNotice}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
               {commonPorts.map(p => {
                 const active = f.firewallPorts.includes(p.port)
@@ -654,10 +681,7 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
               <input value={customPort} onChange={e => {
                 let v = e.target.value.replace(/[^0-9]/g, '')
                 if (v && blockedCustomPorts.includes(v)) {
-                  while (v && blockedCustomPorts.includes(v)) {
-                    v = v.slice(0, -1)
-                  }
-                  setCustomPortError(`Port ${e.target.value.replace(/[^0-9]/g, '')} is not allowed for customer firewall rules`)
+                  setCustomPortError(`Port ${v} is not allowed for customer firewall rules`)
                 } else {
                   setCustomPortError('')
                 }
@@ -697,6 +721,8 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
                  style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>
               Outbound Configuration
             </div>
+
+            {restrictedPortsNotice}
 
             {/* Allow All Toggle */}
             <div className="flex center between" style={{ padding: '12px 0', borderBottom: '1px solid var(--line)' }}>
@@ -746,10 +772,7 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
                     onChange={(e) => {
                       let v = e.target.value.replace(/[^0-9]/g, '')
                       if (v && blockedCustomPorts.includes(v)) {
-                        while (v && blockedCustomPorts.includes(v)) {
-                          v = v.slice(0, -1)
-                        }
-                        setCustomOutboundPortError(`Port ${e.target.value.replace(/[^0-9]/g, '')} is not allowed for customer firewall rules`)
+                        setCustomOutboundPortError(`Port ${v} is not allowed for customer firewall rules`)
                       } else {
                         setCustomOutboundPortError('')
                       }

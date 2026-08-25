@@ -23,6 +23,7 @@ interface InvoiceEmailParams {
   invoiceId: string
   amount: number
   dueDate: string
+  pdfAttachmentBase64?: string
   pdfAttachment?: Buffer
 }
 
@@ -193,6 +194,7 @@ export async function sendVMRequestEmail(params: VMRequestEmailParams) {
 function buildVMRequestEmailTemplate(params: VMRequestEmailParams): string {
   const isNewVMRequest = params.vcpu !== undefined
   const isChangePlanRequest = params.currentPlan !== undefined
+  const isRenewalRequest = params.requestType === 'Renewal' || params.requestType === 'renewal'
 
   const changePlanContent = `
           <p style="margin-bottom: 24px;">Dear Valued Customer,</p>
@@ -224,6 +226,14 @@ function buildVMRequestEmailTemplate(params: VMRequestEmailParams): string {
           <p style="margin: 0;">If you have any questions or would like to make changes to your request, please feel free to contact our support team.</p>
   `
 
+  const renewalContent = `
+          <p style="margin-bottom: 24px;">Dear Valued Customer,</p>
+          <p style="margin-bottom: 24px;">Thank you for your VM renewal request.</p>
+          <p style="margin-bottom: 24px;">We would like to confirm that we have received your VM renewal request successfully. Our team will review the request and proceed with the necessary renewal process.</p>
+          <p style="margin-bottom: 24px;">We will notify you once the renewal process has been completed.</p>
+          <p style="margin-bottom: 24px;">If you have any questions or additional requirements, please feel free to contact us.</p>
+  `
+
   const oldRequestContent = `
           <p>Dear Valued Customer,</p>
           <div class="info-box">
@@ -253,7 +263,7 @@ function buildVMRequestEmailTemplate(params: VMRequestEmailParams): string {
     <body>
       <div class="container">
         <div class="content">
-          ${isChangePlanRequest ? changePlanContent : isNewVMRequest ? newRequestContent : oldRequestContent}
+          ${isChangePlanRequest ? changePlanContent : isRenewalRequest ? renewalContent : isNewVMRequest ? newRequestContent : oldRequestContent}
         </div>
         <div class="footer">
           <p>Best Regards,<br>
@@ -275,19 +285,15 @@ export async function sendInvoiceEmail(params: InvoiceEmailParams) {
     to: params.to,
     subject: `Invoice ${params.invoiceId}`,
     html,
-    attachments: params.pdfAttachment ? [{
-      filename: `invoice-${params.invoiceId}.pdf`,
-      content: params.pdfAttachment.toString('base64')
-    }] : undefined
+    attachments: params.pdfAttachmentBase64
+      ? [{ filename: `invoice-${params.invoiceId}.pdf`, content: params.pdfAttachmentBase64, contentDisposition: 'attachment' }]
+      : (params.pdfAttachment
+        ? [{ filename: `invoice-${params.invoiceId}.pdf`, content: params.pdfAttachment.toString('base64'), contentDisposition: 'attachment' }]
+        : undefined)
   })
 }
 
-function buildInvoiceEmailTemplate(params: InvoiceEmailParams): string {
-  const formattedAmount = new Intl.NumberFormat('en-MM', {
-    style: 'currency',
-    currency: 'MMK'
-  }).format(params.amount)
-
+function buildInvoiceEmailTemplate(_params: InvoiceEmailParams): string {
   return `
     <!DOCTYPE html>
     <html>
@@ -295,28 +301,21 @@ function buildInvoiceEmailTemplate(params: InvoiceEmailParams): string {
       <meta charset="utf-8">
       <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; text-align: left; }
-        .container { max-width: 600px; margin: 0; padding: 20px; text-align: left; }
+        .container { margin: 0; padding: 20px; text-align: left; }
         .content { padding: 20px; text-align: left; }
         .footer { padding: 20px; text-align: left; font-size: 12px; color: #666; }
-        .info-box { margin: 20px 0; text-align: left; }
       </style>
     </head>
     <body>
       <div class="container">
         <div class="content">
           <p>Dear Valued Customer,</p>
-          <div class="info-box">
-            <p><strong>Invoice ID:</strong> ${params.invoiceId}</p>
-            <p><strong>Amount:</strong> ${formattedAmount}</p>
-            <p><strong>Due Date:</strong> ${new Date(params.dueDate).toLocaleDateString()}</p>
-          </div>
-          <p>Your invoice is now available. Please find the PDF attached to this email.</p>
-          <p>Our Portal: <a href="https://vmp.1cloudng.com">https://vmp.1cloudng.com</a></p>
+          <p>Please find your invoice attached to this email for your reference.</p>
+          <p>To ensure uninterrupted service, it is important to settle the invoice before the due date. For any questions or clarifications, feel free to contact us at finance@1cloudng.com</p>
         </div>
         <div class="footer">
-          <p>Best Regards,<br>
-          One Cloud Next-Gen Co., Ltd<br>
-          support@system.1cloudng.com<br>
+          <p>Thanks,<br>
+          One Cloud Next-Gen<br>
           <img src="https://i.ibb.co/3mxXtQ8d/logo.png" alt="Company Logo" style="width: 150px; height: auto; margin-top: 10px;"></p>
         </div>
       </div>
@@ -708,6 +707,22 @@ export async function sendProvisioningCompletedEmail(params: ProvisioningComplet
 
 function buildProvisioningCompletedEmailTemplate(params: ProvisioningCompletedEmailParams): string {
   const isVMProvisioning = params.vmName !== undefined
+  const isChangePlanRequest = params.requestType === 'Change Plan' || params.requestType === 'change-plan'
+  const isRenewalRequest = params.requestType === 'Renewal' || params.requestType === 'renewal'
+
+  const changePlanContent = `
+          <p style="margin-bottom: 24px;">Dear Valued Customer,</p>
+          <p style="margin-bottom: 24px;">We would like to inform you that the VM plan change request has been successfully completed.</p>
+          <p style="margin-bottom: 24px;">The updated VM resources are now provisioned according to your requested plan.</p>
+          <p style="margin-bottom: 24px;">Please verify the VM from your side and let us know if you experience any issues or require further assistance.</p>
+  `
+
+  const renewalContent = `
+          <p style="margin-bottom: 24px;">Dear Valued Customer,</p>
+          <p style="margin-bottom: 24px;">We would like to inform you that your VM renewal request has been successfully completed.</p>
+          <p style="margin-bottom: 24px;">Your VM service has been renewed according to the requested renewal period.</p>
+          <p style="margin-bottom: 24px;">Please continue using the VM as usual. If you have any questions or require further assistance, please feel free to contact us.</p>
+  `
 
   const vmContent = `
           <p style="margin-bottom: 24px;">Dear Valued Customer,</p>
@@ -724,16 +739,10 @@ function buildProvisioningCompletedEmailTemplate(params: ProvisioningCompletedEm
   `
 
   const addonContent = `
-          <p>Dear Valued Customer,</p>
-          <div class="info-box">
-            <p><strong>Request Type:</strong> ${params.requestType}</p>
-            <p><strong>Request ID:</strong> ${params.requestId}</p>
-            <p><strong>VM Hostname:</strong> ${params.hostname}</p>
-            ${params.vmLegacyId ? `<p><strong>VM ID:</strong> ${params.vmLegacyId}</p>` : ''}
-            <p><strong>Completion Date:</strong> ${new Date(params.completionDate).toLocaleDateString()}</p>
-          </div>
-          <p>Your ${params.requestType} provisioning has been completed successfully. ${params.details || ''}</p>
-          <p>Our Portal: <a href="https://vmp.1cloudng.com">https://vmp.1cloudng.com</a></p>
+          <p style="margin-bottom: 24px;">Dear Valued Customer,</p>
+          <p style="margin-bottom: 24px;">We would like to inform you that your add-on request has been successfully provisioned.</p>
+          <p style="margin-bottom: 24px;">The requested add-on has been applied to your VM as requested.</p>
+          <p style="margin-bottom: 24px;">Please verify the updated configuration from your side and let us know if you require any further assistance.</p>
   `
 
   return `
@@ -753,7 +762,7 @@ function buildProvisioningCompletedEmailTemplate(params: ProvisioningCompletedEm
     <body>
       <div class="container">
         <div class="content">
-          ${isVMProvisioning ? vmContent : addonContent}
+          ${isChangePlanRequest ? changePlanContent : isRenewalRequest ? renewalContent : isVMProvisioning ? vmContent : addonContent}
         </div>
         <div class="footer">
           <p>Best Regards,<br>
@@ -830,7 +839,7 @@ export async function sendVMActivatedEmail(params: VMActivatedEmailParams) {
   })
 }
 
-function buildVMActivatedEmailTemplate(params: VMActivatedEmailParams): string {
+function buildVMActivatedEmailTemplate(_params: VMActivatedEmailParams): string {
   return `
     <!DOCTYPE html>
     <html>
@@ -847,15 +856,10 @@ function buildVMActivatedEmailTemplate(params: VMActivatedEmailParams): string {
     <body>
       <div class="container">
         <div class="content">
-          <p>Dear Valued Customer,</p>
-          <div class="info-box">
-            <p><strong>VM Hostname:</strong> ${params.hostname}</p>
-            <p><strong>VM ID:</strong> ${params.vmId}</p>
-            <p><strong>Activation Date:</strong> ${new Date(params.activationDate).toLocaleDateString()}</p>
-          </div>
-          <p>Your VM <strong>${params.hostname}</strong> has been successfully activated. The VM status has been changed to Active and its power state has been set to Running.</p>
-          <p>You can now access and use your VM through our portal.</p>
-          <p>Our Portal: <a href="https://vmp.1cloudng.com">https://vmp.1cloudng.com</a></p>
+          <p style="margin-bottom: 24px;">Dear Valued Customer,</p>
+          <p style="margin-bottom: 24px;">We are pleased to inform you that your VM has been successfully activated.</p>
+          <p style="margin-bottom: 24px;">The VM is now available for use according to the requested configuration.</p>
+          <p style="margin-bottom: 24px;">Please verify the VM connectivity and services from your side. If you experience any issues, please contact our support team for assistance.</p>
         </div>
         <div class="footer">
           <p>Best Regards,<br>
@@ -880,7 +884,7 @@ export async function sendVMDeletedEmail(params: VMDeletedEmailParams) {
   })
 }
 
-function buildVMDeletedEmailTemplate(params: VMDeletedEmailParams): string {
+function buildVMDeletedEmailTemplate(_params: VMDeletedEmailParams): string {
   return `
     <!DOCTYPE html>
     <html>
@@ -897,15 +901,11 @@ function buildVMDeletedEmailTemplate(params: VMDeletedEmailParams): string {
     <body>
       <div class="container">
         <div class="content">
-          <p>Dear Valued Customer,</p>
-          <div class="info-box">
-            <p><strong>VM Hostname:</strong> ${params.hostname}</p>
-            <p><strong>VM ID:</strong> ${params.vmId}</p>
-            <p><strong>Deletion Date:</strong> ${new Date(params.deletionDate).toLocaleDateString()}</p>
-          </div>
-          <p>Your VM <strong>${params.hostname}</strong> has been permanently deleted. All data associated with this VM has been removed and cannot be recovered.</p>
-          <p>If you have any questions or need assistance, please contact our support team.</p>
-          <p>Our Portal: <a href="https://vmp.1cloudng.com">https://vmp.1cloudng.com</a></p>
+          <p style="margin-bottom: 24px;">Dear Valued Customer,</p>
+          <p style="margin-bottom: 24px;">We would like to inform you that the VM deletion request has been successfully completed.</p>
+          <p style="margin-bottom: 24px;">The requested VM has been deleted from our environment as scheduled.</p>
+          <p style="margin-bottom: 24px;">Please note that the VM and its associated resources are no longer available.</p>
+          <p style="margin-bottom: 24px;">If you have any questions regarding this request, please feel free to contact us.</p>
         </div>
         <div class="footer">
           <p>Best Regards,<br>
@@ -982,7 +982,7 @@ export async function sendAddonServiceActivatedEmail(params: AddonServiceActivat
   })
 }
 
-function buildAddonServiceActivatedEmailTemplate(params: AddonServiceActivatedEmailParams): string {
+function buildAddonServiceActivatedEmailTemplate(_params: AddonServiceActivatedEmailParams): string {
   return `
     <!DOCTYPE html>
     <html>
@@ -999,16 +999,10 @@ function buildAddonServiceActivatedEmailTemplate(params: AddonServiceActivatedEm
     <body>
       <div class="container">
         <div class="content">
-          <p>Dear Valued Customer,</p>
-          <div class="info-box">
-            <p><strong>Add-on Service ID:</strong> ${params.serviceId}</p>
-            <p><strong>VM Hostname:</strong> ${params.vmHostname}</p>
-            <p><strong>Services:</strong> ${params.services}</p>
-            <p><strong>Activation Date:</strong> ${new Date(params.activationDate).toLocaleDateString()}</p>
-          </div>
-          <p>Your add-on service <strong>${params.serviceId}</strong> has been successfully activated. The service status has been changed to Active.</p>
-          <p>You can now access and use this service through our portal.</p>
-          <p>Our Portal: <a href="https://vmp.1cloudng.com">https://vmp.1cloudng.com</a></p>
+          <p style="margin-bottom: 24px;">Dear Valued Customer,</p>
+          <p style="margin-bottom: 24px;">We would like to inform you that the requested add-on has been successfully activated on your VM.</p>
+          <p style="margin-bottom: 24px;">The add-on is now available for use according to the requested configuration.</p>
+          <p style="margin-bottom: 24px;">Please verify the service from your side and let us know if you experience any issues or require further assistance.</p>
         </div>
         <div class="footer">
           <p>Best Regards,<br>
@@ -1033,7 +1027,7 @@ export async function sendAddonServiceDeletedEmail(params: AddonServiceDeletedEm
   })
 }
 
-function buildAddonServiceDeletedEmailTemplate(params: AddonServiceDeletedEmailParams): string {
+function buildAddonServiceDeletedEmailTemplate(_params: AddonServiceDeletedEmailParams): string {
   return `
     <!DOCTYPE html>
     <html>
@@ -1050,19 +1044,13 @@ function buildAddonServiceDeletedEmailTemplate(params: AddonServiceDeletedEmailP
     <body>
       <div class="container">
         <div class="content">
-          <p>Dear Valued Customer,</p>
-          <div class="info-box">
-            <p><strong>Add-on Service ID:</strong> ${params.serviceId}</p>
-            <p><strong>VM Hostname:</strong> ${params.vmHostname}</p>
-            <p><strong>Services:</strong> ${params.services}</p>
-            <p><strong>Deletion Date:</strong> ${new Date(params.deletionDate).toLocaleDateString()}</p>
-          </div>
-          <p>Your add-on service <strong>${params.serviceId}</strong> has been permanently deleted. All data associated with this service has been removed and cannot be recovered.</p>
-          <p>If you have any questions or need assistance, please contact our support team.</p>
-          <p>Our Portal: <a href="https://vmp.1cloudng.com">https://vmp.1cloudng.com</a></p>
+          <p style="margin-bottom: 24px;">Dear Valued Customer,</p>
+          <p style="margin-bottom: 24px;">We would like to inform you that the requested add-on has been successfully deleted from your VM.</p>
+          <p style="margin-bottom: 24px;">The add-on has been removed according to your request, and the updated configuration is now in effect.</p>
+          <p style="margin-bottom: 24px;">Please verify the VM configuration from your side and let us know if you require any further assistance.</p>
         </div>
         <div class="footer">
-          <p>Best Regards,<br>
+          <p>Best regards,<br>
           One Cloud Next-Gen Co., Ltd<br>
           support@system.1cloudng.com<br>
           <img src="https://i.ibb.co/3mxXtQ8d/logo.png" alt="Company Logo" style="width: 150px; height: auto; margin-top: 10px;"></p>

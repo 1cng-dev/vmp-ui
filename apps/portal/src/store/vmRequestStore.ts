@@ -247,7 +247,19 @@ export const VMRequestProvider: React.FC<{ children: ReactNode }> = ({ children 
                 .eq('id', previousRequest.vm_id)
                 .maybeSingle()
               if (vm) {
-                if (!vmLegacyId) vmLegacyId = vm.legacy_id
+                if (vm.legacy_id) vmLegacyId = vm.legacy_id
+                vmPublicIp = vm.public_ip || undefined
+              }
+            } else {
+              // New VMs may not have vm_id on the request yet; look up by vm_request_id
+              const { data: vm } = await supabase
+                .from('vms')
+                .select('legacy_id, public_ip')
+                .eq('vm_request_id', id)
+                .limit(1)
+                .maybeSingle()
+              if (vm) {
+                if (vm.legacy_id) vmLegacyId = vm.legacy_id
                 vmPublicIp = vm.public_ip || undefined
               }
             }

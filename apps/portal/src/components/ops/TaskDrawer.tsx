@@ -126,9 +126,10 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
     }
   }, [addonRequests.length, loadAddonRequests])
 
-  // Get current VM data from store for change-plan and renewal requests
+  // Get current VM data from store for change-plan, renewal and trial-to-paid requests
   const currentVMData = React.useMemo(() => {
-    if ((isUpgrade || isRenewal) && t) {
+    const isTrialConversion = t?.purpose?.includes('Convert trial to paid') || t?.notes?.includes('Trial to paid conversion')
+    if ((isUpgrade || isRenewal || isTrialConversion) && t) {
       let vmId = (t as any).vm_id
       // If no direct vm_id, try to find VM by hostname
       if (!vmId && t.hostname) {
@@ -1032,7 +1033,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                           <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>General</div>
                           <dl className="dl">
                             <dt>Request ID</dt><dd className="mono">{t?.legacy_id || t?.id}</dd>
-                            {isUpgrade && currentVMData && (
+                            {(isUpgrade || isTrialConversion) && currentVMData && (
                               <>
                                 <dt>VM ID</dt><dd className="mono">{currentVMData.legacy_id || currentVMData.id}</dd>
                               </>

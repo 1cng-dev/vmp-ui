@@ -160,7 +160,7 @@ const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, me }) => {
         firewall_outbound_custom_ports: (vm as any).firewall_outbound_custom_ports || [],
         backup_enabled: (vm as any).backup_enabled || false,
         backup_type: (vm as any).backup_type || 'weekly',
-        notes: `Renewal request for ${months} month${months > 1 ? 's' : ''}. Current expiry: ${vm.expiry}, New expiry: ${newExpiry}`,
+        notes: `Renewal request for ${months} month${months > 1 ? 's' : ''}. Current expiry: ${currentExpiry}, New expiry: ${newExpiry}`,
       }).select().single()
 
       if (error) throw error
@@ -227,7 +227,7 @@ const CustRenewModal: React.FC<CustRenewModalProps> = ({ vm, onClose, me }) => {
       addTask({
         title: `Renewal — ${(vm as any).hostname || vm.name} (${months} month${months > 1 ? 's' : ''})${selectedAddons.cpfs || selectedAddons.ccis ? ' + Add-ons' : ''}`,
         customer: me.id, vm: vm.id, type: 'Renewal', priority: 'Normal', status: 'Pending', team: 'Sales',
-        notes: `Customer-initiated renewal request for ${months} month${months > 1 ? 's' : ''}. Current expiry: ${vm.expiry}, New expiry: ${newExpiry}${selectedAddons.cpfs ? '\nCPFS: ' + cpfsPackage : ''}${selectedAddons.ccis ? '\nCCIS: ' + ccisPackage : ''}`,
+        notes: `Customer-initiated renewal request for ${months} month${months > 1 ? 's' : ''}. Current expiry: ${currentExpiry}, New expiry: ${newExpiry}${selectedAddons.cpfs ? '\nCPFS: ' + cpfsPackage : ''}${selectedAddons.ccis ? '\nCCIS: ' + ccisPackage : ''}`,
       })
 
       toast('Renewal request sent to Sales', 'ok')

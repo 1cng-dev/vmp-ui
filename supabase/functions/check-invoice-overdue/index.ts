@@ -199,30 +199,22 @@ function buildOverdueEmailTemplate(params: {
       <meta charset="utf-8">
       <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; text-align: left; }
-        .container { max-width: 600px; margin: 0; padding: 20px; text-align: left; }
+        .container { margin: 0; padding: 20px; text-align: left; }
         .content { padding: 20px; text-align: left; }
         .footer { padding: 20px; text-align: left; font-size: 12px; color: #666; }
-        .info-box { margin: 20px 0; text-align: left; }
       </style>
     </head>
     <body>
       <div class="container">
         <div class="content">
           <p>Dear Valued Customer,</p>
-          <div class="info-box">
-            <p><strong>Invoice ID:</strong> ${params.invoiceId}</p>
-            <p><strong>Amount:</strong> ${formattedAmount}</p>
-            <p><strong>Due Date:</strong> ${new Date(params.dueDate).toLocaleDateString()}</p>
-            <p><strong>Status:</strong> OVERDUE</p>
-          </div>
-          <p>Your invoice is now overdue. Please make the payment as soon as possible to avoid service interruption.</p>
-          <p>Our Portal: <a href="https://vmp.1cloudng.com">https://vmp.1cloudng.com</a></p>
-        </div>
-        <div class="footer">
-          <p>Best Regards,<br>
-          One Cloud Next-Gen Co., Ltd<br>
-          support@system.1cloudng.com<br>
-          <img src="https://i.ibb.co/3mxXtQ8d/logo.png" alt="Company Logo" style="width: 150px; height: auto; margin-top: 10px;"></p>
+          <p>This is a reminder regarding your overdue and unpaid invoice.</p>
+          <p>Bill Due Date is ${new Date(params.dueDate).toLocaleDateString()}.</p>
+          <p>I have attached a copy of the invoice for your reference. We kindly request you to settle the outstanding amount at the earliest.</p>
+          <p>If you have any questions regarding the outstanding balance, please do not hesitate to contact us at finance@1cloudng.com.</p>
+          <p>Thanks,</p>
+          <p>One Cloud Next-Gen</p>
+          <img src="https://i.ibb.co/3mxXtQ8d/logo.png" alt="Company Logo" style="width: 150px; height: auto; margin-top: 10px;">
         </div>
       </div>
     </body>

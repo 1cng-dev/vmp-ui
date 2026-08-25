@@ -22,6 +22,8 @@ const AddonServicesList: React.FC<AddonServicesListProps> = ({ userRole }) => {
   const [confirmTerminate, setConfirmTerminate] = useState<{ show: boolean, addon: any } | null>(null)
   const [deleteInput, setDeleteInput] = useState('')
   const [terminateInput, setTerminateInput] = useState('')
+  const [isTerminating, setIsTerminating] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const getCustomerForAddon = (addon: any) => {
     const vm = vms.find(v => v.id === addon.vm_id)
@@ -46,6 +48,7 @@ const AddonServicesList: React.FC<AddonServicesListProps> = ({ userRole }) => {
     const addon = confirmTerminate.addon
     const confirmId = addon.legacy_id || addon.id
     if (terminateInput !== confirmId) return
+    setIsTerminating(true)
 
     try {
       await updateAddonService(addon.id, { operational_status: 'Terminated' })
@@ -54,6 +57,8 @@ const AddonServicesList: React.FC<AddonServicesListProps> = ({ userRole }) => {
     } catch (error: any) {
       toast(error?.message || 'Failed to terminate add-on service', 'error')
       return
+    } finally {
+      setIsTerminating(false)
     }
 
     const customer = getCustomerForAddon(addon)
@@ -115,6 +120,7 @@ const AddonServicesList: React.FC<AddonServicesListProps> = ({ userRole }) => {
     const addon = confirmDelete.addon
     const confirmId = addon.legacy_id || addon.id
     if (deleteInput !== confirmId) return
+    setIsDeleting(true)
 
     try {
       await deleteAddonService(addon.id)
@@ -123,6 +129,8 @@ const AddonServicesList: React.FC<AddonServicesListProps> = ({ userRole }) => {
     } catch (error: any) {
       toast(error?.message || 'Failed to delete add-on service', 'error')
       return
+    } finally {
+      setIsDeleting(false)
     }
 
     const customer = getCustomerForAddon(addon)
@@ -253,7 +261,7 @@ const AddonServicesList: React.FC<AddonServicesListProps> = ({ userRole }) => {
         </div>
       </div>
 
-      <div className="card">
+      <div className="card" style={{ overflow: 'visible' }}>
         <div className="filter-bar">
           {filters.map(f => (
             <button key={f.id}
@@ -383,8 +391,8 @@ const AddonServicesList: React.FC<AddonServicesListProps> = ({ userRole }) => {
             </div>
             <div className="modal-foot">
               <button className="btn ghost" onClick={() => setConfirmTerminate(null)}>Cancel</button>
-              <button className="btn" disabled={terminateInput !== (confirmTerminate.addon.legacy_id || confirmTerminate.addon.id)} onClick={submitTerminate}>
-                <Icon name="trash" size={12} />Terminate Add-on Service
+              <button className="btn" disabled={terminateInput !== (confirmTerminate.addon.legacy_id || confirmTerminate.addon.id) || isTerminating} onClick={submitTerminate}>
+                {isTerminating ? 'Terminating…' : <><Icon name="trash" size={12} />Terminate Add-on Service</>}
               </button>
             </div>
           </div>
@@ -415,8 +423,8 @@ const AddonServicesList: React.FC<AddonServicesListProps> = ({ userRole }) => {
             </div>
             <div className="modal-foot">
               <button className="btn ghost" onClick={() => setConfirmDelete(null)}>Cancel</button>
-              <button className="btn danger" disabled={deleteInput !== (confirmDelete.addon.legacy_id || confirmDelete.addon.id)} onClick={submitDelete}>
-                <Icon name="x" size={12} />Delete Add-on Service
+              <button className="btn danger" disabled={deleteInput !== (confirmDelete.addon.legacy_id || confirmDelete.addon.id) || isDeleting} onClick={submitDelete}>
+                {isDeleting ? 'Deleting…' : <><Icon name="x" size={12} />Delete Add-on Service</>}
               </button>
             </div>
           </div>

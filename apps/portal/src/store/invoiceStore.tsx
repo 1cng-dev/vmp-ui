@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import type { DBInvoice, NewInvoiceInput } from '../types'
 import { createAlert } from '../services/notificationService'
 import { sendInvoiceEmail } from '../services/emailService'
+import { generateInvoicePDFBase64 } from '../lib/pdfExport'
 import useActivityStore from './activityStore'
 import useAddonRequestStore from './addonRequestStore'
 
@@ -152,14 +153,22 @@ export const InvoiceProvider: React.FC<{ children: ReactNode }> = ({ children })
       ? `${customer.name} (${customer.org_name})`
       : (customer?.name || 'Unknown')
 
-    // Send invoice email to customer
+    // Send invoice email to customer with PDF attachment
     if (customer?.email) {
+      let pdfAttachmentBase64: string | undefined
+      try {
+        pdfAttachmentBase64 = await generateInvoicePDFBase64(invoice, customer)
+      } catch (err) {
+        console.error('Failed to generate invoice PDF for email attachment:', err)
+      }
+
       await sendInvoiceEmail({
         to: customer.email,
         customerName: customerName,
         invoiceId: invoice.legacy_id || invoice.id,
         amount: invoice.gross_amount,
-        dueDate: invoice.due
+        dueDate: invoice.due,
+        pdfAttachmentBase64
       })
     }
     

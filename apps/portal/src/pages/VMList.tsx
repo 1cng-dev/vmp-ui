@@ -273,7 +273,7 @@ const VMList: React.FC<VMListProps> = ({ openVM, openModal, setView, userRole })
         </div>
       </div>
 
-      <div className="card">
+      <div className="card" style={{ overflow: 'visible' }}>
         <div className="filter-bar">
           {filters.map(f => (
             <button key={f.id}

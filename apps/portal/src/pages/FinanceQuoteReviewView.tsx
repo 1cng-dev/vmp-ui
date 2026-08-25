@@ -69,7 +69,8 @@ const FinanceQuoteReviewView = () => {
 
       <div className="card">
         <div className="card-body flush">
-          <table className="tbl">
+          <div style={{ overflowX: 'auto' }}>
+            <table className="tbl" style={{ minWidth: 1200 }}>
             <thead>
               <tr>
                 <th>Quote #</th>
@@ -80,7 +81,7 @@ const FinanceQuoteReviewView = () => {
                 <th className="right">Lines</th>
                 <th className="right">Total</th>
                 <th>Valid until</th>
-                <th className="right">Actions</th>
+                <th className="right"></th>
               </tr>
             </thead>
             <tbody>
@@ -138,7 +139,8 @@ const FinanceQuoteReviewView = () => {
                 })
               )}
             </tbody>
-          </table>
+            </table>
+          </div>
         </div>
       </div>
       {selectedQuote && <QuoteDrawer quote={selectedQuote} onClose={() => setSelectedQuote(null)} />}

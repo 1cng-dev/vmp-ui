@@ -11,11 +11,13 @@ interface CustomerRequestDetailProps {
 
 export const CustomerRequestDetail: React.FC<CustomerRequestDetailProps> = ({ request, onClose }) => {
   const t = request
-  const { getVMById } = useVMStore()
+  const { getVMById, getVMByHostname } = useVMStore()
   const { addonRequests } = useAddonRequestStore()
   const [relatedAddonRequests, setRelatedAddonRequests] = useState<any[]>([])
   
   const isRenewal = t.task_type?.toLowerCase() === 'renewal'
+  const isTrialConversion = t?.purpose?.includes('Convert trial to paid') || t?.notes?.includes('Trial to paid conversion')
+  const isChangePlan = t.task_type?.toLowerCase() === 'change-plan'
   
   // Fetch related add-on requests for renewal
   useEffect(() => {
@@ -28,14 +30,13 @@ export const CustomerRequestDetail: React.FC<CustomerRequestDetailProps> = ({ re
   }, [isRenewal, t.id, addonRequests])
   
   // Get VM data
-  const vmData = t.vm_id ? getVMById(t.vm_id) : null
+  const vmData = t.vm_id ? getVMById(t.vm_id) : ((isTrialConversion || isChangePlan) && t.hostname ? getVMByHostname(t.hostname) : null)
   
   const transformStatus = (status: string) => {
     if (status === 'Pending') return 'Under Review'
     return status
   }
   
-  const isChangePlan = t.task_type?.toLowerCase() === 'change-plan'
   const isSpecChange = t.spec_changed || false
   const isBackupChange = t.backup_changed || false
 
@@ -72,8 +73,13 @@ export const CustomerRequestDetail: React.FC<CustomerRequestDetailProps> = ({ re
                 <dt>Purpose</dt><dd className="mono">{t.purpose || 'No purpose specified'}</dd>
                 {isRenewal && vmData && (
                   <>
-                    <dt>VM being renewed</dt>
-                    <dd className="mono">{vmData.legacy_id || vmData.id} · {vmData.hostname}</dd>
+                    <dt>VM ID</dt>
+                    <dd className="mono">{vmData.legacy_id || vmData.id}</dd>
+                  </>
+                )}
+                {(isTrialConversion || isChangePlan) && vmData && (
+                  <>
+                    <dt>VM ID</dt><dd className="mono">{vmData.legacy_id || vmData.id}</dd>
                   </>
                 )}
                 <dt>Hostname</dt><dd className="mono">{t.hostname}</dd>
