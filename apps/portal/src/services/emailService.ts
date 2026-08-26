@@ -1,6 +1,8 @@
 // Email service using Resend API
 // This requires RESEND_API_KEY and RESEND_FROM_EMAIL environment variables
 
+import axios from 'axios';
+
 interface VMRequestEmailParams {
   to: string
   customerName: string
@@ -35,6 +37,11 @@ interface AnnouncementEmailParams {
   body: string
   announcementId: string
 }
+
+const resendApi = axios.create({
+  baseURL: 'https://api.resend.com',
+  timeout: 10000,
+})
 
 // Helper function to call Resend API
 async function callResendAPI(params: {

@@ -85,6 +85,16 @@ export interface VMCredentials {
   password: string | null;
 }
 
+
+export interface ProxmoxVMNetwork{
+  recordId: string;
+  publicIp?: string;
+  privateIp?: string;
+  gateway?: string;
+  dns?: string[];
+  status? : 'active' | 'inactive' | 'unknown';
+}
+
 // ── Calls, keyed by the real Proxmox vmid — admin/internal use only ───────
 // (the admin portal already has assigned_vmid via the full `vms` table, and
 // proxmox-proxcy's admin bypass on these routes lets staff view any VM.)
@@ -162,6 +172,25 @@ export async function getVMCredentials(
     `/api/vms/by-record/${recordId}/credentials`,
   );
   return { username: data.username ?? null, password: data.password ?? null };
+}
+
+export async function getVMNetwork(
+  recordId: string,
+) : Promise<ProxmoxVMNetwork>{
+  try{
+    const {data} = await proxmoxApi.get(`/api/vms/by-record/${recordId}/network`);
+  return{
+    recordId,
+    publicIp: data.publicIp ?? undefined,
+    privateIp: data.privateIp ?? undefined,
+    gateway: data.gateway ?? undefined,
+    dns: data.dns ?? undefined,
+    status: data.status ?? 'inactive'
+  };
+  }catch(error){
+    console.log(`Failed to fetch VM network:`, error);
+    throw new Error(`Failed to fetch VM network for recordId ${recordId}`);
+  }
 }
 
 export async function runVMPowerAction(
