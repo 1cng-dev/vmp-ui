@@ -25,7 +25,9 @@ const AdminDirectVMCreate: React.FC = () => {
   const [customDuration, setCustomDuration] = useState("");
   const [isCustomDuration, setIsCustomDuration] = useState(false);
   const [customPort, setCustomPort] = useState("");
+  const [customPortReason, setCustomPortReason] = useState("");
   const [customOutboundPort, setCustomOutboundPort] = useState("");
+  const [customOutboundPortReason, setCustomOutboundPortReason] = useState("");
 
   const getDurationLabel = (months: number) => {
     const labels: Record<number, string> = {
@@ -62,9 +64,9 @@ const AdminDirectVMCreate: React.FC = () => {
     backupType: "daily",
     zone: "yangon-dc1",
     nics: [{ id: 1, label: "NIC 1", description: "" }],
-    firewallPorts: ["22", "80", "443"],
+    firewallPorts: [{port: "22", reason: ""}, {port: "80", reason: ""}, {port: "443", reason: ""}],
     firewallOutboundAllowAll: true,
-    firewallOutboundCustomPorts: [] as string[],
+    firewallOutboundCustomPorts: [] as Array<{port: string, reason: string}>,
     customOutboundPort: "",
     start_date: new Date().toISOString().slice(0, 10),
     legacy_id: "",
@@ -185,12 +187,12 @@ const AdminDirectVMCreate: React.FC = () => {
   );
 
   const togglePort = (port: string) => {
-    const ports = f.firewallPorts;
+    const exists = f.firewallPorts.some((fp: any) => fp.port === port);
     set(
       "firewallPorts",
-      ports.includes(port)
-        ? ports.filter((p: string) => p !== port)
-        : [...ports, port],
+      exists
+        ? f.firewallPorts.filter((fp: any) => fp.port !== port)
+        : [...f.firewallPorts, { port, reason: "" }],
     );
   };
 
@@ -218,44 +220,46 @@ const AdminDirectVMCreate: React.FC = () => {
 
   const addCustomPort = () => {
     const port = customPort.trim();
-    if (port && !f.firewallPorts.includes(port)) {
-      set("firewallPorts", [...f.firewallPorts, port]);
+    if (port && !f.firewallPorts.some((fp: any) => fp.port === port)) {
+      set("firewallPorts", [...f.firewallPorts, { port, reason: customPortReason }]);
       setCustomPort("");
+      setCustomPortReason("");
     }
   };
 
   const removeCustomPort = (port: string) => {
     set(
       "firewallPorts",
-      f.firewallPorts.filter((p: string) => p !== port),
+      f.firewallPorts.filter((fp: any) => fp.port !== port),
     );
   };
 
   const toggleOutboundPort = (port: string) => {
-    const ports = f.firewallOutboundCustomPorts;
+    const exists = f.firewallOutboundCustomPorts.some((fp: any) => fp.port === port);
     set(
       "firewallOutboundCustomPorts",
-      ports.includes(port)
-        ? ports.filter((p: string) => p !== port)
-        : [...ports, port],
+      exists
+        ? f.firewallOutboundCustomPorts.filter((fp: any) => fp.port !== port)
+        : [...f.firewallOutboundCustomPorts, { port, reason: "" }],
     );
   };
 
   const addCustomOutboundPort = () => {
     const port = customOutboundPort.trim();
-    if (port && !f.firewallOutboundCustomPorts.includes(port)) {
+    if (port && !f.firewallOutboundCustomPorts.some((fp: any) => fp.port === port)) {
       set("firewallOutboundCustomPorts", [
         ...f.firewallOutboundCustomPorts,
-        port,
+        { port, reason: customOutboundPortReason },
       ]);
       setCustomOutboundPort("");
+      setCustomOutboundPortReason("");
     }
   };
 
   const removeCustomOutboundPort = (port: string) => {
     set(
       "firewallOutboundCustomPorts",
-      f.firewallOutboundCustomPorts.filter((p: string) => p !== port),
+      f.firewallOutboundCustomPorts.filter((fp: any) => fp.port !== port),
     );
   };
 
@@ -785,7 +789,11 @@ const AdminDirectVMCreate: React.FC = () => {
                     Firewall inbound ports
                   </div>
                   <div className="fw-6 text-sm">
-                    {f.firewallPorts.join(", ") || "none"}
+                    {f.firewallPorts.map((fp: any) => {
+                      const port = typeof fp === 'string' ? fp : fp.port
+                      const reason = typeof fp === 'string' ? '' : fp.reason
+                      return reason ? `${port} (${reason})` : port
+                    }).join(", ") || "none"}
                   </div>
                 </div>
                 <div>
@@ -805,7 +813,11 @@ const AdminDirectVMCreate: React.FC = () => {
                     Firewall outbound ports
                   </div>
                   <div className="fw-6 text-sm">
-                    {f.firewallOutboundCustomPorts.join(", ") || "none"}
+                    {f.firewallOutboundCustomPorts.map((fp: any) => {
+                      const port = typeof fp === 'string' ? fp : fp.port
+                      const reason = typeof fp === 'string' ? '' : fp.reason
+                      return reason ? `${port} (${reason})` : port
+                    }).join(", ") || "none"}
                   </div>
                 </div>
               )}
@@ -1611,7 +1623,7 @@ const AdminDirectVMCreate: React.FC = () => {
               }}
             >
               {commonPorts.map((p) => {
-                const active = f.firewallPorts.includes(p.port);
+                const active = f.firewallPorts.some((fp: any) => fp.port === p.port);
                 return (
                   <button
                     key={p.port}
@@ -1678,6 +1690,18 @@ const AdminDirectVMCreate: React.FC = () => {
                   fontFamily: "var(--mono)",
                 }}
               />
+              <input
+                value={customPortReason}
+                onChange={(e) => setCustomPortReason(e.target.value)}
+                placeholder="Reason (optional)"
+                style={{
+                  flex: 1,
+                  padding: "7px 10px",
+                  border: "1px solid var(--line)",
+                  borderRadius: 6,
+                  fontSize: 12.5,
+                }}
+              />
               <button className="btn" onClick={addCustomPort}>
                 <Icon name="plus" size={12} />
                 Add port
@@ -1703,20 +1727,20 @@ const AdminDirectVMCreate: React.FC = () => {
                   Open ports
                 </div>
                 <div className="flex gap-1 wrap">
-                  {f.firewallPorts.map((p) => (
+                  {f.firewallPorts.map((fp: any) => (
                     <span
-                      key={p}
+                      key={fp.port}
                       className="pill accent"
                       style={{ paddingRight: 4 }}
                     >
-                      <span className="mono">{p}</span>
+                      <span className="mono">{fp.port}</span>
                       <span
                         style={{
                           cursor: "pointer",
                           marginLeft: 4,
                           opacity: 0.7,
                         }}
-                        onClick={() => removeCustomPort(p)}
+                        onClick={() => removeCustomPort(fp.port)}
                       >
                         ×
                       </span>
@@ -1753,7 +1777,11 @@ const AdminDirectVMCreate: React.FC = () => {
                 <div className="fw-6 text-sm">Allow All (Inbound Ports)</div>
                 <div className="text-xs text-mute">
                   Allow outbound to all selected inbound ports:{" "}
-                  {f.firewallPorts.join(", ")}
+                  {f.firewallPorts.map((fp: any) => {
+                    const port = typeof fp === 'string' ? fp : fp.port
+                    const reason = typeof fp === 'string' ? '' : fp.reason
+                    return reason ? `${port} (${reason})` : port
+                  }).join(", ")}
                 </div>
               </div>
               <span
@@ -1784,8 +1812,8 @@ const AdminDirectVMCreate: React.FC = () => {
                   }}
                 >
                   {commonPorts.map((p) => {
-                    const active = f.firewallOutboundCustomPorts.includes(
-                      p.port,
+                    const active = f.firewallOutboundCustomPorts.some(
+                      (fp: any) => fp.port === p.port,
                     );
                     return (
                       <button
@@ -1818,6 +1846,19 @@ const AdminDirectVMCreate: React.FC = () => {
                     value={customOutboundPort}
                     onChange={(e) => setCustomOutboundPort(e.target.value)}
                     placeholder="Add custom port (e.g., 8080)"
+                    style={{
+                      width: 120,
+                      padding: "8px 12px",
+                      border: "1px solid var(--line)",
+                      borderRadius: 6,
+                      fontFamily: "var(--mono)",
+                    }}
+                  />
+                  <input
+                    type="text"
+                    value={customOutboundPortReason}
+                    onChange={(e) => setCustomOutboundPortReason(e.target.value)}
+                    placeholder="Reason (optional)"
                     style={{
                       flex: 1,
                       padding: "8px 12px",
@@ -1853,17 +1894,17 @@ const AdminDirectVMCreate: React.FC = () => {
                       Selected outbound ports
                     </div>
                     <div className="flex gap-1 wrap">
-                      {f.firewallOutboundCustomPorts.map((p) => (
+                      {f.firewallOutboundCustomPorts.map((fp: any) => (
                         <span
-                          key={p}
+                          key={fp.port}
                           className="pill accent"
                           style={{ paddingRight: 4 }}
                         >
-                          <span className="mono">{p}</span>
+                          <span className="mono">{fp.port}</span>
                           <button
                             className="icon-btn"
                             style={{ width: 16, height: 16, marginLeft: 2 }}
-                            onClick={() => removeCustomOutboundPort(p)}
+                            onClick={() => removeCustomOutboundPort(fp.port)}
                           >
                             <Icon name="x" size={9} />
                           </button>

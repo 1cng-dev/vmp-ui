@@ -44,9 +44,9 @@ const AdminDirectVMModal: React.FC<AdminDirectVMModalProps> = ({ onClose }) => {
     zone: "yangon-dc1",
     nics: [{ id: 1, label: "NIC 1", type: "Public", vlan: "Auto-assign" }],
     public_ip_required: true,
-    firewall_ports: ["22", "80", "443"],
+    firewall_ports: [{port: "22", reason: ""}, {port: "80", reason: ""}, {port: "443", reason: ""}],
     firewall_outbound_allow_all: true,
-    firewall_outbound_custom_ports: [] as string[],
+    firewall_outbound_custom_ports: [] as Array<{port: string, reason: string}>,
     // Step 5: Backup
     backup_enabled: false,
     backup_type: "daily",
@@ -119,13 +119,12 @@ const AdminDirectVMModal: React.FC<AdminDirectVMModalProps> = ({ onClose }) => {
   };
 
   const togglePort = (port: string) => {
-    const ports = f.firewall_ports;
-    set(
-      "firewall_ports",
-      ports.includes(port)
-        ? ports.filter((p: string) => p !== port)
-        : [...ports, port],
-    );
+    const exists = f.firewall_ports.some((fp: any) => fp.port === port);
+    if (exists) {
+      set("firewall_ports", f.firewall_ports.filter((fp: any) => fp.port !== port));
+    } else {
+      set("firewall_ports", [...f.firewall_ports, { port, reason: "" }]);
+    }
   };
 
   const submit = async () => {
@@ -619,7 +618,7 @@ const AdminDirectVMModal: React.FC<AdminDirectVMModalProps> = ({ onClose }) => {
                 }}
               >
                 {commonPorts.map((p) => {
-                  const active = f.firewall_ports.includes(p.port);
+                  const active = f.firewall_ports.some((fp: any) => fp.port === p.port);
                   return (
                     <button
                       key={p.port}

@@ -1096,7 +1096,11 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                             {t?.firewall_ports && t.firewall_ports.length > 0 && (
                               <>
                                 <dt>Firewall Ports (Inbound)</dt>
-                                <dd className="mono">{t.firewall_ports.join(', ')}</dd>
+                                <dd className="mono">{t.firewall_ports.map((fp: any) => {
+                                  const port = typeof fp === 'string' ? fp : fp.port
+                                  const reason = typeof fp === 'string' ? '' : fp.reason
+                                  return reason ? `${port} (${reason})` : port
+                                }).join(', ')}</dd>
                               </>
                             )}
                             <>
@@ -1104,8 +1108,16 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                               <dd className="mono">
                                 {t?.firewall_outbound_allow_all ? 'Allow All' : 'Custom'}
                                 {t?.firewall_outbound_allow_all
-                                  ? ` (${t?.firewall_ports?.join(', ') || 'none'})`
-                                  : ` (${t?.firewall_outbound_custom_ports?.join(', ') || 'none'})`}
+                                  ? ` (${t?.firewall_ports?.map((fp: any) => {
+                                      const port = typeof fp === 'string' ? fp : fp.port
+                                      const reason = typeof fp === 'string' ? '' : fp.reason
+                                      return reason ? `${port} (${reason})` : port
+                                    }).join(', ') || 'none'})`
+                                  : ` (${t?.firewall_outbound_custom_ports?.map((fp: any) => {
+                                      const port = typeof fp === 'string' ? fp : fp.port
+                                      const reason = typeof fp === 'string' ? '' : fp.reason
+                                      return reason ? `${port} (${reason})` : port
+                                    }).join(', ') || 'none'})`}
                               </dd>
                             </>
                           </dl>

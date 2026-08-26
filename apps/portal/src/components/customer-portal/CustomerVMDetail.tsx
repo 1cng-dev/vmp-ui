@@ -363,7 +363,7 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
                 <div className="card" style={{ borderColor: 'var(--line)' }}>
                   <div className="card-body flush">
                     <table className="tbl">
-                      <thead><tr><th>Port</th><th>Protocol</th><th>Source</th></tr></thead>
+                      <thead><tr><th>Port</th><th>Protocol</th><th>Reason</th></tr></thead>
                       <tbody>
                         {(() => {
                           try {
@@ -372,25 +372,29 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
                             if (!arr || arr.length === 0) {
                               return (
                                 <>
-                                  <tr><td className="mono fw-6">443</td><td className="mono">TCP</td><td className="text-sm">any (HTTPS)</td></tr>
-                                  <tr><td className="mono fw-6">80</td><td className="mono">TCP</td><td className="text-sm">any (HTTP)</td></tr>
-                                  <tr><td className="mono fw-6">22</td><td className="mono">TCP</td><td className="text-sm">trusted-admin</td></tr>
+                                  <tr><td className="mono fw-6">443</td><td className="mono">TCP</td><td className="text-sm">HTTPS</td></tr>
+                                  <tr><td className="mono fw-6">80</td><td className="mono">TCP</td><td className="text-sm">HTTP</td></tr>
+                                  <tr><td className="mono fw-6">22</td><td className="mono">TCP</td><td className="text-sm">SSH</td></tr>
                                 </>
                               )
                             }
-                            return arr.map((port: any, idx: number) => (
-                              <tr key={idx}>
-                                <td className="mono fw-6">{port}</td>
-                                <td className="mono">TCP</td>
-                                <td className="text-sm">any</td>
-                              </tr>
-                            ))
+                            return arr.map((fp: any, idx: number) => {
+                              const port = typeof fp === 'string' ? fp : fp.port
+                              const reason = typeof fp === 'string' ? '' : fp.reason
+                              return (
+                                <tr key={idx}>
+                                  <td className="mono fw-6">{port}</td>
+                                  <td className="mono">TCP</td>
+                                  <td className="text-sm">{reason || '—'}</td>
+                                </tr>
+                              )
+                            })
                           } catch {
                             return (
                               <>
-                                <tr><td className="mono fw-6">443</td><td className="mono">TCP</td><td className="text-sm">any (HTTPS)</td></tr>
-                                <tr><td className="mono fw-6">80</td><td className="mono">TCP</td><td className="text-sm">any (HTTP)</td></tr>
-                                <tr><td className="mono fw-6">22</td><td className="mono">TCP</td><td className="text-sm">trusted-admin</td></tr>
+                                <tr><td className="mono fw-6">443</td><td className="mono">TCP</td><td className="text-sm">HTTPS</td></tr>
+                                <tr><td className="mono fw-6">80</td><td className="mono">TCP</td><td className="text-sm">HTTP</td></tr>
+                                <tr><td className="mono fw-6">22</td><td className="mono">TCP</td><td className="text-sm">SSH</td></tr>
                               </>
                             )
                           }
@@ -404,26 +408,40 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
                   <div className="card" style={{ borderColor: 'var(--line)' }}>
                     <div className="card-body flush">
                       <table className="tbl">
-                        <thead><tr><th>Policy</th><th>Ports</th></tr></thead>
+                        <thead><tr><th>Policy</th><th>Port</th><th>Reason</th></tr></thead>
                         <tbody>
-                          <tr>
-                            <td className="fw-6">
-                              {(vm as any).firewall_outbound_allow_all ? 'Allow All (Inbound Ports)' : 'Custom'}
-                            </td>
-                            <td className="mono">
-                              {(vm as any).firewall_outbound_allow_all
-                                ? (() => {
-                                    try {
-                                      const src = vmRequest?.firewall_ports ?? (vm as any).firewall_ports
-                                      const arr = Array.isArray(src) ? src : (typeof src === 'string' ? JSON.parse(src) : [])
-                                      return arr?.join(', ') || '—'
-                                    } catch {
-                                      return '—'
-                                    }
-                                  })()
-                                : (vm as any).firewall_outbound_custom_ports?.join(', ') || '—'}
-                            </td>
-                          </tr>
+                          {(vm as any).firewall_outbound_allow_all
+                            ? (() => {
+                                try {
+                                  const src = vmRequest?.firewall_ports ?? (vm as any).firewall_ports
+                                  const arr = Array.isArray(src) ? src : (typeof src === 'string' ? JSON.parse(src) : [])
+                                  return arr?.map((fp: any, idx: number) => {
+                                    const port = typeof fp === 'string' ? fp : fp.port
+                                    const reason = typeof fp === 'string' ? '' : fp.reason
+                                    return (
+                                      <tr key={idx}>
+                                        <td className="fw-6">Allow All (Inbound Ports)</td>
+                                        <td className="mono">{port}</td>
+                                        <td className="text-sm">{reason || '—'}</td>
+                                      </tr>
+                                    )
+                                  }) || <tr><td colSpan={3}><div className="empty"><div className="sub">No outbound ports defined.</div></div></td></tr>
+                                } catch {
+                                  return <tr><td colSpan={3}><div className="empty"><div className="sub">No outbound ports defined.</div></div></td></tr>
+                                }
+                              })()
+                            : (vm as any).firewall_outbound_custom_ports?.map((fp: any, idx: number) => {
+                                const port = typeof fp === 'string' ? fp : fp.port
+                                const reason = typeof fp === 'string' ? '' : fp.reason
+                                return (
+                                  <tr key={idx}>
+                                    <td className="fw-6">Custom</td>
+                                    <td className="mono">{port}</td>
+                                    <td className="text-sm">{reason || '—'}</td>
+                                  </tr>
+                                )
+                              }) || <tr><td colSpan={3}><div className="empty"><div className="sub">No outbound ports defined.</div></div></td></tr>
+                          }
                         </tbody>
                       </table>
                     </div>

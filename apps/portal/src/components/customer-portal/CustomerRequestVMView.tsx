@@ -53,9 +53,9 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
     backupType: 'daily',
     zone: 'yangon-dc1',
     nics: [{ id: 1, label: 'NIC 1', description: '' }],
-    firewallPorts: ['80', '443'],
+    firewallPorts: [{ port: '80', reason: '' }, { port: '443', reason: '' }],
     firewallOutboundAllowAll: true,
-    firewallOutboundCustomPorts: [] as string[],
+    firewallOutboundCustomPorts: [] as Array<{port: string, reason: string}>,
     additionalNotes: '',
   })
   const set = (k: string, v: any) => setF(x => ({ ...x, [k]: v }))
@@ -83,8 +83,6 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
     { port: '6379', label: 'Redis', desc: 'Redis cache' },
     { port: '8080', label: 'HTTP-Alt', desc: 'Alternate HTTP' },
   ]
-
-  const blockedCustomPorts = ['25', '135', '136', '137', '138', '139', '445', '1433', '3306', '5432', '22', '3389']
 
   const restrictedPorts = [
     { ports: '25', label: 'SMTP', reason: 'To prevent spam and unauthorized email relaying. Mail relay services may be used if required.' },
@@ -118,42 +116,52 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
   const canSubmit = () => !!f.purpose && hostValid
 
   const togglePort = (port: string) => {
-    const ports = f.firewallPorts
-    set('firewallPorts', ports.includes(port) ? ports.filter((p: string) => p !== port) : [...ports, port])
+    const exists = f.firewallPorts.some((p: any) => p.port === port)
+    if (exists) {
+      set('firewallPorts', f.firewallPorts.filter((p: any) => p.port !== port))
+    } else {
+      set('firewallPorts', [...f.firewallPorts, { port, reason: '' }])
+    }
   }
   const [customPort, setCustomPort] = useState('')
-  const [customPortError, setCustomPortError] = useState('')
+  const [customPortReason, setCustomPortReason] = useState('')
   const [customOutboundPort, setCustomOutboundPort] = useState('')
-  const [customOutboundPortError, setCustomOutboundPortError] = useState('')
+  const [customOutboundPortReason, setCustomOutboundPortReason] = useState('')
   const addCustomPort = () => {
     const p = customPort.trim()
-    if (!p || f.firewallPorts.includes(p)) return
-    if (blockedCustomPorts.includes(p)) {
-      toast(`Port ${p} is not allowed for customer firewall rules`, 'error')
+    if (!p || f.firewallPorts.some((fp: any) => fp.port === p)) return
+    if (!customPortReason.trim()) {
+      toast('Please provide a reason for this custom port', 'error')
       return
     }
-    set('firewallPorts', [...f.firewallPorts, p])
+    set('firewallPorts', [...f.firewallPorts, { port: p, reason: customPortReason }])
     setCustomPort('')
+    setCustomPortReason('')
   }
 
   const toggleOutboundPort = (port: string) => {
-    const ports = f.firewallOutboundCustomPorts
-    set('firewallOutboundCustomPorts', ports.includes(port) ? ports.filter((p: string) => p !== port) : [...ports, port])
+    const exists = f.firewallOutboundCustomPorts.some((p: any) => p.port === port)
+    if (exists) {
+      set('firewallOutboundCustomPorts', f.firewallOutboundCustomPorts.filter((p: any) => p.port !== port))
+    } else {
+      set('firewallOutboundCustomPorts', [...f.firewallOutboundCustomPorts, { port, reason: '' }])
+    }
   }
 
   const addCustomOutboundPort = () => {
     const p = customOutboundPort.trim()
-    if (!p || f.firewallOutboundCustomPorts.includes(p)) return
-    if (blockedCustomPorts.includes(p)) {
-      toast(`Port ${p} is not allowed for customer firewall rules`, 'error')
+    if (!p || f.firewallOutboundCustomPorts.some((fp: any) => fp.port === p)) return
+    if (!customOutboundPortReason.trim()) {
+      toast('Please provide a reason for this custom outbound port', 'error')
       return
     }
-    set('firewallOutboundCustomPorts', [...f.firewallOutboundCustomPorts, p])
+    set('firewallOutboundCustomPorts', [...f.firewallOutboundCustomPorts, { port: p, reason: customOutboundPortReason }])
     setCustomOutboundPort('')
+    setCustomOutboundPortReason('')
   }
 
   const removeCustomOutboundPort = (port: string) => {
-    set('firewallOutboundCustomPorts', f.firewallOutboundCustomPorts.filter((p: string) => p !== port))
+    set('firewallOutboundCustomPorts', f.firewallOutboundCustomPorts.filter((p: any) => p.port !== port))
   }
 
 
@@ -178,12 +186,6 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
     // Validate billing term for paid requests
     if (f.requestType === 'paid' && !f.duration) {
       toast('Please select a billing term', 'error')
-      setIsSubmitting(false)
-      return
-    }
-    const blockedPort = [...f.firewallPorts, ...f.firewallOutboundCustomPorts].find(p => blockedCustomPorts.includes(p))
-    if (blockedPort) {
-      toast(`Port ${blockedPort} is not allowed for customer firewall rules`, 'error')
       setIsSubmitting(false)
       return
     }
@@ -655,7 +657,7 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
             {restrictedPortsNotice}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
               {commonPorts.map(p => {
-                const active = f.firewallPorts.includes(p.port)
+                const active = f.firewallPorts.some((fp: any) => fp.port === p.port)
                 return (
                   <button key={p.port} onClick={() => togglePort(p.port)}
                     style={{
@@ -680,29 +682,29 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
             <div className="flex gap-2">
               <input value={customPort} onChange={e => {
                 let v = e.target.value.replace(/[^0-9]/g, '')
-                if (v && blockedCustomPorts.includes(v)) {
-                  setCustomPortError(`Port ${v} is not allowed for customer firewall rules`)
-                } else {
-                  setCustomPortError('')
-                }
                 setCustomPort(v)
               }}
-                onKeyDown={e => e.key === 'Enter' && !customPortError && addCustomPort()}
+                onKeyDown={e => e.key === 'Enter' && addCustomPort()}
                 placeholder="e.g. 8443"
-                style={{ width: 120, padding: '7px 10px', border: '1px solid ' + (customPortError ? '#ef4444' : 'var(--line)'), borderRadius: 6, fontSize: 12.5, fontFamily: 'var(--mono)' }}
+                style={{ width: 120, padding: '7px 10px', border: '1px solid var(--line)', borderRadius: 6, fontSize: 12.5, fontFamily: 'var(--mono)' }}
               />
-              <button className="btn" onClick={addCustomPort} disabled={!customPort.trim() || !!customPortError}><Icon name="plus" size={12} />Add port</button>
+              <input 
+                value={customPortReason}
+                onChange={e => setCustomPortReason(e.target.value)}
+                placeholder="Reason (e.g. SSH access) *"
+                style={{ flex: 1, padding: '7px 10px', border: '1px solid var(--line)', borderRadius: 6, fontSize: 12.5 }}
+              />
+              <button className="btn" onClick={addCustomPort} disabled={!customPort.trim()}><Icon name="plus" size={12} />Add port</button>
             </div>
-            {customPortError && <div className="text-xs" style={{ color: '#ef4444', marginTop: 4 }}>{customPortError}</div>}
 
             {f.firewallPorts.length > 0 && (
               <div style={{ marginTop: 16, padding: 12, background: 'var(--surface-2)', borderRadius: 8 }}>
                 <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>Open ports</div>
                 <div className="flex gap-1 wrap">
-                  {f.firewallPorts.map(p => (
-                    <span key={p} className="pill accent" style={{ paddingRight: 4 }}>
-                      <span className="mono">{p}</span>
-                      <button className="icon-btn" style={{ width: 16, height: 16, marginLeft: 2 }} onClick={() => togglePort(p)}><Icon name="x" size={9} /></button>
+                  {f.firewallPorts.map((p: any) => (
+                    <span key={p.port} className="pill accent" style={{ paddingRight: 4 }}>
+                      <span className="mono">{p.port}</span>
+                      <button className="icon-btn" style={{ width: 16, height: 16, marginLeft: 2 }} onClick={() => togglePort(p.port)}><Icon name="x" size={9} /></button>
                     </span>
                   ))}
                 </div>
@@ -743,7 +745,7 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
                   {commonPorts.map((p) => {
-                    const active = f.firewallOutboundCustomPorts.includes(p.port);
+                    const active = f.firewallOutboundCustomPorts.some((fp: any) => fp.port === p.port);
                     return (
                       <button
                         key={p.port}
@@ -771,35 +773,36 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
                     value={customOutboundPort}
                     onChange={(e) => {
                       let v = e.target.value.replace(/[^0-9]/g, '')
-                      if (v && blockedCustomPorts.includes(v)) {
-                        setCustomOutboundPortError(`Port ${v} is not allowed for customer firewall rules`)
-                      } else {
-                        setCustomOutboundPortError('')
-                      }
                       setCustomOutboundPort(v)
                     }}
-                    onKeyDown={e => e.key === 'Enter' && !customOutboundPortError && addCustomOutboundPort()}
-                    placeholder="Add custom port (e.g., 8080)"
-                    style={{ flex: 1, padding: '8px 12px', border: '1px solid ' + (customOutboundPortError ? '#ef4444' : 'var(--line)'), borderRadius: 6, fontFamily: 'var(--mono)' }}
+                    onKeyDown={e => e.key === 'Enter' && addCustomOutboundPort()}
+                    placeholder="Port (e.g., 8080)"
+                    style={{ width: 120, padding: '8px 12px', border: '1px solid var(--line)', borderRadius: 6, fontFamily: 'var(--mono)' }}
+                  />
+                  <input
+                    type="text"
+                    value={customOutboundPortReason}
+                    onChange={(e) => setCustomOutboundPortReason(e.target.value)}
+                    placeholder="Reason (e.g. API access) *"
+                    style={{ flex: 1, padding: '8px 12px', border: '1px solid var(--line)', borderRadius: 6 }}
                   />
                   <button
                     className="btn sm"
                     onClick={addCustomOutboundPort}
-                    disabled={!customOutboundPort.trim() || !!customOutboundPortError}
+                    disabled={!customOutboundPort.trim()}
                   >
                     Add
                   </button>
                 </div>
-                {customOutboundPortError && <div className="text-xs" style={{ color: '#ef4444', marginTop: 4 }}>{customOutboundPortError}</div>}
 
                 {f.firewallOutboundCustomPorts.length > 0 && (
                   <div style={{ marginTop: 16, padding: 12, background: 'var(--surface-2)', borderRadius: 8 }}>
                     <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.04em', textTransform: 'uppercase' }}>Selected outbound ports</div>
                     <div className="flex gap-1 wrap">
-                      {f.firewallOutboundCustomPorts.map((p) => (
-                        <span key={p} className="pill accent" style={{ paddingRight: 4 }}>
-                          <span className="mono">{p}</span>
-                          <button className="icon-btn" style={{ width: 16, height: 16, marginLeft: 2 }} onClick={() => removeCustomOutboundPort(p)}><Icon name="x" size={9} /></button>
+                      {f.firewallOutboundCustomPorts.map((p: any) => (
+                        <span key={p.port} className="pill accent" style={{ paddingRight: 4 }}>
+                          <span className="mono">{p.port}</span>
+                          <button className="icon-btn" style={{ width: 16, height: 16, marginLeft: 2 }} onClick={() => removeCustomOutboundPort(p.port)}><Icon name="x" size={9} /></button>
                         </span>
                       ))}
                     </div>
@@ -953,7 +956,11 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
                 <div className="grid-2" style={{ gap: 12 }}>
                   <div>
                     <div className="text-xs text-mute mb-1">Firewall inbound ports</div>
-                    <div className="fw-6 text-sm">{f.firewallPorts.join(', ') || 'none'}</div>
+                    <div className="fw-6 text-sm">{f.firewallPorts.map((fp: any) => {
+                      const port = typeof fp === 'string' ? fp : fp.port
+                      const reason = typeof fp === 'string' ? '' : fp.reason
+                      return reason ? `${port} (${reason})` : port
+                    }).join(', ') || 'none'}</div>
                   </div>
                   <div>
                     <div className="text-xs text-mute mb-1">Firewall outbound</div>
@@ -966,7 +973,11 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
                   <div>
                     <div className="text-xs text-mute mb-1">Firewall outbound ports</div>
                     <div className="fw-6 text-sm">
-                      {f.firewallOutboundCustomPorts.join(', ') || 'none'}
+                      {f.firewallOutboundCustomPorts.map((fp: any) => {
+                        const port = typeof fp === 'string' ? fp : fp.port
+                        const reason = typeof fp === 'string' ? '' : fp.reason
+                        return reason ? `${port} (${reason})` : port
+                      }).join(', ') || 'none'}
                     </div>
                   </div>
                 )}

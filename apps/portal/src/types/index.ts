@@ -322,9 +322,9 @@ export interface NewVMInput {
   zone?: string;
   nics?: any[];
   public_ip_required?: boolean;
-  firewall_ports?: string[];
+  firewall_ports?: Array<{port: string, reason: string}>;
   firewall_outbound_allow_all?: boolean;
-  firewall_outbound_custom_ports?: string[];
+  firewall_outbound_custom_ports?: Array<{port: string, reason: string}>;
   purpose?: string;
   sizing?: "Standard" | "High Performance";
   storage_partitions?: string;

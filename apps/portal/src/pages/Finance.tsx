@@ -33,6 +33,7 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, userRole }) => {
   const [filter, setFilter] = useState('all')
   const [view, setView] = useState<'list' | 'detail'>('list')
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
+  const [sendingReceipt, setSendingReceipt] = useState<string | null>(null)
 
   useEffect(() => {
     loadInvoices()
@@ -436,38 +437,48 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, userRole }) => {
                         <td onClick={e => e.stopPropagation()} className="right">
                           {i.status === 'Payment Received' && userRole !== 'Sales' ? (
                             <button className="btn sm" onClick={async () => {
-                              const { supabase } = await import('../lib/supabase')
-                              const { data: { user } } = await supabase.auth.getUser()
-                              const timestamp = Date.now().toString(36)
-                              const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
-                              const receiptNumber = `RCT-${timestamp}-${random}`
-                              const legacyId = `RCT-${Math.floor(1000 + Math.random() * 9000)}`
-                              
-                              // Send receipt email
-                              const pdfAttachmentBase64 = i.pdf_path ? await (await import('../lib/storage')).fetchPDFAsBase64(i.pdf_path) : undefined
-                              await sendReceiptEmail({
-                                to: c?.email || '',
-                                customerName: c?.name || 'Customer',
-                                invoiceId: i.legacy_id || i.id,
-                                receiptNumber: i.receipt || legacyId,
-                                amount: i.gross_amount,
-                                paidDate: i.paid_date ? new Date(i.paid_date).toLocaleDateString() : new Date().toLocaleDateString(),
-                                pdfAttachmentBase64
-                              })
-                              
-                              toast('Receipt email sent successfully', 'ok')
-                              
-                              // Add receipt in background
-                              await addReceipt({
-                                invoice_id: i.id,
-                                customer_id: i.customer_id,
-                                legacy_id: legacyId,
-                                receipt_number: receiptNumber,
-                                message: `Thank you for your payment. Your receipt ${legacyId} for invoice ${i.legacy_id || i.id} has been sent.`,
-                                sent_by: user?.id,
-                                status: 'sent'
-                              })
-                            }}><Icon name="mail" size={11} />Send receipt</button>
+                              try {
+                                setSendingReceipt(i.id)
+                                const { supabase } = await import('../lib/supabase')
+                                const { data: { user } } = await supabase.auth.getUser()
+                                const timestamp = Date.now().toString(36)
+                                const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
+                                const receiptNumber = `RCT-${timestamp}-${random}`
+                                const legacyId = `RCT-${Math.floor(1000 + Math.random() * 9000)}`
+                                
+                                // Send receipt email
+                                const pdfAttachmentBase64 = i.pdf_path ? await (await import('../lib/storage')).fetchPDFAsBase64(i.pdf_path) : undefined
+                                await sendReceiptEmail({
+                                  to: c?.email || '',
+                                  customerName: c?.name || 'Customer',
+                                  invoiceId: i.legacy_id || i.id,
+                                  receiptNumber: i.receipt || legacyId,
+                                  amount: i.gross_amount,
+                                  paidDate: i.paid_date ? new Date(i.paid_date).toLocaleDateString() : new Date().toLocaleDateString(),
+                                  pdfAttachmentBase64
+                                })
+                                
+                                toast('Receipt email sent successfully', 'ok')
+                                
+                                // Add receipt in background
+                                await addReceipt({
+                                  invoice_id: i.id,
+                                  customer_id: i.customer_id,
+                                  legacy_id: legacyId,
+                                  receipt_number: receiptNumber,
+                                  message: `Thank you for your payment. Your receipt ${legacyId} for invoice ${i.legacy_id || i.id} has been sent.`,
+                                  sent_by: user?.id,
+                                  status: 'sent'
+                                })
+                              } catch (error) {
+                                console.error('Failed to send receipt:', error)
+                                toast('Failed to send receipt email', 'error')
+                              } finally {
+                                setSendingReceipt(null)
+                              }
+                            }} disabled={sendingReceipt === i.id}>
+                              {sendingReceipt === i.id ? 'Sending...' : <><Icon name="mail" size={11} />Send receipt</>}
+                            </button>
                           ) : userRole !== 'Sales' && (
                             <button className="btn sm" onClick={() => markPaid(i.id, `RCT-${i.id.slice(0, 8)}`)}><Icon name="check" size={11} />Mark paid</button>
                           )}

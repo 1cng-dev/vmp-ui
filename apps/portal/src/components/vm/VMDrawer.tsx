@@ -210,15 +210,19 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
                 <div className="card-head"><h3 className="card-title">Allowed ports (Inbound)</h3></div>
                 <div className="card-body flush">
                   <table className="tbl">
-                    <thead><tr><th>Port</th><th>Protocol</th><th>Source</th></tr></thead>
+                    <thead><tr><th>Port</th><th>Protocol</th><th>Reason</th></tr></thead>
                     <tbody>
-                      {(v as any).firewall_ports?.map((port: any, idx: number) => (
-                        <tr key={idx}>
-                          <td className="mono fw-6">{port}</td>
-                          <td className="mono">TCP</td>
-                          <td className="text-sm">any</td>
-                        </tr>
-                      ))}
+                      {(v as any).firewall_ports?.map((fp: any, idx: number) => {
+                        const port = typeof fp === 'string' ? fp : fp.port
+                        const reason = typeof fp === 'string' ? '' : fp.reason
+                        return (
+                          <tr key={idx}>
+                            <td className="mono fw-6">{port}</td>
+                            <td className="mono">TCP</td>
+                            <td className="text-sm">{reason || '—'}</td>
+                          </tr>
+                        )
+                      })}
                       {(!(v as any).firewall_ports || (v as any).firewall_ports.length === 0) && (
                         <tr><td colSpan={3}><div className="empty"><div className="sub">No specific firewall ports defined.</div></div></td></tr>
                       )}
@@ -230,16 +234,32 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
                 <div className="card-head"><h3 className="card-title">Outbound firewall</h3></div>
                 <div className="card-body flush">
                   <table className="tbl">
-                    <thead><tr><th>Policy</th><th>Ports</th></tr></thead>
+                    <thead><tr><th>Policy</th><th>Port</th><th>Reason</th></tr></thead>
                     <tbody>
-                      <tr>
-                        <td className="fw-6">{(v as any).firewall_outbound_allow_all ? 'Allow All (Inbound Ports)' : 'Custom'}</td>
-                        <td className="mono">
-                          {(v as any).firewall_outbound_allow_all
-                            ? (v as any).firewall_ports?.join(', ') || '—'
-                            : (v as any).firewall_outbound_custom_ports?.join(', ') || '—'}
-                        </td>
-                      </tr>
+                      {(v as any).firewall_outbound_allow_all
+                        ? (v as any).firewall_ports?.map((fp: any, idx: number) => {
+                            const port = typeof fp === 'string' ? fp : fp.port
+                            const reason = typeof fp === 'string' ? '' : fp.reason
+                            return (
+                              <tr key={idx}>
+                                <td className="fw-6">Allow All (Inbound Ports)</td>
+                                <td className="mono">{port}</td>
+                                <td className="text-sm">{reason || '—'}</td>
+                              </tr>
+                            )
+                          }) || <tr><td colSpan={3}><div className="empty"><div className="sub">No outbound ports defined.</div></div></td></tr>
+                        : (v as any).firewall_outbound_custom_ports?.map((fp: any, idx: number) => {
+                            const port = typeof fp === 'string' ? fp : fp.port
+                            const reason = typeof fp === 'string' ? '' : fp.reason
+                            return (
+                              <tr key={idx}>
+                                <td className="fw-6">Custom</td>
+                                <td className="mono">{port}</td>
+                                <td className="text-sm">{reason || '—'}</td>
+                              </tr>
+                            )
+                          }) || <tr><td colSpan={3}><div className="empty"><div className="sub">No outbound ports defined.</div></div></td></tr>
+                      }
                     </tbody>
                   </table>
                 </div>

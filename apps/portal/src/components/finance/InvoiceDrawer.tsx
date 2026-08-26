@@ -28,6 +28,7 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const [showPDFDownloadConfirm, setShowPDFDownloadConfirm] = useState(false)
   const [isPDFDownloading, setIsPDFDownloading] = useState(false)
+  const [sendingReceipt, setSendingReceipt] = useState(false)
   const c = customers.find(c => c.id === invoice.customer_id)
   if (!c) return null
   const live = invoices.find(i => i.id === invoice.id) || invoice
@@ -92,18 +93,28 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({ invoice, onClose, 
         <div className="page-actions">
           <button className="btn" onClick={() => setShowPDFDownloadConfirm(true)}><Icon name="download" size={12} />PDF</button>
           {live.status === 'Payment Received' && role !== 'Sales' && <button className="btn" onClick={async () => {
-            const pdfAttachmentBase64 = live.pdf_path ? await fetchPDFAsBase64(live.pdf_path) : undefined
-            await sendReceiptEmail({
-              to: c.email,
-              customerName: c.name,
-              invoiceId: live.legacy_id || live.id,
-              receiptNumber: live.receipt || `RCT-${live.id.slice(0, 8)}`,
-              amount: live.gross_amount,
-              paidDate: live.paid_date ? new Date(live.paid_date).toLocaleDateString() : new Date().toLocaleDateString(),
-              pdfAttachmentBase64
-            })
-            toast('Receipt email sent successfully', 'ok')
-          }}><Icon name="mail" size={12} />Send Receipt</button>}
+            try {
+              setSendingReceipt(true)
+              const pdfAttachmentBase64 = live.pdf_path ? await fetchPDFAsBase64(live.pdf_path) : undefined
+              await sendReceiptEmail({
+                to: c.email,
+                customerName: c.name,
+                invoiceId: live.legacy_id || live.id,
+                receiptNumber: live.receipt || `RCT-${live.id.slice(0, 8)}`,
+                amount: live.gross_amount,
+                paidDate: live.paid_date ? new Date(live.paid_date).toLocaleDateString() : new Date().toLocaleDateString(),
+                pdfAttachmentBase64
+              })
+              toast('Receipt email sent successfully', 'ok')
+            } catch (error) {
+              console.error('Failed to send receipt:', error)
+              toast('Failed to send receipt email', 'error')
+            } finally {
+              setSendingReceipt(false)
+            }
+          }} disabled={sendingReceipt}>
+            {sendingReceipt ? 'Sending...' : <><Icon name="mail" size={12} />Send Receipt</>}
+          </button>}
           {live.status !== 'Payment Received' && role !== 'Sales' && live.status !== 'Cancelled' && <button className="btn accent" onClick={async () => {
             await markPaid(live.id, `RCT-${live.id.slice(0, 8)}`)
           }}><Icon name="check" size={12} />Mark paid</button>}
