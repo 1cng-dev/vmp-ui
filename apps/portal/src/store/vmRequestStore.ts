@@ -233,36 +233,45 @@ export const VMRequestProvider: React.FC<{ children: ReactNode }> = ({ children 
             }
 
             // Get VM data for all request types
-            let vmLegacyId: string | undefined
-            let vmPublicIp: string | undefined
-            if (isTrialToPaid && previousRequest.notes) {
-              // Extract VM legacy_id from notes for trial to paid conversion
-              const match = previousRequest.notes.match(/VM:\s*([A-Z0-9-]+)/)
-              vmLegacyId = match ? match[1] : undefined
-            }
+            let vmData: { hostname?: string; legacy_id?: string | null; public_ip?: string | null } | null = null
+
             if (previousRequest.vm_id) {
               const { data: vm } = await supabase
                 .from('vms')
-                .select('legacy_id, public_ip')
+                .select('hostname, legacy_id, public_ip')
                 .eq('id', previousRequest.vm_id)
                 .maybeSingle()
-              if (vm) {
-                if (vm.legacy_id) vmLegacyId = vm.legacy_id
-                vmPublicIp = vm.public_ip || undefined
-              }
+              vmData = vm
             } else {
               // New VMs may not have vm_id on the request yet; look up by vm_request_id
               const { data: vm } = await supabase
                 .from('vms')
-                .select('legacy_id, public_ip')
+                .select('hostname, legacy_id, public_ip')
                 .eq('vm_request_id', id)
                 .limit(1)
                 .maybeSingle()
-              if (vm) {
-                if (vm.legacy_id) vmLegacyId = vm.legacy_id
-                vmPublicIp = vm.public_ip || undefined
+              vmData = vm
+            }
+
+            // For trial-to-paid, the vms row may be linked to the original request
+            if (!vmData && isTrialToPaid && previousRequest.notes) {
+              const match = previousRequest.notes.match(/VM:\s*([A-Z0-9-]+)/)
+              const noteLegacyId = match ? match[1] : undefined
+              if (noteLegacyId) {
+                const { data: vm } = await supabase
+                  .from('vms')
+                  .select('hostname, legacy_id, public_ip')
+                  .ilike('legacy_id', `${noteLegacyId}%`)
+                  .eq('customer_id', previousRequest.customer_id)
+                  .limit(1)
+                  .maybeSingle()
+                vmData = vm
               }
             }
+
+            const vmName = vmData?.hostname || previousRequest.hostname
+            const vmLegacyId = vmData?.legacy_id || undefined
+            const vmPublicIp = vmData?.public_ip || undefined
 
             try {
               await sendProvisioningCompletedEmail({
@@ -273,7 +282,7 @@ export const VMRequestProvider: React.FC<{ children: ReactNode }> = ({ children 
                 requestId: previousRequest.legacy_id,
                 completionDate: new Date().toISOString(),
                 vmLegacyId: vmLegacyId,
-                vmName: previousRequest.hostname,
+                vmName: vmName,
                 serviceId: vmLegacyId,
                 ipAddress: vmPublicIp
               })
