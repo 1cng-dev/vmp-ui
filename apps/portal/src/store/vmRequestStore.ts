@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { createAlert } from '../services/notificationService'
 import { sendProvisioningCompletedEmail } from '../services/emailService'
 import useActivityStore from './activityStore'
+import type { RequestedDiskChange } from '../types'
 
 export interface VMRequest {
   id: string
@@ -39,6 +40,7 @@ export interface VMRequest {
   spec_changed?: boolean
   backup_changed?: boolean
   vm_id?: string
+  requested_disks?: RequestedDiskChange[]
 }
 
 export interface VMRequestStoreValue {

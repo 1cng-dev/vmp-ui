@@ -151,9 +151,9 @@ const QuoteDrawer = ({ quote, onClose }: QuoteDrawerProps) => {
                       </div>
                       <div className="flex between text-sm text-mute mt-1">
                         <div>
-                          {item.vcpu && <span>vCPU: {item.vcpu}</span>}
-                          {item.ram && <span> · RAM: {item.ram}GB</span>}
-                          {item.storage && <span> · Storage: {item.storage}GB</span>}
+                          <span>vCPU: {item.vcpu || 0}</span>
+                          <span> · RAM: {item.ram || 0}{item.ram ? 'GB' : ''}</span>
+                          <span> · Storage: {item.storage || 0}{item.storage ? 'GB' : ''}</span>
                         </div>
                         <div>Qty: {item.qty || 1}</div>
                       </div>

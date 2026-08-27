@@ -135,114 +135,20 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
     loadCurrentVMData()
   }, [isRenewal, isUpgrade, selectedRequest])
 
-  // Update quote sheet when currentVMData is loaded for change-plan requests
+  // Update quote sheet for change-plan requests using the stored request duration
   useEffect(() => {
     if (isUpgrade && currentVMData && selectedRequest) {
-      // For change-plan requests, calculate remaining duration from VM expiry
-      const today = new Date()
-      const expiryDate = new Date(currentVMData.expiry)
-
-      if (isNaN(expiryDate.getTime())) {
+      const isBackupOnly = (selectedRequest as any).backup_changed && !(selectedRequest as any).spec_changed
+      if (isBackupOnly) {
+        setSheet(s => ({ ...s, instance: [], backup: [] }))
         return
       }
 
-      // Calculate exact months and days using actual calendar
-      let months = expiryDate.getMonth() - today.getMonth()
-      let years = expiryDate.getFullYear() - today.getFullYear()
-      let days = expiryDate.getDate() - today.getDate()
+      const billingTerm = (selectedRequest as any).duration ? String((selectedRequest as any).duration) : 'N/A'
 
-      // Adjust for negative values
-      if (days < 0) {
-        months--
-        // Get days in the month before expiry
-        const prevMonth = new Date(expiryDate.getFullYear(), expiryDate.getMonth(), 0)
-        days += prevMonth.getDate()
-      }
-
-      if (months < 0) {
-        years--
-        months += 12
-      }
-
-      const totalMonths = years * 12 + months
-
-      // Convert excess days to months (if days > 28, add a month)
-      if (days > 28) {
-        const extraMonths = Math.floor(days / 30)
-        const finalMonths = totalMonths + extraMonths
-        const finalDays = days % 30
-
-        // For change-plan requests, always show exact remaining duration (not standard billing terms)
-        // Change plans are prorated based on remaining time, not new billing cycles
-        let billingTerm: string
-        if (finalDays > 0) {
-          billingTerm = `${finalMonths} months ${finalDays} days`
-        } else {
-          billingTerm = `${finalMonths} months`
-        }
-
-        // Parse notes to determine what changed
-        // const notes = selectedRequest.notes || ''
-        const isSpecChange = (selectedRequest as any).spec_changed || false
-        const isBackupChange = (selectedRequest as any).backup_changed || false
-
-
-        // Fallback: check if spec values differ from current VM data
-        const specDiffers = currentVMData && (
-          (selectedRequest as any).vcpu !== currentVMData.vcpu ||
-          (selectedRequest as any).ram_gb !== (currentVMData.ram_gb || currentVMData.ram) ||
-          (selectedRequest as any).storage !== (currentVMData.storage_gb || currentVMData.storage)
-        )
-        const backupDiffers = currentVMData && (
-          (selectedRequest as any).backup_enabled !== currentVMData.backup_enabled ||
-          ((selectedRequest as any).backup_enabled && (selectedRequest as any).backup_type !== currentVMData.backup_type)
-        )
-
-
-        const instanceLines: InstanceLine[] = []
-        const backupLines: BackupLine[] = []
-
-        if (isSpecChange || specDiffers) {
-          // Show all specs inline in a single row like regular VM requests
-          instanceLines.push({
-            spec: (selectedRequest as any).hostname || 'VM Upgrade',
-            vcpu: (selectedRequest as any).vcpu || 0,
-            ram: (selectedRequest as any).ram_gb || 0,
-            storage: (selectedRequest as any).storage || 0,
-            qty: 1,
-            unit: 0,
-            term: String(billingTerm)
-          })
-        }
-
-        if ((isBackupChange || backupDiffers) && (selectedRequest as any).backup_enabled) {
-          backupLines.push({
-            spec: (selectedRequest as any).backup_type === 'daily' ? 'Daily Backup' : 'Weekly Backup',
-            storage: (selectedRequest as any).storage || 0,
-            unit: 0,
-            term: String(billingTerm)
-          })
-        }
-
-        setSheet(s => ({ ...s, instance: instanceLines, backup: backupLines }))
-        return
-      }
-
-      // For change-plan requests, always show exact remaining duration (not standard billing terms)
-      // Change plans are prorated based on remaining time, not new billing cycles
-      let billingTerm: string
-      if (days > 0) {
-        billingTerm = `${totalMonths} months ${days} days`
-      } else {
-        billingTerm = `${totalMonths} months`
-      }
-
-      // Parse notes to determine what changed
-      // const notes = selectedRequest.notes || ''
       const isSpecChange = (selectedRequest as any).spec_changed || false
       const isBackupChange = (selectedRequest as any).backup_changed || false
 
-      // Fallback: check if spec values differ from current VM data
       const specDiffers = currentVMData && (
         (selectedRequest as any).vcpu !== currentVMData.vcpu ||
         (selectedRequest as any).ram_gb !== (currentVMData.ram_gb || currentVMData.ram) ||
@@ -252,27 +158,41 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
         (selectedRequest as any).backup_enabled !== currentVMData.backup_enabled ||
         ((selectedRequest as any).backup_enabled && (selectedRequest as any).backup_type !== currentVMData.backup_type)
       )
+      const storageDiffers = currentVMData && (
+        (selectedRequest as any).storage !== (currentVMData.storage_gb || currentVMData.storage)
+      )
 
       const instanceLines: InstanceLine[] = []
       const backupLines: BackupLine[] = []
 
       if (isSpecChange || specDiffers) {
-        // Show all specs inline in a single row like regular VM requests
         instanceLines.push({
           spec: (selectedRequest as any).hostname || 'VM Upgrade',
-          vcpu: (selectedRequest as any).vcpu || 0,
-          ram: (selectedRequest as any).ram_gb || 0,
-          storage: (selectedRequest as any).storage || 0,
+          vcpu: currentVMData
+            ? Math.max(0, ((selectedRequest as any).vcpu || 0) - (currentVMData.vcpu || 0))
+            : (selectedRequest as any).vcpu || 0,
+          ram: currentVMData
+            ? Math.max(0, ((selectedRequest as any).ram_gb || 0) - ((currentVMData.ram_gb || currentVMData.ram) || 0))
+            : (selectedRequest as any).ram_gb || 0,
+          storage: currentVMData
+            ? Math.max(0, ((selectedRequest as any).storage || 0) - ((currentVMData.storage_gb || currentVMData.storage) || 0))
+            : (selectedRequest as any).storage || 0,
           qty: 1,
           unit: 0,
           term: String(billingTerm)
         })
       }
 
-      if ((isBackupChange || backupDiffers) && (selectedRequest as any).backup_enabled) {
+      const backupIsNew = !currentVMData.backup_enabled && (selectedRequest as any).backup_enabled
+
+      if ((isBackupChange || backupDiffers || storageDiffers) && (selectedRequest as any).backup_enabled) {
         backupLines.push({
           spec: (selectedRequest as any).backup_type === 'daily' ? 'Daily Backup' : 'Weekly Backup',
-          storage: (selectedRequest as any).storage || 0,
+          storage: backupIsNew
+            ? ((selectedRequest as any).storage || 0)
+            : currentVMData
+              ? Math.max(0, ((selectedRequest as any).storage || 0) - ((currentVMData.storage_gb || currentVMData.storage) || 0))
+              : ((selectedRequest as any).storage || 0),
           unit: 0,
           term: String(billingTerm)
         })

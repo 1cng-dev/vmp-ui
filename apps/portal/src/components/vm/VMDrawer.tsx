@@ -1,5 +1,7 @@
-import React, { useState } from 'react'
-import useVMStore from '../../store/vmStore'
+import React, { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+import useVMStore, { getVMDisks } from '../../store/vmStore'
+import type { VMDisk } from '../../types'
 import useCustomerStore from '../../store/customerStore'
 import useAddonServiceStore from '../../store/addonServiceStore'
 import useUIStore from '../../store/uiStore'
@@ -23,7 +25,28 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
   const { getAddonServicesForVM, getAllAddonServicesForVM, updateAddonService } = useAddonServiceStore()
   const { toast } = useUIStore()
   const [tab, setTab] = useState('overview')
+  const [disks, setDisks] = useState<VMDisk[]>([])
   const v = vms.find((x: any) => x.id === vmId)
+
+  useEffect(() => {
+    if (!v?.id) return
+
+    const fetchDisks = () => getVMDisks(v.id).then(setDisks)
+    fetchDisks()
+
+    const channel = supabase
+      .channel(`vm_disks:${v.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'vm_disks', filter: `vm_id=eq.${v.id}` },
+        fetchDisks
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [v?.id])
   const c = v ? customers.find((c: any) => c.id === v.customer_id) : null
 
   // Get data from store instead of fetching directly
@@ -139,9 +162,9 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
         </div>
 
         <div className="tabs">
-          {['overview', 'specs', 'network', 'backups', 'credentials', 'addons'].map(t => (
+          {['overview', 'specs', 'network', 'disks', 'backups', 'credentials', 'addons'].map(t => (
             <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
-              {t === 'overview' ? 'Overview' : t === 'specs' ? 'Specs' : t === 'network' ? 'Network' : t === 'backups' ? 'Backups' : t === 'credentials' ? 'Credentials' : 'Add-ons'}
+              {t === 'overview' ? 'Overview' : t === 'specs' ? 'Specs' : t === 'network' ? 'Network' : t === 'disks' ? 'Disks' : t === 'backups' ? 'Backups' : t === 'credentials' ? 'Credentials' : 'Add-ons'}
             </button>
           ))}
         </div>
@@ -157,7 +180,7 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
                       <dl className="dl mt-3">
                         <dt>vCPU</dt><dd className="tnum">{v.vcpu} cores</dd>
                         <dt>RAM</dt><dd className="tnum">{v.ram_gb} GB</dd>
-                        <dt>Storage</dt><dd className="tnum">{v.storage_gb} GB SSD</dd>
+                        <dt>Total storage</dt><dd className="tnum">{v.storage_gb} GB SSD</dd>
                         <dt>OS</dt><dd>{(v as any).os_name || 'Linux'}</dd>
                         <dt>OS Version</dt><dd>{(v as any).os_version || '—'}</dd>
                         <dt>Purpose</dt><dd>{(v as any).purpose || '—'}</dd>
@@ -260,6 +283,40 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
                             )
                           }) || <tr><td colSpan={3}><div className="empty"><div className="sub">No outbound ports defined.</div></div></td></tr>
                       }
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {tab === 'disks' && (
+            <div className="flex col gap-4">
+              <div className="card">
+                <div className="card-head">
+                  <h3 className="card-title">Disks</h3>
+                </div>
+                <div className="card-body flush">
+                  <table className="tbl">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Size (GB)</th>
+                        <th>Type</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {disks.length === 0 ? (
+                        <tr><td colSpan={3}><div className="empty"><div className="sub">No disks found.</div></div></td></tr>
+                      ) : (
+                        disks.map(d => (
+                          <tr key={d.id}>
+                            <td className="mono fw-6">{d.name}</td>
+                            <td className="tnum">{d.size_gb}</td>
+                            <td>{d.is_primary ? 'Primary' : '—'}</td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -397,7 +454,7 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
                     <dl className="dl">
                       <dt>vCPU</dt><dd>{v.vcpu} cores</dd>
                       <dt>Memory</dt><dd>{v.ram_gb} GB</dd>
-                      <dt>Storage</dt><dd>{v.storage_gb} GB SSD</dd>
+                      <dt>Total storage</dt><dd>{v.storage_gb} GB SSD</dd>
                       <dt>OS</dt><dd>{(v as any).os_name || 'Linux'}</dd>
                       <dt>OS Version</dt><dd>{(v as any).os_version || '—'}</dd>
                       <dt>Specification Type</dt><dd>{(v as any).sizing || 'Standard'}</dd>

@@ -12,6 +12,8 @@ import useVMStore from '../../store/vmStore'
 import useAddonRequestStore from '../../store/addonRequestStore'
 import useAddonServiceStore from '../../store/addonServiceStore'
 import { supabase } from '../../lib/supabase'
+import type { RequestedDiskChange, VMDisk } from '../../types'
+import { getVMDisks } from '../../store/vmStore'
 
 interface TaskDrawerProps {
   requestId: string
@@ -57,12 +59,82 @@ const formatDuration = (duration: string | number | undefined | null): string =>
   return `${numMonths} month${numMonths > 1 ? 's' : ''}`
 }
 
+// Helper to compute remaining billing term from VM expiry (used for change-plan requests)
+const formatRemainingTerm = (expiry: string | Date): string => {
+  const today = new Date()
+  const expiryDate = new Date(expiry)
+
+  if (expiryDate <= today) {
+    return 'Expired'
+  }
+
+  let months = expiryDate.getMonth() - today.getMonth()
+  let years = expiryDate.getFullYear() - today.getFullYear()
+  let days = expiryDate.getDate() - today.getDate()
+
+  if (days < 0) {
+    months--
+    const prevMonth = new Date(expiryDate.getFullYear(), expiryDate.getMonth(), 0)
+    days += prevMonth.getDate()
+  }
+
+  if (months < 0) {
+    years--
+    months += 12
+  }
+
+  const totalMonths = years * 12 + months
+
+  // Convert excess days to months if more than 28 days (same as QuotesView)
+  if (days > 28) {
+    const extraMonths = Math.floor(days / 30)
+    const finalMonths = totalMonths + extraMonths
+    const finalDays = days % 30
+    if (finalDays > 0) {
+      return `${finalMonths} month${finalMonths > 1 ? 's' : ''} ${finalDays} day${finalDays > 1 ? 's' : ''}`
+    }
+    return `${finalMonths} month${finalMonths > 1 ? 's' : ''}`
+  }
+
+  if (totalMonths > 0 && days > 0) {
+    return `${totalMonths} month${totalMonths > 1 ? 's' : ''} ${days} day${days > 1 ? 's' : ''}`
+  }
+  if (totalMonths > 0) {
+    return `${totalMonths} month${totalMonths > 1 ? 's' : ''}`
+  }
+  return `${days} day${days > 1 ? 's' : ''}`
+}
+
+const applyRequestedDiskChanges = async (vmId: string, requested: RequestedDiskChange[] | undefined) => {
+  if (!requested || requested.length === 0) return
+
+  for (const d of requested) {
+    if (d.action === 'new' && d.name && d.size_gb) {
+      const { error } = await supabase.from('vm_disks').insert({
+        vm_id: vmId,
+        name: d.name,
+        size_gb: d.size_gb,
+        is_primary: false,
+      })
+      if (error) throw error
+    }
+
+    if (d.action === 'extend' && d.disk_id && d.add_gb) {
+      const { data: disk, error: fetchError } = await supabase.from('vm_disks').select('size_gb').eq('id', d.disk_id).single()
+      if (fetchError) throw fetchError
+      if (!disk) throw new Error(`Disk ${d.disk_id} not found`)
+      const { error: updateError } = await supabase.from('vm_disks').update({ size_gb: (disk.size_gb || 0) + d.add_gb }).eq('id', d.disk_id)
+      if (updateError) throw updateError
+    }
+  }
+}
+
 export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, userRole }) => {
   const { customers, loadCustomers } = useCustomerStore()
   const { toast } = useUIStore()
   const { logActivity } = useActivityStore()
   const { createVMManually, updateAddonExpiryForVM } = useTaskStore()
-  const { addVM, vms, getVMById, getVMByHostname, updateVM, getVMRequest } = useVMStore()
+  const { addVM, vms, loadVMs, getVMById, getVMByHostname, updateVM, getVMRequest } = useVMStore()
   const { vmRequests, updateVMRequest } = useVMRequestStore()
   const { addonRequests, updateAddonRequest, deleteAddonRequest, loadAddonRequests } = useAddonRequestStore()
   const { getAddonServicesForVM } = useAddonServiceStore()
@@ -80,6 +152,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
   const [isActivating, setIsActivating] = useState(false)
   const [isTerminating, setIsTerminating] = useState(false)
   const [isCompleting, setIsCompleting] = useState(false)
+  const [vmDisks, setVmDisks] = useState<VMDisk[]>([])
 
   // Computed variables - must be before useEffects
   const t = vmRequests.find((x: any) => x.id === requestId)
@@ -100,17 +173,36 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
   }, [requestType, request, getVMById])
 
   // Check if payment is received for this request (via invoice)
-  // Skip payment validation for trial requests only
-  // All paid requests (new, renewal, addon) require payment before provisioning
+  // Skip payment validation for trial requests and backup-only change plans
+  // All paid requests (new, renewal, addon, spec upgrade) require payment before provisioning
   const invoice = invoices.find((i: any) =>
     requestType === 'vm'
       ? i.vm_request_ids?.includes(requestId)
       : i.addon_request_ids?.includes(requestId)
   )
-  // Skip payment check only for trial VMs
-  // All other requests (new paid, renewal, addon) require payment before provisioning
-  const isPaymentReceived = isTrial ? true : (invoice && invoice.status === 'Payment Received')
+  // Backup-only change plans (e.g. daily to weekly) have no extra cost and need no quote/payment
+  const isBackupOnly = isUpgrade && t?.backup_changed && !t?.spec_changed
+  // Skip payment check for trial VMs and backup-only change plans
+  const isPaymentReceived = isTrial || isBackupOnly ? true : (invoice && invoice.status === 'Payment Received')
   const isBackupChange = t?.backup_changed || false
+
+  // Load VMs if not loaded yet
+  React.useEffect(() => {
+    if (vms.length === 0) {
+      loadVMs()
+    }
+  }, [vms.length, loadVMs])
+
+  // Load VM disks for change-plan details
+  React.useEffect(() => {
+    const loadDisks = async () => {
+      if (t?.vm_id) {
+        const disks = await getVMDisks(t.vm_id)
+        setVmDisks(disks)
+      }
+    }
+    loadDisks()
+  }, [t?.vm_id])
 
   // Load customers if not loaded yet
   React.useEffect(() => {
@@ -298,7 +390,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                 )}
                               </>
                             )}
-                            {active && i === 2 && t && userRole !== 'Sales' && (
+                            {active && i === 2 && t && (userRole === 'Engineer' || userRole === 'Admin') && (
                               <button className="btn sm ok mt-2" onClick={async () => {
                                 setIsCompleting(true)
                                 // Apply upgrade changes to the VM when completed
@@ -330,6 +422,12 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                       ram_gb: t.ram_gb,
                                       storage_gb: t.storage
                                     })
+
+                                    // Apply disk changes to the request
+                                    if ((t as any).requested_disks?.length > 0) {
+                                      await applyRequestedDiskChanges(vmId, (t as any).requested_disks)
+                                    }
+
                                     await updateVMRequest(t.id, { status: 'Completed' })
                                     toast('Upgrade completed and changes applied', 'ok')
                                   } catch (error) {
@@ -369,7 +467,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                               )}
                             </>
                           )}
-                          {active && i === 2 && t && userRole !== 'Sales' && (
+                          {active && i === 2 && t && (userRole === 'Engineer' || userRole === 'Admin') && (
                             <button className="btn sm ok mt-2" onClick={async () => {
                               setIsCompleting(true)
                               // Apply renewal expiry extension to the VM when completed
@@ -592,7 +690,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                 )}
                               </>
                             )}
-                            {active && i === 2 && t && userRole !== 'Sales' && (
+                            {active && i === 2 && t && (userRole === 'Engineer' || userRole === 'Admin') && (
                               <button className="btn sm ok mt-2" onClick={async () => {
                                 setIsCompleting(true)
                                 // Apply trial to paid conversion - update VM expiry
@@ -1041,7 +1139,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                             <dt>Hostname</dt><dd className="mono">{t?.hostname}</dd>
                             <dt>Purpose</dt><dd>{t?.purpose || '—'}</dd>
                             <dt>Quantity</dt><dd className="mono">{t?.qty}</dd>
-                            {t?.duration && <><dt>Billing Term</dt><dd className="mono">{formatDuration(t?.duration)}</dd></>}
+                            {t?.duration && <><dt>Billing Term</dt><dd className="mono">{isUpgrade && currentVMData?.expiry ? formatRemainingTerm(currentVMData.expiry) : formatDuration(t?.duration)}</dd></>}
                             <dt>Spec Type</dt><dd className="mono" style={{ color: t?.sizing === 'Standard' ? 'var(--ok)' : 'var(--accent-strong)' }}>{t?.sizing}</dd>
                             <dt>OS</dt><dd className="mono">{t?.os_name} {t?.os_version}</dd>
                           </dl>
@@ -1068,7 +1166,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                                     `${t?.ram_gb} GB`
                                   )}
                                 </dd>
-                                <dt>Storage</dt><dd className="mono">
+                                <dt>Total storage</dt><dd className="mono">
                                   {isUpgrade && currentVMData ? (
                                     <>
                                       {currentVMData.storage_gb} GB <span style={{ color: 'var(--accent-strong)', margin: '0 4px' }}>→</span> <span style={{ color: 'var(--accent-strong)', fontWeight: 600 }}>{t?.storage} GB</span>
@@ -1080,6 +1178,32 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ requestId, onClose, user
                               </dl>
                             </>
                           ) : null}
+
+                          {isUpgrade && (t as any).requested_disks?.length > 0 && (
+                            <>
+                              <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Disk Changes</div>
+                              <dl className="dl">
+                                {(t as any).requested_disks.map((d: RequestedDiskChange, i: number) => {
+                                  if (d.action === 'new' && d.name && d.size_gb) {
+                                    return (
+                                      <React.Fragment key={`new-${i}`}>
+                                        <dt>New disk</dt><dd className="mono">{d.name}{' -> '}{d.size_gb}GB</dd>
+                                      </React.Fragment>
+                                    )
+                                  }
+                                  if (d.action === 'extend' && d.disk_id && d.add_gb) {
+                                    const existing = vmDisks.find((vd) => vd.id === d.disk_id)
+                                    return (
+                                      <React.Fragment key={`ext-${i}`}>
+                                        <dt>Extend</dt><dd className="mono">{existing?.name || 'Disk'} + {d.add_gb}GB</dd>
+                                      </React.Fragment>
+                                    )
+                                  }
+                                  return null
+                                })}
+                              </dl>
+                            </>
+                          )}
                         </div>
 
                         <div>

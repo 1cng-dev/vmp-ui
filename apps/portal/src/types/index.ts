@@ -46,6 +46,24 @@ export interface Customer {
   force_password_change?: boolean;
 }
 
+export interface VMDisk {
+  id: string;
+  vm_id: string;
+  name: string;
+  size_gb: number;
+  is_primary: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RequestedDiskChange {
+  action: 'new' | 'extend';
+  name?: string;
+  size_gb?: number;
+  disk_id?: string;
+  add_gb?: number;
+}
+
 export interface VM {
   id: string;
   name: string;
@@ -95,6 +113,8 @@ export interface VM {
     sslCertificate?: string;
     loadBalancer?: string;
   };
+
+  disks?: VMDisk[];
 }
 
 export interface Task {

@@ -730,7 +730,7 @@ export const CustomerRequestVMView: React.FC<CustomerRequestVMViewProps> = ({ me
             <div className="flex center between" style={{ padding: '12px 0', borderBottom: '1px solid var(--line)' }}>
               <div>
                 <div className="fw-6 text-sm">Allow All (Inbound Ports)</div>
-                <div className="text-xs text-mute">Allow outbound to all selected inbound ports: {f.firewallPorts.join(', ')}</div>
+                <div className="text-xs text-mute">Allow outbound to all selected inbound ports: {f.firewallPorts.map((fp: any) => typeof fp === 'string' ? fp : fp.port).join(', ')}</div>
               </div>
               <span className={`toggle ${f.firewallOutboundAllowAll ? 'on' : ''}`}
                     onClick={() => set('firewallOutboundAllowAll', !f.firewallOutboundAllowAll)} />

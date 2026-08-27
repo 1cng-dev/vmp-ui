@@ -1491,9 +1491,9 @@ const NewInvoiceModal: React.FC<NewInvoiceModalProps> = ({ onClose, presetCustom
                                     <span>Qty: {item.qty || 1}</span>
                                   ) : (
                                     <>
-                                      <span>vCPU: {item.vcpu}</span>
-                                      {item.ram && <span> · RAM: {item.ram}GB</span>}
-                                      {item.storage && <span> · Storage: {item.storage}GB</span>}
+                                      <span>vCPU: {item.vcpu || 0}</span>
+                                      <span> · RAM: {item.ram || 0}{item.ram ? 'GB' : ''}</span>
+                                      <span> · Storage: {item.storage || 0}{item.storage ? 'GB' : ''}</span>
                                       <span> · Qty: {item.qty || 1}</span>
                                     </>
                                   )}

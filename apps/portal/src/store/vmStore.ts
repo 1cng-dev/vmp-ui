@@ -11,6 +11,7 @@ import type { NewVMInput } from "../types";
 import { createAlert } from "../services/notificationService";
 import useActivityStore from "./activityStore";
 import { createVMBindings } from "../lib/proxmoxApi";
+import type { RequestedDiskChange, VMDisk } from '../types'
 
 // Use the VM interface that matches the vms table (line 215 in types/index.ts)
 export interface VM {
@@ -61,6 +62,7 @@ export interface VM {
   // opaque vm_ownership.id proxmox-proxcy's by-record routes use in place of
   // the real Proxmox vmid. Absent for staff, who load the full `vms` table.
   ownership_record_id?: string | null;
+  disks?: VMDisk[];
 }
 
 export interface VMRequest {
@@ -94,6 +96,18 @@ export interface VMRequest {
   assigned_vmid?: number;
   created_at: string;
   updated_at: string;
+  requested_disks?: RequestedDiskChange[];
+}
+
+export async function getVMDisks(vmId: string): Promise<VMDisk[]> {
+  const { data, error } = await supabase
+    .from("vm_disks")
+    .select("*")
+    .eq("vm_id", vmId)
+    .order("created_at", { ascending: true });
+
+  if (error) throw error;
+  return (data as VMDisk[]) || [];
 }
 
 export interface AddonRequest {
@@ -396,6 +410,13 @@ export const VMProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       }
 
       const insertedVM = data as VM;
+
+      await supabase.from("vm_disks").insert({
+        vm_id: insertedVM.id,
+        name: "disk1",
+        size_gb: insertedVM.storage_gb || 100,
+        is_primary: true,
+      });
 
       if (vm.assigned_vmid) {
         try {

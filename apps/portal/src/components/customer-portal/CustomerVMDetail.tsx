@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react'
-import useVMStore from '../../store/vmStore'
+import { supabase } from '@/lib/supabase'
+import useVMStore, { getVMDisks } from '../../store/vmStore'
+import type { VMDisk } from '../../types'
 import useAddonServiceStore from '../../store/addonServiceStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
@@ -71,6 +73,27 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
   const { toast } = useUIStore()
   const vm = vms.find((v: any) => v.id === initialVm.id) || initialVm
   const [tab, setTab] = useState('overview')
+  const [disks, setDisks] = useState<VMDisk[]>([])
+
+  useEffect(() => {
+    if (!vm?.id) return
+
+    const fetchDisks = () => getVMDisks(vm.id).then(setDisks)
+    fetchDisks()
+
+    const channel = supabase
+      .channel(`vm_disks:${vm.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'vm_disks', filter: `vm_id=eq.${vm.id}` },
+        fetchDisks
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [vm?.id])
   const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [convertToPaidOpen, setConvertToPaidOpen] = useState(false)
   const [moreMenuOpen, setMoreMenuOpen] = useState(false)
@@ -305,7 +328,7 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
 
       <div className="card">
         <div className="tabs">
-          {['overview', 'specs', 'network', 'backups', 'credentials', 'addons'].map(t => {
+          {['overview', 'specs', 'network', 'disks', 'backups', 'credentials', 'addons'].map(t => {
             const label = t === 'addons' ? 'Add-on Services' : t.charAt(0).toUpperCase() + t.slice(1)
             return (
               <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
@@ -321,7 +344,7 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
               <InfoCard icon="cpu" title="Specification" rows={[
                 ['vCPU', `${vm.vcpu} cores`],
                 ['Memory', `${vm.ram_gb} GB`],
-                ['Storage', `${vm.storage_gb} GB SSD`],
+                ['Total storage', `${vm.storage_gb} GB SSD`],
                 ['OS', (vm as any).os_name || 'Linux'],
                 ['Purpose', (vm as any).purpose || '—'],
               ]} />
@@ -452,6 +475,32 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
           </div>
         )}
 
+        {tab === 'disks' && (
+          <div className="card-body">
+            <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Disks</div>
+            <div className="card" style={{ borderColor: 'var(--line)' }}>
+              <div className="card-body flush">
+                <table className="tbl">
+                  <thead><tr><th>Name</th><th>Size (GB)</th><th>Type</th></tr></thead>
+                  <tbody>
+                    {disks.length === 0 ? (
+                      <tr><td colSpan={3}><div className="empty"><div className="sub">No disks found.</div></div></td></tr>
+                    ) : (
+                      disks.map(d => (
+                        <tr key={d.id}>
+                          <td className="mono fw-6">{d.name}</td>
+                          <td className="tnum">{d.size_gb}</td>
+                          <td>{d.is_primary ? 'Primary' : '—'}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
         {tab === 'backups' && (
           <div className="card-body">
             <div className="grid-2" style={{ gap: 16 }}>
@@ -513,7 +562,7 @@ export const CustomerVMDetail: React.FC<CustomerVMDetailProps> = ({ vm: initialV
               <InfoCard icon="cpu" title="Hardware" rows={[
                 ['vCPU', `${vm.vcpu} cores`],
                 ['Memory', `${vm.ram_gb} GB`],
-                ['Storage', `${vm.storage_gb} GB SSD`],
+                ['Total storage', `${vm.storage_gb} GB SSD`],
                 ['OS', (vm as any).os_name || 'Linux'],
                 ['OS Version', (vm as any).os_version || '—'],
                 ['Specification Type', (vm as any).sizing || 'Standard'],
