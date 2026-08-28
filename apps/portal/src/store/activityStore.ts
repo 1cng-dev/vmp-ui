@@ -65,24 +65,35 @@ export const ActivityProvider: React.FC<{ children: ReactNode }> = ({
         createdAt: a.created_at,
       }));
 
-      // Get unique user_ids from vm_action_audit to fetch customer data
+      // Get unique actor ids from activity_log and user_ids from vm_action_audit
+      const isUuid = (s: string) => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(s);
+      const actorIds = [...new Set((activityLogData || []).map((a: any) => a.actor).filter((x: any) => x && isUuid(x)))];
       const userIds = [...new Set((vmAuditData || []).map((a: any) => a.user_id).filter(Boolean))];
+      const allCustomerIds = [...new Set([...actorIds, ...userIds])];
       
-      // Fetch customer legacy_ids for these user_ids
+      // Fetch customer names and legacy_ids for these ids
       let customerLegacyMap: Record<string, string> = {};
-      if (userIds.length > 0) {
+      let customerNameMap: Record<string, string> = {};
+      if (allCustomerIds.length > 0) {
         const { data: customers } = await supabase
           .from('customers')
-          .select('id, legacy_id')
-          .in('id', userIds);
+          .select('id, name, legacy_id')
+          .in('id', allCustomerIds);
         
         if (customers) {
-          customerLegacyMap = customers.reduce((acc: Record<string, string>, c: any) => {
-            acc[c.id] = c.legacy_id || c.id;
-            return acc;
-          }, {});
+          customers.forEach((c: any) => {
+            customerLegacyMap[c.id] = c.legacy_id || c.id;
+            customerNameMap[c.id] = c.name || c.legacy_id || c.id;
+          });
         }
       }
+
+      // Resolve activity_log actor UUIDs to customer name (legacy id)
+      transformedActivityLog.forEach((a: any) => {
+        const name = customerNameMap[a.actor];
+        const legacy = customerLegacyMap[a.actor];
+        a.actor = name && legacy ? `${name} (${legacy})` : (legacy || a.actor || "System");
+      });
 
       // Transform vm_action_audit data
       const transformedVmAudit = (vmAuditData || []).map((a: any) => ({

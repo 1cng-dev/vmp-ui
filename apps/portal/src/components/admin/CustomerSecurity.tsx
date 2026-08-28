@@ -3,6 +3,28 @@ import { supabase } from '@/lib/supabase'
 import useCustomerStore from '@/store/customerStore'
 import useUIStore from '@/store/uiStore'
 
+const log2faActivity = async (text: string, customerId: string, meta: Record<string, unknown>) => {
+  try {
+    const [{ data: { user } }, { data: customer }] = await Promise.all([
+      supabase.auth.getUser(),
+      supabase.from('customers').select('name, legacy_id').eq('id', customerId).single()
+    ])
+    const customerLabel = customer
+      ? `${customer.name} (${customer.legacy_id || customerId})`
+      : customerId
+    const { error } = await supabase.from('activity_log').insert({
+      actor: user?.email || 'admin',
+      actor_role: 'staff',
+      kind: 'auth',
+      text: `${text} for ${customerLabel}`,
+      meta: { ...meta, customer_id: customerId }
+    })
+    if (error) throw error
+  } catch (err) {
+    console.error('activity log error:', err)
+  }
+}
+
 interface Props {
   customerId: string
   initial: { mfa_required: boolean; mfa_disabled: boolean }
@@ -18,6 +40,10 @@ export const CustomerSecurity: React.FC<Props> = ({ customerId, initial }) => {
     const next = !required
     try {
       await updateCustomer(customerId, { mfa_required: next })
+      await log2faActivity(`Admin set 2FA required to ${next}`, customerId, {
+        event: 'mfa_required_changed',
+        mfa_required: next
+      })
       setRequired(next)
       toast(`2FA ${next ? 'required' : 'optional'} for this customer`, 'ok')
     } catch (error: any) {
@@ -34,8 +60,14 @@ export const CustomerSecurity: React.FC<Props> = ({ customerId, initial }) => {
         const { error } = await supabase.functions.invoke('admin-delete-mfa', { body: { userId: customerId } })
         if (error) throw error
         toast('2FA disabled and factors deleted', 'ok')
+        await log2faActivity('Admin disabled 2FA', customerId, {
+          event: 'mfa_admin_disabled'
+        })
       } else {
         toast('2FA allowed again. Customer must re-enable.', 'ok')
+        await log2faActivity('Admin allowed 2FA', customerId, {
+          event: 'mfa_admin_enabled'
+        })
       }
 
       setDisabled(next)

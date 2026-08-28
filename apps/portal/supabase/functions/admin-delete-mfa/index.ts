@@ -60,6 +60,22 @@ Deno.serve(async (req) => {
       }
     }
 
+    try {
+      await supabaseAdmin.from('activity_log').insert({
+        actor: user.id,
+        actor_role: role.toLowerCase(),
+        kind: 'auth',
+        text: `Admin removed 2FA for user ${userId}`,
+        meta: {
+          target_user_id: userId,
+          event: 'mfa_admin_reset',
+          admin_email: user.email
+        }
+      })
+    } catch (err) {
+      console.error('activity log insert error:', err)
+    }
+
     return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } })
   } catch (err: any) {
     return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { 'Content-Type': 'application/json' } })

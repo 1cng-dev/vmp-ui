@@ -616,7 +616,23 @@ export const CustomerAccountView: React.FC<CustomerAccountViewProps> = ({ me }) 
             </div>
             <div className="modal-body">
               <MFAEnroll
-                onComplete={() => setShowMfaEnroll(false)}
+                onComplete={() => {
+                  ;(async () => {
+                    try {
+                      const { error } = await supabase.from('activity_log').insert({
+                        actor: me.id,
+                        actor_role: 'customer',
+                        kind: 'auth',
+                        text: '2FA enabled (TOTP)',
+                        meta: { event: 'mfa_enabled', customer_id: me.id }
+                      })
+                      if (error) throw error
+                    } catch (err) {
+                      console.error('activity log error:', err)
+                    }
+                  })()
+                  setShowMfaEnroll(false)
+                }}
                 onCancel={() => setShowMfaEnroll(false)}
               />
             </div>
@@ -646,6 +662,17 @@ export const CustomerAccountView: React.FC<CustomerAccountViewProps> = ({ me }) 
                   else {
                     toast('2FA disabled', 'ok')
                     setFactors([])
+                    try {
+                      await supabase.from('activity_log').insert({
+                        actor: me.id,
+                        actor_role: 'customer',
+                        kind: 'auth',
+                        text: '2FA disabled by user',
+                        meta: { event: 'mfa_disabled', customer_id: me.id }
+                      })
+                    } catch (err) {
+                      console.error('activity log error:', err)
+                    }
                   }
                   setConfirmDisable(false)
                 }}

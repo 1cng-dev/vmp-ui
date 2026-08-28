@@ -9,8 +9,8 @@ export const ActivityView: React.FC = () => {
   const { toast } = useUIStore()
   const [filter, setFilter] = useState('All')
   const [search, setSearch] = useState('')
-  const kinds = ['All', 'VM', 'Finance', 'Task', 'Alert', 'Customer']
-  const map: Record<string, string> = { 'VM': 'vm', 'Finance': 'finance', 'Task': 'task', 'Alert': 'alert', 'Customer': 'customer' }
+  const kinds = ['All', 'Auth', 'VM', 'Finance', 'Task', 'Alert', 'Customer']
+  const map: Record<string, string> = { 'Auth': 'auth', 'VM': 'vm', 'Finance': 'finance', 'Task': 'task', 'Alert': 'alert', 'Customer': 'customer' }
 
 
   const filtered = activity.filter(a => {

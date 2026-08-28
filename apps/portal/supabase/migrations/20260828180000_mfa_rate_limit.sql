@@ -44,6 +44,24 @@ BEGIN
   -- Successful attempt: clear the failed attempt / lock record
   IF (event->>'valid')::boolean THEN
     DELETE FROM public.mfa_failed_attempts WHERE user_id = v_user_id;
+
+    BEGIN
+      INSERT INTO public.activity_log (actor, actor_role, kind, text, meta)
+      VALUES (
+        v_user_id::text,
+        'customer',
+        'auth',
+        'MFA verified successfully',
+        jsonb_build_object(
+          'factor_id', (event->>'factor_id')::uuid,
+          'event', 'mfa_verified',
+          'ip_address', event->'metadata'->>'ip_address'
+        )
+      );
+    EXCEPTION WHEN OTHERS THEN
+      NULL;
+    END;
+
     RETURN jsonb_build_object('decision', 'continue');
   END IF;
 
@@ -52,6 +70,25 @@ BEGIN
       (user_id, factor_id, ip_address, attempt_count, first_failed_at, last_failed_at)
     VALUES
       (v_user_id, (event->>'factor_id')::uuid, event->'metadata'->>'ip_address', 1, now(), now());
+
+    BEGIN
+      INSERT INTO public.activity_log (actor, actor_role, kind, text, meta)
+      VALUES (
+        v_user_id::text,
+        'customer',
+        'auth',
+        'MFA failed - first attempt',
+        jsonb_build_object(
+          'factor_id', (event->>'factor_id')::uuid,
+          'event', 'mfa_failed',
+          'ip_address', event->'metadata'->>'ip_address',
+          'attempt_count', 1
+        )
+      );
+    EXCEPTION WHEN OTHERS THEN
+      NULL;
+    END;
+
     RETURN jsonb_build_object('decision', 'continue');
   END IF;
 
@@ -66,6 +103,25 @@ BEGIN
           last_failed_at = now(),
           locked_until = NULL
       WHERE user_id = v_user_id;
+
+    BEGIN
+      INSERT INTO public.activity_log (actor, actor_role, kind, text, meta)
+      VALUES (
+        v_user_id::text,
+        'customer',
+        'auth',
+        'MFA failed - attempt window reset (count 1)',
+        jsonb_build_object(
+          'factor_id', (event->>'factor_id')::uuid,
+          'event', 'mfa_failed',
+          'ip_address', event->'metadata'->>'ip_address',
+          'attempt_count', 1
+        )
+      );
+    EXCEPTION WHEN OTHERS THEN
+      NULL;
+    END;
+
     RETURN jsonb_build_object('decision', 'continue');
   END IF;
 
@@ -77,11 +133,47 @@ BEGIN
         ip_address = event->'metadata'->>'ip_address'
     WHERE user_id = v_user_id;
 
+    BEGIN
+      INSERT INTO public.activity_log (actor, actor_role, kind, text, meta)
+      VALUES (
+        v_user_id::text,
+        'customer',
+        'auth',
+        format('MFA failed - attempt %s', v_attempt.attempt_count + 1),
+        jsonb_build_object(
+          'factor_id', (event->>'factor_id')::uuid,
+          'event', 'mfa_failed',
+          'ip_address', event->'metadata'->>'ip_address',
+          'attempt_count', v_attempt.attempt_count + 1
+        )
+      );
+    EXCEPTION WHEN OTHERS THEN
+      NULL;
+    END;
+
   -- When max attempts reached, lock the account for the configured lockout duration
   IF v_attempt.attempt_count + 1 >= max_attempts THEN
     UPDATE public.mfa_failed_attempts
       SET locked_until = now() + (lockout_minutes || ' minutes')::interval
       WHERE user_id = v_user_id;
+
+    BEGIN
+      INSERT INTO public.activity_log (actor, actor_role, kind, text, meta)
+      VALUES (
+        v_user_id::text,
+        'customer',
+        'auth',
+        format('MFA locked for %s minutes due to failed attempts', lockout_minutes),
+        jsonb_build_object(
+          'factor_id', (event->>'factor_id')::uuid,
+          'event', 'mfa_locked',
+          'ip_address', event->'metadata'->>'ip_address',
+          'attempt_count', v_attempt.attempt_count + 1
+        )
+      );
+    EXCEPTION WHEN OTHERS THEN
+      NULL;
+    END;
 
     RETURN jsonb_build_object(
       'error', jsonb_build_object(
