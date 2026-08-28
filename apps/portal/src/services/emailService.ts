@@ -332,12 +332,7 @@ export async function sendReceiptEmail(params: ReceiptEmailParams) {
   return await callResendAPI({
     to: params.to,
     subject: `Payment Receipt - ${params.receiptNumber}`,
-    html,
-    attachments: params.pdfAttachmentBase64 ? [{
-      filename: `invoice-${params.invoiceId}.pdf`,
-      content: params.pdfAttachmentBase64,
-      contentDisposition: 'attachment'
-    }] : undefined
+    html
   })
 }
 
