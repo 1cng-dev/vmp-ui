@@ -1,9 +1,10 @@
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useRef, useState, useEffect } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { LoginScreen } from './LoginScreen'
 import { SignupScreen } from './Signup'
 import { SignupSuccess } from './shared/SignupSuccess'
+import { MFAChallenge } from './MFAChallenge'
 import { TeamLoginScreen } from './TeamLoginScreen'
 import Spinner from '../ui/Spinner'
 
@@ -47,7 +48,9 @@ export const AuthShell: React.FC<AuthShellProps> = ({ children, setRole }) => {
   const [shouldRedirect, setShouldRedirect] = useState(false)
   const [justSignedUp, setJustSignedUp] = useState(false)
   const [minDisplayTimeElapsed, setMinDisplayTimeElapsed] = useState(false)
+  const [needsMfa, setNeedsMfa] = useState(false)
   const initialRoleSetRef = React.useRef(false)
+  const checkSessionRef = useRef<() => Promise<void>>(async () => {})
 
   // Set minimum display time
   useEffect(() => {
@@ -58,99 +61,94 @@ export const AuthShell: React.FC<AuthShellProps> = ({ children, setRole }) => {
   }, [])
 
   useEffect(() => {
-    // Check current session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        // Don't set user if in signup mode - let completeSignup handle it
-        if (mode === 'signup') {
-          setLoading(false)
-          return
-        }
-
-        const userData = session.user.user_metadata
-        const userRole = userData.role || 'Customer'
-
-        // Redirect team users to admin portal
-        const teamRoles = ['Admin', 'Sales', 'Engineer', 'Finance']
-        if (teamRoles.includes(userRole)) {
-          // If on customer portal, sign out team members
-          if (window.location.pathname.startsWith('/admin') === false) {
-            await supabase.auth.signOut()
-            setLoading(false)
-            return
-          }
-          if (window.location.pathname !== '/admin') {
-            setShouldRedirect(true)
-          }
-          setLoading(false)
-          return
-        }
-
-        setUser({
-          id: session.user.id,
-          email: session.user.email!,
-          role: userRole,
-          name: userData.name || session.user.email!,
-          avatar: userData.name || session.user.email!,
-          customerId: userData.customerId,
-        })
-        if (!initialRoleSetRef.current) {
-          setRole(userData.role || 'Customer')
-          initialRoleSetRef.current = true
-        }
-      }
-      setLoading(false)
-    })
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        // Don't set user if in signup mode - let completeSignup handle it
-        if (mode === 'signup') {
-          setLoading(false)
-          return
-        }
-
-        const userData = session.user.user_metadata
-        const userRole = userData.role || 'Customer'
-
-        // Redirect team users to admin portal
-        const teamRoles = ['Admin', 'Sales', 'Engineer', 'Finance']
-        if (teamRoles.includes(userRole)) {
-          // If on customer portal, sign out team members
-          if (window.location.pathname.startsWith('/admin') === false) {
-            await supabase.auth.signOut()
-            setLoading(false)
-            return
-          }
-          if (window.location.pathname !== '/admin') {
-            setShouldRedirect(true)
-          }
-          setLoading(false)
-          return
-        }
-
-        setUser({
-          id: session.user.id,
-          email: session.user.email!,
-          role: userRole,
-          name: userData.name || session.user.email!,
-          avatar: userData.name || session.user.email!,
-          customerId: userData.customerId,
-        })
-
-        if (!initialRoleSetRef.current) {
-          setRole(userData.role || 'Customer')
-          initialRoleSetRef.current = true
-        }
-      } else {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user) {
         setUser(null)
+        setLoading(false)
+        return
+      }
+
+      if (mode === 'signup') {
+        setLoading(false)
+        return
+      }
+
+      const { data: customer } = await supabase
+        .from('customers')
+        .select('mfa_required, mfa_disabled')
+        .eq('id', session.user.id)
+        .maybeSingle()
+
+      if (customer?.mfa_disabled === true) {
+        setNeedsMfa(false)
+      } else {
+        const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+        const { data: factors } = await supabase.auth.mfa.listFactors()
+
+        const mustUseMfa = customer?.mfa_required === true
+        const hasFactor = (factors?.totp?.length ?? 0) > 0
+
+        if (mustUseMfa && !hasFactor) {
+          setLoading(false)
+          setNeedsMfa(true)
+          return
+        }
+
+        if (hasFactor && aal?.currentLevel !== aal?.nextLevel) {
+          setLoading(false)
+          setNeedsMfa(true)
+          return
+        }
+      }
+
+      setNeedsMfa(false)
+      const userData = session.user.user_metadata
+      const userRole = userData.role || 'Customer'
+      const teamRoles = ['Admin', 'Sales', 'Engineer', 'Finance']
+
+      if (teamRoles.includes(userRole)) {
+        if (window.location.pathname.startsWith('/admin') === false) {
+          await supabase.auth.signOut()
+          setLoading(false)
+          return
+        }
+        if (window.location.pathname !== '/admin') {
+          setShouldRedirect(true)
+        }
+        setLoading(false)
+        return
+      }
+
+      setUser({
+        id: session.user.id,
+        email: session.user.email!,
+        role: userRole,
+        name: userData.name || session.user.email!,
+        avatar: userData.name || session.user.email!,
+        customerId: userData.customerId,
+      })
+      if (!initialRoleSetRef.current) {
+        setRole(userData.role || 'Customer')
+        initialRoleSetRef.current = true
       }
       setLoading(false)
+    }
+
+    checkSessionRef.current = checkSession
+    checkSession()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
+      if (event === 'SIGNED_IN') {
+        await checkSession()
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null)
+        setLoading(false)
+      }
     })
 
     return () => subscription.unsubscribe()
-  }, [setRole, mode])
+  }, [mode])
 
 
   const handleSignout = async () => {
@@ -176,6 +174,14 @@ export const AuthShell: React.FC<AuthShellProps> = ({ children, setRole }) => {
 
   if (signupComplete) {
     return <SignupSuccess email={signupEmail} onContinue={() => { setSignupComplete(false); setMode('login') }} />
+  }
+
+  if (needsMfa) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg)' }}>
+        <MFAChallenge onVerified={() => checkSessionRef.current()} />
+      </div>
+    )
   }
 
   if (justSignedUp || (loading && !minDisplayTimeElapsed)) {

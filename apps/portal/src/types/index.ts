@@ -44,6 +44,8 @@ export interface Customer {
   company?: string;
   since?: string;
   force_password_change?: boolean;
+  mfa_required?: boolean;
+  mfa_disabled?: boolean;
 }
 
 export interface VMDisk {

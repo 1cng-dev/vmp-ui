@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import useCustomerStore from '../../store/customerStore'
 import useVMStore from '../../store/vmStore'
 import useTicketStore from '../../store/ticketStore'
@@ -7,6 +7,7 @@ import { Avatar, formatMMK } from '../ui/ui'
 import Icon from '../../lib/icons'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '../auth/Auth'
+import { MFAEnroll } from '../auth/MFAEnroll'
 import { uploadKYCDocument } from '../../lib/storage'
 
 interface CustomerAccountViewProps {
@@ -62,6 +63,25 @@ export const CustomerAccountView: React.FC<CustomerAccountViewProps> = ({ me }) 
 
   const [showKYCUpdateModal, setShowKYCUpdateModal] = useState(false)
   const [uploading, setUploading] = useState(false)
+
+  const [factors, setFactors] = useState<any[]>([])
+  const [showMfaEnroll, setShowMfaEnroll] = useState(false)
+  const [confirmDisable, setConfirmDisable] = useState(false)
+  const wasMfaOpenRef = useRef(false)
+
+  const loadFactors = useCallback(async () => {
+    const { data } = await supabase.auth.mfa.listFactors()
+    setFactors(data?.totp || [])
+  }, [])
+
+  useEffect(() => {
+    loadFactors()
+  }, [loadFactors])
+
+  useEffect(() => {
+    if (wasMfaOpenRef.current && !showMfaEnroll) loadFactors()
+    wasMfaOpenRef.current = showMfaEnroll
+  }, [showMfaEnroll, loadFactors])
 
   const [kycUpdateForm, setKycUpdateForm] = useState({
     phone: me.phone || '',
@@ -354,6 +374,40 @@ export const CustomerAccountView: React.FC<CustomerAccountViewProps> = ({ me }) 
                 </div>
               </div>
               <button className="btn" onClick={savePassword} disabled={updatingPassword}>{updatingPassword ? 'Updating...' : <><Icon name="key" size={12} />Update password</>}</button>
+
+              <div className="divider" />
+              <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Two-factor authentication</div>
+              <div className="flex center between text-sm mt-2">
+                <div>
+                  <div className="fw-6">Authenticator app</div>
+                  <div className="text-xs text-mute">
+                    {me.mfa_disabled
+                      ? 'Disabled by admin'
+                      : me.mfa_required
+                      ? 'Required by admin'
+                      : factors.length > 0
+                      ? 'Enabled'
+                      : 'Not enabled'}
+                  </div>
+                </div>
+                <span
+                  className={`toggle ${!me.mfa_disabled && factors.length > 0 ? 'on' : ''}`}
+                  onClick={() => {
+                    if (me.mfa_disabled) return
+                    if (factors.length > 0 && me.mfa_required) return
+
+                    if (factors.length > 0) {
+                      setConfirmDisable(true)
+                    } else {
+                      setShowMfaEnroll(true)
+                    }
+                  }}
+                  style={{
+                    opacity: me.mfa_disabled ? 0.5 : 1,
+                    cursor: me.mfa_disabled ? 'not-allowed' : 'pointer',
+                  }}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -547,6 +601,56 @@ export const CustomerAccountView: React.FC<CustomerAccountViewProps> = ({ me }) 
               <button className="btn ghost" onClick={() => setShowKYCUpdateModal(false)}>Cancel</button>
               <button className="btn accent" onClick={submitKYCUpdate} disabled={uploading}>
                 {uploading ? 'Updating...' : 'Submit for Review'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showMfaEnroll && (
+        <div className="modal-overlay" onClick={() => setShowMfaEnroll(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 620 }}>
+            <div className="modal-head">
+              <h3 style={{ margin: 0, fontSize: 16 }}>Enable 2FA</h3>
+              <button className="icon-btn" onClick={() => setShowMfaEnroll(false)}><Icon name="x" size={14} /></button>
+            </div>
+            <div className="modal-body">
+              <MFAEnroll
+                onComplete={() => setShowMfaEnroll(false)}
+                onCancel={() => setShowMfaEnroll(false)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDisable && (
+        <div className="modal-overlay" onClick={() => setConfirmDisable(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="modal-head">
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Disable 2FA?</h3>
+              <button className="icon-btn" onClick={() => setConfirmDisable(false)}><Icon name="x" size={14} /></button>
+            </div>
+            <div className="modal-body">
+              <p style={{ margin: 0, color: 'var(--text-mute)' }}>
+                Are you sure you want to disable two-factor authentication? Your account will be less secure.
+              </p>
+            </div>
+            <div className="modal-foot">
+              <button className="btn ghost" onClick={() => setConfirmDisable(false)}>Cancel</button>
+              <button
+                className="btn danger"
+                onClick={async () => {
+                  const { error } = await supabase.auth.mfa.unenroll({ factorId: factors[0].id })
+                  if (error) toast(error.message, 'bad')
+                  else {
+                    toast('2FA disabled', 'ok')
+                    setFactors([])
+                  }
+                  setConfirmDisable(false)
+                }}
+              >
+                <Icon name="shield" size={12} />Disable
               </button>
             </div>
           </div>

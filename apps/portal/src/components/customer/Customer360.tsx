@@ -7,6 +7,7 @@ import useVMRequestStore from '../../store/vmRequestStore'
 import useUIStore from '../../store/uiStore'
 import Icon from '../../lib/icons'
 import { Avatar, StatusPill, formatMMK } from '../ui/ui'
+import { CustomerSecurity } from '../admin/CustomerSecurity'
 
 interface Customer360Props {
   customer: any
@@ -127,6 +128,10 @@ export const Customer360: React.FC<Customer360Props> = ({ customer, onClose, ope
                 </div>
               </div>
             </div>
+          )}
+
+          {['Admin','Engineer'].includes(role || '') && (
+            <CustomerSecurity customerId={c.id} initial={{ mfa_required: c.mfa_required || false, mfa_disabled: c.mfa_disabled || false }} />
           )}
 
           {/* All-data tabs as collapsed lists */}
