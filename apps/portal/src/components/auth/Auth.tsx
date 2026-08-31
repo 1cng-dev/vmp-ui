@@ -5,6 +5,7 @@ import { LoginScreen } from './LoginScreen'
 import { SignupScreen } from './Signup'
 import { SignupSuccess } from './shared/SignupSuccess'
 import { MFAChallenge } from './MFAChallenge'
+import { MFAEnroll } from './MFAEnroll'
 import { TeamLoginScreen } from './TeamLoginScreen'
 import Spinner from '../ui/Spinner'
 
@@ -49,6 +50,7 @@ export const AuthShell: React.FC<AuthShellProps> = ({ children, setRole }) => {
   const [justSignedUp, setJustSignedUp] = useState(false)
   const [minDisplayTimeElapsed, setMinDisplayTimeElapsed] = useState(false)
   const [needsMfa, setNeedsMfa] = useState(false)
+  const [needsMfaEnroll, setNeedsMfaEnroll] = useState(false)
   const initialRoleSetRef = React.useRef(false)
   const checkSessionRef = useRef<() => Promise<void>>(async () => {})
 
@@ -82,6 +84,7 @@ export const AuthShell: React.FC<AuthShellProps> = ({ children, setRole }) => {
 
       if (customer?.mfa_disabled === true) {
         setNeedsMfa(false)
+        setNeedsMfaEnroll(false)
       } else {
         const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
         const { data: factors } = await supabase.auth.mfa.listFactors()
@@ -91,18 +94,21 @@ export const AuthShell: React.FC<AuthShellProps> = ({ children, setRole }) => {
 
         if (mustUseMfa && !hasFactor) {
           setLoading(false)
-          setNeedsMfa(true)
+          setNeedsMfaEnroll(true)
+          setNeedsMfa(false)
           return
         }
 
         if (hasFactor && aal?.currentLevel !== aal?.nextLevel) {
           setLoading(false)
           setNeedsMfa(true)
+          setNeedsMfaEnroll(false)
           return
         }
-      }
 
-      setNeedsMfa(false)
+        setNeedsMfa(false)
+        setNeedsMfaEnroll(false)
+      }
       const userData = session.user.user_metadata
       const userRole = userData.role || 'Customer'
       const teamRoles = ['Admin', 'Sales', 'Engineer', 'Finance']
@@ -176,6 +182,14 @@ export const AuthShell: React.FC<AuthShellProps> = ({ children, setRole }) => {
     return <SignupSuccess email={signupEmail} onContinue={() => { setSignupComplete(false); setMode('login') }} />
   }
 
+  if (needsMfaEnroll) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg)' }}>
+        <MFAEnroll onComplete={() => checkSessionRef.current()} onCancel={() => supabase.auth.signOut()} />
+      </div>
+    )
+  }
+
   if (needsMfa) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg)' }}>
@@ -212,6 +226,8 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
   const [loading, setLoading] = useState(true)
   const [minDisplayTimeElapsed, setMinDisplayTimeElapsed] = useState(false)
   const [roleLoaded, setRoleLoaded] = useState(false)
+  const [needsMfa, setNeedsMfa] = useState(false)
+  const [needsMfaEnroll, setNeedsMfaEnroll] = useState(false)
   const loginSyncInFlightRef = React.useRef(false)
   const lastSyncedUserIdRef = React.useRef<string | null>(null)
 
@@ -298,7 +314,7 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
         // Fetch role from database (source of truth)
         const { data: teamMember, error } = await supabase
           .from('team_members')
-          .select('role, name, team')
+          .select('role, name, team, mfa_required, mfa_disabled')
           .eq('user_id', session.user.id)
           .maybeSingle()
 
@@ -324,6 +340,26 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
           await supabase.auth.signOut()
           setLoading(false)
           return
+        }
+
+        // 2FA enforcement
+        setNeedsMfa(false)
+        setNeedsMfaEnroll(false)
+        const { data: factors } = await supabase.auth.mfa.listFactors()
+        const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+
+        if (teamMember?.mfa_disabled !== true) {
+          if (teamMember?.mfa_required === true && (factors?.totp?.length ?? 0) === 0) {
+            setNeedsMfaEnroll(true)
+            setLoading(false)
+            return
+          }
+
+          if ((factors?.totp?.length ?? 0) > 0 && aal?.currentLevel !== aal?.nextLevel) {
+            setNeedsMfa(true)
+            setLoading(false)
+            return
+          }
         }
 
         setUser({
@@ -368,7 +404,7 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
         // Fetch role from database (source of truth)
         const { data: teamMember, error } = await supabase
           .from('team_members')
-          .select('role, name, team')
+          .select('role, name, team, mfa_required, mfa_disabled')
           .eq('user_id', session.user.id)
           .maybeSingle()
 
@@ -399,6 +435,26 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
         // Update team member record on login
         if (_event === 'SIGNED_IN' && lastSyncedUserIdRef.current !== session.user.id) {
           await updateTeamMemberLogin(session.user.id, userData, session.user.email!)
+        }
+
+        // 2FA enforcement
+        setNeedsMfa(false)
+        setNeedsMfaEnroll(false)
+        const { data: factors } = await supabase.auth.mfa.listFactors()
+        const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+
+        if (teamMember?.mfa_disabled !== true) {
+          if (teamMember?.mfa_required === true && (factors?.totp?.length ?? 0) === 0) {
+            setNeedsMfaEnroll(true)
+            setLoading(false)
+            return
+          }
+
+          if ((factors?.totp?.length ?? 0) > 0 && aal?.currentLevel !== aal?.nextLevel) {
+            setNeedsMfa(true)
+            setLoading(false)
+            return
+          }
         }
 
         setUser({
@@ -433,6 +489,22 @@ export const TeamAuthShell: React.FC<TeamAuthShellProps> = ({ children, setRole 
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg)' }}>
         <Spinner />
+      </div>
+    )
+  }
+
+  if (needsMfaEnroll) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg)' }}>
+        <MFAEnroll onComplete={() => window.location.reload()} onCancel={() => supabase.auth.signOut()} />
+      </div>
+    )
+  }
+
+  if (needsMfa) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg)' }}>
+        <MFAChallenge onVerified={() => window.location.reload()} />
       </div>
     )
   }

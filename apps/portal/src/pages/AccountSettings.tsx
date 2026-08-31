@@ -6,6 +6,7 @@ import { useAuth } from '../components/auth/Auth'
 import Icon from '../lib/icons'
 import { Avatar } from '../components/ui/ui'
 import { supabase } from '@/lib/supabase'
+import { MFAEnroll } from '../components/auth/MFAEnroll'
 import useTeamStore from '../store/teamStore'
 import useAuthStore from '../store/authStore'
 
@@ -35,8 +36,46 @@ export const AccountSettingsView: React.FC<AccountSettingsViewProps> = ({ role }
   const [security, setSecurity] = useState({
     twoFA: true, sessionTimeout: 30, currentPassword: '', newPassword: '', confirmPassword: '',
   })
+  const [factors, setFactors] = useState<any[]>([])
+  const [showMfaEnroll, setShowMfaEnroll] = useState(false)
+  const [confirmDisable, setConfirmDisable] = useState(false)
+  const [mfaDisabled, setMfaDisabled] = useState(false)
+  const [mfaRequired, setMfaRequired] = useState(false)
 
   useEffect(() => { if (me?.id) setProfile(p => ({ ...p, name: me.name, email: me.email })); }, [me?.id])
+
+  const loadFactors = async () => {
+    const { data } = await supabase.auth.mfa.listFactors()
+    setFactors(data?.totp || [])
+  }
+
+  const loadMfaPolicy = async () => {
+    if (!me?.id) return
+    const { data } = await supabase
+      .from('team_members')
+      .select('mfa_required, mfa_disabled')
+      .eq('user_id', me.id)
+      .single()
+    setMfaRequired(data?.mfa_required || false)
+    setMfaDisabled(data?.mfa_disabled || false)
+  }
+
+  useEffect(() => { loadFactors(); loadMfaPolicy() }, [])
+
+  const logMfaActivity = async (text: string, event: string) => {
+    try {
+      const { error } = await supabase.from('activity_log').insert({
+        actor: me?.id,
+        actor_role: 'staff',
+        kind: 'auth',
+        text,
+        meta: { event, staff_id: me?.id }
+      })
+      if (error) throw error
+    } catch (err) {
+      console.error('activity log error:', err)
+    }
+  }
 
   const saveProfile = async () => {
     if (!me?.id) return toast('User not found', 'bad')
@@ -156,13 +195,6 @@ export const AccountSettingsView: React.FC<AccountSettingsViewProps> = ({ role }
           </div>
           <div className="card-body">
             <div className="flex col gap-3">
-              {/* <div className="flex center between">
-                <div>
-                  <div className="fw-6 text-sm">Two-factor auth</div>
-                  <div className="text-xs text-mute">Authenticator app required at login</div>
-                </div>
-                <span className={`toggle ${security.twoFA ? 'on' : ''}`} onClick={() => setSecurity({ ...security, twoFA: !security.twoFA })} />
-              </div> */}
               {/* <div className="field">
                 <label>Auto-logout (minutes)</label>
                 <input type="number" value={security.sessionTimeout} onChange={e => setSecurity({ ...security, sessionTimeout: +e.target.value })} min="5" max="240" />
@@ -216,6 +248,34 @@ export const AccountSettingsView: React.FC<AccountSettingsViewProps> = ({ role }
                 </div>
               </div>
               <button className="btn" onClick={savePassword} disabled={updatingPassword}>{updatingPassword ? 'Updating...' : <><Icon name="key" size={12} />Update password</>}</button>
+              <div className="divider" style={{ margin: '12px 0' }} />
+              <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Two-factor authentication</div>
+              <div className="flex center between">
+                <div>
+                  <div className="fw-6 text-sm">Authenticator app</div>
+                  <div className="text-xs text-mute">
+                    {mfaDisabled
+                      ? 'Disabled by admin'
+                      : mfaRequired
+                      ? 'Required by admin'
+                      : factors.length > 0
+                      ? 'Enabled'
+                      : 'Not enabled'}
+                  </div>
+                </div>
+                <span
+                  className={`toggle ${factors.length > 0 ? 'on' : ''}`}
+                  onClick={() => {
+                    if (mfaDisabled) return
+                    if (factors.length > 0) setConfirmDisable(true)
+                    else setShowMfaEnroll(true)
+                  }}
+                  style={{
+                    opacity: mfaDisabled ? 0.5 : 1,
+                    cursor: mfaDisabled ? 'not-allowed' : 'pointer'
+                  }}
+                />
+              </div>
               {/* <div className="divider" />
               <div className="text-xs text-mute fw-6" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>Active sessions</div>
               <div className="flex center between text-sm">
@@ -237,6 +297,61 @@ export const AccountSettingsView: React.FC<AccountSettingsViewProps> = ({ role }
           </div>
         </div>
       </div>
+
+      {showMfaEnroll && (
+        <div className="modal-overlay" onClick={() => setShowMfaEnroll(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 760 }}>
+            <div className="modal-head">
+              <h3 style={{ margin: 0, fontSize: 16 }}>Enable 2FA</h3>
+              <button className="icon-btn" onClick={() => setShowMfaEnroll(false)}><Icon name="x" size={14} /></button>
+            </div>
+            <div className="modal-body">
+              <MFAEnroll
+                onComplete={async () => {
+                  setShowMfaEnroll(false)
+                  await loadFactors()
+                  await logMfaActivity('2FA enabled (TOTP)', 'mfa_enabled')
+                }}
+                onCancel={() => setShowMfaEnroll(false)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDisable && (
+        <div className="modal-overlay" onClick={() => setConfirmDisable(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="modal-head">
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Disable 2FA?</h3>
+              <button className="icon-btn" onClick={() => setConfirmDisable(false)}><Icon name="x" size={14} /></button>
+            </div>
+            <div className="modal-body">
+              <p style={{ margin: 0, color: 'var(--text-mute)' }}>
+                Are you sure you want to disable two-factor authentication? Your account will be less secure.
+              </p>
+            </div>
+            <div className="modal-foot">
+              <button className="btn ghost" onClick={() => setConfirmDisable(false)}>Cancel</button>
+              <button
+                className="btn danger"
+                onClick={async () => {
+                  const { error } = await supabase.auth.mfa.unenroll({ factorId: factors[0].id })
+                  if (error) toast(error.message, 'bad')
+                  else {
+                    toast('2FA disabled', 'ok')
+                    setFactors([])
+                    await logMfaActivity('2FA disabled by user', 'mfa_disabled')
+                  }
+                  setConfirmDisable(false)
+                }}
+              >
+                <Icon name="shield" size={12} />Disable
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   )

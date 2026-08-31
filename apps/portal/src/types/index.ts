@@ -182,6 +182,8 @@ export interface TeamMember {
   team: string;
   last: string;
   status: string;
+  mfa_required?: boolean;
+  mfa_disabled?: boolean;
   invited_by_name?: string;
 }
 

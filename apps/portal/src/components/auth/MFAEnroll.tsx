@@ -137,7 +137,7 @@ export const MFAEnroll: React.FC<Props> = ({ onComplete, onCancel }) => {
         <h3 className="card-title" style={{ marginBottom: 4, fontSize: 22 }}>2FA Setup</h3>
         <p className="text-sm text-mute" style={{ marginBottom: 28 }}>Scan with your authenticator app to enable 2FA access.</p>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 28, alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 28, alignItems: 'start' }}>
           <div style={{ textAlign: 'center' }}>
             {qr ? (
               <>
@@ -178,7 +178,7 @@ export const MFAEnroll: React.FC<Props> = ({ onComplete, onCancel }) => {
                   border: '1px solid rgba(0,0,0,0.12)',
                 }}
               >
-                <span style={{ wordBreak: 'break-all' }}>{formatted}</span>
+                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{formatted}</span>
                 <button type="button" className="btn ghost" onClick={copyManual} style={{ padding: '2px 6px' }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--text-mute)' }}>
                     <rect x="9" y="9" width="13" height="13" rx="2" />

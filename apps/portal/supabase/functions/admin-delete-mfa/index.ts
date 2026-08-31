@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
 
     try {
       await supabaseAdmin.from('activity_log').insert({
-        actor: user.id,
+        actor: user.email || user.id,
         actor_role: role.toLowerCase(),
         kind: 'auth',
         text: `Admin removed 2FA for user ${userId}`,

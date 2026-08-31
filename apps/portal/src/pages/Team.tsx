@@ -4,6 +4,8 @@ import useUIStore from '../store/uiStore'
 import Icon from '../lib/icons'
 import { Avatar, CircularSpinner } from '../components/ui/ui'
 import InviteTeamMemberModal from '../components/modals/InviteTeamMemberModal'
+import { TeamSecurity } from '../components/admin/TeamSecurity'
+import { TeamMember } from '../types'
 
 interface TeamViewProps {
   openModal?: (kind: string, props?: any) => void
@@ -15,6 +17,7 @@ const TeamView: React.FC<TeamViewProps> = () => {
   const [menu, setMenu] = useState<string | null>(null)
   const [inviteModalOpen, setInviteModalOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<{ id: string, name: string } | null>(null)
+  const [mfaUser, setMfaUser] = useState<TeamMember | null>(null)
   const [resetPasswordUser, setResetPasswordUser] = useState<{ id: string, name: string, email: string } | null>(null)
   const [newPassword, setNewPassword] = useState('')
   const [resetLoading, setResetLoading] = useState(false)
@@ -105,7 +108,8 @@ const TeamView: React.FC<TeamViewProps> = () => {
                               background: 'var(--surface)', border: '1px solid var(--line)',
                               borderRadius: 8, boxShadow: 'var(--shadow)', minWidth: 160, padding: 4,
                             }}>
-                              <button className="nav-item" onClick={() => { setResetPasswordUser({ id: u.id, name: u.name, email: u.email }); setMenu(null); }}><Icon name="key" size={13} />Reset password</button>                          {/* <button className="nav-item" onClick={() => { toast('2FA reset', 'info'); setMenu(null); }}><Icon name="shield" size={13} />Reset 2FA</button> */}
+                              <button className="nav-item" onClick={() => { setResetPasswordUser({ id: u.id, name: u.name, email: u.email }); setMenu(null); }}><Icon name="key" size={13} />Reset password</button>
+                              <button className="nav-item" onClick={() => { setMfaUser(u); setMenu(null); }}><Icon name="shield" size={13} />Manage 2FA</button>
                               <div style={{ height: 1, background: 'var(--line)', margin: '4px 0' }} />
                               <button className="nav-item" style={{ color: 'var(--bad)' }} onClick={() => { setConfirmDelete({ id: u.id, name: u.name }); setMenu(null); }}><Icon name="trash" size={13} />Remove user</button>                        </div>
                             )}
@@ -242,6 +246,25 @@ const TeamView: React.FC<TeamViewProps> = () => {
               >
                 <Icon name="key" size={12} />{resetLoading ? 'Resetting...' : 'Reset password'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {mfaUser && (
+        <div className="modal-overlay" onClick={() => setMfaUser(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="modal-head">
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>2FA — {mfaUser.name}</h3>
+              <button className="icon-btn" onClick={() => setMfaUser(null)}><Icon name="x" size={14} /></button>
+            </div>
+            <div className="modal-body">
+              <TeamSecurity
+                userId={mfaUser.id}
+                name={mfaUser.name}
+                initial={{ mfa_required: !!mfaUser.mfa_required, mfa_disabled: !!mfaUser.mfa_disabled }}
+                onUpdate={async (patch) => { await updateMember(mfaUser.id, patch) }}
+              />
             </div>
           </div>
         </div>

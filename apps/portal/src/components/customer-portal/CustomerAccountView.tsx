@@ -609,7 +609,7 @@ export const CustomerAccountView: React.FC<CustomerAccountViewProps> = ({ me }) 
 
       {showMfaEnroll && (
         <div className="modal-overlay" onClick={() => setShowMfaEnroll(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 620 }}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 760 }}>
             <div className="modal-head">
               <h3 style={{ margin: 0, fontSize: 16 }}>Enable 2FA</h3>
               <button className="icon-btn" onClick={() => setShowMfaEnroll(false)}><Icon name="x" size={14} /></button>
