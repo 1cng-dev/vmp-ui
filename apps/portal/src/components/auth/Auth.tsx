@@ -4,6 +4,8 @@ import { supabase } from '../../lib/supabase'
 import { LoginScreen } from './LoginScreen'
 import { SignupScreen } from './Signup'
 import { SignupSuccess } from './shared/SignupSuccess'
+import { VerifyEmailNotice } from './shared/VerifyEmailNotice'
+import CompleteSignup from './CompleteSignup'
 import { MFAChallenge } from './MFAChallenge'
 import { MFAEnroll } from './MFAEnroll'
 import { TeamLoginScreen } from './TeamLoginScreen'
@@ -51,6 +53,8 @@ export const AuthShell: React.FC<AuthShellProps> = ({ children, setRole }) => {
   const [minDisplayTimeElapsed, setMinDisplayTimeElapsed] = useState(false)
   const [needsMfa, setNeedsMfa] = useState(false)
   const [needsMfaEnroll, setNeedsMfaEnroll] = useState(false)
+  const [needsCompleteSignup, setNeedsCompleteSignup] = useState(false)
+  const [needsVerifyEmail, setNeedsVerifyEmail] = useState(false)
   const initialRoleSetRef = React.useRef(false)
   const checkSessionRef = useRef<() => Promise<void>>(async () => {})
 
@@ -64,6 +68,8 @@ export const AuthShell: React.FC<AuthShellProps> = ({ children, setRole }) => {
 
   useEffect(() => {
     const checkSession = async () => {
+      setNeedsCompleteSignup(false)
+      setNeedsVerifyEmail(false)
       const { data: { session } } = await supabase.auth.getSession()
       if (!session?.user) {
         setUser(null)
@@ -76,11 +82,40 @@ export const AuthShell: React.FC<AuthShellProps> = ({ children, setRole }) => {
         return
       }
 
-      const { data: customer } = await supabase
+      const userData = session.user.user_metadata
+      const userRole = userData.role || 'Customer'
+      const teamRoles = ['Admin', 'Sales', 'Engineer', 'Finance']
+
+      if (teamRoles.includes(userRole)) {
+        if (window.location.pathname.startsWith('/admin') === false) {
+          await supabase.auth.signOut()
+          setLoading(false)
+          return
+        }
+        if (window.location.pathname !== '/admin') {
+          setShouldRedirect(true)
+        }
+        setLoading(false)
+        return
+      }
+
+      const { data: customer, error: customerError } = await supabase
         .from('customers')
-        .select('mfa_required, mfa_disabled')
+        .select('id, mfa_required, mfa_disabled')
         .eq('id', session.user.id)
         .maybeSingle()
+
+      if (customerError) {
+        console.error('Customer check error:', customerError)
+        setLoading(false)
+        return
+      }
+
+      if (!customer) {
+        setNeedsCompleteSignup(true)
+        setLoading(false)
+        return
+      }
 
       if (customer?.mfa_disabled === true) {
         setNeedsMfa(false)
@@ -108,22 +143,6 @@ export const AuthShell: React.FC<AuthShellProps> = ({ children, setRole }) => {
 
         setNeedsMfa(false)
         setNeedsMfaEnroll(false)
-      }
-      const userData = session.user.user_metadata
-      const userRole = userData.role || 'Customer'
-      const teamRoles = ['Admin', 'Sales', 'Engineer', 'Finance']
-
-      if (teamRoles.includes(userRole)) {
-        if (window.location.pathname.startsWith('/admin') === false) {
-          await supabase.auth.signOut()
-          setLoading(false)
-          return
-        }
-        if (window.location.pathname !== '/admin') {
-          setShouldRedirect(true)
-        }
-        setLoading(false)
-        return
       }
 
       setUser({
@@ -163,19 +182,35 @@ export const AuthShell: React.FC<AuthShellProps> = ({ children, setRole }) => {
     navigate('/')
   }
 
-  const completeSignup = (email: string) => {
+  const completeSignup = (email: string, requiresEmailConfirmation: boolean) => {
     setSignupEmail(email)
-    setJustSignedUp(true)
-    setUser(null) // Clear user to prevent dashboard from showing
-    // Show loading spinner for a moment, then show success page
-    setTimeout(() => {
-      setSignupComplete(true)
+    if (requiresEmailConfirmation) {
+      setNeedsVerifyEmail(true)
       setJustSignedUp(false)
-    }, 800)
+      setSignupComplete(false)
+      setUser(null)
+    } else {
+      setJustSignedUp(true)
+      setNeedsVerifyEmail(false)
+      setUser(null)
+      // Show loading spinner for a moment, then show success page
+      setTimeout(() => {
+        setSignupComplete(true)
+        setJustSignedUp(false)
+      }, 800)
+    }
   }
 
   if (shouldRedirect) {
     return <Navigate to="/admin" replace />
+  }
+
+  if (needsCompleteSignup) {
+    return <CompleteSignup onComplete={() => checkSessionRef.current()} />
+  }
+
+  if (needsVerifyEmail) {
+    return <VerifyEmailNotice email={signupEmail} onContinue={() => { setNeedsVerifyEmail(false); setMode('login') }} />
   }
 
   if (signupComplete) {

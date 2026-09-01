@@ -56,6 +56,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onSwitchToSignup, prefillEmai
       return
     }
 
+    // Require email verification before allowing login
+    if (!authData.user?.email_confirmed_at) {
+      toast('Please verify your email before signing in.', 'bad')
+      await supabase.auth.signOut()
+      setLoading(false)
+      return
+    }
+
     // Check customer status after successful auth
     if (authData.user && authData.user.id && authData.user.id !== 'undefined' && authData.user.id !== 'null') {
       const userData = authData.user.user_metadata

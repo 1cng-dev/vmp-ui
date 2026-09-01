@@ -81,6 +81,7 @@ import { TeamProvider, useTeamStore } from "./store/TeamContext";
 import useCustomerStore, { CustomerProvider } from "./store/customerStore";
 import { VMRequestProvider, useVMRequestStore } from "./store/vmRequestStore";
 import { ResetPasswordScreen } from "./components/auth/ResetPasswordScreen";
+import AuthConfirm from "./components/auth/AuthConfirm";
 import { QuoteProvider, useQuoteStore } from "./store/quoteStore";
 import { VMProvider } from "./store/vmStore";
 import { AddonRequestProvider } from "./store/addonRequestStore";
@@ -774,6 +775,10 @@ const App = () => {
                                       <Route
                                         path="/auth/reset-password"
                                         element={<ResetPasswordScreen />}
+                                      />
+                                      <Route
+                                        path="/auth/confirm"
+                                        element={<AuthConfirm />}
                                       />
                                       <Route
                                         path="/console/:recordId"

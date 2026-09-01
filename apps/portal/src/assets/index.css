@@ -224,6 +224,25 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 .crumbs strong { color: var(--ink); font-weight: 600; }
 .crumbs .sep { color: var(--ink-4); }
 .topbar-spacer { flex: 1; }
+.customer-notice {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.customer-notice::-webkit-scrollbar {
+  display: none;
+}
+.customer-notice-text {
+  display: inline-block;
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
 .search {
   position: relative;
   width: 280px;

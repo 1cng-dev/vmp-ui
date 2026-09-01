@@ -281,26 +281,12 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
 
       <div className="main">
         <div className="topbar">
-          <div className="crumbs">
-            <span>Customer portal</span>
-            <Icon name="chevron-right" size={12} className="sep" />
-            {detailVm ? (
-              <>
-                <span style={{ cursor: 'pointer' }} onClick={() => setDetailVm(null)}>My VMs</span>
-                <Icon name="chevron-right" size={12} className="sep" />
-                <strong>{detailVm.name}</strong>
-              </>
-            ) : openTicket ? (
-              <>
-                <span style={{ cursor: 'pointer' }} onClick={() => setOpenTicket(null)}>Support tickets</span>
-                <Icon name="chevron-right" size={12} className="sep" />
-                <strong>{openTicket.id}</strong>
-              </>
-            ) : (
-              <strong>{items.find((i: any) => i.id === view)?.label || 'Dashboard'}</strong>
-            )}
+          <div className="customer-notice">
+            <span className="customer-notice-text">
+              Customers are responsible for securing and managing their cloud workloads, including user access and credential management, VM firewall and security configurations, OS and application patching, data protection within the cloud workload, backup and recovery, and monitoring for suspicious activity.
+              (1CNG is not responsible for issues or security incidents arising from customer-managed systems, applications, configurations, data, or credentials.)
+            </span>
           </div>
-          <div className="topbar-spacer" />
           <div className="text-sm text-mute">{safeMe.org_name} · <span className="mono">{safeMe.legacy_id || safeMe.id}</span></div>
           <button className="icon-btn" title="Notifications" onClick={() => handleSetView('notifications')} style={{ position: 'relative' }}>
             <Icon name="bell" size={15} />

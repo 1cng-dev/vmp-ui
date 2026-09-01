@@ -24,6 +24,9 @@ export interface AuthStoreValue {
     name: string
     type: 'Individual' | 'Organization'
     phone: string
+    customerData: Omit<Customer, 'id'>
+  }) => Promise<{ success: boolean; error?: string; requiresEmailConfirmation?: boolean }>
+  completeCustomer: (data: {
     customerData: Omit<Customer, 'id'> & {
       nrcFrontFile?: File | null
       nrcBackFile?: File | null
@@ -66,23 +69,18 @@ const useAuthStore = (): AuthStoreValue => {
     setLoading(false)
   }, [])
 
-  // Sign up with Supabase and create customer record
+  // Create auth user and store profile data in user_metadata.
+  // Customer record and KYC upload happen later, after email verification.
   const signUp = useCallback(async (data: {
     email: string
     password: string
     name: string
     type: 'Individual' | 'Organization'
     phone: string
-    customerData: Omit<Customer, 'id'> & {
-      nrcFrontFile?: File | null
-      nrcBackFile?: File | null
-      orgCertFile?: File | null
-      orgTaxIdFile?: File | null
-      dirIdFile?: File | null
-    }
+    customerData: Omit<Customer, 'id'>
   }) => {
     try {
-      // Create Supabase auth user
+      const redirectTo = `${window.location.origin}/auth/confirm`
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
@@ -92,7 +90,9 @@ const useAuthStore = (): AuthStoreValue => {
             role: 'Customer',
             type: data.type,
             phone: data.phone,
-          }
+            customerData: data.customerData,
+          },
+          emailRedirectTo: redirectTo,
         }
       })
 
@@ -106,93 +106,7 @@ const useAuthStore = (): AuthStoreValue => {
       }
 
       if (authData.user) {
-        // Upload KYC documents first
-        const uploadPromises = []
-        if (data.customerData.nrcFrontFile) {
-          uploadPromises.push(uploadKYCDocument(data.customerData.nrcFrontFile, authData.user.id, 'nrc_front'))
-        }
-        if (data.customerData.nrcBackFile) {
-          uploadPromises.push(uploadKYCDocument(data.customerData.nrcBackFile, authData.user.id, 'nrc_back'))
-        }
-        if (data.customerData.orgCertFile) {
-          uploadPromises.push(uploadKYCDocument(data.customerData.orgCertFile, authData.user.id, 'org_cert'))
-        }
-        if (data.customerData.orgTaxIdFile) {
-          uploadPromises.push(uploadKYCDocument(data.customerData.orgTaxIdFile, authData.user.id, 'org_tax_id'))
-        }
-        if (data.customerData.dirIdFile) {
-          uploadPromises.push(uploadKYCDocument(data.customerData.dirIdFile, authData.user.id, 'director_id'))
-        }
-
-        const urls = await Promise.all(uploadPromises)
-
-        // Remove File objects from customerData before insert
-        const { nrcFrontFile, nrcBackFile, orgCertFile, orgTaxIdFile, dirIdFile, ...cleanCustomerData } = data.customerData
-
-        // Create customer record in Supabase with auth user ID and URLs
-        const { data: customerData, error: customerError } = await supabase
-          .from('customers')
-          .insert({
-            id: authData.user.id, // Link to auth.users.id
-            ...cleanCustomerData,
-            nrc_front_url: urls[0] || null,
-            nrc_back_url: urls[1] || null,
-            org_cert_url: urls[2] || null,
-            org_tax_id_url: urls[3] || null,
-            director_id_url: urls[4] || null,
-          })
-          .select('id, legacy_id')
-          .single()
-
-        if (customerError) {
-          console.error('Customer insert error:', customerError)
-          return { success: false, error: customerError.message }
-        }
-
-        // Update user metadata with customerId (using legacy_id for display)
-        await supabase.auth.updateUser({
-          data: {
-            customerId: customerData.id,
-            customerLegacyId: customerData.legacy_id
-          }
-        })
-
-        // Create notification for new customer signup
-        // Note: Customer signup uses customer as actor since they perform the action themselves
-        await createAlert({
-          sev: 'info',
-          title: 'New Customer Signup',
-          body: `New customer ${data.name} (${data.email}) has signed up with ${data.type} account`,
-          type: 'kyc',
-          related_entity_id: customerData.id,
-          related_entity_type: 'customer',
-          actor_id: customerData.id,
-          actor_name: data.name,
-          metadata: {
-            customer_name: data.name,
-            customer_email: data.email,
-            account_type: data.type,
-            phone: data.phone,
-            kyc_status: 'Pending'
-          }
-        })
-
-        // Log activity for customer signup
-        await logActivity(
-          `New customer signup: ${data.name} (${data.email})`,
-          'customer',
-          data.name,
-          { customerId: customerData.id, customerName: data.name, email: data.email, accountType: data.type, kycStatus: 'Pending' }
-        )
-
-        // Send signup success email to customer
-        await sendSignupEmail({
-          to: data.email,
-          customerName: data.name,
-          accountType: data.type,
-          email: data.email
-        })
-        return { success: true, customerId: customerData.legacy_id || customerData.id }
+        return { success: true, requiresEmailConfirmation: !authData.user.email_confirmed_at }
       }
 
       return { success: false, error: 'Failed to create user' }
@@ -202,16 +116,136 @@ const useAuthStore = (): AuthStoreValue => {
     }
   }, [])
 
+  // Complete signup: upload KYC documents and create customer record.
+  // Must be called after the user has verified their email and has a session.
+  const completeCustomer = useCallback(async (data: {
+    customerData: Omit<Customer, 'id'> & {
+      nrcFrontFile?: File | null
+      nrcBackFile?: File | null
+      orgCertFile?: File | null
+      orgTaxIdFile?: File | null
+      dirIdFile?: File | null
+    }
+  }) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        return { success: false, error: 'Not authenticated' }
+      }
+
+      const userData = user.user_metadata
+      const signupData = (userData.customerData || {}) as Partial<Customer>
+
+      // Upload KYC documents
+      const uploadPromises: Promise<string>[] = []
+      if (data.customerData.nrcFrontFile) {
+        uploadPromises.push(uploadKYCDocument(data.customerData.nrcFrontFile, user.id, 'nrc_front'))
+      }
+      if (data.customerData.nrcBackFile) {
+        uploadPromises.push(uploadKYCDocument(data.customerData.nrcBackFile, user.id, 'nrc_back'))
+      }
+      if (data.customerData.orgCertFile) {
+        uploadPromises.push(uploadKYCDocument(data.customerData.orgCertFile, user.id, 'org_cert'))
+      }
+      if (data.customerData.orgTaxIdFile) {
+        uploadPromises.push(uploadKYCDocument(data.customerData.orgTaxIdFile, user.id, 'org_tax_id'))
+      }
+      if (data.customerData.dirIdFile) {
+        uploadPromises.push(uploadKYCDocument(data.customerData.dirIdFile, user.id, 'director_id'))
+      }
+
+      const urls = await Promise.all(uploadPromises)
+
+      // Remove File objects from customerData before insert
+      const { nrcFrontFile, nrcBackFile, orgCertFile, orgTaxIdFile, dirIdFile, ...cleanCustomerData } = data.customerData
+
+      // Create customer record in Supabase with auth user ID and URLs
+      const { data: customerData, error: customerError } = await supabase
+        .from('customers')
+        .insert({
+          id: user.id,
+          ...signupData,
+          ...cleanCustomerData,
+          nrc_front_url: urls[0] || null,
+          nrc_back_url: urls[1] || null,
+          org_cert_url: urls[2] || null,
+          org_tax_id_url: urls[3] || null,
+          director_id_url: urls[4] || null,
+        })
+        .select('id, legacy_id')
+        .single()
+
+      if (customerError) {
+        console.error('Customer insert error:', customerError)
+        return { success: false, error: customerError.message }
+      }
+
+      // Update user metadata with customerId (using legacy_id for display)
+      await supabase.auth.updateUser({
+        data: {
+          customerId: customerData.id,
+          customerLegacyId: customerData.legacy_id
+        }
+      })
+
+      // Create notification for new customer signup
+      // Note: Customer signup uses customer as actor since they perform the action themselves
+      await createAlert({
+        sev: 'info',
+        title: 'New Customer Signup',
+        body: `New customer ${signupData.name} (${signupData.email}) has signed up with ${signupData.account_type} account`,
+        type: 'kyc',
+        related_entity_id: customerData.id,
+        related_entity_type: 'customer',
+        actor_id: customerData.id,
+        actor_name: signupData.name || userData.name || user.email!,
+        metadata: {
+          customer_name: signupData.name,
+          customer_email: signupData.email,
+          account_type: signupData.account_type,
+          phone: signupData.phone,
+          kyc_status: 'Pending'
+        }
+      })
+
+      // Log activity for customer signup
+      await logActivity(
+        `New customer signup: ${signupData.name} (${signupData.email})`,
+        'customer',
+        signupData.name || userData.name || user.email!,
+        { customerId: customerData.id, customerName: signupData.name, email: signupData.email, accountType: signupData.account_type, kycStatus: 'Pending' }
+      )
+
+      // Send signup success email to customer
+      await sendSignupEmail({
+        to: signupData.email || user.email!,
+        customerName: signupData.name || userData.name || user.email!,
+        accountType: signupData.account_type || 'Individual',
+        email: signupData.email || user.email!
+      })
+
+      return { success: true, customerId: customerData.legacy_id || customerData.id }
+    } catch (error) {
+      console.error('Complete customer catch error:', error)
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+    }
+  }, [])
+
   // Sign in with Supabase
   const signIn = useCallback(async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
       if (error) {
         return { success: false, error: error.message }
+      }
+
+      if (!data.user?.email_confirmed_at) {
+        await supabase.auth.signOut()
+        return { success: false, error: 'Please verify your email before signing in.' }
       }
 
       await refreshUser()
@@ -307,6 +341,7 @@ const useAuthStore = (): AuthStoreValue => {
     signUp,
     signIn,
     signOut,
+    completeCustomer,
     createCustomer,
     updateCustomer,
     getCustomer,
