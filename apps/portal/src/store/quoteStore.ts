@@ -82,37 +82,35 @@ export const QuoteProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     // This prevents showing loading spinner in quotes table when creating a quote
 
     const quote = data as DBQuote
-    
+
     // Get customer name for notification
     const { data: customer } = await supabase
       .from('customers')
       .select('name, org_name, account_type')
       .eq('id', quote.customer_id)
       .single()
-    
+
     const customerName = customer?.account_type === 'Organization' && customer?.org_name
       ? `${customer.name} (${customer.org_name})`
       : (customer?.name || 'Unknown')
-    
-    // Get staff member who created the quote
+
+    // Get current user for activity logging
+    const { data: { user } } = await supabase.auth.getUser()
     let actorName = 'System'
     let actorId = quote.customer_id
-    if (quote.created_by) {
+    if (user) {
       const { data: staff } = await supabase
         .from('team_members')
         .select('name, staff_code')
-        .eq('user_id', quote.created_by)
+        .eq('user_id', user.id)
         .maybeSingle()
       if (staff) {
         actorName = `${staff.name} (${staff.staff_code})`
-        actorId = quote.created_by
+        actorId = user.id
       } else {
         // Fallback to user's name or email if not in team_members
-        const { data: user } = await supabase.auth.getUser()
-        if (user?.user) {
-          actorName = user.user.user_metadata?.name || user.user.email || 'System'
-          actorId = quote.created_by
-        }
+        actorName = user.user_metadata?.name || user.email || 'System'
+        actorId = user.id
       }
     }
     

@@ -51,12 +51,40 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return
       }
 
+      // Collect all unique invited_by IDs
+      const invitedByIds = new Set((data || []).map((m: any) => m.invited_by).filter(Boolean))
+
+      // Fetch all inviters from team_members table
+      const invitersMap = new Map()
+      if (invitedByIds.size > 0) {
+        const { data: inviters } = await supabase
+          .from('team_members')
+          .select('user_id, name, staff_code')
+          .in('user_id', Array.from(invitedByIds))
+        if (inviters) {
+          inviters.forEach((inviter: any) => {
+            invitersMap.set(inviter.user_id, inviter)
+          })
+        }
+      }
+
       // Map database fields to interface fields and format last_login_at
-      const mappedData = (data || []).map((member: any) => ({
-        ...member,
-        id: member.user_id,
-        last: member.last_login_at ? formatDate(member.last_login_at) : '-'
-      }))
+      const mappedData = (data || []).map((member: any) => {
+        let invited_by_name = null
+        if (member.invited_by) {
+          const inviter = invitersMap.get(member.invited_by)
+          if (inviter) {
+            invited_by_name = `${inviter.name} (${inviter.staff_code})`
+          }
+        }
+
+        return {
+          ...member,
+          id: member.user_id,
+          last: member.last_login_at ? formatDate(member.last_login_at) : '-',
+          invited_by_name
+        }
+      })
 
       setTeam(mappedData)
     } finally {
@@ -134,11 +162,11 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (user) {
       const { data: staff } = await supabase
         .from('team_members')
-        .select('name')
+        .select('name, staff_code')
         .eq('user_id', user.id)
         .single()
       if (staff) {
-        actorName = staff.name
+        actorName = `${staff.name} (${staff.staff_code})`
       } else {
         actorName = user.user_metadata?.name || user.email || 'System'
       }
@@ -177,11 +205,11 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (user) {
         const { data: staff } = await supabase
           .from('team_members')
-          .select('name')
+          .select('name, staff_code')
           .eq('user_id', user.id)
           .single()
         if (staff) {
-          actorName = staff.name
+          actorName = `${staff.name} (${staff.staff_code})`
         } else {
           actorName = user.user_metadata?.name || user.email || 'System'
         }
@@ -251,11 +279,11 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (user) {
       const { data: staff } = await supabase
         .from('team_members')
-        .select('name')
+        .select('name, staff_code')
         .eq('user_id', user.id)
         .single()
       if (staff) {
-        actorName = staff.name
+        actorName = `${staff.name} (${staff.staff_code})`
       } else {
         actorName = user.user_metadata?.name || user.email || 'System'
       }
@@ -292,11 +320,11 @@ export const TeamProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (user) {
       const { data: staff } = await supabase
         .from('team_members')
-        .select('name')
+        .select('name, staff_code')
         .eq('user_id', user.id)
         .single()
       if (staff) {
-        actorName = staff.name
+        actorName = `${staff.name} (${staff.staff_code})`
       } else {
         actorName = user.user_metadata?.name || user.email || 'System'
       }

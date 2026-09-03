@@ -22,7 +22,7 @@ interface VMDrawerProps {
 const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal, userRole }) => {
   const { vms, updateVM, getVMRequest } = useVMStore()
   const { customers } = useCustomerStore()
-  const { getAddonServicesForVM, getAllAddonServicesForVM, updateAddonService } = useAddonServiceStore()
+  const { getAllAddonServicesForVM, updateAddonService } = useAddonServiceStore()
   const { toast } = useUIStore()
   const [tab, setTab] = useState('overview')
   const [disks, setDisks] = useState<VMDisk[]>([])
@@ -51,7 +51,7 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
 
   // Get data from store instead of fetching directly
   const vmRequest = v && v.vm_request_id ? getVMRequest(v.vm_request_id) : null
-  const addonServices = v ? getAddonServicesForVM(v.id) : []
+  const addonServices = v ? getAllAddonServicesForVM(v.id) : []
   const allAddonServices = v ? getAllAddonServicesForVM(v.id) : []
 
   // Live usage from proxmox-proxcy — admins can view any VM's status here
@@ -397,11 +397,11 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
             <div className="card">
               <div className="card-body">
                 {addonServices.length === 0 ? (
-                  <div className="empty"><div className="sub">No active add-on services for this VM.</div></div>
+                  <div className="empty"><div className="sub">No add-on services for this VM.</div></div>
                 ) : (
                   <div className="grid-2" style={{ gap: 14 }}>
                     {addonServices.map((as: any) => (
-                      <div key={as.id}>
+                      <div key={as.id} style={{ opacity: as.operational_status === 'Terminated' ? 0.65 : 1 }}>
                         <div className="text-xs text-mute fw-6 mb-2" style={{ letterSpacing: '0.06em', textTransform: 'uppercase' }}>{as.legacy_id || as.id}</div>
                         <dl className="dl">
                           <dt>Services</dt>
@@ -419,8 +419,7 @@ const VMDrawer: React.FC<VMDrawerProps> = ({ vmId, onClose, openCust, openModal,
                           {as.start_date && <><dt>Start Date</dt><dd className="tnum">{new Date(as.start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
                           {as.end_date && <><dt>End Date</dt><dd className="tnum">{new Date(as.end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</dd></>}
                           {as.expiry && <><dt>Expiry</dt><dd><ExpiryCell date={as.expiry || ''} /></dd></>}
-                          <dt>Status</dt><dd><StatusPill status={as.status} /></dd>
-                          <dt>Operational Status</dt><dd><StatusPill status={as.operational_status || 'Active'} expiry={as.expiry} /></dd>
+                          <dt>Status</dt><dd><StatusPill status={as.operational_status || as.status} /></dd>
                         </dl>
                       </div>
                     ))}

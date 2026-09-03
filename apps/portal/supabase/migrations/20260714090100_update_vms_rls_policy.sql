@@ -29,3 +29,20 @@ WITH CHECK (
 
 -- Ensure RLS is enabled
 ALTER TABLE public.vms ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "Staff can delete VMs"
+ON vms
+FOR DELETE
+TO authenticated
+USING (public.is_staff());
+
+
+-- Drop the existing foreign key constraint
+ALTER TABLE public.addon_requests 
+DROP CONSTRAINT addon_requests_vm_id_fkey;
+
+-- Re-create with ON DELETE CASCADE
+ALTER TABLE public.addon_requests 
+ADD CONSTRAINT addon_requests_vm_id_fkey 
+FOREIGN KEY (vm_id) REFERENCES vms(id) ON DELETE CASCADE;

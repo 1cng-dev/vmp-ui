@@ -294,6 +294,7 @@ export interface NewQuoteInput {
   currency?: "MMK" | "USD";
   line_items: any[];
   notes?: string | null;
+  created_by?: string;
 }
 
 export interface AddonRequest {

@@ -12,8 +12,7 @@ import Icon from '../lib/icons'
 import { formatMMK, StatusPill, CircularSpinner } from '../components/ui/ui'
 import { InvoiceDrawer } from '../components/finance/InvoiceDrawer'
 import { ReportsView } from '../components/finance/ReportsView'
-import { exportToCSV } from '@/lib/csvExport'
-import { exportToPDFAuto } from '@/lib/pdfExport'
+import { exportToCSV, exportToExcel } from '@/lib/csvExport'
 
 interface FinanceViewProps {
   openCust: (id: string) => void
@@ -128,10 +127,10 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, userRole }) => {
   })
 
   const activeInvoices = invoices.filter(i => i.status !== 'Cancelled')
-  const total = activeInvoices.reduce((a, i) => a + (i.gross_amount || 0), 0)
-  const received = activeInvoices.filter(i => i.status === 'Payment Received').reduce((a, i) => a + (i.gross_amount || 0), 0)
-  const pending = activeInvoices.filter(i => i.status === 'Pending' || i.status === 'Customer Transferred').reduce((a, i) => a + (i.gross_amount || 0), 0)
-  const overdue = activeInvoices.filter(i => i.status === 'Overdue').reduce((a, i) => a + (i.gross_amount || 0), 0)
+  const total = activeInvoices.reduce((a, i) => a + (typeof i.gross_amount === 'string' ? parseFloat(i.gross_amount) : (i.gross_amount || 0)), 0)
+  const received = activeInvoices.filter(i => i.status === 'Payment Received').reduce((a, i) => a + (typeof i.gross_amount === 'string' ? parseFloat(i.gross_amount) : (i.gross_amount || 0)), 0)
+  const pending = activeInvoices.filter(i => i.status === 'Pending' || i.status === 'Customer Transferred').reduce((a, i) => a + (typeof i.gross_amount === 'string' ? parseFloat(i.gross_amount) : (i.gross_amount || 0)), 0)
+  const overdue = activeInvoices.filter(i => i.status === 'Overdue').reduce((a, i) => a + (typeof i.gross_amount === 'string' ? parseFloat(i.gross_amount) : (i.gross_amount || 0)), 0)
 
   return (
     <div className="content">
@@ -249,7 +248,7 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, userRole }) => {
                             toast('No invoices to export', 'error')
                             return
                           }
-                          const pdfData = filtered.map(i => {
+                          const excelData = filtered.map(i => {
                             const c = customers.find(cust => cust.id === i.customer_id)
                             const vmRequestsList = vmRequests.filter((v: any) => i.vm_request_ids.includes(v.id))
                             const addonRequestsList = addonRequests.filter((a: any) => i.addon_request_ids.includes(a.id))
@@ -258,51 +257,50 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, userRole }) => {
                               return sum
                             }, 0)
                             const data: any = {}
-                            if (selectedExportColumns.includes('invoiceId')) data.invoiceId = i.legacy_id || i.id.slice(0, 8)
-                            if (selectedExportColumns.includes('invoiceDate')) data.invoiceDate = i.invoice_date || ''
-                            if (selectedExportColumns.includes('qty')) data.qty = totalQty
-                            if (selectedExportColumns.includes('customerName')) data.customerName = `${c?.name}${c?.org_name ? ` (${c?.org_name})` : ''}`
-                            if (selectedExportColumns.includes('customerCode')) data.customerCode = c?.legacy_id || c?.id || ''
-                            if (selectedExportColumns.includes('paidDate')) data.paidDate = i.paid_date ? new Date(i.paid_date).toLocaleDateString() : ''
+                            if (selectedExportColumns.includes('invoiceId')) data['Invoice ID'] = i.legacy_id || i.id.slice(0, 8)
+                            if (selectedExportColumns.includes('invoiceDate')) data['Invoice Date'] = i.invoice_date || ''
+                            if (selectedExportColumns.includes('qty')) data['Qty'] = totalQty
+                            if (selectedExportColumns.includes('customerName')) data['Customer Name'] = `${c?.name}${c?.org_name ? ` (${c?.org_name})` : ''}`
+                            if (selectedExportColumns.includes('customerCode')) data['Customer Code'] = c?.legacy_id || c?.id || ''
+                            if (selectedExportColumns.includes('paidDate')) data['Paid Date'] = i.paid_date ? new Date(i.paid_date).toLocaleDateString() : ''
                             if (selectedExportColumns.includes('quotation')) {
                               const quote = quotes.find((q: any) => q.id === i.quote_id)
-                              data.quotation = quote?.legacy_id || ''
+                              data['Quotation'] = quote?.legacy_id || ''
                             }
-                            if (selectedExportColumns.includes('status')) data.status = i.status
+                            if (selectedExportColumns.includes('status')) data['Status'] = i.status
                             if (selectedExportColumns.includes('vmName')) {
                               const addonVMNames = addonRequestsList.map((a: any) => {
                                 const vm = vms.find((vm: any) => vm.id === a.vm_id)
                                 return vm ? vm.hostname : `VM (${a.vm_id?.slice(0, 8)})`
                               })
                               const vmRequestNames = vmRequestsList.map((v: any) => v.hostname)
-                              data.vmName = addonRequestsList.length > 0 ? addonVMNames.join(', ') : vmRequestNames.join(', ')
+                              data['VM Name'] = addonRequestsList.length > 0 ? addonVMNames.join(', ') : vmRequestNames.join(', ')
                             }
                             if (selectedExportColumns.includes('requestId')) {
                               const vmRequestIds = vmRequestsList.map((v: any) => v.legacy_id || v.id.slice(0, 8))
                               const addonRequestIds = addonRequestsList.map((a: any) => a.legacy_id || a.id.slice(0, 8))
-                              data.requestId = [...vmRequestIds, ...addonRequestIds].join(', ')
+                              data['Request ID'] = [...vmRequestIds, ...addonRequestIds].join(', ')
                             }
-                            if (selectedExportColumns.includes('discount')) data.discount = i.discount || 0
-                            if (selectedExportColumns.includes('netAmount')) data.netAmount = i.net_amount || i.amount
-                            if (selectedExportColumns.includes('vat')) data.vat = i.vat || 0
-                            if (selectedExportColumns.includes('grossAmount')) data.grossAmount = i.gross_amount || i.amount
+                            if (selectedExportColumns.includes('discount')) data['Discount'] = i.discount || 0
+                            if (selectedExportColumns.includes('netAmount')) data['Net Amount'] = i.net_amount || i.amount
+                            if (selectedExportColumns.includes('vat')) data['VAT'] = i.vat || 0
+                            if (selectedExportColumns.includes('grossAmount')) data['Gross Amount'] = i.gross_amount || i.amount
                             return data
                           })
                           const columns = selectedExportColumns.map(key => {
                             const opt = exportColumnOptions.find(o => o.key === key)
-                            return { key, label: opt?.label || key }
+                            return { key: opt?.key || key, label: opt?.label || key }
                           })
-                          exportToPDFAuto(
-                            pdfData,
+                          exportToExcel(
+                            excelData,
                             `invoices-${new Date().toISOString().slice(0, 10)}`,
-                            'Invoice Report',
                             columns
                           )
                           setShowExportColumns(false)
-                          toast('Invoices PDF download started', 'info')
+                          toast('Invoices Excel download started', 'info')
                         }}
                       >
-                        PDF
+                        Excel
                       </button>
                     </div>
                   </div>
@@ -314,7 +312,7 @@ const FinanceView: React.FC<FinanceViewProps> = ({ openCust, userRole }) => {
           </div>
 
           <div className="grid-4 mb-4">
-            <div className="metric"><div className="label">Total billed ({new Date().toLocaleDateString('en-US', { month: 'long' })})</div><div className="value tnum" style={{ fontSize: 22 }}>MMK {formatMMK(total)}</div></div>
+            <div className="metric"><div className="label">Total billed</div><div className="value tnum" style={{ fontSize: 22 }}>MMK {formatMMK(total)}</div></div>
             <div className="metric"><div className="label">Received</div><div className="value tnum" style={{ fontSize: 22, color: 'var(--ok)' }}>MMK {formatMMK(received)}</div></div>
             <div className="metric"><div className="label">Pending</div><div className="value tnum" style={{ fontSize: 22, color: 'oklch(0.55 0.16 75)' }}>MMK {formatMMK(pending)}</div></div>
             <div className="metric"><div className="label">Overdue</div><div className="value tnum" style={{ fontSize: 22, color: 'var(--bad)' }}>MMK {formatMMK(overdue)}</div></div>

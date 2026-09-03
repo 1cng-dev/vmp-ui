@@ -25,7 +25,7 @@ interface QuotesViewProps {
 const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, prefillRequestId, prefillRequestType }: QuotesViewProps) => {
   const { quotes, quotesLoading, addQuote, loadQuotes } = useQuoteStore()
   const { toast } = useUIStore()
-  const { refreshUser } = useAuthStore()
+  const { user } = useAuthStore()
   const [building, setBuilding] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [requestType, setRequestType] = useState<'vm' | 'addon'>('vm')
@@ -461,9 +461,6 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
     }
   }, [autoOpen, onAutoOpenReset])
 
-  useEffect(() => {
-    refreshUser()
-  }, [refreshUser])
 
   useEffect(() => {
     if (prefillCustomerId && prefillRequestId) {
@@ -1047,7 +1044,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                       billing_term: sheet.instance[0]?.term || 'Monthly',
                       discount_pct: sheet.discountPct,
                       currency: 'MMK',
-                      // created_by: user?.id,
+                      created_by: user?.id,
                       line_items: [
                         ...sheet.instance.map(l => ({ kind: 'instance', ...l })),
                         ...sheet.backup.map(l => ({ kind: 'backup', ...l })),
@@ -1096,7 +1093,7 @@ const QuotesView = ({ autoOpen = false, onAutoOpenReset, prefillCustomerId, pref
                       billing_term: sheet.instance[0]?.term || 'Monthly',
                       discount_pct: sheet.discountPct,
                       currency: 'MMK',
-                      // created_by: user?.id,
+                      created_by: user?.id,
                       line_items: [
                         ...sheet.instance.map(l => ({ kind: 'instance', ...l })),
                         ...sheet.backup.map(l => ({ kind: 'backup', ...l })),

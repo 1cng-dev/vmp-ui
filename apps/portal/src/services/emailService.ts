@@ -538,7 +538,7 @@ export async function sendKYCApprovalEmail(params: KYCApprovalEmailParams) {
 
   return await callResendAPI({
     to: params.to,
-    subject: 'KYC Approved - Account Fully Activated',
+    subject: 'Your KYC Verification Has Been Approved',
     html
   })
 }
@@ -554,30 +554,18 @@ function buildKYCApprovalEmailTemplate(params: KYCApprovalEmailParams): string {
         .container { max-width: 600px; margin: 0; padding: 20px; text-align: left; }
         .content { padding: 20px; text-align: left; }
         .footer { padding: 20px; text-align: left; font-size: 12px; color: #666; }
-        .info-box { margin: 20px 0; text-align: left; }
       </style>
     </head>
     <body>
       <div class="container">
         <div class="content">
-          <p>Dear Valued Customer,</p>
-          <p>Your KYC verification has been approved. Your account is now fully activated!</p>
-          <div class="info-box">
-            <p><strong>Customer Name:</strong> ${params.customerName}</p>
-            <p><strong>Approval Date:</strong> ${params.approvalDate}</p>
-          </div>
-          <p>You now have full access to all features including:</p>
-          <ul>
-            <li>Deploy Virtual Machines</li>
-            <li>Request Add-on Services</li>
-            <li>View Invoices and Make Payments</li>
-            <li>Access Customer Portal</li>
-          </ul>
-          <p>Log in to your account to start deploying your cloud infrastructure.</p>
-          <p>Our Portal: <a href="https://vmp.1cloudng.com">https://vmp.1cloudng.com</a></p>
+          <p style="margin-bottom: 24px;">Dear ${params.customerName || 'Valued Customer'},</p>
+          <p style="margin-bottom: 24px;">We are pleased to inform you that your KYC verification has been successfully approved.</p>
+          <p style="margin-bottom: 24px;">Your account is now verified, and you can access all applicable services and features within the 1CNG VM Management Portal.</p>
+          <p style="margin-bottom: 24px;">Thank you for completing the verification process.</p>
         </div>
         <div class="footer">
-          <p>Best Regards,<br>
+          <p>Best regards,<br>
           One Cloud Next-Gen Co., Ltd<br>
           support@system.1cloudng.com<br>
           <img src="https://i.ibb.co/3mxXtQ8d/logo.png" alt="Company Logo" style="width: 150px; height: auto; margin-top: 10px;"></p>
@@ -594,7 +582,7 @@ export async function sendKYCRejectionEmail(params: KYCRejectionEmailParams) {
 
   return await callResendAPI({
     to: params.to,
-    subject: 'KYC Verification - Action Required',
+    subject: 'Action Required: KYC Verification Rejected',
     html
   })
 }
@@ -610,24 +598,19 @@ function buildKYCRejectionEmailTemplate(params: KYCRejectionEmailParams): string
         .container { max-width: 600px; margin: 0; padding: 20px; text-align: left; }
         .content { padding: 20px; text-align: left; }
         .footer { padding: 20px; text-align: left; font-size: 12px; color: #666; }
-        .info-box { margin: 20px 0; text-align: left; }
       </style>
     </head>
     <body>
       <div class="container">
         <div class="content">
-          <p>Dear Valued Customer,</p>
-          <p>Your KYC documents could not be verified at this time. Please review the details below.</p>
-          <div class="info-box">
-            <p><strong>Customer Name:</strong> ${params.customerName}</p>
-            ${params.rejectionReason ? `<p><strong>Reason:</strong> ${params.rejectionReason}</p>` : ''}
-          </div>
-          <p>Please review your submitted documents and ensure they are clear and valid. You may need to resubmit your KYC documents with corrections.</p>
-          <p>If you have any questions or need assistance, please contact our support team.</p>
-          <p>Our Portal: <a href="https://vmp.1cloudng.com">https://vmp.1cloudng.com</a></p>
+          <p style="margin-bottom: 24px;">Dear ${params.customerName || 'Valued Customer'},</p>
+          <p style="margin-bottom: 24px;">Thank you for submitting your KYC verification documents.</p>
+          <p style="margin-bottom: 24px;">After reviewing your submission, we were unable to approve your KYC verification due to one or more issues with the provided information or documents.</p>
+          <p style="margin-bottom: 24px;">Please review and resubmit the necessary documents through the 1CNG VM Management Portal.</p>
+          <p style="margin: 0;">If you have any questions or require assistance, please contact our support team.</p>
         </div>
         <div class="footer">
-          <p>Best Regards,<br>
+          <p>Best regards,<br>
           One Cloud Next-Gen Co., Ltd<br>
           support@system.1cloudng.com<br>
           <img src="https://i.ibb.co/3mxXtQ8d/logo.png" alt="Company Logo" style="width: 150px; height: auto; margin-top: 10px;"></p>
@@ -644,7 +627,7 @@ export async function sendKYCReopenEmail(params: KYCReopenEmailParams) {
 
   return await callResendAPI({
     to: params.to,
-    subject: 'KYC Review Reopened',
+    subject: 'KYC Verification Reopened – Additional Information Required',
     html
   })
 }
@@ -660,24 +643,18 @@ function buildKYCReopenEmailTemplate(params: KYCReopenEmailParams): string {
         .container { max-width: 600px; margin: 0; padding: 20px; text-align: left; }
         .content { padding: 20px; text-align: left; }
         .footer { padding: 20px; text-align: left; font-size: 12px; color: #666; }
-        .info-box { margin: 20px 0; text-align: left; }
       </style>
     </head>
     <body>
       <div class="container">
         <div class="content">
-          <p>Dear Valued Customer,</p>
-          <p>Your KYC review has been reopened for further review.</p>
-          <div class="info-box">
-            <p><strong>Customer Name:</strong> ${params.customerName}</p>
-            <p><strong>Reopen Date:</strong> ${params.reopenDate}</p>
-          </div>
-          <p>Our team is reviewing your KYC documents again. You will receive another email notification once the review is complete.</p>
-          <p>If you have any questions or need assistance, please contact our support team.</p>
-          <p>Our Portal: <a href="https://vmp.1cloudng.com">https://vmp.1cloudng.com</a></p>
+          <p style="margin-bottom: 24px;">Dear ${params.customerName || 'Valued Customer'},</p>
+          <p style="margin-bottom: 24px;">Your KYC verification request has been reopened for further review.</p>
+          <p style="margin-bottom: 24px;">To continue the verification process, please log in to the VM Management Portal and provide the requested information or updated documents.</p>
+          <p style="margin: 0;">We appreciate your cooperation and look forward to completing the verification process.</p>
         </div>
         <div class="footer">
-          <p>Best Regards,<br>
+          <p>Best regards,<br>
           One Cloud Next-Gen Co., Ltd<br>
           support@system.1cloudng.com<br>
           <img src="https://i.ibb.co/3mxXtQ8d/logo.png" alt="Company Logo" style="width: 150px; height: auto; margin-top: 10px;"></p>
@@ -703,6 +680,7 @@ function buildProvisioningCompletedEmailTemplate(params: ProvisioningCompletedEm
   const isVMProvisioning = params.vmName !== undefined
   const isChangePlanRequest = params.requestType === 'Change Plan' || params.requestType === 'change-plan'
   const isRenewalRequest = params.requestType === 'Renewal' || params.requestType === 'renewal'
+  const isTrialToPaidRequest = params.requestType === 'Trial to Paid Conversion'
 
   const changePlanContent = `
           <p style="margin-bottom: 24px;">Dear Valued Customer,</p>
@@ -718,13 +696,27 @@ function buildProvisioningCompletedEmailTemplate(params: ProvisioningCompletedEm
           <p style="margin-bottom: 24px;">Please continue using the VM as usual. If you have any questions or require further assistance, please feel free to contact us.</p>
   `
 
+  const trialToPaidContent = `
+          <p style="margin-bottom: 24px;">Dear Valued Customer,</p>
+          <p style="margin-bottom: 24px;">We are pleased to inform you that the conversion of your VM from the trial service to the paid service has been successfully completed.</p>
+          <p style="margin-bottom: 24px;">VM Information:</p>
+          <div class="info-box">
+            <p><strong>VM Name:</strong> ${params.vmName}</p>
+            <p><strong>Service ID:</strong> ${params.vmLegacyId || '-'}</p>
+            <p><strong>IP Address:</strong> ${params.ipAddress || '-'}</p>
+            <p><strong>Conversion Date:</strong> ${new Date(params.completionDate).toLocaleDateString()}</p>
+          </div>
+          <p style="margin-bottom: 24px;">Your VM is now ready to use under the paid service.</p>
+          <p style="margin: 0;">If you require any assistance, please contact our support team.</p>
+  `
+
   const vmContent = `
           <p style="margin-bottom: 24px;">Dear Valued Customer,</p>
           <p style="margin-bottom: 24px;">We are pleased to inform you that the provisioning of your VM has been successfully completed.</p>
           <p style="margin-bottom: 24px;">VM Information:</p>
           <div class="info-box">
             <p><strong>VM Name:</strong> ${params.vmName}</p>
-            <p><strong>Service ID:</strong> ${params.serviceId || '-'}</p>
+            <p><strong>Service ID:</strong> ${params.vmLegacyId || '-'}</p>
             <p><strong>IP Address:</strong> ${params.ipAddress || '-'}</p>
             <p><strong>Provisioning Date:</strong> ${new Date(params.completionDate).toLocaleDateString()}</p>
           </div>
@@ -756,7 +748,7 @@ function buildProvisioningCompletedEmailTemplate(params: ProvisioningCompletedEm
     <body>
       <div class="container">
         <div class="content">
-          ${isChangePlanRequest ? changePlanContent : isRenewalRequest ? renewalContent : isVMProvisioning ? vmContent : addonContent}
+          ${isTrialToPaidRequest ? trialToPaidContent : isChangePlanRequest ? changePlanContent : isRenewalRequest ? renewalContent : isVMProvisioning ? vmContent : addonContent}
         </div>
         <div class="footer">
           <p>Best Regards,<br>

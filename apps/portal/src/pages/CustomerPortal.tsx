@@ -282,7 +282,12 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
       <div className="main">
         <div className="topbar">
           <div className="customer-notice">
-            <span className="customer-notice-text">
+            <span className="customer-notice-text" style={{
+              display: 'inline-block',
+              whiteSpace: 'nowrap',
+              animation: 'scrollText 90s linear infinite',
+              cursor: 'pointer'
+            }}>
               Customers are responsible for securing and managing their cloud workloads, including user access and credential management, VM firewall and security configurations, OS and application patching, data protection within the cloud workload, backup and recovery, and monitoring for suspicious activity.
               (1CNG is not responsible for issues or security incidents arising from customer-managed systems, applications, configurations, data, or credentials.)
             </span>
@@ -336,7 +341,8 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ setRole: _setRol
           </div>
         )}
 
-        <style>{`@keyframes slideDown { from { transform: translateY(-6px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }`}</style>
+        <style>{`@keyframes slideDown { from { transform: translateY(-6px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes scrollText { 0% { transform: translateX(100%); } 88.9% { transform: translateX(-100%); } 100% { transform: translateX(-100%); } }`}</style>
 
         {expiredVMs.length > 0 && !detailVm && view !== 'request' && safeMe.kyc_status === 'Approved' && (
           <div style={{ padding: '12px 28px', background: 'var(--bad-soft)', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 10 }}>

@@ -227,14 +227,8 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 .customer-notice {
   flex: 1;
   min-width: 0;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: hidden;
   white-space: nowrap;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-.customer-notice::-webkit-scrollbar {
-  display: none;
 }
 .customer-notice-text {
   display: inline-block;

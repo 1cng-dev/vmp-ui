@@ -36,38 +36,66 @@ const useTeamStore = (): TeamStoreValue => {
 
   const loadTeam = useCallback(async () => {
     setTeamLoading(true)
-    
+
     const MIN_LOADING_TIME = 400 // 400ms minimum loading time
     const startTime = Date.now()
-    
+
     const { data, error } = await supabase
       .from('team_members')
       .select('*')
       .order('created_at', { ascending: false })
-    
+
     if (error) {
       console.error('Failed to load team:', error)
       setTeamLoading(false)
       return
     }
-    
+
+    // Collect all unique invited_by IDs
+    const invitedByIds = new Set((data || []).map((m: any) => m.invited_by).filter(Boolean))
+
+    // Fetch all inviters from team_members table
+    const invitersMap = new Map()
+    if (invitedByIds.size > 0) {
+      const { data: inviters } = await supabase
+        .from('team_members')
+        .select('user_id, name, staff_code')
+        .in('user_id', Array.from(invitedByIds))
+      if (inviters) {
+        inviters.forEach((inviter: any) => {
+          invitersMap.set(inviter.user_id, inviter)
+        })
+      }
+    }
+
     // Map database fields to interface fields and format last_login_at
-    const mappedData = (data || []).map((member: any) => ({
-      ...member,
-      id: member.user_id,
-      last: member.last_login_at ? formatDate(member.last_login_at) : '-'
-    }))
-    
+    const mappedData = (data || []).map((member: any) => {
+      let invited_by_name = null
+      if (member.invited_by) {
+        const inviter = invitersMap.get(member.invited_by)
+        if (inviter) {
+          invited_by_name = `${inviter.name} (${inviter.staff_code})`
+        }
+      }
+
+      return {
+        ...member,
+        id: member.user_id,
+        last: member.last_login_at ? formatDate(member.last_login_at) : '-',
+        invited_by_name
+      }
+    })
+
     setTeam(mappedData)
-    
+
     // Ensure minimum loading time
     const elapsedTime = Date.now() - startTime
     const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime)
-    
+
     if (remainingTime > 0) {
       await new Promise(resolve => setTimeout(resolve, remainingTime))
     }
-    
+
     setTeamLoading(false)
   }, [])
 
@@ -141,11 +169,11 @@ const useTeamStore = (): TeamStoreValue => {
     if (user) {
       const { data: staff } = await supabase
         .from('team_members')
-        .select('name')
+        .select('name, staff_code')
         .eq('user_id', user.id)
         .single()
       if (staff) {
-        actorName = staff.name
+        actorName = `${staff.name} (${staff.staff_code})`
       } else {
         actorName = user.user_metadata?.name || user.email || 'System'
       }
@@ -183,11 +211,11 @@ const useTeamStore = (): TeamStoreValue => {
       if (user) {
         const { data: staff } = await supabase
           .from('team_members')
-          .select('name')
+          .select('name, staff_code')
           .eq('user_id', user.id)
           .single()
         if (staff) {
-          actorName = staff.name
+          actorName = `${staff.name} (${staff.staff_code})`
         } else {
           actorName = user.user_metadata?.name || user.email || 'System'
         }
@@ -222,11 +250,11 @@ const useTeamStore = (): TeamStoreValue => {
     if (user) {
       const { data: staff } = await supabase
         .from('team_members')
-        .select('name')
+        .select('name, staff_code')
         .eq('user_id', user.id)
         .single()
       if (staff) {
-        actorName = staff.name
+        actorName = `${staff.name} (${staff.staff_code})`
       } else {
         actorName = user.user_metadata?.name || user.email || 'System'
       }
@@ -261,11 +289,11 @@ const useTeamStore = (): TeamStoreValue => {
     if (user) {
       const { data: staff } = await supabase
         .from('team_members')
-        .select('name')
+        .select('name, staff_code')
         .eq('user_id', user.id)
         .single()
       if (staff) {
-        actorName = staff.name
+        actorName = `${staff.name} (${staff.staff_code})`
       } else {
         actorName = user.user_metadata?.name || user.email || 'System'
       }
