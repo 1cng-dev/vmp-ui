@@ -9,3 +9,4 @@ supabase/.temp/
 *.tsbuildinfo
 .vscode/
 .idea/
+apps/api/
