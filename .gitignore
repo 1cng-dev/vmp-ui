@@ -5,3 +5,7 @@ node_modules/
 dist/
 build/
 *.log
+supabase/.temp/
+*.tsbuildinfo
+.vscode/
+.idea/
