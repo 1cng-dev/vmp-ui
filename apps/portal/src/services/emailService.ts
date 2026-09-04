@@ -196,6 +196,7 @@ function buildVMRequestEmailTemplate(params: VMRequestEmailParams): string {
   const isNewVMRequest = params.vcpu !== undefined
   const isChangePlanRequest = params.currentPlan !== undefined
   const isRenewalRequest = params.requestType === 'Renewal' || params.requestType === 'renewal'
+  const isTrialToPaidRequest = params.requestType === 'Trial to Paid Conversion'
 
   const changePlanContent = `
           <p style="margin-bottom: 24px;">Dear Valued Customer,</p>
@@ -235,6 +236,14 @@ function buildVMRequestEmailTemplate(params: VMRequestEmailParams): string {
           <p style="margin-bottom: 24px;">If you have any questions or additional requirements, please feel free to contact us.</p>
   `
 
+  const trialToPaidContent = `
+          <p style="margin-bottom: 24px;">Dear ${params.customerName || 'Valued Customer'},</p>
+          <p style="margin-bottom: 24px;">Thank you for your request to convert your service from Trial to Paid.</p>
+          <p style="margin-bottom: 24px;">We have successfully received your request and our Finance Team will issue and share the invoice for the selected paid service plan. Service activation and billing will be processed in accordance with the applicable payment terms. Once the settlement process is completed, we will proceed with the service conversion and notify you accordingly.</p>
+          <p style="margin-bottom: 24px;">We appreciate your interest in continuing with our services and thank you for choosing our platform.</p>
+          <p style="margin: 0;">If you have any questions or require further assistance, please contact our support team.</p>
+  `
+
   const oldRequestContent = `
           <p>Dear Valued Customer,</p>
           <div class="info-box">
@@ -264,7 +273,7 @@ function buildVMRequestEmailTemplate(params: VMRequestEmailParams): string {
     <body>
       <div class="container">
         <div class="content">
-          ${isChangePlanRequest ? changePlanContent : isRenewalRequest ? renewalContent : isNewVMRequest ? newRequestContent : oldRequestContent}
+          ${isTrialToPaidRequest ? trialToPaidContent : isChangePlanRequest ? changePlanContent : isRenewalRequest ? renewalContent : isNewVMRequest ? newRequestContent : oldRequestContent}
         </div>
         <div class="footer">
           <p>Best Regards,<br>
